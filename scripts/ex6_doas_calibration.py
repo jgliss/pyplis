@@ -17,7 +17,7 @@ from os import getcwd
 save_path = join(getcwd(), "scripts_out")
 
 ### Set image base path
-img_path = "../data/piscope_etna_testdata/images/"
+img_path = "../test_data/piscope_etna_testdata/images/"
 
 ### Set plume background image 
 # this is the same image which is also used for example script NO

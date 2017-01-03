@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 save_path = join(getcwd(), "scripts_out")
 
 ### Set path where all images are located
-img_dir = "../data/piscope_etna_testdata/images/"
+img_dir = "../test_data/piscope_etna_testdata/images/"
 
 
 def perform_auto_cell_calib():

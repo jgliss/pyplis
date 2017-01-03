@@ -17,7 +17,7 @@ MAKE_STACK = False
 save_path = join(getcwd(), "scripts_out")
 
 ### Set path where all images are located
-img_dir = "../data/piscope_etna_testdata/images/"
+img_dir = "../test_data/piscope_etna_testdata/images/"
 
 offset_file = join(img_dir, "EC2_1106307_1R02_2015091607064723_D0L_Etnaxxxxxxxxxxxx.fts")
 dark_file = join(img_dir, "EC2_1106307_1R02_2015091607064865_D1L_Etnaxxxxxxxxxxxx.fts")
