@@ -89,4 +89,4 @@ ENV/
 .ropeproject
 
 # Data folder
-data/
+test_data/

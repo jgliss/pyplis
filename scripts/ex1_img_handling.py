@@ -5,7 +5,7 @@ PISCOPE example script 1 - Camera specification
 from os.path import join
 import piscope
 
-img_dir = "../data/piscope_etna_testdata/images/"
+img_dir = "../test_data/piscope_etna_testdata/images/"
 ecII_filename = "EC2_1106307_1R02_2015091607080439_F01_Etnaxxxxxxxxxxxx.fts"
 
 file_path = join(img_dir, ecII_filename)

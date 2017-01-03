@@ -16,7 +16,7 @@ Steps:
 """
 import piscope
 
-img_dir = "../data/piscope_etna_testdata/images/"
+img_dir = "../test_data/piscope_etna_testdata/images/"
 
 camId = "ecII"
 

@@ -26,7 +26,7 @@ save_path = join(getcwd(), "scripts_out")
 
 ### Define paths of example plume and background image
 # Image base path
-img_dir = "../data/piscope_etna_testdata/images/"
+img_dir = "../test_data/piscope_etna_testdata/images/"
 
 ### +++++++++++++++++++
 ### START OF INPUT AREA

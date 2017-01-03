@@ -18,7 +18,7 @@ from ex6_doas_calibration import do_doas_calibration
 save_path = join(getcwd(), "scripts_out")
 
 ### Directory containing images
-img_path = '../data/piscope_etna_testdata/images/'
+img_path = '../test_data/piscope_etna_testdata/images/'
 
 bg_file_on = join(img_path, 
                   'EC2_1106307_1R02_2015091607022602_F01_Etnaxxxxxxxxxxxx.fts')
