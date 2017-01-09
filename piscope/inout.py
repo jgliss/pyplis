@@ -17,7 +17,7 @@ def load_img_dummy():
         from piscope import _LIBDIR
     except:
         raise
-    return imread(join(_LIBDIR, "data/no_images_dummy.png"))
+    return imread(join(_LIBDIR, "data", "no_images_dummy.png"))
     
 def get_camera_info(cam_id):
     """Try access camera information from file "cam_info.txt" (package data)
@@ -32,7 +32,7 @@ def get_camera_info(cam_id):
         from piscope import _LIBDIR
     except:
         raise
-    with open(join(_LIBDIR, "data\\cam_info.txt")) as f:
+    with open(join(_LIBDIR, "data", "cam_info.txt")) as f:
         filters = []
         darkinfo = []
         found = 0
@@ -73,7 +73,7 @@ def get_all_valid_cam_ids():
     except:
         raise
     ids = []
-    with open(join(_LIBDIR, "data\\cam_info.txt")) as f:        
+    with open(join(_LIBDIR, "data", "cam_info.txt")) as f:        
         for line in f: 
             spl = line.split(":")
             if spl[0].strip().lower() == "cam_ids":
@@ -90,7 +90,7 @@ def get_cam_ids():
     except:
         raise
     ids = []
-    with open(join(_LIBDIR, "data\\cam_info.txt")) as f:        
+    with open(join(_LIBDIR, "data", "cam_info.txt")) as f:        
         for line in f: 
             spl = line.split(":")
             if spl[0].strip().lower() == "cam_id":
@@ -107,7 +107,7 @@ def get_source_ids():
     except:
         raise
     ids = []
-    with open(join(_LIBDIR, "data\\my_sources.txt")) as f:        
+    with open(join(_LIBDIR, "data", "my_sources.txt")) as f:        
         for line in f: 
             spl = line.split(":")
             if spl[0].strip().lower() == "name":
@@ -128,7 +128,7 @@ def get_source_info(source_id, try_online=1):
         raise
     dat = od()
     found = 0
-    with open(join(_LIBDIR, "data\\my_sources.txt")) as f:        
+    with open(join(_LIBDIR, "data", "my_sources.txt")) as f:        
         for line in f: 
             if "END" in line and found:
                 return od([(source_id , dat)])
@@ -217,9 +217,9 @@ def get_icon(name, color = None):
         raise
     subfolders = ["axialis", "myIcons"]
     for subf in subfolders:
-        base_path=join(_LIBDIR + "/data/icons/" + subf + "/") 
+        base_path = join(_LIBDIR, "data", "icons", subf) 
         if color is not None:
-            base_path = join(base_path + color + "/")
+            base_path = join(base_path, color)
         for file in listdir(base_path):
             fname = basename(file).split(".")[0]
             if fname == name:
