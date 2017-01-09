@@ -420,19 +420,21 @@ class Camera(CameraBaseInfo):
         super(Camera, self).__init__(cam_id, **kwargs)
         #specify the filters used in the camera and the main filter (e.g. On)        
         self.ser_no = ser_no #identifier of camera
-        self.geom_data = od([("lon"          ,   None),
-                             ("lat"          ,   None),
-                             ("altitude"     ,   None),
-                             ("azim"         ,   None),
-                             ("azim_err"     ,   None),
-                             ("elev"         ,   None),
-                             ("elev_err"     ,   None)])
+        self.geom_data = od([("lon"         ,   None),
+                             ("lat"         ,   None),
+                             ("altitude"    ,   None),
+                             ("azim"        ,   None),
+                             ("azim_err"    ,   None),
+                             ("elev"        ,   None),
+                             ("elev_err"    ,   None),
+                             ("alt_offset"  ,   0.0)])
                                
         self.filter_setup = None
   
         self.prepare_filter_setup(filter_list, default_filter_key_on,\
                                                     default_filter_key_off)
         self.update_geom_data(geom_data)
+        
     
         
     def update_geom_data(self, geom_info_dict):
