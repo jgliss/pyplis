@@ -57,9 +57,10 @@ class DoasFOV(object):
         raise NotImplementedError
         
     def draw(self):
+        """Draw the current FOV position into the current correlation img"""
         fig, axes = subplots(1, 1)
         
-        ax=axes[0]
+        ax = axes[0]
         ax.hold(True)
         img = self.corr_img.img
         vmin, vmax = img.min(), img.max()
