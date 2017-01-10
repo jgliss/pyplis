@@ -18,7 +18,11 @@ def load_img_dummy():
     except:
         raise
     return imread(join(_LIBDIR, "data", "no_images_dummy.png"))
-    
+
+def test_data_path():
+    """Try to find test data path"""
+    from piscope import _LIBDIR
+    all_paths
 def get_camera_info(cam_id):
     """Try access camera information from file "cam_info.txt" (package data)
     
