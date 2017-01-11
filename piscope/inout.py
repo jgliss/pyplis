@@ -31,7 +31,8 @@ def download_test_data(save_path = None):
         from progressbar import ProgressBar, Percentage, Bar, RotatingMarker,\
                                         ETA, FileTransferSpeed
     
-        widgets = ['Downloading piscope test data: ', Percentage(), ' ', Bar(marker=RotatingMarker()), ' ',\
+        widgets = ['Downloading piscope test data: ', Percentage(), ' ',\
+                       Bar(marker=RotatingMarker()), ' ',\
                         ETA(), ' ', FileTransferSpeed()]
         pbar = ProgressBar(widgets = widgets)
         def dl_progress(count, block_size, total_size):

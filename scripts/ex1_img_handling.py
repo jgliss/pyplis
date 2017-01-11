@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-PISCOPE example script 1 - Camera specification
+piscope example script 1 - Image import
 """
 from os.path import join
 import piscope
@@ -11,14 +11,10 @@ save_path = join(getcwd(), "scripts_out")
 
 # Image base path
 img_dir = join(piscope.inout.find_test_data(), "images")
-
-if not exists(img_dir):
-    raise IOError("Failed to access test data")
     
-ecII_filename = "EC2_1106307_1R02_2015091607080439_F01_Etnaxxxxxxxxxxxx.fts"
+img_file_name = "EC2_1106307_1R02_2015091607080439_F01_Etna.fts"
 
-file_path = join(img_dir, ecII_filename)
-### specify camera type (ECII)
+file_path = join(img_dir, img_file_name)
 
 # This also includes information about what image meta data can be extracted
 # from file names
