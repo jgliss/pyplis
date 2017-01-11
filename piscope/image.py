@@ -398,6 +398,7 @@ class Img(object):
     
     @property
     def shape(self):
+        """Return shape of image data"""
         return self.img.shape
     
     @property    
@@ -566,8 +567,25 @@ class Img(object):
                 newlabels.append('%.1E' % Decimal(labels[k].get_text()))
             ax.set_xticklabels(newlabels)
         ax.grid()
-      
+    
+    def info(self):
+        """Image info (prints string representation)"""
+        print self.__str__
+        
     """MAGIC METHODS"""
+    def __str__(self):
+        """String representation"""
+        s = "piscope Img\n--------------\n\n"
+        s += "Shape: %s\n" %str(self.shape)
+        s += "Min / Max intensity: %s - %s\n" %(self.min(), self.max())
+        s += "\nMeta information\n-----------------------------\n"
+        for k, v in self.meta.iteritems():
+            s += "%s: %s\n" %(k, v)
+        s += "\nEdit log\n-----------------------------\n"
+        for k, v in self.edit_log.iteritems():
+            s += "%s: %s\n" %(k, v)
+        return s
+            
     def __call__(self):
         """Return image numpy array on call"""
         return self.img

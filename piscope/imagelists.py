@@ -590,10 +590,8 @@ class BaseImgList(object):
         
     def show_current(self):
         """Show the current image"""
-        try:
-            self.current_img().show()
-        except:
-            print "Image could not be displayed"
+        return self.current_img().show()
+        
             
     def goto_img(self, num):
         """Go to a specific image
@@ -1424,6 +1422,7 @@ class ImgList(BaseImgList):
             img = self.bg_model.get_tau_image(img)
         if self.aa_mode:
             off = self.get_off_list()
+            print "CFN ON / OFF: %s / %s" %(self.cfn, off.cfn)
             img = self.bg_model.get_aa_image(img, off.current_img(),\
                                                 self.bg_img, off.bg_img)
         img.pyr_down(self.img_prep["pyrlevel"])

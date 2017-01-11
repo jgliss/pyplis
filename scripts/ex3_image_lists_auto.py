@@ -1,12 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-PISCOPE example script
-
-Automatic cell from cell calibration time window
-
-User todo's:
-
-    1. Set ``img_dir`` to a local folder which contains image files
+piscope example script 3 - Automatic creation of image lists
     
 Steps:
     
@@ -15,8 +9,14 @@ Steps:
     
 """
 import piscope
+from os.path import join
+from os import getcwd
 
-img_dir = "../test_data/piscope_etna_testdata/images/"
+### Set save directory for figures
+save_path = join(getcwd(), "scripts_out")
+
+# Image base path
+img_dir = join(piscope.inout.find_test_data(), "images")
 
 camId = "ecII"
 
