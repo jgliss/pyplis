@@ -441,7 +441,8 @@ class MeasGeometry(object):
         return True
         
     def correct_viewing_direction(self, x_det, y_det, update = True, obj_id =\
-            "", geo_point = None, lon_pt = None, lat_pt = None, alt_pt = None, draw_result = False):
+            "", geo_point = None, lon_pt = None, lat_pt = None, alt_pt = None,\
+            draw_result = False):
         """Retrieve camera viewing direction from point in image
         
         Uses the geo coordinates of a characteristic point in the image (e.g.
@@ -534,8 +535,19 @@ class MeasGeometry(object):
                                                         to_square = True)
             if isinstance(stp.topo_data, TopoData):
                 stp.load_topo_data()
-                
-        return elev_cam, az_cam, geom_old
+        map = None
+        if draw_result:
+            map = self.draw_map_2d(draw_fov=False)
+            map.draw_geo_vector_2d(self.cam_view_vec,\
+                                    label = "cam cfov (corrected)")
+            self.draw_azrange_fov_2d(map, poly_id= "fov (corrected)")
+            view_dir_vec_old = geom_old.geo_setup.vectors["cfov"]
+            view_dir_vec_old.name = "cfov_old"
+            
+            map.draw_geo_vector_2d(view_dir_vec_old,\
+                                label = "cam cfov (initial)")
+            map.legend()
+        return elev_cam, az_cam, geom_old, map
     
     def calculate_pixel_col_distances(self):
         """Determine pix to pix distances for all pix cols on the detector
@@ -633,7 +645,8 @@ class MeasGeometry(object):
             m.legend()
         return m
 
-    def draw_azrange_fov_2d(self, m, fc = "lime", ec = "none", alpha = 0.15):
+    def draw_azrange_fov_2d(self, m, fc = "lime", ec = "none", alpha = 0.15,\
+                                                            poly_id = "fov"):
         """Insert the camera FOV in a 2D map
         
         :param geonum.mapping.Map m: the map object
@@ -646,7 +659,8 @@ class MeasGeometry(object):
         pl = self.cam_pos.offset(azimuth = coords["azim_left"], dist_hor = l)
         pr = self.cam_pos.offset(azimuth = coords["azim_right"], dist_hor = l)
         pts = [self.cam_pos, pl, pr]
-        m.add_polygon_2d(pts, poly_id = "fov", fc = fc, ec = ec, alpha = alpha)
+        m.add_polygon_2d(pts, poly_id = poly_id, fc = fc, ec = ec,\
+                                                            alpha = alpha)
         
     def draw_map_3d(self, draw_cam = True, draw_source = True, draw_plume =\
             True, draw_fov = True, ax = None, **kwargs):
