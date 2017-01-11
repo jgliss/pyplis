@@ -13,6 +13,7 @@ from numpy import nan, arctan, deg2rad, linalg, sqrt, abs, array, radians,\
     sin, cos, arcsin, tan, rad2deg, zeros, linspace, isnan, asarray, ones
 from collections import OrderedDict as od
 from matplotlib.pyplot import figure
+from copy import deepcopy
 
 from piscope import GEONUMAVAILABLE
 if GEONUMAVAILABLE:
@@ -439,8 +440,8 @@ class MeasGeometry(object):
             return False
         return True
         
-    def correct_viewing_direction(self, x_det, y_det, update = True,\
-                    obj_id = "", lon_pt = None, lat_pt = None, alt_pt = None):
+    def correct_viewing_direction(self, x_det, y_det, update = True, obj_id =\
+            "", geo_point = None, lon_pt = None, lat_pt = None, alt_pt = None, draw_result = False):
         """Retrieve camera viewing direction from point in image
         
         Uses the geo coordinates of a characteristic point in the image (e.g.
@@ -456,70 +457,85 @@ class MeasGeometry(object):
             ``self.geo_setup`` will be updated accordingly
         :param str obj_id: string ID of object, if this object is available
             as :class:`GeoPoint` in ``self.geo_setup`` then the corresponding 
-            coordinates will be used, if not, please provide the coords using
-            the following 3 input params
+            coordinates will be used, if not, please provide the position of 
+            the characteristic point either using :param:`geo_point` or by providing 
+            its coordinates using params lat_pt, lon_pt, alt_pt
+        :param GeoPoint geo_point: geo point object of characteristic point
         :param float lon_pt: longitude of characteristic point
         :param float lat_pt: latitude of characteristic point
         :param float alt_pt: altitude of characteristic point (unit m)
+        
+        :returns:
+            - float, retrieved camera elevation
+            - float, retrieved camera azimuth
+            - MeasGeometry, initial state of this object, a deepcopy of this 
+                class, before changes where applied (if they were applied, see
+                also :param:`update`)
         """
-        try:
-            if obj_id in self.geo_setup.points:
-                obj_pos = self.geo_setup.points[obj_id]
-            else:
-                try:
-                    obj_pos=GeoPoint(lat_pt, lon_pt, alt_pt, name = obj_id)
-                    self.geo_setup.add_geopoint(obj_pos)
-                except:
-                    print "Failed to get coordinates of input point..."
-                    return False
-            #get the angular differnce of the object position to CFOV of camera
-            del_az, del_elev = self.get_angular_displacement_pix_to_cfov(\
-                                                                x_det, y_det)
-            print "Angular x displacement of obj on detector: " + str(del_az)
-            print "Angular y displacement of obj on detector: " + str(del_elev)
-            camPos = self.geo_setup.points["cam"]
-            v = obj_pos - camPos
-            print "Cam / Object vector info:"
-            print v
-            azObj = (v.azimuth + 360)%360
-            elevObj = v.elevation#rad2deg(arctan(delH/v.magnitude/1000))#the true elevation of the object
-            print "Elev object: ", elevObj
-            elevCam = elevObj + del_elev
-            azCam = azObj - del_az
-            print ("Current Elev / Azim cam CFOV: " + str(self.cam["elev"]) + " / " + str(self.cam["azim"]))
-            print ("New Elev / Azim cam CFOV: " + str(elevCam) + " / " + str(azCam))
-            if update:
-                self.cam["elev"] = elevCam
-                self.cam["azim"] = azCam
-                stp = self.geo_setup
-                plume_vec = stp.vectors["plume_vec"]
-                #new vector representing the camera center pixel viewing direction (CFOV),
-                #anchor at camera position
-                cam_view_vec = GeoVector3D(azimuth = self.cam["azim"],\
-                    elevation = self.cam["elev"], dist_hor = stp.magnitude,\
-                                                anchor = camPos, name = "cfov")
-                #horizontal intersection of plume and viewing direction
-                offs = plume_vec.intersect_hor(cam_view_vec)
-                #Geopoint at intersection
-                p3 = stp.points["source"] + offs
-                p3.name = "intersect"
+        geom_old = deepcopy(self)
+        if obj_id in self.geo_setup.points:
+            obj_pos = self.geo_setup.points[obj_id]
+        elif isinstance(geo_point, GeoPoint):
+            obj_pos = geo_point
+            self.geo_setup.add_geopoint(obj_pos)
+        else:
+            try:
+                obj_pos = GeoPoint(lat_pt, lon_pt, alt_pt, name = obj_id)
+                self.geo_setup.add_geopoint(obj_pos)
+            except:
+                raise IOError("Invalid input, characteristic point for "
+                    "retrieval of viewing direction could not be extracted"
+                    "from input params..")
                 
-                #Delete the old stuff
-                stp.delete_geo_vector("cfov")
-                stp.delete_geo_point("intersect")
-                stp.delete_geo_point("ll")
-                stp.delete_geo_point("tr")
-                #and write the new stuff
-                stp.add_geo_point(p3)
-                stp.add_geo_vector(cam_view_vec)
-                stp.set_borders_from_points(extend_km = self._map_extend_km(),\
-                                                            to_square = True)
-                if isinstance(stp.topo_data, TopoData):
-                    stp.load_topo_data()
-                    
-            return elevCam, azCam
-        except:
-            raise
+        #get the angular differnce of the object position to CFOV of camera
+        del_az, del_elev = self.get_angular_displacement_pix_to_cfov(\
+                                                            x_det, y_det)
+        print "Angular x displacement of obj on detector: " + str(del_az)
+        print "Angular y displacement of obj on detector: " + str(del_elev)
+        camPos = self.geo_setup.points["cam"]
+        v = obj_pos - camPos
+        print "Cam / Object vector info:"
+        print v
+        az_obj = (v.azimuth + 360)%360
+        elev_obj = v.elevation#rad2deg(arctan(delH/v.magnitude/1000))#the true elevation of the object
+        print "Elev object: ", elev_obj
+        elev_cam = elev_obj + del_elev
+        az_cam = az_obj - del_az
+        print ("Current Elev / Azim cam CFOV: " + 
+            str(self.cam["elev"]) + " / " + str(self.cam["azim"]))
+        print ("New Elev / Azim cam CFOV: " + str(elev_cam) + " / " + 
+                                                            str(az_cam))
+        
+        if update:
+            self.cam["elev"] = elev_cam
+            self.cam["azim"] = az_cam
+            stp = self.geo_setup
+            plume_vec = stp.vectors["plume_vec"]
+            #new vector representing the camera center pixel viewing direction (CFOV),
+            #anchor at camera position
+            cam_view_vec = GeoVector3D(azimuth = self.cam["azim"],\
+                elevation = self.cam["elev"], dist_hor = stp.magnitude,\
+                                            anchor = camPos, name = "cfov")
+            #horizontal intersection of plume and viewing direction
+            offs = plume_vec.intersect_hor(cam_view_vec)
+            #Geopoint at intersection
+            p3 = stp.points["source"] + offs
+            p3.name = "intersect"
+            
+            #Delete the old stuff
+            stp.delete_geo_vector("cfov")
+            stp.delete_geo_point("intersect")
+            stp.delete_geo_point("ll")
+            stp.delete_geo_point("tr")
+            #and write the new stuff
+            stp.add_geo_point(p3)
+            stp.add_geo_vector(cam_view_vec)
+            stp.set_borders_from_points(extend_km = self._map_extend_km(),\
+                                                        to_square = True)
+            if isinstance(stp.topo_data, TopoData):
+                stp.load_topo_data()
+                
+        return elev_cam, az_cam, geom_old
     
     def calculate_pixel_col_distances(self):
         """Determine pix to pix distances for all pix cols on the detector
@@ -840,6 +856,20 @@ class MeasGeometry(object):
     """
     Magic methods (overloading)
     """
+    def __str__(self):
+        """String representation of this object"""
+        s = "piscope MeasGeometry object\n##################################\n"
+        s += "\nCamera specifications\n-------------------\n"
+        for k, v in self.cam.iteritems():
+            s += "%s: %s\n" %(k, v)
+        s += "\nSource specifications\n-------------------\n"
+        for k, v in self.source.iteritems():
+            s += "%s: %s\n" %(k, v)
+        s += "\nWind specifications\n-------------------\n"
+        for k, v in self.wind.iteritems():
+            s += "%s: %s\n" %(k, v)
+        return s
+            
     def __call__(self, item):
         """Return class attribute with a specific name
         

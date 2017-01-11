@@ -1,53 +1,57 @@
-Preface
--------
+piscope is a Python toolbox for the analysis of UV SO2 camera data. piscope includes a large collection of routines for the analysis of such data including:
 
-piSCOPE is a Python library for the analysis of image data from UV SO2 cameras (and other scientific cameras working on the same measurement principle). Such cameras are ususally pointed into the emission plume of a located source emitter (e.g. volcanoes, power plants, ships) in order to measure SO2 emission rates of the source. The measurement principle is based on absorption spectroscopy of scattered sunlight in the ultraviolet wavelength range below 340 nm. Such cameras usually measure in two wavelength bands (of about 10 nm width) using optical bandpass filters. One filter (SO2 on band) is situated around 310 nm where SO2 shows distsinct absorption features and one around 330 nm where SO2 absorption is weak. Optical densities (ODs) of the plume :math:`\tau = \ln\left(\frac{I_0}{I}\right)` are retrieved relative to the sky background intensity :math:`I_0` in each image pixel. The on band ODs are dominated by SO2 absorption but may also include further optical densities, for instance due to aerosole scattering in the plume. The latter phenomenon is of broadband nature (as other scattering phenomena) and can be corrected for by using the off band ODs and determining the apparent absorbance of SO2:
+  1. Several routines for plume background estimations
+  #. Automatic cell calibration 
+  #. DOAS calibration routine including two methods to identify the field of view of a DOAS instrument within the camera images
+  #. Plume velocity retrieval either based on an optical flow analysis or using signal cross correlation
+  #. Detailed analysis of the measurement geometry including automised retrieval of distances to the emission plume and / or to topographic features in the camera images (on a pixel basis)
+  #. Routine for image based light dilution correction
+  #. Basic GUI features (e.g. Image viewier; dialog for measurement setup)
 
-.. math::
+Requirements
+------------
 
-  \tau_\text{AA} = \tau_{\text{on}}\,-\,\tau_{\text{off}} = \ln\left(\frac{I_0}{I}\right)_{\text{on}}-\ln\left(\frac{I_0}{I}\right)_{\text{off}}
+Requirements are listed in the order of likelyhood to run into problems when using pip for installing them (on Windows machines you may use the pre-compiled binary wheels on Christoph Gohlke's `webpage <http://www.lfd.uci.edu/~gohlke/pythonlibs/>`_)
+
+  - numpy >= 1.11.0
+  - scipy >= 0.17.0
+  - opencv (cv2) >= 2.4.11
+  - Pillow (PIL fork) >= 3.3.0 (installs scipy.misc.pilutil)
+  - astropy >= 1.0.3
+  - geonum >= 1.0.0
+    - latlon >= 1.0.2
+    - srtm.py >= 0.3.2
+    - pyproj  >= 1.9.5.1
+  - pandas >= 0.16.2
+  - matplotlib >= 1.4.3
+
+**Optional dependencies (to use extra features)**
+
+  - pydoas >= 1.0.0
+  - PyQt4 >= 4.11.3 (for GUI features)
+  - scikit-image (skimage) >= 0.11.3 (for blob detection in optical flow analysis)
+  -
   
-:math:`\tau_\text{AA}` images are converted into SO2 column density (CD) images where 
 
-.. math::
+We recommend using `Anaconda <https://www.continuum.io/downloads>`_ for package management since it includes most of the required dependencies and is updated on a regular basis. Furthermore, it is probably the easiest way to postinstall and upgrade dependencies such as OpenCV (`see here <http://stackoverflow.com/questions/23119413/how-to-install-python-opencv-through-conda>`_) or the scipy stack.
 
-  S_{SO2}(i,j)=\int_{\mathcal{S}} c(x,y,z) ds 
+Installation
+------------
 
-denotes the SO2 column density along the viewing direction :math:`\mathcal{S}` of image pixel :math:`(i,j)`, and :math:`c(x,y,z)` is the concentration distribution of SO2.
+piscope can be installed from source by downloading and extracting the latest release. After navigating to the source folder (where the setup.py file is located), call::
 
-Emission rates are retrieved by integrating the SO2 CDs along a plume cross section line :math:`\bm{\ell}` which should stand approximately perpendicular to the plume propagation direction in the image and should cover a whole plume cross section. The emission rate :math:`\Phi` through :math:`\bm{\ell}` is then determined by multiplication of the integrated columns with the orjected plume speeds :math:`\bm{\bar{v}}_{ij}` along 
-:math:`\bm{\ell}`:
-    
-.. math::
-
-  \Phi=f^{-1}\sum_{m=1}^{M}S_\text{SO2}(m)\cdot\left\langle\bm{\bar{v}}_{ij}(m)\cdot\bm{\hat{n}}(m)\right\rangle\cdot d_\text{pl}(m)\cdot\Delta s(m)
+  python setup.py install
   
-where *m* denotes one of a total of *M* sample positions along :math:`\bm{\ell}` in the image plane. :math:`\Delta s` is the integration step (measured in physical distances on the detector). *f* is the focal length of the camera, :math:`d_\text{pl}` the plume distance and :math:`\bm{\hat{n}}` is the normal of :math:`\bm{\ell}`. The integration step :math:`\Delta s` as well as the plume distances :math:`d_\text{pl}` can be derived from the measurement geometry and require a minimum information about camera and source position, viewing direction, optics and meteorological wind direction. Plume speeds are usually retrieved from the images directly either using cross correlation based methods or motion estimation algorithms, for instance dense optical flow algorithms.
+If the installation fails make sure, that all dependencies (see above) are installed correctly. piscope is tested for Python 2.7.
 
-piSCOPE is designed in a modular architecture and includes routines for all required analysis steps related to emission rate retrievals. The basic datastructure is organised in a hierarchical structure:
+Instructions and code documentation
+-----------------------------------
 
-.. thumbnail::  ../data/illustrations/flowchart_setup.png
-   
-   Flowchart of basic data structure including setup classes (light orange), Dataset classes (light blue) and image list classes (light green) and required meta information (white)
+Coming soon ...
 
-They include:
+Getting started
+---------------
 
-  1. Setup classes including / defining measurement meta information (:mod:`piscope.setupclasses`)
-  #. The Dataset object (:class:`piscope.dataset.Dataset`, note that the :class:`piscope.calibration.CellCalib` inherits from Dataset and can be used as such)
-  #. Image list objects (:mod:`piscope.imglists`)
-  #. The Img object (:class:`piscope.image.Img`)
+After installation try running the example scripts, which also provides an easy start into the functionality of piscope.
 
-
-The most important analysis routines are organised in the following modules:
-
-  1. Detailed analysis of measurement geometry (:mod:`piscope.geometry`)
-  #. Engines to perform camera calibration (:mod:`piscope.calibration`) including functionality for DOAS FOV search(:mod:`piscope.doasfov`)
-  #. Plume speed analysis using optical flow or cross correlation method (:mod:`piscope.plumespeed`)
-  
-    
-  
-.. todo::
-
-  1. Insert flowcharts for basic data structure
-  2. Insert 2D / 3D sketch of measurement setup 
 

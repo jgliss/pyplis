@@ -87,3 +87,6 @@ ENV/
 
 # Rope project settings
 .ropeproject
+
+# Test data folder
+piscope/data/piscope_etna_testdata

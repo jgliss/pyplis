@@ -12,7 +12,6 @@ Welcome to piSCOPE's documentation!
    :maxdepth: 3
    
    intro
-   exemplary_output
    code_lib
    code_gui
 

@@ -7,10 +7,16 @@ here = abspath(dirname(__file__))
 
 with open(join(here,'README.rst'), encoding = 'utf-8') as file:
     readme = file.read()
+
+with open("VERSION.rst") as f:
+    version = f.readline()
+    f.close()
+    
+with open(join("piscope","data", "_paths.txt"), 'w'): pass
     
 setup(
     name        =   'piscope',
-    version     =   '0.0.1.dev1',
+    version     =   version,
     author      =   'Jonas Gliss',
     author_email=   'jg@nilu.no',
     license     =   'GPLv3+',

@@ -4,22 +4,122 @@ I/O routines for external data access
 -------------------------------------
 """
 from dill import load
-from os.path import join, basename
-from os import listdir
+from os.path import join, basename, exists, normpath
+from os import listdir, remove
 
 from matplotlib.pyplot import imread
 from urllib2 import urlopen
 from collections import OrderedDict as od
+from traceback import format_exc
+
+def download_test_data(save_path = None):
+    """Download piscope test data from
+    
+    :param save_path: location where path is supposed to be stored
+    
+    Code for progress bar was "stolen" `here <http://stackoverflow.com/
+    questions/11143767/how-to-make-a-download-with>`_ 
+    (last access date: 11/01/2017)
+    -progress-bar-in-python
+    
+    """
+    from piscope import _LIBDIR
+    from zipfile import ZipFile
+    from urllib import urlretrieve
+    from tempfile import mktemp
+    try:
+        from progressbar import ProgressBar, Percentage, Bar, RotatingMarker,\
+                                        ETA, FileTransferSpeed
+    
+        widgets = ['Downloading piscope test data: ', Percentage(), ' ', Bar(marker=RotatingMarker()), ' ',\
+                        ETA(), ' ', FileTransferSpeed()]
+        pbar = ProgressBar(widgets = widgets)
+        def dl_progress(count, block_size, total_size):
+            if pbar.maxval is None:
+                pbar.maxval = total_size
+                pbar.start()
+            pbar.update(min(count*block_size, total_size))
+            
+        prog_ok = True
+        
+    except:
+        print ("Failed to initiate progress bar for test data download, error "
+        " msg: %s " %format_exc())
+        prog_ok = False
+    
+    if save_path is None or not exists(save_path):
+        save_path = join(_LIBDIR, "data")
+        print "save path unspecified"
+    else:
+        with open(join(_LIBDIR, "data", "_paths.txt"), "a") as f:
+            f.write("\n" + save_path  + "\n")
+            print ("Adding new path for test data location in "
+                    "file _paths.txt: %s" %save_path)
+            f.close()
+        
+    print "installing test data at %s" %save_path
+    
+    url = 'https://folk.nilu.no/~gliss/piscope_testdata/piscope_etna_testdata.zip'
+    
+    filename = mktemp('.zip')
+    if prog_ok:
+        name, hdrs = urlretrieve(url, filename, reporthook = dl_progress)
+        pbar.finish()
+    else:
+        print "Downloading piscope test data... (please wait)"
+        name, hdrs = urlretrieve(url, filename)
+    thefile = ZipFile(filename)
+    print "Extracting data at: %s (this may take a while)" %save_path
+    thefile.extractall(save_path)
+    thefile.close()
+    remove(filename)
+    print ("Download successfully finished, deleting temporary data file at: %s"
+        %filename)
 
 def load_img_dummy():
     """Load image dummy as numpy array"""
     from piscope import _LIBDIR
     return imread(join(_LIBDIR, "data", "no_images_dummy.png"))
 
-def download_test_data(to_path = None):
-    from piscope import _LIBDIR    
-    if to_path is None:
-        to_path = join()
+def find_test_data():
+    """Searches location of test data folder"""
+    from piscope import _LIBDIR
+    data_path = join(_LIBDIR, "data")
+    folder_name = "piscope_etna_testdata"
+    if folder_name in listdir(data_path):
+        print "Found test data at default location: %s" %data_path
+        return join(data_path, folder_name)
+    with open(join(data_path, "_paths.txt"), "r") as f:
+        lines = f.readlines()
+        for line in lines:
+            p = line.split("\n")[0]
+            if exists(p) and folder_name in listdir(p):
+                print "Found test data at default location: %s" %p
+                f.close()
+                return join(p, folder_name)
+    raise IOError("piscope test data could not be found, please download"
+        "testdata first, using method piscope.inout.download_test_data")
+    
+def set_test_data_path(save_path):
+    """Set local path where test data is stored"""
+    from piscope import _LIBDIR
+    try:
+        if not exists(save_path):
+            raise IOError("Could not set test data path: specified location "
+                "does not exist: " %save_path)
+        with open(join(_LIBDIR, "data", "_paths.txt"), "a") as f:
+            f.write("\n" + save_path  + "\n")
+            print ("Adding new path for test data location in "
+                    "file _paths.txt: %s" %save_path)
+            f.close()
+        if not "piscope_etna_testdata" in listdir(join(_LIBDIR, "data")):
+            print ("WARNING: test data folder (name: piscope_etna_testdata) "
+                "could not be  found at specified location, please download "
+                "test data, unzip and save at: %s" %save_path)
+    except:
+        raise
+        
+        
 def get_camera_info(cam_id):
     """Try access camera information from file "cam_info.txt" (package data)
     
