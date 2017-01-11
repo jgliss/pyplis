@@ -1,26 +1,27 @@
 # -*- coding: utf-8 -*-
 """
-Created on Thu Nov 03 15:04:08 2016
+piscope example script 2
 
-@author: jg
+Introduction into ImgList objects and illustration of some features
 """
 
 import piscope
-from os.path import join, isfile
-from os import listdir
-from os import getcwd
+from matplotlib.pyplot import subplots
 
-### OPTIONS
-MAKE_STACK = False
+from os.path import join, isfile
+from os import getcwd, listdir
 
 ### Set save directory for figures
 save_path = join(getcwd(), "scripts_out")
 
-### Set path where all images are located
-img_dir = "../test_data/piscope_etna_testdata/images/"
+# Image base path
+img_dir = join(piscope.inout.find_test_data(), "images")
 
-offset_file = join(img_dir, "EC2_1106307_1R02_2015091607064723_D0L_Etnaxxxxxxxxxxxx.fts")
-dark_file = join(img_dir, "EC2_1106307_1R02_2015091607064865_D1L_Etnaxxxxxxxxxxxx.fts")
+### OPTIONS
+MAKE_STACK = True
+
+offset_file = join(img_dir, "EC2_1106307_1R02_2015091607064723_D0L_Etna.fts")
+dark_file = join(img_dir, "EC2_1106307_1R02_2015091607064865_D1L_Etna.fts")
 
 ### Now get all images in the image path which are FITS files (actually all)
 all_paths = [join(img_dir, f) for f in listdir(img_dir) if\
@@ -49,19 +50,22 @@ on_list.pyrlevel = 2
 on_list.set_dark_corr_mode(1)
 on_list.add_gaussian_blurring(1)
 on_list.goto_img(100)
-on_list.show_current()
+
+ax = on_list.show_current()
+ax.set_title("Cropped and size reduced image")
+ax.figure.savefig(join(save_path, "ex2_out_1.png"))
 #on_list.roi
 ### Load all images into a stack 
 # (note that they are size reduced by factor 8)
 if MAKE_STACK:
-    stack = on_list.make_stack(pyrlevel = 2)
+    stack = on_list.make_stack()
+    fig, ax2 = subplots(1,1)
+    series = stack.get_time_series(pos_x = 200, pos_y = 100, radius = 10)
+    series.plot(style = " x")
+    ax2.set_title("Intensity time series of all onband images "
+        "(piscope testdata)\nRetrieved at")
     
-    print stack.shape
-    
-    series = stack.get_time_series(pos_x=200, pos_y=100, radius =10)
-    ax = series.plot()
-    
-    ax.figure.savefig(join(save_path, "ex2_stack_tseries_on_all.png"))
+    fig.savefig(join(save_path, "ex2_out_2.png"))
     
 
 

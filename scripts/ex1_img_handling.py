@@ -5,27 +5,24 @@ piscope example script 1 - Image import
 from os.path import join
 import piscope
 from os import getcwd
-from os.path import exists
+
 ### Set save directory for figures
 save_path = join(getcwd(), "scripts_out")
 
-# Image base path
-img_dir = join(piscope.inout.find_test_data(), "images")
-    
-img_file_name = "EC2_1106307_1R02_2015091607080439_F01_Etna.fts"
+#fake filename with delimiter _ and encrypted information (see below) 
+img_file_name = "test_201509160708_F01_0.3348.fts"
 
-file_path = join(img_dir, img_file_name)
+file_path = join(piscope._LIBDIR, "data", img_file_name)
 
-# This also includes information about what image meta data can be extracted
-# from file names
-cam = piscope.setup.Camera("ecII")
+# Create new Camera class
+cam = piscope.setup.Camera()
+cam.delim = "_"
+cam.time_info_pos = 1
+cam.time_info_str = "%Y%m%d%H%M" #datetime conversion string
+cam.filter_id_pos = 2
+cam.texp_pos = 3
 
-### Extract image meta info from the image specified above
-# In case of the ECII camera naming convention, the acquisition time and a 
-# filter acronym is encrypted within the file names. A sub string for defining
-# a meas type does not exist in this convention and it is hence set to the
-# filter ID position in the file name (i.e. meas_type and filter_id are 
-# identical)
+### Extract image meta info from the image filename specified
 start_acq, filter_id, meas_type, texp, warnings =\
             cam.get_img_meta_from_filename(file_path)
 
@@ -35,12 +32,8 @@ print "Exposure time [s]: %s"  %texp
 print "Filter ID: %s" %filter_id
 print "Meas type: %s" %meas_type
 
-### Load image object and include the extracted acquisition time in Img meta header
-meta_dict = {"start_acq"    : start_acq,
-             "texp"         : texp}
-             
-#img = piscope.image.Img(file_path,  **meta_dict)
 img = piscope.image.Img(file_path, start_acq = start_acq, texp = texp)
 ### Show image
 img.show()
+print img
 

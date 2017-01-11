@@ -1,20 +1,19 @@
 # -*- coding: utf-8 -*-
-from numpy import float, empty, unravel_index,min,arange,ogrid,asarray,\
-         nanargmax, where, isnan, logical_or, floor, log10, abs, zeros,\
+from numpy import float, unravel_index,min,arange,ogrid,asarray,\
+         nanargmax, zeros,\
          inf, transpose, linspace, remainder, column_stack, ones,\
          meshgrid, exp, sin, cos, finfo, pi, e
 from scipy.optimize import curve_fit
 from scipy.stats.stats import pearsonr  
 from scipy.sparse.linalg import lsmr
-from pandas import Series, concat
-from scipy.signal import argrelmax
+from pandas import Series
+
 from scipy.ndimage.filters import gaussian_filter
-from datetime import timedelta
+
 
 from matplotlib.pyplot import subplots
 from matplotlib.patches import Circle
 
-from .imagelists import BaseImgList
 from .processing import ImgStack
 from .helpers import map_coordinates_sub_img, shifted_color_map
 from .image import Img
@@ -328,8 +327,11 @@ class DoasFOVEngine(object):
             raise Exception("Correlation image is not available")
             
         if self.method == "pearson":
-            cy, cx = self.get_img_maximum(self.fov.corr_img, gaussian_blur =\
-                                         self._settings["smooth_corr_img"])
+            cy, cx = self.get_img_maximum(self.fov.corr_img.img,\
+                gaussian_blur = self._settings["smooth_corr_img"])
+            cx, cy = map_coordinates_sub_img(cx, cy,\
+                            pyrlevel = self.img_stack.img_prep["pyrlevel"])
+            print "Start radius search in stack around x/y: %s/%s" %(cx,cy)
             radius, corr_curve, tau_data = self.fov_radius_search(cx, cy)
             if not radius > 0:
                 raise ValueError("Pearson FOV search failed")
@@ -342,7 +344,7 @@ class DoasFOVEngine(object):
         
         elif self.method == "ifr":
             cx, cy, popt, data_fitted = self.fov_gauss_fit(\
-                            self.fov.corr_img, **self._settings)
+                            self.fov.corr_img.img, **self._settings)
             self.fov._results_rel["cx"] = cx
             self.fov._results_rel["cy"] = cy
             self.fov._results_rel["g2d_popt"] = popt

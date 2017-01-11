@@ -644,8 +644,8 @@ class ImgStack(object):
                                                             mask = None):
         """Get time series in a circular ROI
         
-        Retrieve the time series at a given pixel position in absolute (original)
-        image coorrdinates in a pixel neighbourhood specified by
+        Retrieve the time series at a given pixel position *in stack 
+        coordinates* in a circular pixel neighbourhood.
         
         :param int pos_x: x position of center pixel on detector
         :param int pos_y: y position of center pixel on detector

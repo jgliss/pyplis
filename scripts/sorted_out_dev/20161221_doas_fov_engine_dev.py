@@ -6,36 +6,39 @@ Sript showing how to work with cell calibration data
 """
 
 import piscope 
-import numpy as np
 import pydoas
 from datetime import datetime, timedelta
-import matplotlib.pyplot as plt
 from os.path import join
 from os import getcwd
 
 reload_data = 1
 ### Set save directory for figures
-save_path = join(getcwd(), "scripts_out")
+save_path = join(getcwd(), "..", "scripts_out")
 
-img_path = "../../data/piscope_etna_testdata/images/"
+# test data path
+test_data_path = piscope.inout.find_test_data()
+
+# Image base path
+img_dir = join(test_data_path, "images")
+
+# Path containing DOAS result files
+doas_data_path = join(test_data_path, "spectra", "plume_prep", "min10Scans",\
+    "ResultFiles")
 
 ### Set plume background image 
 # this is the same image which is also used for example script NO
 # demonstrating the plume background routines
-path_bg_on = join(img_path, 
-                  'EC2_1106307_1R02_2015091607022602_F01_Etnaxxxxxxxxxxxx.fts')
+path_bg_on = join(img_dir, 
+                  'EC2_1106307_1R02_2015091607022602_F01_Etna.fts')
 
-path_bg_off = join(img_path, 
-                  'EC2_1106307_1R02_2015091607022820_F02_Etnaxxxxxxxxxxxx.fts')
+path_bg_off = join(img_dir, 
+                  'EC2_1106307_1R02_2015091607022820_F02_Etna.fts')
 
-### Set path to folder containing DOAS result files
-doas_data_path = ("../../data/piscope_etna_testdata/spectra/"
-                    "plume_prep/min10Scans/ResultFiles/")
 
 ### Plume data time stamps
 start = datetime(2015, 9, 16, 7, 6, 00)
 stop  = datetime(2015, 9, 16, 7, 14, 00)
-stop  = datetime(2015, 9, 16, 7, 22, 00)
+#stop  = datetime(2015, 9, 16, 7, 22, 00)
 ### Set image base path
 
 #
@@ -55,7 +58,7 @@ if reload_data:
     cam = piscope.setup.Camera(cam_id = cam_id, filter_list = filters)
     
     ### Create base setup for data import
-    stp = piscope.setup.MeasSetup(img_path, start, stop, camera = cam)
+    stp = piscope.setup.MeasSetup(img_dir, start, stop, camera = cam)
     
     ### Now load plume data into dataset
     plume_data = piscope.dataset.Dataset(stp)
@@ -106,8 +109,8 @@ if reload_data:
     stack = on_list.make_stack(stack_id = "aa_stack")
     
     s= piscope.doasfov.DoasFOVEngine(stack, doas_res_std)
-    #fov_0 = s.perform_fov_search(method = "pearson")
-    fov_1 = s.perform_fov_search(method = "ifr", ifr_lambda = 2e-3)
+    fov_0 = s.perform_fov_search(method = "pearson")
+    #fov_1 = s.perform_fov_search(method = "ifr", ifr_lambda = 2e-3)
 #==============================================================================
 #     s.merge_data()
 #     corr_img_p = s.det_correlation_image()
