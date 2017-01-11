@@ -13,16 +13,13 @@ from collections import OrderedDict as od
 
 def load_img_dummy():
     """Load image dummy as numpy array"""
-    try:
-        from piscope import _LIBDIR
-    except:
-        raise
+    from piscope import _LIBDIR
     return imread(join(_LIBDIR, "data", "no_images_dummy.png"))
 
-def test_data_path():
-    """Try to find test data path"""
-    from piscope import _LIBDIR
-    all_paths
+def download_test_data(to_path = None):
+    from piscope import _LIBDIR    
+    if to_path is None:
+        to_path = join()
 def get_camera_info(cam_id):
     """Try access camera information from file "cam_info.txt" (package data)
     
@@ -32,10 +29,7 @@ def get_camera_info(cam_id):
     dat = {}
     if cam_id is None:
         return dat
-    try:
-        from piscope import _LIBDIR
-    except:
-        raise
+    from piscope import _LIBDIR
     with open(join(_LIBDIR, "data", "cam_info.txt")) as f:
         filters = []
         darkinfo = []
@@ -72,10 +66,7 @@ def get_all_valid_cam_ids():
     
     Reads info from file cam_info.txt which is part of package data
     """
-    try:
-        from piscope import _LIBDIR
-    except:
-        raise
+    from piscope import _LIBDIR
     ids = []
     with open(join(_LIBDIR, "data", "cam_info.txt")) as f:        
         for line in f: 
@@ -89,10 +80,7 @@ def get_cam_ids():
     
     Reads info from file cam_info.txt which is part of package data
     """
-    try:
-        from piscope import _LIBDIR
-    except:
-        raise
+    from piscope import _LIBDIR
     ids = []
     with open(join(_LIBDIR, "data", "cam_info.txt")) as f:        
         for line in f: 
@@ -106,10 +94,7 @@ def get_source_ids():
     
     Reads info from file my_sources.txt which is part of package data
     """
-    try:
-        from piscope import _LIBDIR
-    except:
-        raise
+    from piscope import _LIBDIR
     ids = []
     with open(join(_LIBDIR, "data", "my_sources.txt")) as f:        
         for line in f: 
@@ -118,18 +103,16 @@ def get_source_ids():
                 ids.append(spl[1].split("#")[0].strip())
     return ids
     
-def get_source_info(source_id, try_online=1):
+def get_source_info(source_id, try_online = True):
     """Try access source information from file "my_sources.txt" 
     
     File is part of package data
     
     :param str source_id: string ID of source (e.g. Etna)
+    :param bool try_online: if True and local access fails, try to find source 
+        ID in online database
     """
-
-    try:
-        from piscope import _LIBDIR
-    except:
-        raise
+    from piscope import _LIBDIR
     dat = od()
     found = 0
     with open(join(_LIBDIR, "data", "my_sources.txt")) as f:        
