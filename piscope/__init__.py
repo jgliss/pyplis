@@ -1,5 +1,8 @@
 # -*- coding: utf-8 -*-
 from os.path import abspath, dirname
+from pkg_resources import get_distribution
+
+__version__ = get_distribution('piscope').version
 
 try:
     import pydoas

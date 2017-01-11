@@ -26,10 +26,10 @@ save_path = join(getcwd(), "scripts_out")
 
 ### Define paths of example plume and background image
 # Image base path
-img_dir = "../test_data/piscope_etna_testdata/images/"
+img_dir = join(piscope.inout.find_test_data(), "images")
 
 if not exists(img_dir):
-    raise IOError("Test image directory does not exist")
+    raise IOError("Failed to access test data")
 
 def create_dataset():
     start = datetime(2015,9,16,7,6,00)
@@ -73,6 +73,26 @@ def create_dataset():
     ### Create analysis object (from BaseSetup)
     return piscope.dataset.Dataset(stp)
 
+def correct_viewing_direction(dataset):
+    """Correct viewing direction using location of Etna SE crater
+    
+    Defines location of Etna SE crater within images (is plotted into current
+    plume onband image of dataset) and uses its geo location to retrieve the 
+    camera viewing direction
+    """
+    geom = dataset.meas_geometry
+    se_crater_img_pos = [806, 736] #x,y
+    se_crater = GeoPoint(37.747757, 15.002643, name = "SE crater")
+    se_alt_googleearth = 3.267 #km
+    
+    print "Retrieved altitude (SRTM): %s" %se_crater.altitude
+    print "Altitude google earth: %s" %se_alt_googleearth
+    
+    geom.geo_setup.add_geo_point(se_crater)
+    
+    return geom.correct_viewing_direction(se_crater_img_pos[0],\
+                        se_crater_img_pos[1], obj_id = "SE crater")
+    
 
 #==============================================================================
 # ### Define location of Etna NE crater (both geographically and in pix coordinates)
@@ -195,4 +215,6 @@ def create_dataset():
 
 if __name__ == "__main__":
     ds = create_dataset()
+    
+    elev, azim, geom_old = correct_viewing_direction(ds)
     

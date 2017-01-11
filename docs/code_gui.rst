@@ -1,4 +1,4 @@
-piSCOPE GUI features
+piscope GUI features
 ####################
 
 .. automodule:: piscope.gui_features

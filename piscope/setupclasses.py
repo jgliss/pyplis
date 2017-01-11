@@ -9,12 +9,7 @@ analysis, these are:
     #. :class:`FilterSetup`: Collection of interference filters used
     #. :class:`Camera`: Camera specifications
     #. :class:`MeasSetup`: Basic measurement setup 
-    #. :class:`AutoCellCalibSetup`: Setup for cell calibration data
-
-.. thumbnail::  ../data/illustrations/flowchart_setup.png
-   
-   Flowchart of basic measurement setup classes
-   
+    #. :class:`AutoCellCalibSetup`: Setup for cell calibration data   
 """
 from dill import dump
 from os import path, mkdir, getcwd
