@@ -4,8 +4,17 @@ PISCOPE example script 1 - Camera specification
 """
 from os.path import join
 import piscope
+from os import getcwd
+from os.path import exists
+### Set save directory for figures
+save_path = join(getcwd(), "scripts_out")
 
-img_dir = "../test_data/piscope_etna_testdata/images/"
+# Image base path
+img_dir = join(piscope.inout.find_test_data(), "images")
+
+if not exists(img_dir):
+    raise IOError("Failed to access test data")
+    
 ecII_filename = "EC2_1106307_1R02_2015091607080439_F01_Etnaxxxxxxxxxxxx.fts"
 
 file_path = join(img_dir, ecII_filename)

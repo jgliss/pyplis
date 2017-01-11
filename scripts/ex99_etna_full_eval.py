@@ -181,7 +181,7 @@ if __name__ == "__main__":
     #doas_poly, doas_tau_dat, doas_spec_dat = do_doas_calibration()
     
     geometry = dataset.meas_geometry
-    dist_img, plume_dist_img=geometry.get_all_pix_to_pix_dists
+    dist_img, plume_dist_img = geometry.get_all_pix_to_pix_dists
     
     fig, ax = plt.subplots(1,2)
     disp_l = ax[0].imshow(dist_img, cmap = "gray")
