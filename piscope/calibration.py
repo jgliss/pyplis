@@ -1106,15 +1106,6 @@ class CellCalibEngine(Dataset):
                 " object" %type(pix_mean_ts))
         self.pix_mean_tseries[save_id] = pix_mean_ts
 
-
-        
-class DoasFOV(object):
-    """Class representing a DOAS FOV parametrisation for image detector"""
-    def __init__(self):
-        raise NotImplementedError
-        
-    def save_as(self, save_dir, save_name):
-        """Save this object as binary"""
         
 class DoasCalibData(object):
     """Object to store DOAS calibration data"""
@@ -1420,40 +1411,4 @@ class DoasCalibEngine(object):
         draw()
         return ax, ax2
 
-#==============================================================================
-#     def save_calib(self,path, deviceId, filter_id):
-#         """
-#         Save calibration bunch information as binary file
-#         """
-#         if self.calibAvailable:
-#             i=self.calibration.tau_series.index.min().strftime("%Y%m%d%H%M%S")
-#         name=("uvcam_specCalib_" + deviceId + "_" + filter_id + "_" + i + ".spc")
-#         fPath=path + name
-#         pickle.dump(self.calibration, open(fPath, "wb"))
-#         return fPath
-#         
-#     def load_calib(self, fPath):
-#         spl=fPath.split(".")
-#         print spl
-#         if spl[len(spl)-1] != "spc":
-#             print "Could not load calibration, wrong file format (need .spc)"
-#             return -1
-#         self.calibration = pickle.load(open(fPath, "rb"))
-#==============================================================================
-#==============================================================================
-#         return self.calibration
-#==============================================================================
-    def set_fov_info(self,pos_x,pos_y,radius):
-        """Set the position and radius of FOV manually"""
-        self.fov = {"pos_abs"    :   [pos_x, pos_y],
-                    "radius"    :   radius}
-                        
-    def load_fov_info(self, file_path):
-        if not file_path.split(".")[-1] == "fov":
-            print "Could not load fov info, wrong file format (need .fov)"
-            return -1
-        self.fov = load(open(file_path, "rb"))
-        self.fovInfoFile=file_path
-        return self.fov
-        
 

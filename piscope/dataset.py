@@ -1,18 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-A collection of Dataset classes used for the evaluation of gas camera data
-
-Current classes:
-
-    1. :class:`Dataset`: basic Dataset object, inherited classes are
-        #. :class:`PlumeData`: dataset for plume image collection
-        #. :class:`BackgroundData`: dataset for background radiance images
-        #. :class:`CellCalib`: dataset for cell calibration data
-    
-.. todo::
-
-    Finish abstraction and test
-    
+Module containing the :class:`piscope.Dataset` object
 """
 from os.path import exists, join, isfile
 from os import listdir, walk

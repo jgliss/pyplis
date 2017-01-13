@@ -4,7 +4,7 @@ I/O routines for external data access
 -------------------------------------
 """
 from dill import load
-from os.path import join, basename, exists, normpath
+from os.path import join, basename, exists
 from os import listdir, remove
 
 from matplotlib.pyplot import imread
@@ -113,7 +113,7 @@ def set_test_data_path(save_path):
             print ("Adding new path for test data location in "
                     "file _paths.txt: %s" %save_path)
             f.close()
-        if not "piscope_etna_testdata" in listdir(join(_LIBDIR, "data")):
+        if not "piscope_etna_testdata" in listdir(save_path):
             print ("WARNING: test data folder (name: piscope_etna_testdata) "
                 "could not be  found at specified location, please download "
                 "test data, unzip and save at: %s" %save_path)
