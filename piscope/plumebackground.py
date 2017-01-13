@@ -18,7 +18,7 @@ from scipy.ndimage.filters import gaussian_filter
 from .exceptions import ImgMetaError
 from .image import Img
 from .processing import LineOnImage
-from .fitting import PolySurfaceFit
+from .optimisation import PolySurfaceFit
 from .helpers import shifted_color_map
 
 class PlumeBackgroundModel(object):
