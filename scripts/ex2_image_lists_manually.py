@@ -50,6 +50,7 @@ on_list.pyrlevel = 2
 on_list.set_dark_corr_mode(1)
 on_list.add_gaussian_blurring(1)
 on_list.goto_img(100)
+img = on_list.current_img()
 
 ax = on_list.show_current()
 ax.set_title("Cropped and size reduced image")
@@ -59,12 +60,15 @@ ax.figure.savefig(join(save_path, "ex2_out_1.png"))
 # (note that they are size reduced by factor 8)
 if MAKE_STACK:
     stack = on_list.make_stack()
-    fig, ax2 = subplots(1,1)
-    series = stack.get_time_series(pos_x = 200, pos_y = 100, radius = 10)
-    series.plot(style = " x")
-    ax2.set_title("Intensity time series of all onband images "
-        "(piscope testdata)\nRetrieved at")
-    
+    fig, ax2 = subplots(1, 2, figsize = (16,5))
+    series, access_mask = stack.get_time_series(\
+                        pos_x = 200, pos_y = 100, radius = 10)
+    series.plot(style = " x", ax = ax2[0])
+    ax2[0].set_title("Intensity time series of all onband images "
+        "(piscope testdata)\nRetrieved at", fontsize = 10)
+    ax2[1].imshow(img.img, cmap = "gray")
+    ax2[1].imshow(access_mask.astype(float), alpha = 0.3)
+    ax2[1].set_title("Example image and access mask")
     fig.savefig(join(save_path, "ex2_out_2.png"))
     
 
