@@ -6,11 +6,12 @@ Introduction into ImgList objects and illustration of some features
 """
 
 import piscope
-from matplotlib.pyplot import subplots
+from matplotlib.pyplot import subplots, close
 
 from os.path import join, isfile
 from os import getcwd, listdir
 
+close("all")
 ### Set save directory for figures
 save_path = join(getcwd(), "scripts_out")
 
@@ -18,7 +19,7 @@ save_path = join(getcwd(), "scripts_out")
 img_dir = join(piscope.inout.find_test_data(), "images")
 
 ### OPTIONS
-MAKE_STACK = True
+MAKE_STACK = False
 
 offset_file = join(img_dir, "EC2_1106307_1R02_2015091607064723_D0L_Etna.fts")
 dark_file = join(img_dir, "EC2_1106307_1R02_2015091607064865_D1L_Etna.fts")
@@ -43,18 +44,21 @@ offset_img = piscope.image.Img(offset_file)
 on_list.add_master_dark_image(dark_img)
 on_list.add_master_offset_image(offset_img)
 
+on_list.goto_img(100)
+img_0 = on_list.current_img().img
 ### Change image preparation settings
 on_list.roi = [100, 100, 1300, 900]
 on_list.crop = 1
 on_list.pyrlevel = 2
 on_list.set_dark_corr_mode(1)
 on_list.add_gaussian_blurring(1)
-on_list.goto_img(100)
+
 img = on_list.current_img()
 
 ax = on_list.show_current()
 ax.set_title("Cropped and size reduced image")
 ax.figure.savefig(join(save_path, "ex2_out_1.png"))
+
 #on_list.roi
 ### Load all images into a stack 
 # (note that they are size reduced by factor 8)

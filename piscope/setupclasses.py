@@ -32,9 +32,8 @@ from .inout import get_source_info#, get_all_valid_cam_ids
 from .utils import Filter, CameraBaseInfo
 from .geometry import MeasGeometry
 
-        
 class Source(object):
-    """Object for source information"""
+    """  Object for source information"""
     def __init__(self, name = None, info_dict = {}):
         """Initiation of object
         

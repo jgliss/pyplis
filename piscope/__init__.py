@@ -24,14 +24,15 @@ import utils
 from image import Img
 import dataset
 import plumebackground
-import calibration
+import cellcalib
+import doascalib
 import plumespeed
 import processing
 #import evaluation
 import optimisation
 import model_functions
 import setupclasses as setup   
-import doasfov 
+ 
 import helpers
 import exceptions
 
