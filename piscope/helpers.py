@@ -1,14 +1,35 @@
 # -*- coding: utf-8 -*-
 """
-Created on Fri Oct 14 13:35:07 2016
-
-@author: jg
+piscope helper methods
 """
 
 import matplotlib.cm as colormaps
 import matplotlib.colors as colors
-from numpy import mod, linspace, hstack, vectorize, uint8, cast, asarray
-  
+from numpy import mod, linspace, hstack, vectorize, uint8, cast, asarray,\
+    unravel_index, nanargmax, meshgrid
+from scipy.ndimage.filters import gaussian_filter
+
+def mesh_from_img(img_arr):
+    if not img_arr.ndim == 2:
+        raise ValueError("Invalid dimension for image: %s" %img_arr.ndim)
+    (ny, nx) = img_arr.shape
+    xvec = linspace(0, nx - 1, nx)
+    yvec = linspace(0, ny - 1, ny)
+    return meshgrid(xvec, yvec)
+    
+def get_img_maximum(img_arr, gaussian_blur = 4):
+    """Get coordinates of maximum in image
+    
+    :param array img_arr: numpy array with image data data
+    :param int gaussian_blur: apply gaussian filter before max search
+    
+    """
+    #replace nans with zeros
+    #img_arr[where(isnan(img_arr))] = 0
+    #print img_arr.shape
+    img_arr = gaussian_filter(img_arr, gaussian_blur)
+    return unravel_index(nanargmax(img_arr), img_arr.shape)   
+    
 def check_roi(roi):
     """Checks if input is valid ROI"""
     if not len(roi) == 4:

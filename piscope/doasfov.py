@@ -7,13 +7,13 @@ from scipy.stats.stats import pearsonr
 from scipy.sparse.linalg import lsmr
 from pandas import Series
 from copy import deepcopy
-from scipy.ndimage.filters import gaussian_filter
+
 
 from matplotlib.pyplot import subplots
 from matplotlib.patches import Circle
 
 from .processing import ImgStack
-from .helpers import map_coordinates_sub_img, shifted_color_map
+from .helpers import map_coordinates_sub_img, shifted_color_map, mesh_from_img
 from .image import Img
 
 class DoasFOV(object):
@@ -28,11 +28,20 @@ class DoasFOV(object):
         self.tau_vec = None #tau data vector within FOV
         self.fov_mask = None
         
-        self.result_pearson = {"cx_abs"     :   nan,
-                               "cy_abs"     :   nan,
-                               "radius_abs" :   nan,
+        self.result_pearson = {"cx_rel"     :   nan,
+                               "cy_rel"     :   nan,
+                               "radius_rel" :   nan,
                                "corr_curve" :   None}
         self.result_ifr = {"popt"           :   None}
+    
+    @property
+    def method(self):
+        """Returns search method"""
+        return self.search_settings["method"]
+    
+    def fov_params(self):
+        """
+        """
         
 #==============================================================================
 #       
@@ -53,8 +62,22 @@ class DoasFOV(object):
         """Save the fov mask as image (in absolute detector coords)
         """
         raise NotImplementedError
-        
-    def draw(self):
+    
+    def __str__(self):
+        """String representation"""
+        s = "DoasFOV information\n------------------------\n"
+        s += "\nImg stack preparation settings\n............................\n"
+        for k, v in self.img_prep.iteritems():
+            s += "%s: %s\n" %(k, v)
+        s += "\nFOV search settings\n............................\n"
+        for k, v in self.search_settings.iteritems():
+            s += "%s: %s\n" %(k, v)
+        if self.method == "ifr":
+            s += "\nIFR search results \n............................\n"
+            s += "\nSuper gauss fit optimised params\n"
+            for k, v in self.result_ifr.iteritems():
+                s += "%s: %s\n" %(k, v)
+    def plot(self):
         """Draw the current FOV position into the current correlation img"""
         fig, axes = subplots(1, 1)
         
@@ -70,9 +93,9 @@ class DoasFOV(object):
             popt = self.result_ifr["popt"]
             cb.set_label(r"FOV fraction [$10^{-2}$ pixel$^{-1}$]",\
                                                          fontsize = 16)
-            (Ny,Nx) = img.shape
-            xvec = linspace(0, Nx, Nx)
-            yvec = linspace(0, Ny, Ny)
+            (ny,nx) = img.shape
+            xvec = linspace(0, nx, nx)
+            yvec = linspace(0, ny, ny)
             xgrid, ygrid = meshgrid(xvec, yvec)
             
             ax.contour(xgrid, ygrid, fov_mask_norm, (popt[0]/ e, popt[0]/10), colors='k')
@@ -341,13 +364,13 @@ class DoasFOVEngine(object):
             if not radius > 0:
                 raise ValueError("Pearson FOV search failed")
     
-            cx_abs, cy_abs = map_coordinates_sub_img(cx, cy, roi =\
-                self.img_stack.roi, pyrlevel = pyrlevel, inverse = True)
-            print cx, cx_abs
-            print cy, cy_abs
-            self.fov.result_pearson["cx_abs"] = cx_abs
-            self.fov.result_pearson["cy_abs"] = cy_abs
-            self.fov.result_pearson["radius_abs"] = radius * 2 ** pyrlevel
+#==============================================================================
+#             cx_abs, cy_abs = map_coordinates_sub_img(cx, cy, roi =\
+#                 self.img_stack.roi, pyrlevel = pyrlevel, inverse = True)
+#==============================================================================
+            self.fov.result_pearson["cx_rel"] = cx
+            self.fov.result_pearson["cy_abs"] = cy
+            self.fov.result_pearson["radius_rel"] = radius
             self.fov.result_pearson["corr_curve"] = corr_curve
             
             self.fov.fov_mask = fov_mask
@@ -391,6 +414,8 @@ class DoasFOVEngine(object):
         max_rad = min([cx, cy, w - cx, h - cy])
         if self._settings["pearson_max_radius"] < max_rad:
             max_rad = self._settings["pearson_max_radius"]
+        else:
+            self._settings["pearson_max_radius"] = max_rad
         #radius array
         radii = arange(1, max_rad, 1)
         print "Maximum radius: " + str(max_rad - 1)
@@ -421,43 +446,6 @@ class DoasFOVEngine(object):
         return radius, corr_curve, tau_vec, doas_vec, mask
         
     # define IFR model function (Super-Gaussian)    
-    def _supergauss_2d(self, (x, y), amplitude, xm, ym, sigma, asym,\
-                                                           shape, offset):
-        """2D super gaussian without tilt
-        
-        :param tuple (x, y): position 
-        :param float amplitude: amplitude of peak
-        :param float xm: x position of maximum
-        :param float ym: y position of maximum
-        :param float asym: assymetry in y direction (1 is circle, smaller 
-                means dillated in y direction)
-        :param float shape: super gaussian shape parameter (2 is gaussian)
-        :param float offset: base level of gaussian 
-        """
-        u = ((x - xm) / sigma) ** 2 + ((y - ym) * asym / sigma)**2
-        g = offset + amplitude * exp(-u**shape)
-        return g.ravel()
-    
-    def _supergauss_2d_tilt(self, (x, y), amplitude, xm, ym, sigma, asym,\
-                                                   shape, offset, theta):
-        """2D super gaussian without tilt
-        
-        :param tuple (x, y): position
-        :param float amplitude: amplitude of peak
-        :param float xm: x position of maximum
-        :param float ym: y position of maximum
-        :param float asym: assymetry in y direction (1 is circle, smaller 
-                means dillated in y direction)
-        :param float shape: super gaussian shape parameter (2 is gaussian)
-        :param float offset: base level of gaussian 
-        :param float theta: tilt angle (rad) of super gaussian
-        
-        """
-        xprime = (x-xm) * cos(theta) - (y-ym) * sin(theta)
-        yprime = (x-xm) * sin(theta) + (y-ym) * cos(theta)
-        u = (xprime / sigma)**2 + (yprime * asym / sigma)**2
-        g = offset + amplitude * exp(-u**shape)
-        return g.ravel()
         
     def fov_gauss_fit(self, corr_img, ifr_g2d_asym = True,\
                       g2d_super_gauss = True, ifr_g2d_crop = True,\
@@ -471,15 +459,10 @@ class DoasFOVEngine(object):
             convolved with correlation image in order to identify position of
             maximum
         
-        """# setup grid
-        (ny, nx) = corr_img.shape
-        print ny, nx
-        xvec = linspace(0, nx - 1, nx)
-        yvec = linspace(0, ny - 1, ny)
-        xgrid, ygrid = meshgrid(xvec, yvec)
+        """
+        xgrid, ygrid = mesh_from_img(corr_img)
         # apply maximum of filtered image to initialise 2D gaussian fit
         (cy, cx) = self.get_img_maximum(corr_img, smooth_corr_img)
-        print cy, cx
         # constrain fit, if requested
         if ifr_g2d_asym:
             print "g2d_asym"
@@ -550,20 +533,6 @@ class DoasFOVEngine(object):
         stack_data_conv = self.img_stack.stack * fov_mask_norm
         return stack_data_conv.sum((1,2))
         
-    def get_img_maximum(self, img_arr, gaussian_blur = 4):
-        """Get coordinates of maximum in image
-        
-        :param array img_arr: numpy array with image data data
-        :param int gaussian_blur: apply gaussian filter before max search
-        
-        """
-        #replace nans with zeros
-        #img_arr[where(isnan(img_arr))] = 0
-        #print img_arr.shape
-        img_arr = gaussian_filter(img_arr, gaussian_blur)
-        return unravel_index(nanargmax(img_arr), img_arr.shape)
-    
-    
             
 #==============================================================================
 # class SearchFOVSpectrometer(object):

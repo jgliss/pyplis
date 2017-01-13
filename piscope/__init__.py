@@ -28,7 +28,8 @@ import calibration
 import plumespeed
 import processing
 #import evaluation
-import fitting
+import optimisation
+import model_functions
 import setupclasses as setup   
 import doasfov 
 import helpers

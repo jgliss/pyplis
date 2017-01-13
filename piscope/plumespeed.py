@@ -33,7 +33,7 @@ from cv2 import calcOpticalFlowFarneback, OPTFLOW_FARNEBACK_GAUSSIAN,\
 
 from .helpers import bytescale
 from .processing import LineOnImage, ImgStack
-from .fitting import MultiGaussFit
+from .optimisation import MultiGaussFit
 from .image import Img
     
 class OpticalFlowFarnebackSettings(object):

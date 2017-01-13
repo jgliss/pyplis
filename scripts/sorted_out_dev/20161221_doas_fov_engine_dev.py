@@ -133,6 +133,7 @@ fov1 = s.perform_fov_search(method = "pearson")
 #fov2 = s.perform_fov_search(method = "ifr", ifr_lambda = 8e-2)
 fov2 = s.perform_fov_search(method = "ifr", ifr_lambda = 1e-4)
 fov3 = s.perform_fov_search(method = "ifr", ifr_lambda = 1e-3)
+
 import matplotlib.pyplot as plt
 import numpy as np
 plt.close("all")
