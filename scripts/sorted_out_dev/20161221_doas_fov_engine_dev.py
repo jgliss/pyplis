@@ -8,10 +8,23 @@ Sript showing how to work with cell calibration data
 import piscope 
 import pydoas
 from datetime import datetime, timedelta
-from os.path import join
-from os import getcwd
+from os.path import join, exists
+from os import getcwd, remove
 
-reload_data = 1
+my_dat = r'D:/Test/piscope_out/'
+stack_path = join(my_dat,\
+        "piscope_imgstack_id_aa_stack_20150916_0706_0721.fts")
+
+
+reload_stack = 0
+if not exists(stack_path):
+    reload_stack =1
+#==============================================================================
+# if not exists(stack_path):
+#     raise IOError("Stack obj not found")
+#==============================================================================
+
+    
 ### Set save directory for figures
 save_path = join(getcwd(), "..", "scripts_out")
 
@@ -37,8 +50,8 @@ path_bg_off = join(img_dir,
 
 ### Plume data time stamps
 start = datetime(2015, 9, 16, 7, 6, 00)
-stop  = datetime(2015, 9, 16, 7, 14, 00)
-#stop  = datetime(2015, 9, 16, 7, 22, 00)
+#stop  = datetime(2015, 9, 16, 7, 7, 00)
+stop  = datetime(2015, 9, 16, 7, 22, 00)
 ### Set image base path
 
 #
@@ -52,39 +65,38 @@ cam_id = "ecII"
 filters= [piscope.utils.Filter(type = "on", acronym = "F01"),
           piscope.utils.Filter(type = "off", acronym = "F02")]
 
-if reload_data:
+### create camera setup, this includes the filename convention for image separation
+cam = piscope.setup.Camera(cam_id = cam_id, filter_list = filters)
 
-    ### create camera setup, this includes the filename convention for image separation
-    cam = piscope.setup.Camera(cam_id = cam_id, filter_list = filters)
-    
-    ### Create base setup for data import
-    stp = piscope.setup.MeasSetup(img_dir, start, stop, camera = cam)
-    
-    ### Now load plume data into dataset
-    plume_data = piscope.dataset.Dataset(stp)
-    
-    ### Specify DOAS data import from DOASIS fit result files
-    # In order to perform the DOAS FOV search, as much spectrum datapoints 
-    # as possible are needed. Therefore, we only added 10 scans per plume
-    # spectrum. In this case (and because the spectrometer was not temperature 
-    # stabilised, the DOAS fit in the recommended wavelength range (~ 314 - 326, 
-    # here "f01") might not exceed the S/N ratio for low SO2 CDs. Thus, to have a 
-    # quality check of the fit performance, SO2 was therefore also fitted in a lower 
-    # wavelength region ("f02" : ~ 309 - 323 nm), both datasets are imported here
-    # and are plotted against each other below, showing that the correlation is 
-    # good (i.e. f01 is trustworthy) and that the SO2 CDs are too small
-    
-    fit_import_info = {"so2" : ["SO2_Hermans_298_air_conv_satCorr1e18", 
-                                                            ["f01"]]}
-    
-    doas_import_setup = pydoas.dataimport.ResultImportSetup(doas_data_path,\
-                                        result_import_dict = fit_import_info)
-    ### Import the DOAS fit results
-    doas_dataset = pydoas.analysis.DatasetDoasResults(doas_import_setup)
-    
-    ### get fit results from standard so2 fit (f01)
-    doas_res_std = doas_dataset.get_results("so2", "f01").shift(timedelta(-1./12))
-    
+### Create base setup for data import
+stp = piscope.setup.MeasSetup(img_dir, start, stop, camera = cam)
+
+### Now load plume data into dataset
+plume_data = piscope.dataset.Dataset(stp)
+
+### Specify DOAS data import from DOASIS fit result files
+# In order to perform the DOAS FOV search, as much spectrum datapoints 
+# as possible are needed. Therefore, we only added 10 scans per plume
+# spectrum. In this case (and because the spectrometer was not temperature 
+# stabilised, the DOAS fit in the recommended wavelength range (~ 314 - 326, 
+# here "f01") might not exceed the S/N ratio for low SO2 CDs. Thus, to have a 
+# quality check of the fit performance, SO2 was therefore also fitted in a lower 
+# wavelength region ("f02" : ~ 309 - 323 nm), both datasets are imported here
+# and are plotted against each other below, showing that the correlation is 
+# good (i.e. f01 is trustworthy) and that the SO2 CDs are too small
+
+fit_import_info = {"so2" : ["SO2_Hermans_298_air_conv_satCorr1e18", 
+                                                        ["f01"]]}
+
+doas_import_setup = pydoas.dataimport.ResultImportSetup(doas_data_path,\
+                                    result_import_dict = fit_import_info)
+### Import the DOAS fit results
+doas_dataset = pydoas.analysis.DatasetDoasResults(doas_import_setup)
+
+### get fit results from standard so2 fit (f01)
+doas_res_std = doas_dataset.get_results("so2", "f01").shift(timedelta(-1./12))
+
+if reload_stack:
     ### Prepare on band plume image list and 
     on_list = plume_data.get_list("on")
     on_list.activate_dark_corr()
@@ -105,42 +117,48 @@ if reload_data:
     
     on_list.pyrlevel = 2
     on_list.aa_mode = True
-    
+        
     stack = on_list.make_stack(stack_id = "aa_stack")
-    
-    s= piscope.doasfov.DoasFOVEngine(stack, doas_res_std)
-    fov_0 = s.perform_fov_search(method = "pearson")
-    #fov_1 = s.perform_fov_search(method = "ifr", ifr_lambda = 2e-3)
-#==============================================================================
-#     s.merge_data()
-#     corr_img_p = s.det_correlation_image()
-#     res = s.get_fov_shape()
-#     
-#     corr_img_ifr = s.det_correlation_image(search_type="ifr", ifr_lambda = 5e-2)
-#     
-#     plt.imshow(corr_img_p)
-#     plt.show()
-#     plt.imshow(corr_img_ifr)
-#     plt.show()
-#     
-#==============================================================================
-    
+    try:
+        remove(stack_path)
+    except:
+        pass    
+    stack.save_as_fits()  
+else:
+    stack = piscope.processing.ImgStack()
+    stack.load_stack_fits(stack_path)
+    #stack, hdu = load_stack_fits(stack, stack_path)
+s = piscope.doasfov.DoasFOVEngine(stack, doas_res_std, pearson_max_radius = 10)
+fov1 = s.perform_fov_search(method = "pearson")
+#fov2 = s.perform_fov_search(method = "ifr", ifr_lambda = 8e-2)
+fov2 = s.perform_fov_search(method = "ifr", ifr_lambda = 1e-4)
+fov3 = s.perform_fov_search(method = "ifr", ifr_lambda = 1e-3)
+import matplotlib.pyplot as plt
+import numpy as np
+plt.close("all")
+xarr = np.linspace(0, 0.18, 1000)
+fig, ax = plt.subplots(1,2, figsize=(17,5))
+fig.suptitle("Pearson")
+ax[0].imshow(fov1.corr_img.img, cmap= "gray")
+ax[0].imshow(fov1.fov_mask, alpha = 0.2)
+ax[1].plot(fov1.tau_vec, fov1.doas_vec, " x", label = "Data")
+p1 = np.poly1d(np.polyfit(fov1.tau_vec, fov1.doas_vec, 1))
+ax[1].plot(xarr, p1(xarr), "--", label = ("Regr %s" %p1))
+ax[1].legend()
+fig, ax = plt.subplots(1,2, figsize=(17,5))
+fig.suptitle("IFR lbda=1e-4")
+ax[0].imshow(fov2.corr_img.img, cmap= "gray")
+ax[0].imshow(fov2.fov_mask, alpha = 0.2)
+ax[1].plot(fov2.tau_vec, fov2.doas_vec, " x", label = "Data")
+p2 = np.poly1d(np.polyfit(fov2.tau_vec, fov2.doas_vec, 1))
+ax[1].plot(xarr, p2(xarr), "--", label = ("Regr %s" %p2))
+ax[1].legend()
 
-
-#==============================================================================
-# 
-# hdu = fits.open(join(save_dir, 'test.fts'))
-# h = hdu[0].header 
-# loaded_stack = hdu[0].data.astype(np.float64)
-# #self.img=hdu[0].data.astype(np.float16)
-# hdu.close()
-#==============================================================================
-#==============================================================================
-# 
-# stack, bad_indices = stack.det_stack_time_average(doas_res_std.start_acq,\
-#                                                       doas_res_std.stop_acq)
-# doas_series = doas_res_std.drop(doas_res_std.index[bad_indices])
-# 
-# search_engine = piscope.doasfov.DoasFOVEngine(stack, doas_series)
-#==============================================================================
-#corrImStd = piscope.doasfov.search_correlation(stack, doas_vec_std)
+fig, ax = plt.subplots(1,2, figsize=(17,5))
+fig.suptitle("IFR lbda=1e-3")
+ax[0].imshow(fov3.corr_img.img, cmap= "gray")
+ax[0].imshow(fov3.fov_mask, alpha = 0.2)
+ax[1].plot(fov3.tau_vec, fov3.doas_vec, " x", label = "Data")
+p3 = np.poly1d(np.polyfit(fov3.tau_vec, fov3.doas_vec, 1))
+ax[1].plot(xarr, p3(xarr), "--", label = ("Regr %s" %p3))
+ax[1].legend()
