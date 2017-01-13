@@ -5,7 +5,7 @@ Basic and advanced processing objects
 """
 from numpy import vstack, ogrid, empty, ones, asarray, ndim, round, hypot,\
     linspace, sum, arctan, sin, cos, dstack, deg2rad, float32, zeros,\
-    newaxis, poly1d, polyfit, argmin, where, logical_and, rollaxis
+    poly1d, polyfit, argmin, where, logical_and, rollaxis
 
 from scipy.ndimage import map_coordinates 
 from scipy.ndimage.filters import gaussian_filter1d, median_filter
@@ -15,9 +15,9 @@ from datetime import datetime, timedelta
 from matplotlib.pyplot import subplot, subplots, tight_layout
 from matplotlib.dates import date2num
 from pandas import Series, concat, DatetimeIndex
-from cv2 import cvtColor, COLOR_BGR2GRAY
+from cv2 import cvtColor, COLOR_BGR2GRAY, pyrDown, pyrUp
 from os import getcwd
-from os.path import join
+from os.path import join, exists
 from astropy.io import fits
 
 from .image import Img
@@ -504,12 +504,11 @@ class ImgStack(object):
             default: float32)
         :param str stack_id: string ID of this object ("")
         :param dict img_prep: additional information about the images (e.g.
-            roi, gauss pyramide level, dark corrected?, blurred?)
+            roi, gauss pyramid level, dark corrected?, blurred?)
         :param **stack_data:
         """
         self.stack_id = stack_id
-        self.num_of_imgs = img_num
-        
+        self.dtype = dtype
         self.current_index = 0
         
         self.stack = empty((img_num, height, width))
@@ -545,6 +544,11 @@ class ImgStack(object):
         """Compute time stamps for images from acq. times and exposure times"""
         dts = [timedelta(x /(2 * 86400.)) for x in self.texps]
         return self.start_acq + asarray(dts)
+    
+    @property
+    def pyrlevel(self):
+        """return current pyramide level (stored in ``self.img_prep``)"""
+        return self.img_prep["pyrlevel"]
         
     def append_img(self, img_arr, start_acq = datetime(1900, 1, 1), texp = 0.0, 
                                                                add_data = 0.0):
@@ -584,7 +588,7 @@ class ImgStack(object):
         self.add_data[pos] = add_data
         self._access_mask[pos] = True
     
-    def make_radial_mask(self, cx, cy, radius):
+    def make_circular_access_mask(self, cx, cy, radius):
         """Create a circular mask for stack 
         :param int pos_x_abs: x position of centre
         :param int pos_y_abs: y position of centre
@@ -595,7 +599,12 @@ class ImgStack(object):
         y, x = ogrid[:h, :w]
         m = (x - cx)**2 + (y - cy)**2 < radius**2
         return m
-    
+        
+    @property
+    def num_of_imgs(self):
+        """Return current number of images in stack"""
+        return self.stack.shape[0]
+        
     def set_stack_data(self, stack, start_acq = None, texps = None):
         """Sets the current data based on input
         
@@ -603,15 +612,15 @@ class ImgStack(object):
         :param ndarray start_acq: array containing acquisition time stamps
         :param ndarray texps: array containing exposure times
         """
-        self.num_of_imgs = stack.shape[0]
+        num = stack.shape[0]
         self.stack = stack
         if start_acq is None:
-            start_acq = asarray([datetime(1900,1,1)] * self.num_of_imgs)
+            start_acq = asarray([datetime(1900, 1, 1)] * num)
         self.start_acq = start_acq
         if texps is None:
-            texps = zeros(self.num_of_imgs, dtype = float32)
+            texps = zeros(num, dtype = float32)
         self.texps = texps
-        self._access_mask = ones(self.num_of_imgs, dtype = bool)
+        self._access_mask = ones(num, dtype = bool)
         
     def get_data(self):
         """Get stack data 
@@ -660,13 +669,15 @@ class ImgStack(object):
         try:
             data_mask, start_acq, texps = self.apply_mask(mask)
         except:
-            if not radius > 1:
-                return Series(d[0][self._access_mask, pos_y, pos_x], d[1])
-            mask = self.make_radial_mask(pos_x, pos_y, radius)
+            if radius == 1:
+                mask = zeros(self.shape[1:]).astype(bool)
+                mask[pos_y, pos_x] = True
+                return Series(d[0][self._access_mask, pos_y, pos_x], d[1]),\
+                                                                        mask
+            mask = self.make_circular_access_mask(pos_x, pos_y, radius)
             data_mask, start_acq, texps = self.apply_mask(mask)
-            
         values = data_mask.sum((1, 2)) / float(sum(mask))
-        return Series(values, start_acq)
+        return Series(values, start_acq), mask
     
     """Data merging functionality based on additional time series data"""
     def merge_with_time_series(self, time_series, method = "average", **kwargs):
@@ -937,27 +948,136 @@ class ImgStack(object):
         :param int index: index of image in stack        
         """
         stack, ts, _ = self.get_data()
-        im = Img(stack[:,:,index], start_acq = ts[index])
+        im = Img(stack[index], start_acq = ts[index])
         return im.show()
+
+    def pyr_down(self, steps = 0):
+        """Reduce the stack image size using gaussian pyramid 
+             
+        :param int steps: steps down in the pyramide
+        :return: 
+            - ImgStack, new image stack object (downscaled)
         
-    def plot_mean_series(self):
-        raise NotImplementedError
+        """
+        
+        if not steps:
+            return
+        #print "Reducing image size, pyrlevel %s" %steps
+        h, w = Img(self.stack[0]).pyr_down(steps).shape
+        prep = deepcopy(self.img_prep)        
+        new_stack = ImgStack(height=h, width=w, img_num= self.num_of_imgs,\
+            stack_id = self.stack_id, img_prep=prep)
+        for i in range(self.shape[0]):
+            im = self.stack[i]
+            for k in range(steps):
+                im = pyrDown(im)
+            new_stack.append_img(img_arr = im, start_acq = self.start_acq[i],\
+                texp = self.texps[i], add_data = self.add_data[i])
+        new_stack._format_check()
+        new_stack.img_prep["pyrlevel"] += steps
+        return new_stack
+    
+    def pyr_up(self, steps):
+        """Increasing the image size using gaussian pyramide 
+        
+        :param int steps: steps down in the pyramide
+        
+        Algorithm used: :func:`cv2.pyrUp` 
+        """
+        if not steps:
+            return
+        #print "Reducing image size, pyrlevel %s" %steps
+        h, w = Img(self.stack[0]).pyr_up(steps).shape
+        prep = deepcopy(self.img_prep)        
+        new_stack = ImgStack(height=h, width=w, img_num= self.num_of_imgs,\
+            stack_id = self.stack_id, img_prep=prep)
+        for i in range(self.shape[0]):
+            im = self.stack[i]
+            for k in range(steps):
+                im = pyrUp(im)
+            new_stack.append_img(img_arr = im, start_acq = self.start_acq[i],\
+                texp = self.texps[i], add_data = self.add_data[i])
+        new_stack._format_check()
+        new_stack.img_prep["pyrlevel"] += steps
+        return new_stack
     
     def duplicate(self):
         """Returns deepcopy of this object"""
         return deepcopy(self)
+
     
-    def save_as_fits(self, save_dir = None):
-        """Save stack as FITS file"""
-        if save_dir is None:
-            save_dir = getcwd()
-         
+    def _format_check(self):
+        """Checks if all relevant data arrays have the same length"""
+        if not all([len(x) == self.num_of_imgs for x in [self.add_data,\
+                            self.texps, self._access_mask, self.start_acq]]):
+            raise ValueError("Mismatch in array lengths of stack data, check"
+                "add_data, texps, start_acq, _access_mask")
+    
+    def load_stack_fits(self, file_path):
+        """Load stack object (fits)
+        
+        :param str file_path: file path of stack
+        """
+        if not exists(file_path):
+            raise IOError("ImgStack could not be loaded, path does not exist")
+        hdu = fits.open(file_path)
+        self.set_stack_data(hdu[0].data.astype(self.dtype))
+        prep = Img().edit_log
+        for key, val in hdu[0].header.iteritems():
+            if key.lower() in prep.keys():
+                self.img_prep[key.lower()] = val
         try:
-            from os import remove
-            remove(join(save_dir, "test.fts"))
+            self.start_acq = [datetime.strptime(x, "%Y%m%d%H%M%S%f") for x in\
+                                                    hdu[1].data["start_acq"]]
+        except:
+            print "Failed to import acquisition times"
+        try:
+            self.texps = hdu[1].data["texps"]
+        except:
+            print "Failed to import exposure times"
+        try:
+            self._access_mask = hdu[1].data["_access_mask"]
+        except:
+            print "Failed to import data access mask"    
+        try:
+            self.add_data = hdu[1].data["add_data"]
+        except:
+            print "Failed to import data additional data"
+        self.roi = hdu[2].data["roi"]
+        self._format_check()
+        
+    def save_as_fits(self, save_dir = None, save_name = None):
+        """Save stack as FITS file"""
+        self._format_check()
+        try:
+            save_name = save_name.split(".")[0]
         except:
             pass
+        if save_dir is None:
+            save_dir = getcwd()
+        if save_name is None:
+            save_name = "piscope_imgstack_id_%s_%s_%s_%s.fts" %(self.stack_id,\
+                self.start.strftime("%Y%m%d"), self.start.strftime(\
+                                    "%H%M"), self.stop.strftime("%H%M"))
+        else:
+            save_name = save_name + ".fts"
         hdu = fits.PrimaryHDU()
+        start_acq_str = [x.strftime("%Y%m%d%H%M%S%f") for x in self.start_acq]
+        col1 = fits.Column(name = "start_acq", format = "25A", array =\
+            start_acq_str)
+        col2 = fits.Column(name = "texps", format = "D", array =\
+                                                        self.texps)
+        col3 = fits.Column(name = "_access_mask", format = "L",\
+                                            array = self._access_mask)
+        col4 = fits.Column(name = "add_data", format = "D",\
+                                            array = self.add_data)
+        cols = fits.ColDefs([col1, col2, col3, col4])
+        arrays = fits.BinTableHDU.from_columns(cols)
+        
+        col5 = fits.Column(name = "roi", format = "I",\
+                                            array = self.roi)                                    
+        
+        roi = fits.BinTableHDU.from_columns([col5])
         #==============================================================================
         # col1 = fits.Column(name = 'target', format = '20A', array=a1)
         # col2 = fits.Column(name = 'V_mag', format = 'E', array=a2)
@@ -965,8 +1085,8 @@ class ImgStack(object):
         hdu.data = self.stack
         hdu.header.update(self.img_prep)
         hdu.header.append()
-        hdulist = fits.HDUList([hdu])
-        hdulist.writeto(join(save_dir, 'test.fts'))
+        hdulist = fits.HDUList([hdu, arrays, roi])
+        hdulist.writeto(join(save_dir, save_name))
         
     """Magic methods"""
     def __str__(self):
