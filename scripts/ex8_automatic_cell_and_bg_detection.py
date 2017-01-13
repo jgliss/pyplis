@@ -48,7 +48,7 @@ def perform_auto_cell_calib():
     # This is a DataSet object and performs file separation, dark/offset list 
     # assignment, etc. for all images in the specified time window (corresponding
     # to the cell calibration data set, so after initiation)
-    c = piscope.calibration.CellCalibEngine(setup)
+    c = piscope.cellcalib.CellCalibEngine(setup)
     c.find_and_assign_cells_all_filter_lists()
     
     c.prepare_tau_stack("on", pyrlevel = 2)

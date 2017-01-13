@@ -1,4 +1,12 @@
 # -*- coding: utf-8 -*-
+"""
+.. note::
+
+    THIS MODULE WAS REMOVED ON 13/01/2017 DUE TO RESTRUCTURING. NOW, THERE 
+    ARE TWO CALIBRATION MODULES (cellcalib.py and doascalib.py) AND 
+    :class:`CalibrationCollection` WAS SORTED OUT.
+    
+"""
 from matplotlib.pyplot import subplots, subplot,draw,tight_layout
 from numpy import float, log, arange, polyfit, poly1d, linspace, isnan,\
                                             isfinite, diff, mean, argmin
@@ -22,6 +30,7 @@ from .imagelists import ImgList, CellImgList
 from .exceptions import CellSearchError
 from .image import Img
 from .helpers import subimg_shape, map_coordinates_sub_img
+
 id
 class CalibrationCollection(object):
     """High level class combined DOAS and cell calibration stuff

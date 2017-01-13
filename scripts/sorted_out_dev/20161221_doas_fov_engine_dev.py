@@ -8,15 +8,17 @@ Sript showing how to work with cell calibration data
 import piscope 
 import pydoas
 from datetime import datetime, timedelta
+from matplotlib.pyplot import close
 from os.path import join, exists
 from os import getcwd, remove
 
+close("all")
 my_dat = r'D:/repos/tests'
 stack_path = join(my_dat,\
         "piscope_imgstack_id_aa_stack_20150916_0706_0721.fts")
 
 
-reload_stack = 1
+reload_stack = 0
 if not exists(stack_path):
     reload_stack =1
 #==============================================================================
@@ -128,38 +130,14 @@ else:
     stack = piscope.processing.ImgStack()
     stack.load_stack_fits(stack_path)
     #stack, hdu = load_stack_fits(stack, stack_path)
-s = piscope.doasfov.DoasFOVEngine(stack, doas_res_std, pearson_max_radius = 10)
+s = piscope.doascalib.DoasFOVEngine(stack, doas_res_std, pearson_max_radius = 10)
 fov1 = s.perform_fov_search(method = "pearson")
 #fov2 = s.perform_fov_search(method = "ifr", ifr_lambda = 8e-2)
-fov2 = s.perform_fov_search(method = "ifr", ifr_lambda = 1e-4)
-fov3 = s.perform_fov_search(method = "ifr", ifr_lambda = 1e-3)
+#fov2 = s.perform_fov_search(method = "ifr", ifr_lambda = 1e-4)
+fov3 = s.perform_fov_search(method = "ifr", ifr_lambda = 2e-3)
 
-import matplotlib.pyplot as plt
-import numpy as np
-plt.close("all")
-xarr = np.linspace(0, 0.18, 1000)
-fig, ax = plt.subplots(1,2, figsize=(17,5))
-fig.suptitle("Pearson")
-ax[0].imshow(fov1.corr_img.img, cmap= "gray")
-ax[0].imshow(fov1.fov_mask, alpha = 0.2)
-ax[1].plot(fov1.tau_vec, fov1.doas_vec, " x", label = "Data")
-p1 = np.poly1d(np.polyfit(fov1.tau_vec, fov1.doas_vec, 1))
-ax[1].plot(xarr, p1(xarr), "--", label = ("Regr %s" %p1))
-ax[1].legend()
-fig, ax = plt.subplots(1,2, figsize=(17,5))
-fig.suptitle("IFR lbda=1e-4")
-ax[0].imshow(fov2.corr_img.img, cmap= "gray")
-ax[0].imshow(fov2.fov_mask, alpha = 0.2)
-ax[1].plot(fov2.tau_vec, fov2.doas_vec, " x", label = "Data")
-p2 = np.poly1d(np.polyfit(fov2.tau_vec, fov2.doas_vec, 1))
-ax[1].plot(xarr, p2(xarr), "--", label = ("Regr %s" %p2))
-ax[1].legend()
-
-fig, ax = plt.subplots(1,2, figsize=(17,5))
-fig.suptitle("IFR lbda=1e-3")
-ax[0].imshow(fov3.corr_img.img, cmap= "gray")
-ax[0].imshow(fov3.fov_mask, alpha = 0.2)
-ax[1].plot(fov3.tau_vec, fov3.doas_vec, " x", label = "Data")
-p3 = np.poly1d(np.polyfit(fov3.tau_vec, fov3.doas_vec, 1))
-ax[1].plot(xarr, p3(xarr), "--", label = ("Regr %s" %p3))
-ax[1].legend()
+c = fov3.calib_data
+poly1 = c.fit_calib_polynomial()
+poly2 = fov1.calib_data.fit_calib_polynomial()
+fov1.plot()
+fov3.plot()

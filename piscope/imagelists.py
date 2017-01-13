@@ -274,7 +274,7 @@ class BaseImgList(object):
     def reset_img_prep(self):
         """Init image pre edit settings"""
         self.img_prep = dict.fromkeys(self.img_prep, 0)
-        self.img_prep["roi"] = [0, 0, 9999, 9999]
+        self._settings["roi"] = [0, 0, 9999, 9999]
         if self.nof > 0:
             self.load()
     

@@ -8,6 +8,7 @@ import matplotlib.colors as colors
 from numpy import mod, linspace, hstack, vectorize, uint8, cast, asarray,\
     unravel_index, nanargmax, meshgrid
 from scipy.ndimage.filters import gaussian_filter
+from cv2 import pyrUp
 
 def mesh_from_img(img_arr):
     if not img_arr.ndim == 2:
@@ -29,6 +30,21 @@ def get_img_maximum(img_arr, gaussian_blur = 4):
     #print img_arr.shape
     img_arr = gaussian_filter(img_arr, gaussian_blur)
     return unravel_index(nanargmax(img_arr), img_arr.shape)   
+
+def sub_img_to_detector_coords(img_arr, shape_orig, pyrlevel,\
+                                    roi_abs = [0, 0, 9999, 9999]):
+    """Converts a shape manipulated image to original detecor coords
+    
+    Regions outside the ROI are set to 0
+    
+    :
+    """
+    from numpy import zeros, float32
+    new_arr = zeros(shape_orig).astype(float32)
+    for k in range(pyrlevel):
+        img_arr = pyrUp(img_arr)
+    new_arr[roi_abs[1]:roi_abs[3], roi_abs[0] : roi_abs[2]] = img_arr
+    return new_arr
     
 def check_roi(roi):
     """Checks if input is valid ROI"""
@@ -40,7 +56,6 @@ def check_roi(roi):
         raise ValueError("x1 and y1 must be larger than x0 and y0")
     return True
 
-    
 def subimg_shape(img_shape = None, roi = None, pyrlevel = 0):
     """Get shape of subimg after cropping and size reduction
     

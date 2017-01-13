@@ -33,7 +33,7 @@ except:
 GAUSS_2D_PARAM_INFO = ["amplitude", "mu_x", "mu_y", "sigma", "asymmetry",\
     "exp_super_gauss", "offset", "tilt_theta"]
     
-def gauss_fit_2d_img_max(img_arr, cx, cy, g2d_asym = True,\
+def gauss_fit_2d(img_arr, cx, cy, g2d_asym = True,\
         g2d_super_gauss = True, g2d_crop = True, g2d_tilt = False, **kwargs):
     """Apply 2D gauss fit to input image at its maximum pixel coordinate
     
@@ -47,6 +47,7 @@ def gauss_fit_2d_img_max(img_arr, cx, cy, g2d_asym = True,\
     :param bool g2d_tilt: allow gauss to be tilted with respect to x/y axis
     """
     xgrid, ygrid = mesh_from_img(img_arr)
+    amp = img_arr[cy, cx]
     # constrain fit, if requested
     print "2D Gauss fit"
     if g2d_asym:
@@ -67,7 +68,7 @@ def gauss_fit_2d_img_max(img_arr, cx, cy, g2d_asym = True,\
         raise ValueError("With tilt and without asymmetry makes no sense")
     if g2d_tilt:
         print "g2d_tilt active"
-        guess = [1, cx, cy, 20, 1, 1, 0, 0]
+        guess = [amp, cx, cy, 20, 1, 1, 0, 0]
         lb = [-inf, -inf, -inf, -inf, asym_lb, shape_lb, -inf, -inf]
         ub = [ inf,  inf,  inf,  inf, asym_ub, shape_ub,  inf,  inf]
         if any(lb >= ub):
@@ -79,7 +80,7 @@ def gauss_fit_2d_img_max(img_arr, cx, cy, g2d_asym = True,\
             raise Exception("FOV gauss fit failed, popt == guess")
         result_img = supergauss_2d_tilt((xgrid, ygrid), *popt)
     else:
-        guess = [1, cx, cy, 20, 1, 1, 0]
+        guess = [amp, cx, cy, 20, 1, 1, 0]
         lb = [-inf, -inf, -inf, -inf, asym_lb, shape_lb, -inf]
         ub = [ inf,  inf,  inf,  inf, asym_ub, shape_ub,  inf]
         popt, pcov = curve_fit(supergauss_2d, (xgrid, ygrid),\

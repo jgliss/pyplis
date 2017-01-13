@@ -1,47 +1,224 @@
 # -*- coding: utf-8 -*-
-from numpy import float, unravel_index, min, arange, asarray, nanargmax,\
-    zeros, inf, linspace, remainder, column_stack, ones, meshgrid, exp, sin,\
-    cos, finfo, pi, e, nan
-from scipy.optimize import curve_fit
+from numpy import min, arange, asarray, zeros, linspace, column_stack,\
+    ones, e, nan, float32, polyfit, poly1d, sqrt, isnan
 from scipy.stats.stats import pearsonr  
 from scipy.sparse.linalg import lsmr
 from pandas import Series
 from copy import deepcopy
 
-
 from matplotlib.pyplot import subplots
 from matplotlib.patches import Circle
-
+from matplotlib.cm import RdBu
 from .processing import ImgStack
-from .helpers import map_coordinates_sub_img, shifted_color_map, mesh_from_img
+from .helpers import shifted_color_map, mesh_from_img, get_img_maximum,\
+        sub_img_to_detector_coords
+from .optimisation import gauss_fit_2d, GAUSS_2D_PARAM_INFO
 from .image import Img
+from .inout import get_camera_info
+from .setupclasses import Camera
 
+class DoasCalibData(object):
+    """Object representing DOAS calibration data"""
+    def __init__(self, tau_vec = None, doas_vec = None, time_stamps = None, 
+                     polyorder = 1):
+        self.tau_vec = tau_vec #tau data vector within FOV
+        self.doas_vec = doas_vec #doas data vector
+        self.time_stamps = time_stamps
+        
+        self.coeffs = None
+        self.cov = None
+        self.polyorder = polyorder
+    
+    
+    @property
+    def calib_poly(self):
+        """return poly1d object of current coefficients"""
+        return poly1d(self.coeffs)
+        
+    @property
+    def slope(self):
+        """return current calib curve slope plus std"""
+        return self.coeffs[-2], sqrt(self.cov[-2][-2])
+    
+    @property
+    def y_offset(self):
+        """return y axis offset of calib curve plus uncertainty"""
+        return self.coeffs[-1], sqrt(self.cov[-1][-1])
+    @property
+    def doas_tseries(self):
+        """Return pandas Series object of doas data"""
+        return Series(self.doas_vec, self.time_stamps)
+    
+    @property
+    def tau_tseries(self):
+        """Return pandas Series object of tau data"""
+        return Series(self.tau_vec, self.time_stamps)
+    
+    def fit_calib_polynomial(self, polyorder = None, plot = 1):
+        """Fit calibration polynomial to current data
+        
+        :param int polyorder: update current polyorder        
+        """
+        if polyorder is None:
+            polyorder = self.polyorder
+    
+        if sum(isnan(self.tau_vec)) + sum(isnan(self.doas_vec)) > 0:
+            raise ValueError("Encountered nans in data")
+        coeffs, cov = polyfit(self.tau_vec, self.doas_vec,\
+                                        polyorder, cov = True)
+        self.polyorder = polyorder
+        self.coeffs = coeffs
+        self.cov = cov
+        if plot:
+            self.plot()
+        return self.calib_poly
+    
+    @property
+    def tau_range(self):
+        """Returns range of tau values extended by 5%"""
+        tau = self.tau_vec
+        taumin, taumax = tau.min(), tau.max()
+        if taumin > 0:
+            taumin = 0
+        add = (taumax - taumin) * 0.05
+        return taumin - add, taumax + add
+    
+    @property
+    def doas_cd_range(self):
+        """Returns range of DOAS cd values extended by 5%"""
+        cds = self.doas_vec
+        cdmin, cdmax = cds.min(), cds.max()
+        if cdmin > 0:
+            cdmin = 0
+        add = (cdmax - cdmin) * 0.05
+        return cdmin - add, cdmax + add
+        
+    def plot(self, ax = None):
+        """Plots current calibration"""
+        if ax is None:
+            fig, ax = subplots(1,1, figsize=(16,6))
+        ax.plot(self.tau_vec, self.doas_vec, " x", label = "Data")
+        taumin, taumax = self.tau_range
+        x = linspace(taumin, taumax, 100)
+        ax.plot(x, self.calib_poly(x), "--r", label = "Fit %s" %self.calib_poly)
+        ax.legend(loc='best', fancybox=True, framealpha=0.5)
+        ax.grid()
+        return ax
+        
+    def plot_data_tseries_overlay(self, ax = None):
+        """Plot overlay of tau and DOAS time series"""
+        if ax is None:
+            fig, ax = subplots(1,1)
+        s1 = self.tau_tseries
+        s2 = self.doas_tseries
+        p1 = ax.plot(s1, "--xb", label = r"$\tau$")
+        ax.set_ylabel("tau")
+        ax2 = ax.twinx()
+            
+        p2=ax2.plot(s2, "--xr", label="DOAS CDs")
+        ax2.set_ylabel("SO2-SCD [cm-2]")
+        ax.set_title("Time series overlay DOAS calib data")
+        
+        ps = p1 + p2
+        labs = [l.get_label() for l in ps]
+        ax.legend(ps, labs, loc="best",fancybox=True, framealpha=0.5)
+        
+        return ax, ax2
+#==============================================================================
+#         ax1 = self.tau_tseries.plot(label = "img tau data")
+#         ax1.set_ylabel("tau data")
+#         ax2 = self.doas_tseries.plot(label = "doas data", secondary_y = True)
+#         ax2.set_ylabel("DOAS CD time series")
+#==============================================================================
+        
+        
+        
 class DoasFOV(object):
     """Class for storage of FOV information"""
-    def __init__(self):
+    def __init__(self, camera = None):
         self.search_settings = {}
         self.img_prep = {}
+        self.roi = None
+        self.camera = None
+        self.calib_data = DoasCalibData()
         
         self.corr_img = None
         
-        self.doas_vec = None #doas data vector
-        self.tau_vec = None #tau data vector within FOV
         self.fov_mask = None
         
         self.result_pearson = {"cx_rel"     :   nan,
                                "cy_rel"     :   nan,
                                "radius_rel" :   nan,
                                "corr_curve" :   None}
-        self.result_ifr = {"popt"           :   None}
+        self.result_ifr = {"popt"           :   None,
+                           "pcov"           :   None}
+                           
+        if isinstance(camera, Camera):
+            self.camera = camera
     
     @property
     def method(self):
         """Returns search method"""
         return self.search_settings["method"]
+        
+    @property
+    def cx(self):
+        """Return center x coordinate of FOV (in relative coords)"""
+        if self.method == "ifr":
+            return self.result_ifr["popt"][1]
+        else:
+            return self.result_pearson["cx_rel"]
+    @property
+    def cy(self):
+        """Return center x coordinate of FOV (in relative coords)"""
+        if self.method == "ifr":
+            return self.result_ifr["popt"][2]
+        else:
+            return self.result_pearson["cy_rel"]
     
-    def fov_params(self):
+    @property
+    def radius(self):
+        """Returns radius of FOV (in relative coords)
+
+        :raises: TypeError if method == "ifr"
         """
+        if self.method == "ifr":
+            raise TypeError("Invalid value: method IFR does not have FOV "
+                "parameter radius, call self.popt for relevant parameters")
+        return self.result_pearson["radius_rel"]
+        
+    @property
+    def popt(self):
+        """Return super gauss optimisation parameters (in relative coords)
+        
+        :raises: TypeError if method == "pearson"        
+        
         """
+        if self.method == "pearson":
+            raise TypeError("Invalid value: method pearson does not have FOV "
+                "shape parameters, call self.radius to retrieve disk radius")
+        return self.result_ifr["popt"]
+        
+    def transform_fov_mask_abs_coords(self, img_shape_orig = (), cam_id = ""):
+        """Converts the FOV mask to absolute detector coordinates
+        
+        :param tuple img_shape_orig: image shape of original image data (can
+            be extracted from an unedited image), or
+        :param str cam_id: string ID of piscope default camera (e.g. "ecII")
+            
+        The shape of the FOV mask (and the represented pixel coordinates) 
+        depends on the image preparation settings of the :class:`ImgStack` 
+        object which was used to identify the FOV. 
+        """
+        if not len(img_shape_orig) == 2:
+            try:
+                info = get_camera_info(cam_id)
+                img_shape_orig = (int(info["pixnum_y"]), int(info["pixnum_x"]))
+            except:
+                raise IOError("Image shape could not be retrieved...")
+        mask = self.fov_mask.astype(float32)       
+        return sub_img_to_detector_coords(mask, img_shape_orig,\
+                    self.img_prep["pyrlevel"], self.roi).astype(bool)
         
 #==============================================================================
 #       
@@ -73,68 +250,57 @@ class DoasFOV(object):
         for k, v in self.search_settings.iteritems():
             s += "%s: %s\n" %(k, v)
         if self.method == "ifr":
-            s += "\nIFR search results \n............................\n"
+            s += "\nIFR search results \n.........................\n"
             s += "\nSuper gauss fit optimised params\n"
-            for k, v in self.result_ifr.iteritems():
-                s += "%s: %s\n" %(k, v)
-    def plot(self):
-        """Draw the current FOV position into the current correlation img"""
-        fig, axes = subplots(1, 1)
+            popt = self.popt
+            for k in range(len(popt)):
+                s += "%s: %.3f\n" %(GAUSS_2D_PARAM_INFO[k], popt[k])
+        elif self.method == "pearson":
+            s += "\nPearson search results \n.......................\n"
+            for k, v in self.result_pearson.iteritems():
+                if not k == "corr_curve":
+                    s += "%s: %s\n" %(k, v)
+        return s
         
-        ax = axes[0]
-        ax.hold(True)
+    def plot(self, ax = None):
+        """Draw the current FOV position into the current correlation img"""
+        if ax is None:        
+            fig, ax = subplots(1, 1)
+        
         img = self.corr_img.img
         vmin, vmax = img.min(), img.max()
-        cmap = shifted_color_map(vmin, vmax, cmap = "RdBu")
-        
-        disp = ax.imshow(img, vmin = vmin, vmax = vmax, cmap = cmap)#, cmap=plt.cm.jet)
+        cmap = shifted_color_map(vmin, vmax, cmap = RdBu)
+        h, w = img.shape
+        disp = ax.imshow(img, vmin = vmin, vmax = vmax, cmap = cmap)
         cb = fig.colorbar(disp, ax = ax)
-        if self.search_settings["method"] == "ifr":
-            popt = self.result_ifr["popt"]
+        if self.method == "ifr":
+            popt = self.popt
             cb.set_label(r"FOV fraction [$10^{-2}$ pixel$^{-1}$]",\
                                                          fontsize = 16)
-            (ny,nx) = img.shape
-            xvec = linspace(0, nx, nx)
-            yvec = linspace(0, ny, ny)
-            xgrid, ygrid = meshgrid(xvec, yvec)
             
-            ax.contour(xgrid, ygrid, fov_mask_norm, (popt[0]/ e, popt[0]/10), colors='k')
-            ax.get_xaxis().set_ticks([popt[1]])
-            ax.get_yaxis().set_ticks([popt[2]])
-            ax.axhline(popt[2], ls="--", color="k")
-            ax.axvline(popt[1], ls="--", color="k")
+            xgrid, ygrid = mesh_from_img(img)
+        
+            ax.contour(xgrid, ygrid, self.fov_mask,\
+                (popt[0] / e, popt[0] / 10), colors = 'k')
+            ax.axhline(self.cy, ls="--", color = "k")
+            ax.axvline(self.cx, ls="--", color = "k")
+            ax.get_xaxis().set_ticks([0, self.cx, w])
+            ax.get_yaxis().set_ticks([0, self.cy, h])
             #ax.set_axis_off()
-            ax.set_title("IFR search result")
-        elif self.search_settings["method"] == "pearson":
+            ax.set_title(r"IFR result $\lambda=%.1e$"\
+                        %self.search_settings["ifr_lambda"])
+        elif self.method == "pearson":
             cb.set_label(r"Pearson corr. coeff.", fontsize = 16)
+            ax.autoscale(False)
             
-        #ax.plot(popt[1], popt[2], 'x')
-        
-        
-        ax=axes[1]
-        ax.hold(True)
-        #cmap = shifted_color_map(-1, corrIm.max(), cmap = plt.cm.RdBu)
-        dispR = ax.imshow(corrIm, vmin = -1, vmax = 1, cmap=plt.cm.RdBu)
-        cbR = fig.colorbar(dispR, ax = ax)
-        cbR.set_label(r"Pearson corr. coeff.", fontsize = 16)
-        ax.autoscale(False)
-        #ax.plot(cx,cy, "x")
-        c = Circle((cx, cy), radius, ec="k", fc="none")
-        ax.add_artist(c)
-        ax.set_title("B) Pearson routine (Parametr: circ. disk)")
-        ax.get_xaxis().set_ticks([cx])
-        ax.get_yaxis().set_ticks([cy])
-        ax.axhline(cy, ls="--", color="k")
-        ax.axvline(cx, ls="--", color="k")
-        #ax.set_axis_off()
-        # plot calibration curve
-        tauLSMR = Series(tauValsLSMR, acqTimes)
-        fig.tight_layout()
-        fig, axes = plt.subplots(1,2, figsize=(16,6))
-        ax =axes[0]
-        ts=tauDataPearson.index
-        p1 = ax.plot(ts, tauDataPearson, "--x", label="tauPearson")
-        p2 = ax.plot(ts, tauLSMR, "--x", label="tauLSMR")
+            c = Circle((self.cx, self.cy), self.radius, ec = "k", fc = "none")
+            ax.add_artist(c)
+            ax.set_title("Pearson routine")
+            ax.get_xaxis().set_ticks([0, self.cx, w])
+            ax.get_yaxis().set_ticks([0, self.cy, h])
+            ax.axhline(self.cy, ls="--", color="k")
+            ax.axvline(self.cx, ls="--", color="k")
+            
         
 class DoasFOVEngine(object):
     """Engine to perform DOAS FOV search"""
@@ -145,6 +311,7 @@ class DoasFOVEngine(object):
                           "pearson_max_radius"  :   80,
                           "ifr_lambda"          :   1e-6,
                           "ifr_g2d_asym"        :   True,
+                          "ifr_g2d_super_gauss" :   True,
                           "ifr_g2d_crop"        :   True,
                           "ifr_g2d_tilt"        :   False,
                           "smooth_corr_img"     :   4,
@@ -219,7 +386,7 @@ class DoasFOVEngine(object):
         All relevant results are written into ``self.fov`` (
         :class:`DoasFOV` object)
         """
-        self.fov = DoasFOV()
+        self.fov = DoasFOV() #includes DoasCalibData class
         self.update_search_settings(**settings)
         self.merge_data(merge_type = self._settings["merge_type"])
         self.det_correlation_image(search_type = self.method)
@@ -262,6 +429,9 @@ class DoasFOVEngine(object):
     def det_correlation_image(self, search_type = "pearson", **kwargs):
         """Determines correlation image
         
+        Determines correlation image either using IFR or Pearson method.
+        Results are written into ``self.fov`` (:class:`DoasFOV`)
+        
         :param str search_type: updates current search type, available types
             ``["pearson", "ifr"]``
         """
@@ -269,7 +439,7 @@ class DoasFOVEngine(object):
             raise ValueError("DOAS correlation image object could not be "
                 "determined: inconsistent array lengths, please perform time"
                 "merging first")
-        self.update_search_settings(**kwargs)
+        self.update_search_settings(method = search_type, **kwargs)
         if search_type == "pearson":
             corr_img, _ = self._det_correlation_image_pearson(\
                                                     **self._settings)
@@ -284,6 +454,7 @@ class DoasFOVEngine(object):
         #corr_img.pyr_up(self.img_stack.img_prep["pyrlevel"])
         self.fov.corr_img = corr_img
         self.fov.img_prep = self.img_stack.img_prep
+        self.fov.roi = self.img_stack.roi
         
         return corr_img
         
@@ -331,7 +502,7 @@ class DoasFOVEngine(object):
         lsmr_offset = c[0]
         lsmr_image = c[1:].reshape(ny, nx)
         #THIS NORMALISATION IS NEW
-        lsmr_image = lsmr_image / abs(lsmr_image).max()
+        #lsmr_image = lsmr_image / abs(lsmr_image).max()
         self._settings["method"] = "ifr"
         self._settings["ifr_lambda"] = ifr_lambda
         return lsmr_image, lsmr_offset
@@ -354,9 +525,8 @@ class DoasFOVEngine(object):
         
         if self.fov.corr_img is None:
             raise Exception("Correlation image is not available")
-        pyrlevel = self.img_stack.pyrlevel
         if self.method == "pearson":
-            cy, cx = self.get_img_maximum(self.fov.corr_img.img,\
+            cy, cx = get_img_maximum(self.fov.corr_img.img,\
                 gaussian_blur = self._settings["smooth_corr_img"])
             print "Start radius search in stack around x/y: %s/%s" %(cx, cy)
             radius, corr_curve, tau_vec, doas_vec, fov_mask =\
@@ -369,26 +539,28 @@ class DoasFOVEngine(object):
 #                 self.img_stack.roi, pyrlevel = pyrlevel, inverse = True)
 #==============================================================================
             self.fov.result_pearson["cx_rel"] = cx
-            self.fov.result_pearson["cy_abs"] = cy
+            self.fov.result_pearson["cy_rel"] = cy
             self.fov.result_pearson["radius_rel"] = radius
             self.fov.result_pearson["corr_curve"] = corr_curve
             
             self.fov.fov_mask = fov_mask
-            self.fov.tau_vec = tau_vec
-            self.fov.doas_vec = doas_vec
+            self.fov.calib_data.tau_vec = tau_vec
+            self.fov.calib_data.doas_vec = doas_vec
+            self.fov.calib_data.time_stamps = self.img_stack.time_stamps
             return 
         
         elif self.method == "ifr":
             #the fit is performed in absolute dectector coordinates
             #corr_img_abs = Img(self.fov.corr_img.img).pyr_up(pyrlevel).img
-            popt, fov_mask = self.fov_gauss_fit(\
+            popt, pcov, fov_mask = self.fov_gauss_fit(\
                             self.fov.corr_img.img, **self._settings)
             tau_vec = self.convolve_stack_fov(fov_mask)
             
             self.fov.result_ifr["popt"] = popt
             self.fov.fov_mask = fov_mask            
-            self.fov.tau_vec = tau_vec
-            self.fov.doas_vec = self.doas_data_vec
+            self.fov.calib_data.tau_vec = tau_vec
+            self.fov.calib_data.doas_vec = self.doas_data_vec
+            self.fov.calib_data.time_stamps = self.img_stack.time_stamps
         else:
             raise ValueError("Invalid search method...")
             
@@ -448,7 +620,7 @@ class DoasFOVEngine(object):
     # define IFR model function (Super-Gaussian)    
         
     def fov_gauss_fit(self, corr_img, ifr_g2d_asym = True,\
-                      g2d_super_gauss = True, ifr_g2d_crop = True,\
+                      ifr_g2d_super_gauss = True, ifr_g2d_crop = True,\
                       ifr_g2d_tilt = False, smooth_corr_img = 4, **kwargs):
         """Apply 2D gauss fit to correlation image
         
@@ -462,58 +634,13 @@ class DoasFOVEngine(object):
         """
         xgrid, ygrid = mesh_from_img(corr_img)
         # apply maximum of filtered image to initialise 2D gaussian fit
-        (cy, cx) = self.get_img_maximum(corr_img, smooth_corr_img)
+        (cy, cx) = get_img_maximum(corr_img, smooth_corr_img)
         # constrain fit, if requested
-        if ifr_g2d_asym:
-            print "g2d_asym"
-            asym_lb = -inf
-            asym_ub =  inf
-        else:
-            asym_lb = 1 - finfo(float).eps
-            asym_ub = 1 + finfo(float).eps
-        if g2d_super_gauss:
-            print "g2d_super_gauss"
-            shape_lb = -inf
-            shape_ub =  inf
-        else:
-            shape_lb = 1 - finfo(float).eps
-            shape_ub = 1 + finfo(float).eps
-        if ifr_g2d_tilt and not ifr_g2d_asym:
-            raise ValueError("With tilt and without asymmetry makes no sense")
-        if ifr_g2d_tilt:
-            print "g2d_tilt"
-            guess = [1, cx, cy, 20, 1, 1, 0, 0]
-            lb = [-inf, -inf, -inf, -inf, asym_lb, shape_lb, -inf, -inf]
-            ub = [ inf,  inf,  inf,  inf, asym_ub, shape_ub,  inf,  inf]
-            if any(lb >= ub):
-                print "Bound-Problem"
-            popt, pcov = curve_fit(self._supergauss_2d_tilt, (xgrid, ygrid),\
-                        corr_img.ravel(), p0 = guess, bounds = (lb, ub))
-            popt[-1] = remainder(popt[-1], pi * 2)
-            if all(guess == popt):
-                raise Exception("FOV gauss fit failed, popt == guess")
-            fov_mask = self._supergauss_2d_tilt((xgrid, ygrid), *popt)
-        else:
-            guess = [1, cx, cy, 20, 1, 1, 0]
-            lb = [-inf, -inf, -inf, -inf, asym_lb, shape_lb, -inf]
-            ub = [ inf,  inf,  inf,  inf, asym_ub, shape_ub,  inf]
-            popt, pcov = curve_fit(self._supergauss_2d, (xgrid, ygrid),\
-                                   corr_img.ravel(), p0=guess, bounds=(lb,ub))
-            
-            if all(guess == popt):
-                ax = self.fov.corr_img.show()
-                ax.plot(cx, cy, " xc")
-                raise Exception("FOV gauss fit failed, popt == guess")
-            fov_mask = self._supergauss_2d((xgrid, ygrid), *popt)
-        # eventually crop FOV distribution (makes it more robust against outliers (eg. mountan ridge))
-        if ifr_g2d_crop:
-            print "g2d_crop"
-            # set outside (1/e amplitude) datapoints = 0
-            fov_mask[fov_mask < popt[0] / e] = 0
-        # reshape fov_mask as matrix instead of vector required for fitting
-        fov_mask = fov_mask.reshape(ny, nx)
+        (popt, pcov, fov_mask) = gauss_fit_2d(corr_img, cx, cy, ifr_g2d_asym,\
+            g2d_super_gauss = ifr_g2d_super_gauss, g2d_crop = ifr_g2d_crop,\
+                                            g2d_tilt = ifr_g2d_tilt, **kwargs)
         # normalise
-        return (popt, fov_mask)
+        return (popt, pcov, fov_mask)
     
     #function convolving the image stack with the obtained FOV distribution    
     def convolve_stack_fov(self, fov_mask):
