@@ -11,13 +11,14 @@ from re import sub
 from decimal import Decimal
 from cv2 import pyrDown,resize, pyrUp
 from scipy.ndimage.filters import gaussian_filter, median_filter
-
+from traceback import format_exc
 from collections import OrderedDict as od
 from copy import deepcopy
 
 from .inout import get_all_valid_cam_ids
-from .helpers import shifted_color_map, bytescale
+from .helpers import shifted_color_map, bytescale, map_roi, check_roi
 from .exceptions import ImgMetaError
+
 
 class Img(object):
     """ Image base class
@@ -104,7 +105,7 @@ class Img(object):
                               ("is_tau"    ,   0), # boolean
                               ("others"    ,   0)])# boolean 
         
-        self.roi = [0, 0, 9999, 9999] #will be set on image load
+        self._roi = [0, 0, 9999, 9999] #will be set on image load
         
         self.meta = od([("start_acq"     ,   datetime(1900, 1, 1)),#datetime(1900, 1, 1)),
                         ("stop_acq"      ,   datetime(1900, 1, 1)),#datetime(1900, 1, 1)),
@@ -123,8 +124,8 @@ class Img(object):
                         ("ser_no"        ,   "")])
                         
         
-                                         
-        self.load_input(input)
+        if input is not None:                              
+            self.load_input(input)
         
         for k, v in meta_info.iteritems():
             if self.meta.has_key(k) and isinstance(v, type(self.meta[k])):
@@ -132,7 +133,18 @@ class Img(object):
                 self.meta[k] = v
             elif self.edit_log.has_key(k):
                 self.edit_log[k] = v
-    
+        try:
+            self.set_roi_whole_image()
+        except:
+            pass
+        
+    def set_data(self, input):
+        """Try load input"""
+        try:
+            self.load_input(input)
+        except Exception as e:
+            print repr(e)
+            
     def load_input(self, input):
         """Try to load input as numpy array and additional meta data"""
         try:
@@ -142,9 +154,9 @@ class Img(object):
             
             elif isinstance(input, ndarray):
                 self.img = input
-            self.set_roi_whole_image()
-        except Exception as e:
-            raise IOError("Image data could not be imported:\n%s" %repr(e))
+        except:
+            raise IOError("Image data could not be imported:\nError msg: %s"\
+                                        %format_exc())
     
     def make_histogram(self):
         """Make histogram of current image"""
@@ -164,7 +176,7 @@ class Img(object):
         for diplaying the image)            
         """
         hist, bins = self.make_histogram()
-        thresh = hist.max()*0.03
+        thresh = hist.max() * 0.03
         rad_low = bins[argmax(hist > thresh)]
         rad_high = bins[len(hist) - argmax(hist[::-1]>thresh)-1]
         return rad_low, rad_high, hist, bins
@@ -185,11 +197,31 @@ class Img(object):
         im = self
         if new_img:
             im = self.duplicate()
-        im.roi = roi
+        im._roi = roi
         im.edit_log["crop"] = 1
         im.img = sub
         return im
     
+    @property
+    def pyrlevel(self):
+        """Returns current gauss pyramid level (stored in ``self.edit_log``)"""
+        return self.edit_log["pyrlevel"]
+    
+    @property 
+    def roi(self):
+        """Returns current roi (in consideration of current pyrlevel)"""
+        roi_sub = map_roi(self._roi, self.edit_log["pyrlevel"])
+        print ("Current roi in Img (in abs coords): %s, mapped to pyrlevel: "
+            "%s (roi is applied: %s)" %(self._roi, roi_sub, 
+            bool(self.edit_log["crop"])))
+        return roi_sub
+        
+    @roi.setter
+    def roi(self, val):
+        """Updates current ROI"""
+        if check_roi(val):
+            self._roi = val
+            
     def correct_dark_offset(self, dark, offset):
         """Perform dark frame subtraction, 3 different modi possible
         
@@ -236,7 +268,8 @@ class Img(object):
     def set_roi_whole_image(self):
         """Set current ROI to whole image area based on shape of image data"""
         h, w = self.img.shape[:2]
-        self.roi = [0, 0, w, h]     
+    
+        self._roi = [0, 0, w * 2**self.pyrlevel, h * 2**self.pyrlevel]     
     
     def apply_median_filter(self, size_final = 3):
         """Apply a median filter to 

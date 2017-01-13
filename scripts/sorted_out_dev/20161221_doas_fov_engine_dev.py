@@ -11,12 +11,12 @@ from datetime import datetime, timedelta
 from os.path import join, exists
 from os import getcwd, remove
 
-my_dat = r'D:/Test/piscope_out/'
+my_dat = r'D:/repos/tests'
 stack_path = join(my_dat,\
         "piscope_imgstack_id_aa_stack_20150916_0706_0721.fts")
 
 
-reload_stack = 0
+reload_stack = 1
 if not exists(stack_path):
     reload_stack =1
 #==============================================================================
@@ -123,7 +123,7 @@ if reload_stack:
         remove(stack_path)
     except:
         pass    
-    stack.save_as_fits()  
+    stack.save_as_fits(save_dir=my_dat)  
 else:
     stack = piscope.processing.ImgStack()
     stack.load_stack_fits(stack_path)
