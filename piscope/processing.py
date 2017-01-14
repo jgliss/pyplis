@@ -16,11 +16,12 @@ from matplotlib.pyplot import subplot, subplots, tight_layout
 from matplotlib.dates import date2num
 from pandas import Series, concat, DatetimeIndex
 from cv2 import cvtColor, COLOR_BGR2GRAY, pyrDown, pyrUp
-from os import getcwd
+from os import getcwd, remove
 from os.path import join, exists
 from astropy.io import fits
 
 from .image import Img
+from .setupclasses import Camera
 from .exceptions import ImgMetaError, ImgModifiedError
 #from .Helpers import subimg_shape
 
@@ -37,11 +38,11 @@ class PixelMeanTimeSeries(Series):
     std = None
     texps = None
     img_prep = {}
-    roi = None
+    roi_abs = None
     poly_model = None
     
     def __init__(self, data, start_acq, std = None, texps = None,
-                         roi = None, img_prep = {}, **kwargs):
+                         roi_abs = None, img_prep = {}, **kwargs):
         """
         :param ndarray data: data array 
             (is passed into pandas Series init -> ``self.values``)
@@ -49,7 +50,7 @@ class PixelMeanTimeSeries(Series):
             (is passed into pandas Series init -> ``self.index``)
         :param ndarray std: array containing standard deviations
         :param ndarray texps: array containing exposure times
-        :param list roi: image area from which data was extracted, list of 
+        :param list roi_abs: image area from which data was extracted, list of 
             shape: ``[x0, y0, x1, y1]``
         :param dict img_prep: dictionary containing information about image
             preparation settings (e.g. blurring, etc..) or other 
@@ -71,7 +72,7 @@ class PixelMeanTimeSeries(Series):
             self.std = zeros(len(data), dtype = float32)
             
         self.img_prep = img_prep
-        self.roi = roi
+        self.roi_abs = roi_abs
         
         for key, val in kwargs.iteritems():
             self[key] = val
@@ -91,7 +92,7 @@ class PixelMeanTimeSeries(Series):
             ts = self.texps * facs
             
             return PixelMeanTimeSeries(self.values * facs, self.index,\
-                        self.std, ts, self.roi, self.img_prep)
+                        self.std, ts, self.roi_abs, self.img_prep)
             
         except Exception as e:
             print ("Failed to normalise data bases on exposure times:\n%s\n\n"
@@ -187,7 +188,8 @@ class PixelMeanTimeSeries(Series):
                 kwargs["style"] = "--x"    
             ax = super(PixelMeanTimeSeries, self).plot(**kwargs)
             if include_tit:
-                ax.set_title("Mean value (%s), roi: %s" %(self.name, self.roi))
+                ax.set_title("Mean value (%s), roi_abs: %s" %(self.name,\
+                        self.roi_abs))
             ax.grid()
             
             return ax
@@ -491,8 +493,8 @@ class ImgStack(object):
     """Basic img stack object with some functionality, stack data is based
     on 3D numpy array
     """
-    def __init__(self, height = 0, width = 0, img_num = 0,\
-                         dtype = float32, stack_id = "", img_prep = {},\
+    def __init__(self, height = 0, width = 0, img_num = 0, dtype = float32,\
+                 stack_id = "", img_prep = {}, camera = None, geometry = None,\
                                                              **stack_data):
         """Specify input
         
@@ -519,11 +521,16 @@ class ImgStack(object):
         self._access_mask = zeros(img_num, dtype = bool)
         
         self.img_prep = img_prep
-        self.roi = [0, 0, 9999, 9999]
+        self.roi_abs = [0, 0, 9999, 9999]
+        
+        self._cam = Camera()
         
         if stack_data.has_key("stack"):
             self.set_stack_data(**stack_data)
-    
+        
+        if isinstance(camera, Camera):
+            self.camera = camera
+        
     @property
     def last_index(self):
         """Returns last index"""
@@ -532,24 +539,49 @@ class ImgStack(object):
     @property
     def start(self):
         """Returns start time stamp of first image"""
-        return self.start_acq[0]
-    
+        try:
+            return self.start_acq[0]
+        except:
+            raise ValueError("Information about start acquisition time could"
+                " not be retrieved")
+                
     @property
     def stop(self):
         """Returns start time stamp of first image"""
-        return self.start_acq[-1] + timedelta(self.texps[-1] / 86400.)
+        try:
+            return self.start_acq[-1] + timedelta(self.texps[-1] / 86400.)
+        except:
+            raise ValueError("Information about stop acquisition time could"
+                " not be retrieved")
         
     @property
     def time_stamps(self):
         """Compute time stamps for images from acq. times and exposure times"""
-        dts = [timedelta(x /(2 * 86400.)) for x in self.texps]
-        return self.start_acq + asarray(dts)
+        try:
+            dts = [timedelta(x /(2 * 86400.)) for x in self.texps]
+            return self.start_acq + asarray(dts)
+        except:
+            raise ValueError("Failed to access information about acquisition "
+                "time stamps and / or exposure times")
     
     @property
     def pyrlevel(self):
         """return current pyramide level (stored in ``self.img_prep``)"""
         return self.img_prep["pyrlevel"]
-        
+    
+    @property
+    def camera(self):
+        """Get / set current camera object"""
+        return self._cam
+    
+    @camera.setter
+    def camera(self, value):
+        """Set camera"""
+        if isinstance(value, Camera):
+            self._cam = value
+        else:
+            raise TypeError("Need Camera object...")
+            
     def append_img(self, img_arr, start_acq = datetime(1900, 1, 1), texp = 0.0, 
                                                                add_data = 0.0):
         """Append at the end of the stack
@@ -948,7 +980,8 @@ class ImgStack(object):
         :param int index: index of image in stack        
         """
         stack, ts, _ = self.get_data()
-        im = Img(stack[index], start_acq = ts[index])
+        im = Img(stack[index], start_acq = ts[index], texp = self.texps[index])
+        im.edit_log = self.img_prep
         return im.show()
 
     def pyr_down(self, steps = 0):
@@ -1043,7 +1076,7 @@ class ImgStack(object):
             self.add_data = hdu[1].data["add_data"]
         except:
             print "Failed to import data additional data"
-        self.roi = hdu[2].data["roi"]
+        self.roi_abs = hdu[2].data["roi_abs"]
         self._format_check()
         
     def save_as_fits(self, save_dir = None, save_name = None):
@@ -1074,10 +1107,10 @@ class ImgStack(object):
         cols = fits.ColDefs([col1, col2, col3, col4])
         arrays = fits.BinTableHDU.from_columns(cols)
         
-        col5 = fits.Column(name = "roi", format = "I",\
-                                            array = self.roi)                                    
+        col5 = fits.Column(name = "roi_abs", format = "I",\
+                                            array = self.roi_abs)                                    
         
-        roi = fits.BinTableHDU.from_columns([col5])
+        roi_abs = fits.BinTableHDU.from_columns([col5])
         #==============================================================================
         # col1 = fits.Column(name = 'target', format = '20A', array=a1)
         # col2 = fits.Column(name = 'V_mag', format = 'E', array=a2)
@@ -1085,8 +1118,13 @@ class ImgStack(object):
         hdu.data = self.stack
         hdu.header.update(self.img_prep)
         hdu.header.append()
-        hdulist = fits.HDUList([hdu, arrays, roi])
-        hdulist.writeto(join(save_dir, save_name))
+        hdulist = fits.HDUList([hdu, arrays, roi_abs])
+        path = join(save_dir, save_name)
+        if exists(path):
+            print "Stack already exists at %s and will be overwritten" %path
+            remove(path)
+
+        hdulist.writeto(path)
         
     """Magic methods"""
     def __str__(self):
@@ -1144,6 +1182,26 @@ def model_dark_image(img, dark, offset):
     
     return Img(dark_img, start_acq = img.meta["start_acq"],\
                                             texp = img.meta["texp"])
+import matplotlib.animation as animation
+
+def animate_stack(img_stack):
+    
+    fig = figure() # make figure
+    
+    # make axesimage object
+    # the vmin and vmax here are very important to get the color map correct
+    im = imshow(sta, cmap=plt.get_cmap('jet'), vmin=0, vmax=255)
+    
+    # function to update figure
+    def updatefig(j):
+        # set the data in the axesimage object
+        im.set_array(imagelist[j])
+        # return the artists set
+        return im,
+    # kick off the animation
+    animation.FuncAnimation(fig, updatefig, frames=range(20), 
+                                  interval=50, blit=True)
+    plt.show()
 
  
 #==============================================================================

@@ -1,13 +1,7 @@
 # -*- coding: utf-8 -*-
 """
-.. todo::
-
-    Geonum has 3rd party dependencies and success of installation can not be
-    guaranteed. Therefore, include functionality here to  determine plume 
-    distances directly rather than relying on the functionality of geonum. In 
-    this case, however, mapping functionality and handling of topography data
-    does not work.
-    
+This is the geometry.py file of piscope before the unit of focal_length 
+parameter was changed from mm to m (14/01/2017)
 """
 from numpy import nan, arctan, deg2rad, linalg, sqrt, abs, array, radians,\
     sin, cos, arcsin, tan, rad2deg, zeros, linspace, isnan, asarray, ones
@@ -45,9 +39,9 @@ class MeasGeometry(object):
                                 ("elev_err"     ,   nan),
                                 ("azim"         ,   nan),
                                 ("azim_err"     ,   nan),
-                                ("focal_length" ,   nan), #in m
-                                ("pix_width"    ,   nan), #in m
-                                ("pix_height"   ,   nan), #in m
+                                ("focal_length" ,   nan), #IN mm
+                                ("pix_width"    ,   nan), #m
+                                ("pix_height"   ,   nan), #m
                                 ('pixnum_x'     ,   nan),
                                 ('pixnum_y'     ,   nan)])
         
@@ -206,9 +200,9 @@ class MeasGeometry(object):
             det_width = self.cam["pix_width"] * self.cam["pixnum_x"]
             det_height = self.cam["pix_height"] * self.cam["pixnum_y"]
             del_az = rad2deg(arctan(det_width /\
-                    (2.0 * self.cam["focal_length"])))
+                    (2.0 * self.cam["focal_length"] * 10**(-3))))
             del_elev = rad2deg(arctan(det_height/\
-                    (2.0 * self.cam["focal_length"])))
+                    (2.0 * self.cam["focal_length"] * 10**(-3))))
         
             return {"azim_left"     :   self.cam["azim"] - del_az,
                     "azim_right"    :   self.cam["azim"] + del_az,
@@ -220,12 +214,12 @@ class MeasGeometry(object):
             return False
             
     def get_viewing_directions_line(self, line):
-        """Determine viewing direction coords for a line in an image
+        """For a given line in the image determine the viewing direction coordinates
         
         :param list line: start / stop pixel coordinates of line, i.e.
-            ``[x0, y0, x1, y1]``
+            ``[x0, y0, x1,y1]``
         """
-        f = self.cam["focal_length"]
+        f = self.cam["focal_length"] * 10**(-3)
         
         x0, y0, x1, y1 = line[0], line[1], line[2], line[3]
         if x0 > x1:
@@ -258,8 +252,8 @@ class MeasGeometry(object):
         try:
             print self.cam_pos
         except:
-            print ("Failed to retrieve distance to topo for line %s in "
-                "MeasGeometry: geo location of camera is not available" %line)
+            print ("Failed to retrieve distance to topo for line %s in MeasGeometry: "
+                                "geo location of camera is not available" %line)
             return False
         if not isinstance(self.geo_setup.topo_data, TopoData):
             try:
@@ -274,8 +268,8 @@ class MeasGeometry(object):
                                                                     j_pos[cond]
         if not len(azims) > 0:
             print ("Failed to retrieve distance to topo for line %s in "
-                    "MeasGeometry: viewing directions (azim, elev) could not "
-                    "be retrieved..." %line)
+                    "MeasGeometry: viewing directions (azim, elev) could not be " 
+                    "retrieved for line..." %line)
             return False
         #Take only every "skip_pix" pixel on the line
         azims, elevs = azims[::int(skip_pix)], elevs[::int(skip_pix)]
@@ -293,8 +287,8 @@ class MeasGeometry(object):
         for k in range(len(azims)):
             ep = None
             try:
-                ep = self.get_elevation_profile(azim = azims[k],\
-                                                    dist_hor = max_dist)
+                ep = self.get_elevation_profile(azim = azims[k], dist_hor =\
+                                                                        max_dist)
                 d, dErr, p , l = ep.get_first_intersection(elevs[k], **kwargs)
                 msg = "ok"
                 ok = True
@@ -330,7 +324,7 @@ class MeasGeometry(object):
         """
         dx = self.cam["pix_width"] * (pos_x - self.cam["pixnum_x"] / 2)
         dy = self.cam["pix_height"] * (pos_y - self.cam["pixnum_y"] / 2)
-        f = self.cam["focal_length"]
+        f = self.cam["focal_length"] * 10**(-3)
         del_az = rad2deg(arctan(dx / f))
         del_elev = rad2deg(arctan(dy / f))
         return del_az, del_elev
@@ -359,7 +353,7 @@ class MeasGeometry(object):
         
     def get_elevation_profile(self, col_num = None, azim = None,\
                                                         dist_hor = None):
-        """Retrieves elev profile from camera into a certain azim direction
+        """Retrieves elevation profile from camera into a certain azim direction
         
         :param int col_num: pixel column number of profile, if None or
             not in image detector range then try to use second input parameter 
@@ -459,8 +453,8 @@ class MeasGeometry(object):
         :param str obj_id: string ID of object, if this object is available
             as :class:`GeoPoint` in ``self.geo_setup`` then the corresponding 
             coordinates will be used, if not, please provide the position of 
-            the characteristic point either using :param:`geo_point` or by 
-            providing  its coordinates using params lat_pt, lon_pt, alt_pt
+            the characteristic point either using :param:`geo_point` or by providing 
+            its coordinates using params lat_pt, lon_pt, alt_pt
         :param GeoPoint geo_point: geo point object of characteristic point
         :param float lon_pt: longitude of characteristic point
         :param float lat_pt: latitude of characteristic point
@@ -561,10 +555,10 @@ class MeasGeometry(object):
             this is inadequate for complicated viewing geometries (i.e if the 
             the angles between viewing direction and plume are sharp)
         """
-        ratio = self.cam["pix_width"] / self.cam["focal_length"] #in m
+        pix_fac = 10**6 * self.cam["pix_width"] / self.cam["focal_length"]
         azims = self._get_all_azimuth_angles_fov()
-        dists = self.plume_dist(azims) * 1000.0 #in m
-        pix_dists_m = dists * ratio
+        dists = self.plume_dist(azims)
+        pix_dists_m = dists * pix_fac
         return pix_dists_m, dists
     
     def get_all_pix_to_pix_dists(self):
@@ -685,9 +679,9 @@ class MeasGeometry(object):
         m = s.plot_3d(False, False, ax = ax, **kwargs)
         zr = self.geo_setup.topo_data.alt_range * 0.05
         if draw_cam:
-            self.cam_pos.plot_3d(m, add_name = True, dz_text = zr)
+            self.cam_pos.plot(m, add_name = True, dz_text = zr)
         if draw_source:
-            self.source_pos.plot_3d(m, add_name = True, dz_text = zr)
+            self.source_pos.plot(m, add_name = True, dz_text = zr)
         
         if draw_fov:
             self.draw_azrange_fov_3d(m)
@@ -827,23 +821,14 @@ class MeasGeometry(object):
                                 self.source["lon"], self.source["lat"])
     
     def _map_extend_km(self, fac = 5.0):
-        """Helper to estimate the extend of map borders for plotting
-        
-        :param float fac: fraction of geo length scale used to determine the
-            extend         
-        """
+        """Helper to estimate the extend of map borders for plotting"""
         return self.geo_len_scale() / fac
                                 
     def _del_az(self, pixel_col1, pixel_col2):
-        """Determine the difference in azimuth angle between 2 pixel columns
-        
-        :param int pixel_col1: first pixel column
-        :param int pixel_col2: second pixel column
-        :return: float, azimuth difference
-        """
-        delta = int(abs(pixel_col1 - pixel_col2))
+        """Determine the difference in azimuth angle between 2 pixel columns"""
+        delta = abs(pixel_col1 - pixel_col2)
         return rad2deg(arctan((delta * self.cam["pix_width"]) /\
-                                        self.cam["focal_length"]))
+                                    (self.cam["focal_length"] * 10 ** (-3))))
     
     def plume_dist(self, az):
         """Return plume distance for input azimuth angle(s)
@@ -923,7 +908,7 @@ if __name__ == "__main__":
                       
                      
         cam_info={"id": "SO2 camera",
-                  "focal_length"    :   25.0e-3,
+                    "focal_length"    :   25.0,
                    "pix_height"      :   4.65e-6,
                    "pix_width"       :   4.65e-6,
                    "pixnum_x"        :   1344,
@@ -961,7 +946,7 @@ if __name__ == "__main__":
                           "vel_err"  : 1.0}
                       
                      
-        opticsCam={"focal_length"    :   12.0e-3,
+        opticsCam={"focal_length"    :   12.0,
                    "pix_height"      :   4.65e-6,
                    "pix_width"       :   4.65e-6,
                    "pixnum_x"        :   1344,

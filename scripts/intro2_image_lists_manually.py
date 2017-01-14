@@ -47,7 +47,7 @@ on_list.add_master_offset_image(offset_img)
 on_list.goto_img(100)
 img_0 = on_list.current_img().img
 ### Change image preparation settings
-on_list.roi = [100, 100, 1300, 900]
+on_list.roi_abs = [100, 100, 1300, 900]
 on_list.crop = 1
 on_list.pyrlevel = 2
 on_list.set_dark_corr_mode(1)

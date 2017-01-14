@@ -1,8 +1,10 @@
 # -*- coding: utf-8 -*-
 """
-PISCOPE example script
+piscope example script no. 4: Automatic cell calibration
 
-Sript showing how to work with cell calibration data
+Sript showing how to work with cell calibration data and automatic retrieval of
+plume background images.
+
 """
 
 import piscope as piscope
@@ -16,7 +18,6 @@ save_path = join(getcwd(), "scripts_out")
 
 # Image base path
 img_dir = join(piscope.inout.find_test_data(), "images")
-
 
 def perform_auto_cell_calib():
     ### Calibration time stamps
@@ -65,7 +66,7 @@ def perform_auto_cell_calib():
     axes[1].set_title("B) Cell search result off band", fontsize = 18)
     axes[2].set_title("C) Calibration polynomials", fontsize = 18)
     fig.tight_layout()
-    fig.savefig(join(save_path, "ex5_cellcalib_out.png"))
+    fig.savefig(join(save_path, "ex4_out_1.png"))
     return c
 #ax.legend(loc="best", fancybox=True, framealpha=0.5, fontsize=12)
 

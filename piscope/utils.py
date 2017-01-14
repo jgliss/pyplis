@@ -52,9 +52,9 @@ class CameraBaseInfo(object):
         
         self.dark_info = []
         
-        self.focal_length = None
-        self.pix_height = None#nan
-        self.pix_width = None#nan
+        self.focal_length = None #in m
+        self.pix_height = None # in m
+        self.pix_width = None # in m
         self.pixnum_x = None#nan
         self.pixnum_y = None# nan
         #the following attribute keys are relevant for measurement geometry calcs
@@ -166,7 +166,7 @@ class CameraBaseInfo(object):
                    ("file_type"       ,   str),
                    ("main_filter_id"  ,   str),
                    ("meas_type_pos"   ,   int),
-                   ("DARK_CORR_OPT"  ,   int),
+                   ("DARK_CORR_OPT"   ,   int),
                    ("focal_length"    ,   float),
                    ("pix_height"      ,   float),
                    ("pix_width"       ,   float),
@@ -198,7 +198,7 @@ class CameraBaseInfo(object):
                                            "delim. Only applies to certain "
                                            "cameras(e.g. HD cam)")),
                    ("DARK_CORR_OPT"  ,   "Camera dark correction mode"),
-                   ("focal_length"    ,   "Camera focal length in mm"),
+                   ("focal_length"    ,   "Camera focal length in m"),
                    ("pix_height"      ,   "Detector pixel height in m"),
                    ("pix_width"       ,   "Detector pixel width in m"),
                    ("pixnum_x"        ,   "Detector number of pixels in x dir"),

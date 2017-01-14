@@ -54,7 +54,7 @@ def create_environment(plot_geom = True):
     camZOffset = 20 #25 
     #create camera setup
     cam = piscope.setup.Camera(cam_id = cam_id, geom_data = geom_cam,\
-                filter_list = filters, focal_length = 25.0)
+                filter_list = filters, focal_length = 25.0e-3)
     
     ### Load default information for Etna
     source = piscope.setup.Source("etna") 

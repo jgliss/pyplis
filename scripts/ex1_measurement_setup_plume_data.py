@@ -41,7 +41,7 @@ def create_dataset():
     
     #create camera setup
     cam = piscope.setup.Camera(cam_id = cam_id, geom_data = geom_cam,\
-                filter_list = filters, focal_length = 25.0)
+                filter_list = filters, focal_length = 25e-3)
     
     ### Load default information for Etna
     source = piscope.setup.Source("etna") 
