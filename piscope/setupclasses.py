@@ -16,7 +16,7 @@ from os import path, mkdir, getcwd
 from datetime import datetime, timedelta
 from collections import OrderedDict as od
 from os.path import exists
-from numpy import isnan, nan
+from numpy import isnan, nan, rad2deg, arctan
 from abc import ABCMeta
 from copy import deepcopy
 from PyQt4.QtGui import QApplication
@@ -28,6 +28,7 @@ if PYDOASAVAILABLE:
     from pydoas.dataimport import ResultImportSetup
 
 from .forms import LineCollection, RectCollection  
+from .exceptions import MetaAccessError
 from .inout import get_source_info#, get_all_valid_cam_ids
 from .utils import Filter, CameraBaseInfo
 from .geometry import MeasGeometry
@@ -442,7 +443,7 @@ class Camera(CameraBaseInfo):
         for key, val in geom_info_dict.iteritems():
             if key in self.geom_data.keys():
                 self.geom_data[key] = val 
-            
+           
     def prepare_filter_setup(self, filter_list = None, default_key_on = None,\
                                                     default_key_off = None):
         """Create :class:`FilterSetup` object (collection of bandpass filters)
@@ -491,6 +492,33 @@ class Camera(CameraBaseInfo):
         self.__init__(cam_id, **kwargs)
         return self
 
+    """Simple processing stuff
+    """
+    def dx_to_decimal_degree(self, pix_num_x):
+        """Convert horizontal distance (in pixel units) into angular range
+        
+        :param int pix_num_x: number of pixels for which angular range is 
+            determined        
+        """
+        try:
+            len_phys = self.pix_width * pix_num_x
+            return rad2deg(arctan(len_phys / self.focal_length))
+        except:
+            raise MetaAccessError("Please check availability of focal length, "
+                "and pixel pitch (pix_width)")
+    
+    def dy_to_decimal_degree(self, pix_num_y):
+        """Convert vertical distance (in pixel units) into angular range
+        
+        :param int pix_num_y: number of pixels for which angular range is 
+            determined        
+        """
+        try:
+            len_phys = self.pix_height * pix_num_y
+            return rad2deg(arctan(len_phys / self.focal_length))
+        except:
+            raise MetaAccessError("Please check availability of focal length, "
+                "and pixel pitch (pix_height)")
         
     """Magic methods
     """

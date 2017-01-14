@@ -40,14 +40,14 @@ from sys import argv, exit
 from .image import Img
 from .inout import load_img_dummy
 from .exceptions import ImgMetaError
-from .helpers import subimg_shape, _print_list
+from .helpers import _print_list
 from .setupclasses import Camera
 from .geometry import MeasGeometry
 from .processing import ImgStack, PixelMeanTimeSeries, LineOnImage,\
                                                             model_dark_image
 from .plumebackground import PlumeBackgroundModel
 from .plumespeed import OpticalFlowFarneback
-from .helpers import check_roi, map_roi
+from .helpers import check_roi
 
 class BaseImgList(object):
     """Basic image list object
@@ -76,19 +76,20 @@ class BaseImgList(object):
         #id of this list, e.g. on, on2, myList, bla, blub  
         self.list_id = list_id
         self.list_type = list_type
-
+        
         self.set_camera(camera)
         
         self.edit_active = True
         #the following dictionary contains settings for image preparation
         #applied on image load
-        self.img_prep = {"blurring"     :   0,
-                         "median"       :   0,
-                         "crop"         :   0,
-                         "pyrlevel"     :   0,
-                         "8bit"         :   0}
+        self.img_prep = {"blurring"     :   0, #width of gauss filter
+                         "median"       :   0, #width of median filter
+                         "crop"         :   False,
+                         "pyrlevel"     :   0, #int, gauss pyramide level
+                         "8bit"         :   0} #to 8bit 
         
-        self._settings = {"roi" : [0, 0, 9999, 9999]} #in original img-res 
+        self._roi_abs = [0, 0, 9999, 9999] #in original img resolution
+        self._auto_reload = True
         
         self._list_modes = {} #init for :class:`ImgList` object
         
@@ -121,6 +122,19 @@ class BaseImgList(object):
         
     """Helpers"""
     @property
+    def auto_reload(self):
+        """Activate / deactivate automatic reload of images"""
+        return self._auto_reload
+        
+    @auto_reload.setter
+    def auto_reload(self, val):
+        """Set mode"""
+        self._auto_reload = val
+        if bool(val):
+            print "Reloading images..."
+            self.load()
+            
+    @property
     def crop(self):
         """Activate / deactivate crop mode"""
         return self.img_prep["crop"]
@@ -138,20 +152,21 @@ class BaseImgList(object):
     
     @pyrlevel.setter
     def pyrlevel(self, value):
-        """Set crop"""
+        """Update pyrlevel and reload images"""
         self.img_prep["pyrlevel"] = int(value)
         self.load()
         
     @property 
-    def roi(self):
+    def roi_abs(self):
         """Returns current roi (in consideration of current pyrlevel)"""
-        return map_roi(self._settings["roi"], self.img_prep["pyrlevel"])
+        #return map_roi(self._roi_abs, self.img_prep["pyrlevel"])
+        return self._roi_abs
         
-    @roi.setter
-    def roi(self, val):
+    @roi_abs.setter
+    def roi_abs(self, val):
         """Updates current ROI"""
         if check_roi(val):
-            self._settings["roi"] = val
+            self._roi_abs = val
             self.load()
             
     @property
@@ -178,6 +193,19 @@ class BaseImgList(object):
         """Wrapper for :func:`has_files`"""
         return self.has_files()
     
+    @property
+    def img_mode(self):
+        """Checks and returs current img mode (tau, aa, raw)
+        
+        This function is overwritten in :class:`ImgList` where more states
+        are allowed. It is, for instance used in :func:`make_stack`.
+        
+        :return:
+            - "raw" (:class:`BaseImgList` does not support tau or aa image 
+                determination)
+        """
+        return "raw"
+        
     def clear(self):
         """Empty file list ``self.files``"""
         self.files = []
@@ -274,7 +302,7 @@ class BaseImgList(object):
     def reset_img_prep(self):
         """Init image pre edit settings"""
         self.img_prep = dict.fromkeys(self.img_prep, 0)
-        self._settings["roi"] = [0, 0, 9999, 9999]
+        self._roi_abs = [0, 0, 9999, 9999]
         if self.nof > 0:
             self.load()
     
@@ -362,18 +390,41 @@ class BaseImgList(object):
     def get_profile_time_series(self):
         raise NotImplementedError
         
-    def make_stack(self, stack_id = "", dtype = float32):
+    def make_stack(self, stack_id = None, pyrlevel = None, roi_abs = None,\
+                                                        dtype = float32):
         """Stack all images in this list 
         
         The stacking is performed using the current image preparation
-        settings
+        settings (blurring, dark correction etc). Only stack ROI and pyrlevel
+        can be set explicitely.
         """
         self.activate_edit()
-        h, w = self.current_img().shape
+        
+        #remember last image shape settings
+        _roi = deepcopy(self._roi_abs)
+        _pyrlevel = deepcopy(self.pyrlevel)
+        _crop = self.crop
+        
+        self.auto_reload = False
+        if pyrlevel is not None and pyrlevel != _pyrlevel:
+            print ("Changing image list pyrlevel from %d to %d"\
+                                            %(_pyrlevel, pyrlevel))
+            self.pyrlevel = pyrlevel
+        if check_roi(roi_abs):
+            print "Activate cropping in ROI %s (absolute coordinates)" %roi_abs
+            self.roi_abs = roi_abs
+            self.crop = True
+
+        if stack_id is None:
+            stack_id = self.img_mode
+        if stack_id in ["raw", "tau"]:
+            stack_id += "_%s" %self.list_id
         #create a new settings object for stack preparation
         self.goto_img(0)
-        stack = ImgStack(h, w, self.nof, dtype, stack_id,\
-                                     self.current_img().edit_log)
+        self.auto_reload = True
+        h, w = self.current_img().shape
+        stack = ImgStack(h, w, self.nof, dtype, stack_id, camera =\
+                    self.camera, img_prep = self.current_img().edit_log)
         
         for k in range(self.nof):
             print "Building stack... current index %s (%s)" %(k,\
@@ -385,8 +436,16 @@ class BaseImgList(object):
             self.next_img()  
         stack.start_acq = asarray(stack.start_acq)
         stack.texps = asarray(stack.texps)
-        stack.roi = self._settings["roi"]
+        stack.roi_abs = self._roi_abs
         
+        print ("Img stack calculation finished, rolling back to intial list"
+            "state:\npyrlevel: %d\ncrop modus: %s\nroi (abs coords): %s "
+            %(_pyrlevel, _crop, _roi))
+        self.auto_reload = False
+        self.pyrlevel = _pyrlevel
+        self.crop = _crop
+        self.roi_abs = _roi
+        self.auto_reload = True
         return stack
     
 
@@ -473,6 +532,10 @@ class BaseImgList(object):
     """
     def load(self):
         """Load current image"""
+        if not self._auto_reload:
+            print ("Automatic image reload deactivated in image list %s"\
+                                                                %self.list_id)
+            return False
         img_file = self.files[self.index]
         try:
             self.loaded_images["this"] = Img(img_file, self.cam_id(),\
@@ -543,12 +606,13 @@ class BaseImgList(object):
         img = self.loaded_images[key]
         img.pyr_down(self.img_prep["pyrlevel"])
         if self.img_prep["crop"]:
-            img.crop(self.roi)
+            img.crop(self.roi_abs)
         img.add_gaussian_blurring(self.img_prep["blurring"])
         img.apply_median_filter(self.img_prep["median"])
         if self.img_prep["8bit"]:
             img._to_8bit_int(new_im = False)
         self.loaded_images[key] = img
+    
     """List modes"""    
     def activate_edit(self, val = True):
         """Activate / deactivate image edit mode
@@ -559,6 +623,8 @@ class BaseImgList(object):
         further calculations (e.g. determination of optical flow, or updates of
         linked image lists). Images will be reloaded.
         """
+        if val == self.edit_active:
+            return
         self.edit_active = val
         self.load()
         
@@ -599,7 +665,7 @@ class BaseImgList(object):
         :param int num: file number index of the desired image
         
         """
-        print "Loading image number %s in img list %s" %(num, self.list_id)
+        print "Go to img number %s in img list %s" %(num, self.list_id)
         self.index = num
         self.load()
         return self.loaded_images["this"]
@@ -795,6 +861,7 @@ class ImgList(BaseImgList):
             #. Linking of lists (e.g. on and offband lists)
             #. Dark and offset image correction (*write a bit more here*)
             #. Plume background modelling and tau image determination
+            #. Include
             
         """
         super(ImgList, self).__init__(files, list_id, list_type,\
@@ -863,6 +930,22 @@ class ImgList(BaseImgList):
             return False
         self.bg_img = bg_img
     
+    @property
+    def img_mode(self):
+        """Checks and returns current img mode (tau, aa, or raw)
+        
+        :return:
+            - "tau", if ``self._list_modes["tau"] == True``
+            - "aa", if ``self._list_modes["aa"] == True``
+            - "raw", else
+        """
+        if self._list_modes["tau"] == True:
+            return "tau"
+        elif self._list_modes["aa"] == True:
+            return "aa"
+        else:
+            return "raw"
+            
     def set_bg_corr_mode(self, mode = 1):
         """Update the current background correction mode in ``self.bg_model``
         
@@ -1254,8 +1337,7 @@ class ImgList(BaseImgList):
 
         return aa_test
     
-        
-            
+     
     def get_off_list(self, list_id = None):
         """Search off band list in linked lists
         
@@ -1322,10 +1404,10 @@ class ImgList(BaseImgList):
             
     def load_next(self):
         """Load next image in list"""
-        if self.nof < 2:
-            print ("Could not load next image, number of files in list: " + 
+        if self.nof < 2 or not self._auto_reload:
+            print ("Could not load next image, number of files in list: " +
                 str(self.nof))
-            return
+            return False
         self.index = self.next_index
         self.update_prev_next_index()
         
@@ -1340,11 +1422,12 @@ class ImgList(BaseImgList):
     
 
         self.apply_current_edit("next")
+        return True
         #self.prepare_additional_data()
         
     def load_prev(self):   
         """Load previous image in list"""
-        if self.nof < 2:
+        if self.nof < 2 or not self._auto_reload:
             print ("Could not load previous image, number of files in list: " +
                 str(self.nof))
             return
@@ -1361,49 +1444,7 @@ class ImgList(BaseImgList):
                         **self.get_img_meta_from_filename(prev_file))
         
         self.apply_current_edit("prev")
-        #self.prepare_additional_data()
-    
-#==============================================================================
-#     def apply_current_edit_roi(self, key, roi):
-#         """Applies the current edit only in specified ROI (faster)
-#         
-#         :param str key: image ID (prev, this, next)
-#         :param list roi: region of interest
-#         :returns subImgObj: the cutted sub image object which was edited
-#         
-#         Only works when ``self.edit_active`` mode is deactivated since otherwise
-#         the whole image will be edited on load (i.e. whenever the list index
-#         changes, default mode).
-#             
-#         """
-#         if self.edit_active:
-#             print ("Error in " + self.__str__() + ".apply_current_edit_roi():"
-#                 " image edit is active, thus images are already prepared")
-#             return False
-#         #get current image 
-#         img = self.loaded_images[key]
-#         if img.modified:
-#             print "Error editing image in ROI: image is already modified..."
-#             return False
-#         #dark correction happens in full resolution (fast process)
-#         if self.dark_corr_mode:
-#             dark = self.get_dark_image(key)
-#             img.subtract_dark_image(dark)
-#         
-#         #now determine tau image: this also needs to happen in full resolution
-#         #since the background is modelled based on 
-#         if self.tau_mode:
-#             img = self.bg_model.get_tau_image(img, self.bg_img)
-#         
-#         img.crop(roi)
-#         img.add_gaussian_blurring(self.img_prep["blurring"])
-#         img.apply_median_filter(self.img_prep["median"])
-#         if self.img_prep["8bit"]:
-#             img._to_8bit_int(new_im = False)
-# 
-#         return img
-#==============================================================================
-        
+ 
     def apply_current_edit(self, key):
         """Applies the current image edit settings to image
         
@@ -1427,7 +1468,7 @@ class ImgList(BaseImgList):
                                                 self.bg_img, off.bg_img)
         img.pyr_down(self.img_prep["pyrlevel"])
         if self.img_prep["crop"]:
-            img.crop(self.roi)
+            img.crop(self.roi_abs)
         img.add_gaussian_blurring(self.img_prep["blurring"])
         img.apply_median_filter(self.img_prep["median"])
         if self.img_prep["8bit"]:

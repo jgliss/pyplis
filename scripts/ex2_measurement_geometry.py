@@ -12,7 +12,7 @@ from matplotlib.pyplot import subplots, close
 from os.path import join, exists
 from os import getcwd
 
-from ex5_measurement_setup_plume_data import create_dataset
+from ex1_measurement_setup_plume_data import create_dataset
 
 ### Set save directory for figures
 save_path = join(getcwd(), "scripts_out")
@@ -56,7 +56,7 @@ def plot_plume_distance_image(meas_geometry):
     ax[0].set_title("Parametrised pixel to pixel distances")
     cb0 = fig.colorbar(disp0, ax =ax[0], shrink = 0.9)
     cb0.set_label("Pixel to pixel distance [m]")
-    disp1 = ax[1].imshow(plume_dist_img, cmap = "gray")
+    disp1 = ax[1].imshow(plume_dist_img / 1000.0, cmap = "gray")
     cb1 = fig.colorbar(disp1, ax =ax[1], shrink = 0.9)
     cb1.set_label("Plume distance [km]")
     ax[1].set_title("Retrieved plume distances")
@@ -68,8 +68,8 @@ if __name__ == "__main__":
     map = correct_viewing_direction(ds.meas_geometry)
     fig = plot_plume_distance_image(ds.meas_geometry)
     
-    map.ax.figure.savefig(join(save_path, "ex1_out_1_overview_map.png"))
-    fig.savefig(join(save_path, "ex1_out_2_distances.png"))
+    map.ax.figure.savefig(join(save_path, "ex2_out_1.png"))
+    fig.savefig(join(save_path, "ex2_out_2.png"))
     
     
     

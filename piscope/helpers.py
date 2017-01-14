@@ -48,13 +48,17 @@ def sub_img_to_detector_coords(img_arr, shape_orig, pyrlevel,\
     
 def check_roi(roi):
     """Checks if input is valid ROI"""
-    if not len(roi) == 4:
-        raise ValueError("Invalid number of entries for ROI")
-    if not all([x >= 0 for x in roi]):
-        raise ValueError("ROI entries must be larger than 0")
-    if not roi[2] > roi[0] and roi[3] > roi[1]:
-        raise ValueError("x1 and y1 must be larger than x0 and y0")
-    return True
+    try:
+        if not len(roi) == 4:
+            raise ValueError("Invalid number of entries for ROI")
+        if not all([x >= 0 for x in roi]):
+            raise ValueError("ROI entries must be larger than 0")
+        if not roi[2] > roi[0] and roi[3] > roi[1]:
+            raise ValueError("x1 and y1 must be larger than x0 and y0")
+        
+        return True
+    except:
+        return False
 
 def subimg_shape(img_shape = None, roi = None, pyrlevel = 0):
     """Get shape of subimg after cropping and size reduction

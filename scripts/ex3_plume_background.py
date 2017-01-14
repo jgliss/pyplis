@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-piSCOPE example script 3: Plume background analysis 
+piscope example script no. 3: Plume background analysis
 
 This example script introduces features related to plume background modelling
 and tau image calculations.
@@ -136,13 +136,13 @@ ax1.set_xlabel("PCS", fontsize=16)
 ax1.legend(loc="best", fancybox=True, framealpha=0.5, fontsize=12)
 
 plt.show()
-fig.savefig(join(save_path, "ex7_bg_corr_ref_sects.png"))
-fig4.savefig(join(save_path, "ex7_bg_corr_ICAs.png"))
-fig0.savefig(join(save_path, "ex7_bg_corr_0.png"))
-fig1.savefig(join(save_path, "ex7_bg_corr_1.png"))
-fig2.savefig(join(save_path, "ex7_bg_corr_2.png"))
-fig3.savefig(join(save_path, "ex7_bg_corr_3.png"))
 
+fig0.savefig(join(save_path, "ex3_out_1.png"))
+fig1.savefig(join(save_path, "ex3_out_2.png"))
+fig2.savefig(join(save_path, "ex3_out_3.png"))
+fig3.savefig(join(save_path, "ex3_out_4.png"))
+fig.savefig(join(save_path, "ex3_out_5.png"))
+fig4.savefig(join(save_path, "ex3_out_6.png"))
 
 
 

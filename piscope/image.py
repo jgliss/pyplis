@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from astropy.io import fits
 from matplotlib import gridspec
-import matplotlib.cm as colormaps
+import matplotlib.cm as cmaps
 from matplotlib.pyplot import imread, figure, tight_layout
 from numpy import ndarray, argmax, histogram, float32, uint, nan, linspace,\
                                                 swapaxes, flipud, isnan
@@ -18,7 +18,6 @@ from copy import deepcopy
 from .inout import get_all_valid_cam_ids
 from .helpers import shifted_color_map, bytescale, map_roi, check_roi
 from .exceptions import ImgMetaError
-
 
 class Img(object):
     """ Image base class
@@ -105,7 +104,7 @@ class Img(object):
                               ("is_tau"    ,   0), # boolean
                               ("others"    ,   0)])# boolean 
         
-        self._roi = [0, 0, 9999, 9999] #will be set on image load
+        self._roi_abs = [0, 0, 9999, 9999] #will be set on image load
         
         self.meta = od([("start_acq"     ,   datetime(1900, 1, 1)),#datetime(1900, 1, 1)),
                         ("stop_acq"      ,   datetime(1900, 1, 1)),#datetime(1900, 1, 1)),
@@ -126,11 +125,15 @@ class Img(object):
         
         if input is not None:                              
             self.load_input(input)
-        
+          
         for k, v in meta_info.iteritems():
-            if self.meta.has_key(k) and isinstance(v, type(self.meta[k])):
-                #print "Load meta %s: %s" %(k, v)
-                self.meta[k] = v
+            if self.meta.has_key(k):
+                func = type(self.meta[k])
+                try:                
+                    self.meta[k] = func(v)
+                except:
+                    print ("Failed to read image meta info %s, i.e. convert "
+                        "%s into type %s" %(k, v, func))
             elif self.edit_log.has_key(k):
                 self.edit_log[k] = v
         try:
@@ -181,23 +184,26 @@ class Img(object):
         rad_high = bins[len(hist) - argmax(hist[::-1]>thresh)-1]
         return rad_low, rad_high, hist, bins
     
-    def crop(self, roi, new_img = False):
+    def crop(self, roi_abs = [0, 0, 9999, 9999], new_img = False):
         """Cut subimage specified by rectangular ROI
         
-        :param list roi: region of interest `[x0, y0, x1, y1]`
+        :param list roi_abs: region of interest (i.e. ``[x0, y0, x1, y1]``)
+            in ABSOLUTE image coordinates. The ROI is automatically converted 
+            with respect to current pyrlevel.
+            
         :returns Img: sub image object
         """
         if self.edit_log["crop"]:
             raise AttributeError("Could not crop image in ROI, image "
                 " was already cropped...")
-        
-        print "Cropping image in roi: %s" % (roi, )
+        self.roi_abs = roi_abs
         print self.meta["start_acq"]
+        roi = self.roi #self.roi is @property method and takes care of ROI conv
         sub = self.img[roi[1]:roi[3], roi[0]:roi[2]] 
         im = self
         if new_img:
             im = self.duplicate()
-        im._roi = roi
+#        im._roi_abs = roi
         im.edit_log["crop"] = 1
         im.img = sub
         return im
@@ -210,17 +216,26 @@ class Img(object):
     @property 
     def roi(self):
         """Returns current roi (in consideration of current pyrlevel)"""
-        roi_sub = map_roi(self._roi, self.edit_log["pyrlevel"])
+        roi_sub = map_roi(self._roi_abs, self.edit_log["pyrlevel"])
         print ("Current roi in Img (in abs coords): %s, mapped to pyrlevel: "
-            "%s (roi is applied: %s)" %(self._roi, roi_sub, 
-            bool(self.edit_log["crop"])))
+            "%s" %(self._roi_abs, roi_sub))
         return roi_sub
+    
+    @property
+    def roi_abs(self):
+        """Get / set current ROI in absolute image coordinates
         
-    @roi.setter
-    def roi(self, val):
+        .. note::
+        
+            use :func:`roi` to get ROI for current pyrlevel
+        """
+        return self._roi_abs
+        
+    @roi_abs.setter
+    def roi_abs(self, val):
         """Updates current ROI"""
         if check_roi(val):
-            self._roi = val
+            self._roi_abs = val
             
     def correct_dark_offset(self, dark, offset):
         """Perform dark frame subtraction, 3 different modi possible
@@ -269,7 +284,7 @@ class Img(object):
         """Set current ROI to whole image area based on shape of image data"""
         h, w = self.img.shape[:2]
     
-        self._roi = [0, 0, w * 2**self.pyrlevel, h * 2**self.pyrlevel]     
+        self._roi_abs = [0, 0, w * 2**self.pyrlevel, h * 2**self.pyrlevel]     
     
     def apply_median_filter(self, size_final = 3):
         """Apply a median filter to 
@@ -365,9 +380,10 @@ class Img(object):
     def make_info_header_str(self):
         """Make header string for image (using image meta information)"""
         try:
-            return ("Acq. time: %s, texp %.2f s, read gain %s"\
-                    %(self.meta["start_acq"].strftime('%d/%m/%Y %H:%M:%S'),\
-                                    self.meta["texp"], self.meta["read_gain"])) 
+            return ("Acq.: %s, texp: %.2f s, rgain %s\n"
+                    "pyrlevel: %d, roi_abs: %s" %(self.meta["start_acq"].\
+                    strftime('%d/%m/%Y %H:%M:%S'), self.meta["texp"],\
+                    self.meta["read_gain"], self.pyrlevel, self.roi_abs)) 
         except Exception as e:
             print repr(e)
             return self.meta["file_name"]
@@ -529,34 +545,39 @@ class Img(object):
         self.meta["read_gain"] = gain_info[ec2header['GAIN']]
         self.meta["pix_width"] = self.meta["pix_height"] = 4.65e-6 #m
     
-    """PLOTTING AND VISUALSATION FUNCTIONS"""        
-    def show(self, cmap = 'gray', **kwargs):
-        """Plot image"""
-        return self.show_img(cmap,**kwargs)
-    
-    
-    def show_img(self, cmap = 'gray', **kwargs):
-        """Show image using plt.imshow"""
+    """PLOTTING AND VISUALSATION FUNCTIONS"""  
+    def get_cmap(self):
+        """Determine and return default cmap for current image"""
         if self.is_tau:
-            cmap = shifted_color_map(self.min(), self.max(), colormaps.seismic)
-        fig = figure(facecolor = 'w', edgecolor = 'none')  
+            return shifted_color_map(self.min(), self.max(), cmaps.RdBu)
+        return cmaps.gray
+        
+    def show(self, **kwargs):
+        """Plot image"""
+        return self.show_img(**kwargs)
+
+    def show_img(self, **kwargs):
+        """Show image using plt.imshow"""
+        if not "cmap" in kwargs.keys():
+            kwargs["cmap"] = self.get_cmap()
+        fig = figure(facecolor = 'w', edgecolor = 'none', figsize = (12,7))  
         ax = fig.add_subplot(111)
-        im = ax.imshow(self.img, cmap, **kwargs)
+        im = ax.imshow(self.img, **kwargs)
         fig.colorbar(im, ax = ax)
         ax.set_title(self.make_info_header_str(), fontsize = 9)
         tight_layout()
         return ax
         
-    def show_img_with_histo(self, cmap = 'gray', **kwargs):
+    def show_img_with_histo(self, **kwargs):
         """Show image using plt.imshow"""
-        if self.is_tau:
-            cmap = shifted_color_map(self.min(), self.max(), colormaps.seismic)
+        if not "cmap" in kwargs.keys():
+            kwargs["cmap"] = self.get_cmap()
         fig = figure(figsize = (13, 5), dpi = 80, facecolor = 'w',\
                                                         edgecolor = 'k')  
         gs = gridspec.GridSpec(1, 2, width_ratios=[4, 1]) 
 
         ax = fig.add_subplot(gs[0])
-        im = ax.imshow(self.img, cmap, **kwargs)
+        im = ax.imshow(self.img, **kwargs)
         fig.colorbar(im, ax = ax)
         ax.set_title(self.make_info_header_str(), fontsize = 9)
         ax2 = fig.add_subplot(gs[1])

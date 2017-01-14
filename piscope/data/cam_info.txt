@@ -18,9 +18,9 @@ main_filter_id:on 		#ID of main filter
 meas_type_pos:1 		#position of meastype info, e.g. dark offset (after split using delim)
 DARK_CORR_OPT:2		#0: no dark corr, 1: dark + offset, 2: one dark at same exposure time (NOTE: USE CAPITAL LETTERS FOR THIS FLAG)
 texp_pos:			#position of exposure time
-focal_length:32
-pix_height:13.0e-6
-pix_width:13.0e-6
+focal_length:32.0e-3 #in m
+pix_height:13.0e-6  #in m
+pix_width:13.0e-6   #in m
 pixnum_x:1024
 pixnum_y:1024
 
@@ -109,7 +109,7 @@ main_filter_id:on
 meas_type_pos:0
 DARK_CORR_OPT:2               #DARK_CORR_OPT 1: dark and offset, 2: dark at same exposure time
 texp_pos:
-focal_length:25
+focal_length:25.0e-3
 pix_height:4.65e-6
 pix_width:4.65e-6
 pixnum_x:1392

@@ -5,6 +5,9 @@ from scipy.stats.stats import pearsonr
 from scipy.sparse.linalg import lsmr
 from pandas import Series
 from copy import deepcopy
+from astropy.io import fits
+from os import getcwd
+from os.path import join
 
 from matplotlib.pyplot import subplots
 from matplotlib.patches import Circle
@@ -19,17 +22,35 @@ from .setupclasses import Camera
 
 class DoasCalibData(object):
     """Object representing DOAS calibration data"""
-    def __init__(self, tau_vec = None, doas_vec = None, time_stamps = None, 
-                     polyorder = 1):
+    def __init__(self, tau_vec = None, doas_vec = None, time_stamps = None,\
+            calib_id = "", fov = None, camera = None, polyorder = 1):
+        """Class initialisation
+        
+        :param ndarray tau_vec: tau data vector for calibration data
+        :param ndarray doas_vec: doas CD data vector for calibration data
+        :param ndarray time_stamps: array with datetime objects containing 
+            time stamps (e.g. start acquisition) of calibration data
+        :param str calib_id: calibration ID (e.g. "aa", "tau_on", "tau_off")
+        :param Camera camera: camera object (not necessarily required). 
+            A camera can be assigned in order to convert the FOV extend from
+            pixel coordinates into decimal degrees
+        
+        """
         self.tau_vec = tau_vec #tau data vector within FOV
         self.doas_vec = doas_vec #doas data vector
         self.time_stamps = time_stamps
+        self.calib_id = calib_id
+        
+        self.camera = None
+        
+        self.fov = DoasFOV(camera)
         
         self.coeffs = None
         self.cov = None
         self.polyorder = polyorder
-    
-    
+        if isinstance(camera, Camera):
+            self.camera = Camera
+
     @property
     def calib_poly(self):
         """return poly1d object of current coefficients"""
@@ -54,10 +75,11 @@ class DoasCalibData(object):
         """Return pandas Series object of tau data"""
         return Series(self.tau_vec, self.time_stamps)
     
-    def fit_calib_polynomial(self, polyorder = None, plot = 1):
+    def fit_calib_polynomial(self, polyorder = None, plot = False):
         """Fit calibration polynomial to current data
         
-        :param int polyorder: update current polyorder        
+        :param int polyorder: update current polyorder 
+        :return: poly1d, calibration polynomial
         """
         if polyorder is None:
             polyorder = self.polyorder
@@ -75,7 +97,11 @@ class DoasCalibData(object):
     
     @property
     def tau_range(self):
-        """Returns range of tau values extended by 5%"""
+        """Returns range of tau values extended by 5%
+        
+        :return float tau_min: lower end of tau range
+        :return float tau_max: upper end of tau range
+        """
         tau = self.tau_vec
         taumin, taumax = tau.min(), tau.max()
         if taumin > 0:
@@ -92,6 +118,48 @@ class DoasCalibData(object):
             cdmin = 0
         add = (cdmax - cdmin) * 0.05
         return cdmin - add, cdmax + add
+    
+    def save_as_fits(self, save_dir = None, save_name = None):
+        """Save stack as FITS file"""
+        self._format_check()
+        try:
+            save_name = save_name.split(".")[0]
+        except:
+            pass
+        if save_dir is None:
+            save_dir = getcwd()
+        if save_name is None:
+            save_name = "piscope_imgstack_id_%s_%s_%s_%s.fts" %(self.stack_id,\
+                self.start.strftime("%Y%m%d"), self.start.strftime(\
+                                    "%H%M"), self.stop.strftime("%H%M"))
+        else:
+            save_name = save_name + ".fts"
+        hdu = fits.PrimaryHDU()
+        start_acq_str = [x.strftime("%Y%m%d%H%M%S%f") for x in self.start_acq]
+        col1 = fits.Column(name = "start_acq", format = "25A", array =\
+            start_acq_str)
+        col2 = fits.Column(name = "texps", format = "D", array =\
+                                                        self.texps)
+        col3 = fits.Column(name = "_access_mask", format = "L",\
+                                            array = self._access_mask)
+        col4 = fits.Column(name = "add_data", format = "D",\
+                                            array = self.add_data)
+        cols = fits.ColDefs([col1, col2, col3, col4])
+        arrays = fits.BinTableHDU.from_columns(cols)
+        
+        col5 = fits.Column(name = "roi", format = "I",\
+                                            array = self.roi)                                    
+        
+        roi = fits.BinTableHDU.from_columns([col5])
+        #==============================================================================
+        # col1 = fits.Column(name = 'target', format = '20A', array=a1)
+        # col2 = fits.Column(name = 'V_mag', format = 'E', array=a2)
+        #==============================================================================
+        hdu.data = self.stack
+        hdu.header.update(self.img_prep)
+        hdu.header.append()
+        hdulist = fits.HDUList([hdu, arrays, roi])
+        hdulist.writeto(join(save_dir, save_name))
         
     def plot(self, ax = None):
         """Plots current calibration"""
@@ -100,7 +168,8 @@ class DoasCalibData(object):
         ax.plot(self.tau_vec, self.doas_vec, " x", label = "Data")
         taumin, taumax = self.tau_range
         x = linspace(taumin, taumax, 100)
-        ax.plot(x, self.calib_poly(x), "--r", label = "Fit %s" %self.calib_poly)
+        ax.plot(x, self.calib_poly(x), "--r", label = "Fit %s"\
+                                                %self.calib_poly)
         ax.legend(loc='best', fancybox=True, framealpha=0.5)
         ax.grid()
         return ax
@@ -115,7 +184,7 @@ class DoasCalibData(object):
         ax.set_ylabel("tau")
         ax2 = ax.twinx()
             
-        p2=ax2.plot(s2, "--xr", label="DOAS CDs")
+        p2 = ax2.plot(s2, "--xr", label="DOAS CDs")
         ax2.set_ylabel("SO2-SCD [cm-2]")
         ax.set_title("Time series overlay DOAS calib data")
         
@@ -124,13 +193,6 @@ class DoasCalibData(object):
         ax.legend(ps, labs, loc="best",fancybox=True, framealpha=0.5)
         
         return ax, ax2
-#==============================================================================
-#         ax1 = self.tau_tseries.plot(label = "img tau data")
-#         ax1.set_ylabel("tau data")
-#         ax2 = self.doas_tseries.plot(label = "doas data", secondary_y = True)
-#         ax2.set_ylabel("DOAS CD time series")
-#==============================================================================
-        
         
         
 class DoasFOV(object):
@@ -138,9 +200,8 @@ class DoasFOV(object):
     def __init__(self, camera = None):
         self.search_settings = {}
         self.img_prep = {}
-        self.roi = None
+        self.roi_abs = None
         self.camera = None
-        self.calib_data = DoasCalibData()
         
         self.corr_img = None
         
@@ -168,6 +229,7 @@ class DoasFOV(object):
             return self.result_ifr["popt"][1]
         else:
             return self.result_pearson["cx_rel"]
+            
     @property
     def cy(self):
         """Return center x coordinate of FOV (in relative coords)"""
@@ -218,7 +280,7 @@ class DoasFOV(object):
                 raise IOError("Image shape could not be retrieved...")
         mask = self.fov_mask.astype(float32)       
         return sub_img_to_detector_coords(mask, img_shape_orig,\
-                    self.img_prep["pyrlevel"], self.roi).astype(bool)
+                    self.img_prep["pyrlevel"], self.roi_abs).astype(bool)
         
 #==============================================================================
 #       
@@ -289,6 +351,7 @@ class DoasFOV(object):
             #ax.set_axis_off()
             ax.set_title(r"IFR result $\lambda=%.1e$"\
                         %self.search_settings["ifr_lambda"])
+                        
         elif self.method == "pearson":
             cb.set_label(r"Pearson corr. coeff.", fontsize = 16)
             ax.autoscale(False)
@@ -301,6 +364,7 @@ class DoasFOV(object):
             ax.axhline(self.cy, ls="--", color="k")
             ax.axvline(self.cx, ls="--", color="k")
             
+        return ax
         
 class DoasFOVEngine(object):
     """Engine to perform DOAS FOV search"""
@@ -322,7 +386,7 @@ class DoasFOVEngine(object):
         self.img_stack = img_stack
         self.doas_series = doas_series
         
-        self.fov = DoasFOV()
+        self.calib_data = DoasCalibData() #includes DoasFOV class
         
         self.update_search_settings(**settings) 
         self.method = method
@@ -383,17 +447,17 @@ class DoasFOVEngine(object):
             (if ``self.method == 'pearson'``) or 2D (super) Gauss fit 
             (if ``self.method == 'ifr').
         
-        All relevant results are written into ``self.fov`` (
-        :class:`DoasFOV` object)
+        All relevant results are written into ``self.calib_data`` (which 
+        includes :class:`DoasFOV` object)
         """
-        self.fov = DoasFOV() #includes DoasCalibData class
+        self.calib_data = DoasCalibData() #includes DoasCalibData class
         self.update_search_settings(**settings)
         self.merge_data(merge_type = self._settings["merge_type"])
         self.det_correlation_image(search_type = self.method)
         self.get_fov_shape()
-        self.fov.search_settings = deepcopy(self._settings)
+        self.calib_data.fov.search_settings = deepcopy(self._settings)
         
-        return self.fov
+        return self.calib_data
         
                     
     def merge_data(self, merge_type = "average"):
@@ -430,7 +494,7 @@ class DoasFOVEngine(object):
         """Determines correlation image
         
         Determines correlation image either using IFR or Pearson method.
-        Results are written into ``self.fov`` (:class:`DoasFOV`)
+        Results are written into ``self.calib_data.fov`` (:class:`DoasFOV`)
         
         :param str search_type: updates current search type, available types
             ``["pearson", "ifr"]``
@@ -452,9 +516,10 @@ class DoasFOVEngine(object):
         corr_img = Img(corr_img, pyrlevel =\
                                self.img_stack.img_prep["pyrlevel"])
         #corr_img.pyr_up(self.img_stack.img_prep["pyrlevel"])
-        self.fov.corr_img = corr_img
-        self.fov.img_prep = self.img_stack.img_prep
-        self.fov.roi = self.img_stack.roi
+        self.calib_data.fov.corr_img = corr_img
+        self.calib_data.fov.img_prep = self.img_stack.img_prep
+        self.calib_data.fov.roi_abs = self.img_stack.roi_abs
+        self.calib_data.calib_id = self.img_stack.stack_id
         
         return corr_img
         
@@ -511,22 +576,22 @@ class DoasFOVEngine(object):
         """Find shape of FOV based on correlation image
         
         Search pixel coordinate of highest correlation in 
-        ``self.fov.corr_img`` (using :func:`get_img_maximum`) and based on 
-        that finds FOV shape either using disk approach (if 
+        ``self.calib_data.fov.corr_img`` (using :func:`get_img_maximum`) and 
+        based on that finds FOV shape either using disk approach (if 
         ``self.method == 'pearson'``) calling :func:`fov_radius_search` or
         using 2D Gauss fit (if ``self.method == 'ifr'``) calling 
-        :func:`fov_gauss_fit`. 
-        Results are written into ``self.fov`` (:class:`DoasFOV` object)
+        :func:`fov_gauss_fit`. Results are written into ``self.calib_data.fov`` 
+        (:class:`DoasFOV` object)
         
         :param **settings: update current settings (keyword args passed 
             to :func:`update_search_settings`)
         
         """
         
-        if self.fov.corr_img is None:
-            raise Exception("Correlation image is not available")
+        if not isinstance(self.calib_data.fov.corr_img, Img):
+            raise Exception("Could not access correlation image")
         if self.method == "pearson":
-            cy, cx = get_img_maximum(self.fov.corr_img.img,\
+            cy, cx = get_img_maximum(self.calib_data.fov.corr_img.img,\
                 gaussian_blur = self._settings["smooth_corr_img"])
             print "Start radius search in stack around x/y: %s/%s" %(cx, cy)
             radius, corr_curve, tau_vec, doas_vec, fov_mask =\
@@ -538,29 +603,30 @@ class DoasFOVEngine(object):
 #             cx_abs, cy_abs = map_coordinates_sub_img(cx, cy, roi =\
 #                 self.img_stack.roi, pyrlevel = pyrlevel, inverse = True)
 #==============================================================================
-            self.fov.result_pearson["cx_rel"] = cx
-            self.fov.result_pearson["cy_rel"] = cy
-            self.fov.result_pearson["radius_rel"] = radius
-            self.fov.result_pearson["corr_curve"] = corr_curve
+            self.calib_data.fov.result_pearson["cx_rel"] = cx
+            self.calib_data.fov.result_pearson["cy_rel"] = cy
+            self.calib_data.fov.result_pearson["radius_rel"] = radius
+            self.calib_data.fov.result_pearson["corr_curve"] = corr_curve
             
-            self.fov.fov_mask = fov_mask
-            self.fov.calib_data.tau_vec = tau_vec
-            self.fov.calib_data.doas_vec = doas_vec
-            self.fov.calib_data.time_stamps = self.img_stack.time_stamps
+            self.calib_data.fov.fov_mask = fov_mask
+            self.calib_data.tau_vec = tau_vec
+            self.calib_data.doas_vec = doas_vec
+            self.calib_data.time_stamps = self.img_stack.time_stamps
             return 
         
         elif self.method == "ifr":
             #the fit is performed in absolute dectector coordinates
             #corr_img_abs = Img(self.fov.corr_img.img).pyr_up(pyrlevel).img
             popt, pcov, fov_mask = self.fov_gauss_fit(\
-                            self.fov.corr_img.img, **self._settings)
+                            self.calib_data.fov.corr_img.img, **self._settings)
             tau_vec = self.convolve_stack_fov(fov_mask)
             
-            self.fov.result_ifr["popt"] = popt
-            self.fov.fov_mask = fov_mask            
-            self.fov.calib_data.tau_vec = tau_vec
-            self.fov.calib_data.doas_vec = self.doas_data_vec
-            self.fov.calib_data.time_stamps = self.img_stack.time_stamps
+            self.calib_data.fov.result_ifr["popt"] = popt
+            self.calib_data.fov.result_ifr["pcov"] = pcov
+            self.calib_data.fov.fov_mask = fov_mask            
+            self.calib_data.tau_vec = tau_vec
+            self.calib_data.doas_vec = self.doas_data_vec
+            self.calib_data.time_stamps = self.img_stack.time_stamps
         else:
             raise ValueError("Invalid search method...")
             

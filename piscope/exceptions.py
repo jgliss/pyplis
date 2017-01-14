@@ -10,3 +10,6 @@ class ImgMetaError(Exception):
 
 class ImgModifiedError(Exception):
     pass
+
+class MetaAccessError(Exception):
+    pass
