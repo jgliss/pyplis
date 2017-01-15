@@ -90,3 +90,6 @@ ENV/
 
 # Test data folder
 piscope/data/piscope_etna_testdata
+
+# _private folder
+_private
