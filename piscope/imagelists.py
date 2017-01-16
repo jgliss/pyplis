@@ -36,6 +36,7 @@ from scipy.ndimage.filters import gaussian_filter
 
 from PyQt4.QtGui import QApplication
 from sys import argv, exit
+from traceback import format_exc
 
 from .image import Img
 from .inout import load_img_dummy
@@ -47,7 +48,7 @@ from .processing import ImgStack, PixelMeanTimeSeries, LineOnImage,\
                                                             model_dark_image
 from .plumebackground import PlumeBackgroundModel
 from .plumespeed import OpticalFlowFarneback
-from .helpers import check_roi
+from .helpers import check_roi, map_roi
 
 class BaseImgList(object):
     """Basic image list object
@@ -155,7 +156,21 @@ class BaseImgList(object):
         """Update pyrlevel and reload images"""
         self.img_prep["pyrlevel"] = int(value)
         self.load()
+    
+    @property
+    def roi(self):
+        """Return current ROI (in relative coordinates)
         
+        The ROI is returned with respect to the current pyrlevel
+        """
+        return map_roi(self._roi_abs, self.pyrlevel)
+    
+    @roi.setter
+    def roi(self):
+        """Raises Attribute Error with some information"""
+        raise AttributeError("Please use roi_abs to set the current ROI in "
+            "absolute image coordinates. :func:`roi` is used to access the "
+            "current ROI for the actual pyramide level.")
     @property 
     def roi_abs(self):
         """Returns current roi (in consideration of current pyrlevel)"""
@@ -808,6 +823,25 @@ class BaseImgList(object):
     """
     Magic methods
     """  
+    def __str__(self):
+        """String representation of image list"""
+        s = "\npiscope ImgList\n----------------------------------\n"
+        s += "ID: %s\nType: %s\n" %(self.list_id, self.list_type)
+        s += "Number of files (imgs): %s\n\n" %self.nof
+        s += "Current image prep settings\n.................................\n"
+        if not self.has_files():
+            return s
+        try:
+            for k, v in self.current_img().edit_log.iteritems():
+                s += "%s: %s\n" %(k, v)
+            if self.crop is True:
+                s += "Cropped in ROI\t[x0, y0, x1, y1]:\n"
+                s += "  Absolute coords:\t%s\n" %self.roi_abs 
+                s += "  @pyrlevel %d:\t%s\n" %(self.pyrlevel, self.roi)
+        except:
+            s += "FATAL: Image access failed, msg\n: %s" %format_exc()
+        return s
+        
     def __call__(self, num = 0):
         """Change current file number, load and return image
         
@@ -1188,7 +1222,8 @@ class ImgList(BaseImgList):
                 print ("Error retrieving dark and offset images from linked "
                     "list: check for master dark / offset images")
                 print img
-                dark = model_dark_image(img, self.master_dark, self.master_offset)
+                dark = model_dark_image(img, self.master_dark,\
+                                                self.master_offset)
 
         if self.DARK_CORR_OPT == 2:
             try:
@@ -1282,6 +1317,9 @@ class ImgList(BaseImgList):
         if val is self.tau_mode:
             return
         if val:
+            if not self.has_bg_img():
+                raise AttributeError("no background image available, please set"
+                " suitable background image using method set_bg_image")
             self.bg_model.guess_missing_settings(self.loaded_images["this"])
             self.bg_model.get_tau_image(self.loaded_images["this"],\
                                                             self.bg_img)
@@ -1321,7 +1359,8 @@ class ImgList(BaseImgList):
         if not offlist.nof / float(self.nof) > 0.5:
             raise IndexError("Off band list does not have enough images...")
         if not self.has_bg_img():
-            raise AttributeError("no background image available")
+            raise AttributeError("no background image available, please set "
+                "suitable background image using method set_bg_image")
         if not offlist.has_bg_img():
             raise AttributeError("no background image available in off "
                 "band list")
@@ -1463,7 +1502,7 @@ class ImgList(BaseImgList):
             img = self.bg_model.get_tau_image(img)
         if self.aa_mode:
             off = self.get_off_list()
-            print "CFN ON / OFF: %s / %s" %(self.cfn, off.cfn)
+            #print "CFN ON / OFF: %s / %s" %(self.cfn, off.cfn)
             img = self.bg_model.get_aa_image(img, off.current_img(),\
                                                 self.bg_img, off.bg_img)
         img.pyr_down(self.img_prep["pyrlevel"])

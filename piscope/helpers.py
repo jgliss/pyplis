@@ -88,7 +88,7 @@ def subimg_shape(img_shape = None, roi = None, pyrlevel = 0):
             num = num / 2
             if not r == 0:
                 add_one = True
-            print [i, num, r, add_one]
+            #print [i, num, r, add_one]
         shape[k] = num
         if add_one:
             shape[k] += 1
@@ -114,7 +114,7 @@ def map_coordinates_sub_img(pos_x_abs, pos_y_abs, roi = [0,0,9999,9999],\
     x_offs, y_offs = roi[0], roi[1]
     if inverse:
         return x_offs + x * op, y_offs + y * op
-    return (x - x_offs) / op, (y - y_offs) / op
+    return ((x - x_offs) / op, (y - y_offs) / op)
 
 def map_roi(roi, pyrlevel = 0, inverse = False):
     """Maps a list containing start / stop coords onto size reduced image

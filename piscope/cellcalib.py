@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from matplotlib.pyplot import subplots
 from numpy import float, log, arange, polyfit, poly1d, linspace, isnan,\
-                                            diff, mean, argmin
+                                            diff, mean, argmin, ceil
 from matplotlib.pyplot import Figure
 from datetime import timedelta
 from os.path import exists
@@ -279,7 +279,8 @@ class CellCalibEngine(Dataset):
             self.camera, cell_id = cell_id, gas_cd = cell_gas_cd)
         
         
-    def find_cells(self, filter_id = "on", threshold = 0.10, accept_last_in_dip = False):
+    def find_cells(self, filter_id = "on", threshold = 0.10,\
+                                        accept_last_in_dip = False):
         """Autodetection of cell images and bg images using mean value series
         
         :param str filter_id: filter ID (mean value series is determined from 
@@ -725,7 +726,7 @@ class CellCalibEngine(Dataset):
         :param int pos_y_abs: detector y position (row) in absolute detector 
                                                                     coords
         :param float radius_abs: radius of pixel disk on detector (centered
-            around pos_x, pos_y, default: 1)
+            around pos_x_abs, pos_y_abs, default: 1)
         :param ndarray mask: boolean mask for image pixel access, 
             default is None, if the mask is specified and valid (i.e. same
             shape than images in stack) then the other three input parameters
@@ -738,15 +739,9 @@ class CellCalibEngine(Dataset):
         
         """
         stack = self.tau_stacks[filter_id]
-#==============================================================================
-#         lvl = stack.img_prep["pyrlevel"]
-#         roi = [0, 0, 9999, 9999]
-#         if stack.img_prep.has_key("roi"):
-#             roi = stack.img_prep["roi"]
-#==============================================================================
         x_rel, y_rel = map_coordinates_sub_img(pos_x_abs, pos_y_abs,\
-                                    stack.roi, stack.img_prep["pyrlevel"])
-        rad_rel = radius_abs / 2**stack.img_prep["pyrlevel"]
+                                    stack.roi_abs, stack.img_prep["pyrlevel"])
+        rad_rel = int(ceil(float(radius_abs) / 2**stack.img_prep["pyrlevel"]))
         print "ABS: %s, %s, %s" %(pos_x_abs, pos_y_abs, radius_abs)
         print "REL: %s, %s, %s" %(x_rel, y_rel, rad_rel)
         tau_arr = stack.get_time_series(x_rel, y_rel, rad_rel, mask)[0].values
@@ -812,15 +807,51 @@ class CellCalibEngine(Dataset):
         ax.set_ylabel("Avg. pixel intensity", fontsize = 16)
         return ax.figure, ax
     
-    def plot_all_calib_curves(self, pos_x = None, pos_y = None, radius = 1,\
-                                                    mask = None, ax = None):
+    def plot_calib_curve(self, filter_id, pos_x_abs, pos_y_abs,\
+                                radius_abs = 1, mask = None, ax = None):
         """Plot all available calibration curves in a certain image pixel region
         
         :param str filter_id: image type ID (e.g. "on", "off")
-        :param int pos_x (None): x position of center pixel on detector
-        :param int pos_y (None): y position of center pixel on detector
-        :param float radius (1): radius of pixel disk on detector (centered
-            around pos_x, pos_y)
+        :param int pos_x_abs (None): x position of center pixel on detector
+        :param int pos_y_abs (None): y position of center pixel on detector
+        :param float radius_abs (1): radius of pixel disk on detector (centered
+            around pos_x_abs, pos_y_abs)
+        :param ndarray mask (None): boolean mask for image pixel access, 
+            default is None, if the mask is specified and valid (i.e. same
+            shape than images in stack) then the other three input parameters
+            are ignored
+        :param ax (None): matplotlib axes (if None, a new figure with axes
+            will be created)
+            
+        """
+        add_to = True
+        if ax is None:
+            fig, ax = subplots(1, 1)
+            add_to = False
+        poly, tau, so2 = self.get_calibration_polynomial(filter_id, pos_x_abs,\
+                                                    pos_y_abs, radius_abs, mask)
+        
+        taus = linspace(0, tau.max() * 1.05, 100)
+        ax.plot(tau, so2, " ^", label = "Cell data %s" %filter_id)
+        ax.plot(taus, poly(taus),"--", label = "Fit: %s" %poly)
+        
+        if not add_to:
+            ax.set_ylabel(r"S$_{SO2}$ [cm$^{-2}$]", fontsize=18)
+            ax.set_xlabel(r"$\tau$", fontsize = 18)    
+            ax.grid()
+        ax.legend(loc = "best", fancybox = True, framealpha = 0.5,\
+                                                        fontsize = 14)
+        return ax
+        
+    def plot_all_calib_curves(self, pos_x_abs = None, pos_y_abs = None,\
+                                    radius_abs = 1, mask = None, ax = None):
+        """Plot all available calibration curves in a certain image pixel region
+        
+        :param str filter_id: image type ID (e.g. "on", "off")
+        :param int pos_x_abs (None): x position of center pixel on detector
+        :param int pos_y_abs (None): y position of center pixel on detector
+        :param float radius_abs (1): radius of pixel disk on detector (centered
+            around pos_x_abs, pos_y_abs)
         :param ndarray mask (None): boolean mask for image pixel access, 
             default is None, if the mask is specified and valid (i.e. same
             shape than images in stack) then the other three input parameters
@@ -834,13 +865,13 @@ class CellCalibEngine(Dataset):
         tau_max = -10
         y_min = 1e20
         for filter_id, stack in self.tau_stacks.iteritems():
-            poly, tau, so2 = self.get_calibration_polynomial(filter_id, pos_x,\
-                                                        pos_y, radius, mask)
+            poly, tau, so2 = self.get_calibration_polynomial(filter_id,\
+                                    pos_x_abs, pos_y_abs, radius_abs, mask)
             
             taus = linspace(0, tau.max() * 1.2, 100)
             pl = ax.plot(tau, so2, " ^", label = "Data %s" %filter_id)
             ax.plot(taus, poly(taus),"-", color = pl[0].get_color(), label =\
-                                                                "Poly %s" %filter_id)
+                                                    "Poly %s" %filter_id)
             tm = tau.max()
             if tm > tau_max:
                 tau_max = tm
@@ -856,15 +887,15 @@ class CellCalibEngine(Dataset):
         return ax
         
 #==============================================================================
-#     def plot_calib_curve(self, filter_id, pos_x = None, pos_y = None, radius = 1,\
+#     def plot_calib_curve(self, filter_id, pos_x_abs = None, pos_y_abs = None, radius = 1,\
 #                                                     mask = None, ax = None):
 #         """Plot the calibration curve in a certain image pixel region
 #         
 #         :param str filter_id: image type ID (e.g. "on", "off")
-#         :param int pos_x (None): x position of center pixel on detector
-#         :param int pos_y (None): y position of center pixel on detector
+#         :param int pos_x_abs (None): x position of center pixel on detector
+#         :param int pos_y_abs (None): y position of center pixel on detector
 #         :param float radius (1): radius of pixel disk on detector (centered
-#             around pos_x, pos_y)
+#             around pos_x_abs, pos_y_abs)
 #         :param ndarray mask (None): boolean mask for image pixel access, 
 #             default is None, if the mask is specified and valid (i.e. same
 #             shape than images in stack) then the other three input parameters
@@ -875,14 +906,14 @@ class CellCalibEngine(Dataset):
 #         """
 #         if ax is None:
 #             fig, ax = subplots(1,1)
-#         #self.tau_stacks[filter_id].get_time_series(pos_x, pos_y, radius, mask)
-#         poly, tau_arr, so2_arr = self.fit_calib_poly(pos_x,pos_y,filter_id,radius)
+#         #self.tau_stacks[filter_id].get_time_series(pos_x_abs, pos_y_abs, radius, mask)
+#         poly, tau_arr, so2_arr = self.fit_calib_poly(pos_x_abs,pos_y_abs,filter_id,radius)
 #         ax=subplot(1,1,1)
 #         ax.plot(tau_arr,so2_arr," ob",label="Cell data " + str(filter_id))
 #         xp=linspace(0,0.5,10)
 #         ax.plot(xp,poly(xp), "--r", label="Cell poly " + str(filter_id))            
 #         ax.set_title("Cell calib " + filter_id + \
-#         " at pos (x,y,r) : (" + str(pos_x) + "," + str(pos_y) + "," + str(radius) + ")")
+#         " at pos (x,y,r) : (" + str(pos_x_abs) + "," + str(pos_y_abs) + "," + str(radius) + ")")
 #         ax.set_xlabel("Tau")
 #         ax.set_ylabel("SO2-SCD [cm-2]")
 #         ax.grid()

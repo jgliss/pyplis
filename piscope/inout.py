@@ -100,10 +100,26 @@ def find_test_data():
                 return join(p, folder_name)
     raise IOError("piscope test data could not be found, please download"
         "testdata first, using method piscope.inout.download_test_data")
+
+def all_test_data_paths():
+    """Return list of all search paths for test data"""
+    from piscope import _LIBDIR
+    data_path = join(_LIBDIR, "data")
+    paths = [data_path]
+    with open(join(data_path, "_paths.txt"), "r") as f:
+        lines = f.readlines()
+        for line in lines:
+            p = line.split("\n")[0].lower()
+            if exists(p):
+                paths.append(p)
+    return paths
     
 def set_test_data_path(save_path):
     """Set local path where test data is stored"""
     from piscope import _LIBDIR
+    if save_path.lower() in all_test_data_paths():
+        print "Path is already in search tree"
+        return
     try:
         if not exists(save_path):
             raise IOError("Could not set test data path: specified location "

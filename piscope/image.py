@@ -108,13 +108,13 @@ class Img(object):
         
         self.meta = od([("start_acq"     ,   datetime(1900, 1, 1)),#datetime(1900, 1, 1)),
                         ("stop_acq"      ,   datetime(1900, 1, 1)),#datetime(1900, 1, 1)),
-                        ("texp"          ,   0.0), # exposure time [s]
+                        ("texp"          ,   float(0.0)), # exposure time [s]
                         ("focal_length"  ,   nan), # lense focal length [mm]
                         ("pix_width"     ,   nan), # horizontal pix pitch
                         ("pix_height"    ,   nan), # vert. pix pitch
                         ("bit_depth"     ,   nan), # pix bit depth
                         ("f_num"         ,   nan), # f number of lense
-                        ("read_gain"     ,   0),   # boolean (on / off)
+                        ("read_gain"     ,   False),   # boolean (on / off)
                         ("filter"        ,   ""),
                         ("path"          ,   ""),
                         ("file_name"     ,   ""),
@@ -127,13 +127,8 @@ class Img(object):
             self.load_input(input)
           
         for k, v in meta_info.iteritems():
-            if self.meta.has_key(k):
-                func = type(self.meta[k])
-                try:                
-                    self.meta[k] = func(v)
-                except:
-                    print ("Failed to read image meta info %s, i.e. convert "
-                        "%s into type %s" %(k, v, func))
+            if self.meta.has_key(k) and isinstance(v, type(self.meta[k])):
+                self.meta[k] = v
             elif self.edit_log.has_key(k):
                 self.edit_log[k] = v
         try:
@@ -217,8 +212,10 @@ class Img(object):
     def roi(self):
         """Returns current roi (in consideration of current pyrlevel)"""
         roi_sub = map_roi(self._roi_abs, self.edit_log["pyrlevel"])
-        print ("Current roi in Img (in abs coords): %s, mapped to pyrlevel: "
-            "%s" %(self._roi_abs, roi_sub))
+#==============================================================================
+#         print ("Current roi in Img (in abs coords): %s, mapped to pyrlevel: "
+#             "%s" %(self._roi_abs, roi_sub))
+#==============================================================================
         return roi_sub
     
     @property
