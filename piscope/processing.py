@@ -513,7 +513,11 @@ class ImgStack(object):
         self.dtype = dtype
         self.current_index = 0
         
-        self.stack = empty((img_num, height, width))
+        try:
+            self.stack = empty((img_num, height, width))
+        except MemoryError:
+            raise MemoryError("Could not initiate empty 3D numpy array "
+                "(d, h, w): (%s, %s, %s)" %(img_num, height, width))
         self.start_acq = asarray([datetime(1900,1,1)] * img_num)
         self.texps = zeros(img_num, dtype = float32)
         self.add_data = zeros(img_num, dtype = float32)
@@ -768,8 +772,9 @@ class ImgStack(object):
         texps_new = self.texps[img_idxs]
         start_acq_new = self.start_acq[img_idxs]
         stack_obj_new = ImgStack(stack_id = self.stack_id + "_merged_nearest",\
-                stack = stack_new, start_acq = start_acq_new, texps = texps_new)
-        
+            img_prep = self.img_prep, stack = stack_new, start_acq =\
+                                        start_acq_new, texps = texps_new)
+        stack_obj_new.roi_abs = self.roi_abs
         stack_obj_new.add_data = series_new
         return stack_obj_new, series_new
             
@@ -820,8 +825,9 @@ class ImgStack(object):
                 #df = df.dropna()
                 new_stack[:, i, j] = df[0].values
         
-        stack_obj = ImgStack(new_num, h, w, stack_id =\
-                                    self.stack_id + "_interpolated")
+        stack_obj = ImgStack(new_num, h, w, stack_id = self.stack_id +\
+                                "_interpolated", img_prep = self.img_prep)
+        stack_obj.roi_abs = self.roi_abs
         #print new_stack.shape, new_acq_times.shape, new_texps.shape
         stack_obj.set_stack_data(new_stack, new_acq_times, new_texps)
         return stack_obj, df[1]
@@ -895,6 +901,7 @@ class ImgStack(object):
         new_stack = rollaxis(new_stack, 2)
         stack_obj = ImgStack(len(new_texps), h, w, stack_id =\
                         self.stack_id + "_avg", img_prep = self.img_prep)
+        stack_obj.roi_abs = self.roi_abs
         stack_obj.set_stack_data(new_stack, new_acq_times, new_texps)
         time_series = time_series.drop(time_series.index[bad_indices])
         return stack_obj, time_series
@@ -981,7 +988,8 @@ class ImgStack(object):
         """
         stack, ts, _ = self.get_data()
         im = Img(stack[index], start_acq = ts[index], texp = self.texps[index])
-        im.edit_log = self.img_prep
+        im.edit_log.update(self.img_prep)
+        im.roi_abs = self.roi_abs
         return im.show()
 
     def pyr_down(self, steps = 0):
@@ -1059,6 +1067,7 @@ class ImgStack(object):
         for key, val in hdu[0].header.iteritems():
             if key.lower() in prep.keys():
                 self.img_prep[key.lower()] = val
+        self.stack_id = hdu[0].header["stack_id"]
         try:
             self.start_acq = [datetime.strptime(x, "%Y%m%d%H%M%S%f") for x in\
                                                     hdu[1].data["start_acq"]]
@@ -1117,6 +1126,7 @@ class ImgStack(object):
         #==============================================================================
         hdu.data = self.stack
         hdu.header.update(self.img_prep)
+        hdu.header["stack_id"] = self.stack_id
         hdu.header.append()
         hdulist = fits.HDUList([hdu, arrays, roi_abs])
         path = join(save_dir, save_name)

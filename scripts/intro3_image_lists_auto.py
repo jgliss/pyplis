@@ -36,7 +36,7 @@ stp = piscope.setup.MeasSetup(img_dir, camera = cam)
 ds = piscope.dataset.Dataset(stp)
 
 l = ds.get_list("on")
-l.roi = [100, 100, 1300, 900]
+l.roi_abs = [100, 100, 1300, 900]
 l.dark_corr_mode = 1
 l.crop = 1
 l.pyrlevel = 2

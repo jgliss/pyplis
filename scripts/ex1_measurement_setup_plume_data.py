@@ -17,12 +17,9 @@ save_path = join(getcwd(), "scripts_out")
 # Image base path
 img_dir = join(piscope.inout.find_test_data(), "images")
 
-def create_dataset():
+def create_dataset(start = datetime(2015, 9, 16, 7, 6, 00),\
+                   stop = datetime(2015, 9, 16, 7, 22, 00)):
     """Initiates measurement setup and creates dataset from that"""
-    #time stamps of plume image data
-    start = datetime(2015,9,16,7,6,00)
-    stop = datetime(2015,9,16,7,22,00)
-    
     ### Define camera (here the default ecII type is used)
     cam_id = "ecII"
     

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-piscope example script no. 4: Automatic cell calibration
+piscope example script no. 5: Automatic cell calibration
 
 Sript showing how to work with cell calibration data and automatic retrieval of
 plume background images.
@@ -55,7 +55,11 @@ def perform_auto_cell_calib():
     c.prepare_tau_stack("on", pyrlevel = 2)
     c.prepare_tau_stack("off", pyrlevel = 2)
     c.prepare_aa_stack()
-        
+    return c
+#ax.legend(loc="best", fancybox=True, framealpha=0.5, fontsize=12)
+
+if __name__ == "__main__":
+    c = perform_auto_cell_calib()
     ### Determine exemplary tau time series from on band stack at pixel 100, 100, radius=10
     fig, axes = plt.subplots(1,3, figsize=(20,6))
     ### Plot search result of on
@@ -66,9 +70,4 @@ def perform_auto_cell_calib():
     axes[1].set_title("B) Cell search result off band", fontsize = 18)
     axes[2].set_title("C) Calibration polynomials", fontsize = 18)
     fig.tight_layout()
-    fig.savefig(join(save_path, "ex4_out_1.png"))
-    return c
-#ax.legend(loc="best", fancybox=True, framealpha=0.5, fontsize=12)
-
-if __name__ == "__main__":
-    cell_calib = perform_auto_cell_calib()
+    fig.savefig(join(save_path, "ex5_out_1.png"))
