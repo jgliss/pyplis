@@ -114,7 +114,7 @@ class Img(object):
                         ("pix_height"    ,   nan), # vert. pix pitch
                         ("bit_depth"     ,   nan), # pix bit depth
                         ("f_num"         ,   nan), # f number of lense
-                        ("read_gain"     ,   False),   # boolean (on / off)
+                        ("read_gain"     ,   0),   # boolean (on / off)
                         ("filter"        ,   ""),
                         ("path"          ,   ""),
                         ("file_name"     ,   ""),
