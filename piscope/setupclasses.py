@@ -403,16 +403,16 @@ class Camera(CameraBaseInfo):
     Class representing a UV camera system including detector specifications, 
     optics, file naming convention and :class:`FilterSetup`
     """
-    def __init__(self, cam_id = None, geom_data = {}, filter_list = [],\
-                    default_filter_key_on = None, default_filter_key_off =\
-                                                None, ser_no = 9999, **kwargs):
+    def __init__(self, cam_id = None, filter_list = [], default_filter_key_on\
+            = None, default_filter_key_off = None, ser_no = 9999, **geom_info):
         """Initiation of object
         
         :param str cam_id (""): camera ID (e.g "ecII")
         :param int ser_no (9999): camera serial number
         :param dict filterInfoDict (None)
         """
-        super(Camera, self).__init__(cam_id, **kwargs)
+        super(Camera, self).__init__(cam_id)
+    
         #specify the filters used in the camera and the main filter (e.g. On)        
         self.ser_no = ser_no #identifier of camera
         self.geom_data = od([("lon"         ,   None),
@@ -423,26 +423,49 @@ class Camera(CameraBaseInfo):
                              ("elev"        ,   None),
                              ("elev_err"    ,   None),
                              ("alt_offset"  ,   0.0)])
-                               
+        
+        for k, v in geom_info.iteritems():
+            self[k] = v
+                       
         self.filter_setup = None
   
         self.prepare_filter_setup(filter_list, default_filter_key_on,\
                                                     default_filter_key_off)
-        self.update_geom_data(geom_data)
-        
     
+    @property
+    def lon(self):
+        """Returns longitude"""
+        return self.geom_data["lon"]
+
+    @lon.setter
+    def lon(self, val):
+        """Set longitude"""
+        if not -180 <= val <= 180:
+            raise ValueError("Invalid input for longitude, must be between"
+                "-180 and 180")
+        self.geom_data["lon"] = val
+    
+    @property
+    def lat(self):
+        """Returns latitude"""
+        return self.geom_data["lat"]
+
+    @lat.setter
+    def lat(self, val):
+        """Set longitude"""
+        if not -90 <= val <= 90:
+            raise ValueError("Invalid input for longitude, must be between"
+                "-90 and 90")
+        self.geom_data["lat"] = val
         
-    def update_geom_data(self, geom_info_dict):
+    def update_settings(self, **settings):
         """Update geometry info in self.geom_data
         
         :param dict geom_info_dict: dictionary containing valid geometry info
             (see dict ``self.geom_data`` for valid input keys)
         """
-        if not isinstance(geom_info_dict, dict):
-            return 
-        for key, val in geom_info_dict.iteritems():
-            if key in self.geom_data.keys():
-                self.geom_data[key] = val 
+        for key, val in settings.iteritems():
+            self[key] = val
            
     def prepare_filter_setup(self, filter_list = None, default_key_on = None,\
                                                     default_key_off = None):

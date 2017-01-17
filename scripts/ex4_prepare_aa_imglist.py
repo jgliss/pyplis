@@ -8,21 +8,9 @@ Sript showing how to work in AA mode using ImgList object
 import piscope 
 from matplotlib.pyplot import close
 from os.path import join
-from os import getcwd
 
-from ex1_measurement_setup_plume_data import create_dataset
-
-### RELEVANT PATHS
-
-# Set save directory for figures
-save_path = join(getcwd(), "scripts_out")
-
-# test data path
-test_data_path = piscope.inout.find_test_data()
-
-# Image base path
-img_dir = join(test_data_path, "images")
-
+#import relevant paths and methods from example one
+from ex1_measurement_setup_plume_data import create_dataset, save_path, img_dir
 
 ### Set plume background images for on and off
 # this is the same image which is also used for example script NO
@@ -69,6 +57,7 @@ def prepare_aa_image_list(dataset, bg_path_on, bg_path_off, bg_corr_mode = 6):
 
 
 if __name__ == "__main__":
+    from matplotlib.pyplot import show
     close("all")
     dataset = create_dataset()
     aa_list = prepare_aa_image_list(dataset, path_bg_on, path_bg_off)
@@ -80,4 +69,5 @@ if __name__ == "__main__":
     aa_list.crop = True
     print aa_list
     ax = aa_list.show_current()
+    show()
     ax.figure.savefig(join(save_path, "ex4_out_1.png"))

@@ -8,13 +8,12 @@ Sript showing how to work with cell calibration data
 import piscope 
 import pydoas
 from datetime import timedelta
-from matplotlib.pyplot import close
+from matplotlib.pyplot import close, show
 from os.path import join, exists
 from os import remove
 
-from ex1_measurement_setup_plume_data import create_dataset
-from ex4_prepare_aa_imglist import prepare_aa_image_list, test_data_path,\
-                                                                save_path
+from ex1_measurement_setup_plume_data import create_dataset, img_dir, save_path
+from ex4_prepare_aa_imglist import prepare_aa_image_list
                                                                 
 ### SCRIPT OPTONS
 
@@ -39,11 +38,9 @@ if not exists(stack_path):
     reload_stack =1
 
 # Path containing DOAS result files
-doas_data_path = join(test_data_path, "spectra", "plume_prep", "min10Scans",\
+doas_data_path = join(img_dir, "..", "spectra", "plume_prep", "min10Scans",\
     "ResultFiles")
     
-# Image base path
-img_dir = join(test_data_path, "images")
 ### Set plume background images for on and off
 # this is the same image which is also used for example script NO
 # demonstrating the plume background routines
@@ -145,3 +142,4 @@ if __name__ == "__main__":
     
     remove(join(my_dat, "piscope_doascalib_id_aa_avg_20150916_0706_0721.fts"))
     calib_pears.save_as_fits(save_dir = my_dat)
+    show()

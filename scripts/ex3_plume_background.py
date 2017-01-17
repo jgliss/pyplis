@@ -4,18 +4,18 @@ piscope example script no. 3: Plume background analysis
 
 This example script introduces features related to plume background modelling
 and tau image calculations.
+
+.. todo::
+
+    SUBCATEGORISE -> need method to return prepared background images on / off
+    
 """
 import numpy as np
 from os.path import join
-from os import getcwd
 import piscope
 import matplotlib.pyplot as plt
 
-### Set save directory for figures
-save_path = join(getcwd(), "scripts_out")
-
-# Image base path
-img_dir = join(piscope.inout.find_test_data(), "images")
+from ex1_measurement_setup_plume_data import save_path, img_dir
 
 ###OPTIONS
 USE_AUTO_SETTINGS = False # If this is True, then sky reference areas are set in auto mode
@@ -31,7 +31,7 @@ vign_corr = 1
 polyorder = 1
 pyrlevel = 4
 
-### Create background modellinG object
+### Create background modelling object
 m = piscope.plumebackground.PlumeBackgroundModel()
 
 ### Define default gas free areas in plume image
@@ -110,7 +110,7 @@ fig3 = m.plot_tau_result(tau3, pcs = pcs)
 
 ### Plot PCS profiles for all 4 methods
 
-pcs_line = piscope.processing.LineOnImage(*pcs, id = "pcs")
+pcs_line = piscope.processing.LineOnImage(*pcs, line_id = "pcs")
 fig4, ax1 = plt.subplots(1,1)
 p0 = pcs_line.get_line_profile(tau0.img)
 p1 = pcs_line.get_line_profile(tau1.img)

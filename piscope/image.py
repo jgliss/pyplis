@@ -553,12 +553,18 @@ class Img(object):
         """Plot image"""
         return self.show_img(**kwargs)
 
-    def show_img(self, **kwargs):
+    def show_img(self, ax = None, **kwargs):
         """Show image using plt.imshow"""
         if not "cmap" in kwargs.keys():
             kwargs["cmap"] = self.get_cmap()
-        fig = figure(facecolor = 'w', edgecolor = 'none', figsize = (12,7))  
-        ax = fig.add_subplot(111)
+        try:
+            fig = ax.figure
+            ax = ax
+        except:
+            fig = figure(facecolor = 'w', edgecolor = 'none',\
+                                            figsize = (12,7))  
+            ax = fig.add_subplot(111)
+        
         im = ax.imshow(self.img, **kwargs)
         fig.colorbar(im, ax = ax)
         ax.set_title(self.make_info_header_str(), fontsize = 9)
@@ -629,6 +635,7 @@ class Img(object):
         s = "piscope Img\n--------------\n\n"
         s += "Shape: %s\n" %str(self.shape)
         s += "Min / Max intensity: %s - %s\n" %(self.min(), self.max())
+        s += "Mean intensity: %s\n" %(self.img.mean())
         s += "\nMeta information\n-----------------------------\n"
         for k, v in self.meta.iteritems():
             s += "%s: %s\n" %(k, v)
@@ -687,5 +694,9 @@ class Img(object):
         try:
             return Img(self.img / img_obj.img)
         except:
-            raise TypeError("Could not subtract target image of type %s"
+            try:
+                return Img(self.img / img_obj)
+            except:
+                raise TypeError("Could not divide target image of type %s"
                                                                 %type(img_obj))
+            
