@@ -713,6 +713,7 @@ class CellCalibEngine(Dataset):
         
         """
         aa = self.tau_stacks[on_id] - self.tau_stacks[off_id]
+        aa.stack_id  = "aa"
         self.tau_stacks[stack_name] = aa
         return aa
                 
@@ -809,7 +810,7 @@ class CellCalibEngine(Dataset):
     
     def plot_calib_curve(self, filter_id, pos_x_abs, pos_y_abs,\
                                 radius_abs = 1, mask = None, ax = None):
-        """Plot all available calibration curves in a certain image pixel region
+        """Plot all available calibration curves in a certain pixel region
         
         :param str filter_id: image type ID (e.g. "on", "off")
         :param int pos_x_abs (None): x position of center pixel on detector
@@ -829,7 +830,7 @@ class CellCalibEngine(Dataset):
             fig, ax = subplots(1, 1)
             add_to = False
         poly, tau, so2 = self.get_calibration_polynomial(filter_id, pos_x_abs,\
-                                                    pos_y_abs, radius_abs, mask)
+                                                pos_y_abs, radius_abs, mask)
         
         taus = linspace(0, tau.max() * 1.05, 100)
         ax.plot(tau, so2, " ^", label = "Cell data %s" %filter_id)
@@ -845,7 +846,7 @@ class CellCalibEngine(Dataset):
         
     def plot_all_calib_curves(self, pos_x_abs = None, pos_y_abs = None,\
                                     radius_abs = 1, mask = None, ax = None):
-        """Plot all available calibration curves in a certain image pixel region
+        """Plot all available calibration curves in a certain pixel region
         
         :param str filter_id: image type ID (e.g. "on", "off")
         :param int pos_x_abs (None): x position of center pixel on detector

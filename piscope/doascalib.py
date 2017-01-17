@@ -466,7 +466,7 @@ class DoasFOV(object):
                 if not k == "corr_curve":
                     s += "%s: %s\n" %(k, v)
         return s
-        
+    
     def plot(self, ax = None):
         """Draw the current FOV position into the current correlation img"""
         if ax is None:        
@@ -493,8 +493,8 @@ class DoasFOV(object):
             ax.get_xaxis().set_ticks([0, self.cx_rel, w])
             ax.get_yaxis().set_ticks([0, self.cy_rel, h])
             #ax.set_axis_off()
-            ax.set_title(r"Corr img (pearson), pos abs (x,y): (%d, %d)\n"
-                "$\lambda=%.1e$" %(cx, cy, self.search_settings["ifr_lambda"]))
+            ax.set_title(r"Corr img (IFR), pos abs (x,y): (%d, %d), "
+                "lambda=%.1e" %(cx, cy, self.search_settings["ifr_lambda"]))
                         
         elif self.method == "pearson":
             cb.set_label(r"Pearson corr. coeff.", fontsize = 16)

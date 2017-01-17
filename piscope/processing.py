@@ -12,7 +12,7 @@ from scipy.ndimage.filters import gaussian_filter1d, median_filter
 
 from copy import deepcopy
 from datetime import datetime, timedelta
-from matplotlib.pyplot import subplot, subplots, tight_layout
+from matplotlib.pyplot import subplot, subplots, tight_layout, draw
 from matplotlib.dates import date2num
 from pandas import Series, concat, DatetimeIndex
 from cv2 import cvtColor, COLOR_BGR2GRAY, pyrDown, pyrUp
@@ -23,7 +23,7 @@ from astropy.io import fits
 from .image import Img
 from .setupclasses import Camera
 from .exceptions import ImgMetaError, ImgModifiedError
-#from .Helpers import subimg_shape
+from .helpers import map_coordinates_sub_img, same_roi
 
 class PixelMeanTimeSeries(Series):
     """A ``pandas.Series`` object with extended functionality representing time
@@ -253,27 +253,45 @@ class PixelMeanTimeSeries(Series):
         return self.get_data()
         
 class LineOnImage(object):
-    """The base class for determination of intergrated column amounts"""
-    def __init__(self, x0, y0, x1, y1, id = ""):
+    """Class representing a line on an image
+    
+    Main purpose is data extraction along the line, which is done using 
+    spline interpolation.    
+    """
+    def __init__(self, x0, y0, x1, y1, roi_abs = [0, 0, 9999, 9999],\
+                                            pyrlevel = 0, line_id = ""):
         """Initiation of line
         
         :param int x0: start x coordinate
         :param int y0: start y coordinate
         :param int x1: stop x coordinate
         :param int y1: stop y coordinate
-        :param str id: string for identification (optional)
+        :param list roi_abs: region of interest in image for which start / stop
+            coordinates are defined (is used to convert to other image shape
+            settings)
+        :param int pyrlevel: pyramid level of image for which start /stop
+            coordinates are defined
+        :param str line_id: string for identification (optional)
         
+        .. note::
+        
+            The input coordinates correspond to relative image coordinates 
+            with respect to the input ROI (``roi_abs``) and pyramid level
+            (``pyrlevel``)
+            
         """
-        self.id = id
+        self.line_id = line_id # string ID of line
         
         self.x0 = x0 #start x coordinate
         self.y0 = y0 #start y coordinate
         self.x1 = x1 #stop x coordinate
         self.y1 = y1 #stop y coordinate
         
+        self._roi_abs = roi_abs
+        self._pyrlevel = pyrlevel
+        
         self.normal_vector = None
         self.profile_coords = None
-        #self.subImgInfo=ImagePreparation()
         
         self.check_coordinates()
         
@@ -284,11 +302,55 @@ class LineOnImage(object):
     def start(self):
         """Returns start coordinates ``[x0, y0]``"""
         return [self.x0, self.y0]
+        
     @property
     def stop(self):
         """Returns stop coordinates ``[x1, y1]``"""
         return [self.x1, self.y1]
+    
+    @property
+    def roi_abs(self):
+        """Returns current ROI (in absolute detector coordinates)"""
+        return self._roi_abs
+    
+    @roi_abs.setter
+    def roi_abs(self):
+        """Raises AttributeError"""
+        raise AttributeError("This attribute is not supposed to be changed, "
+            "please use method convert() to create a new LineOnImage object "
+            "corresponding to other image shape settings")
+            
+    @property
+    def pyrlevel(self):
+        """Returns current pyramid level"""
+        return self._pyrlevel
         
+    @pyrlevel.setter
+    def pyrlevel(self):
+        """Raises AttributeError"""
+        raise AttributeError("This attribute is not supposed to be changed, "
+            "please use method convert() to create a new LineOnImage object "
+            "corresponding to other image shape settings")
+     
+    def convert(self, pyrlevel = 0, roi_abs = [0, 0, 9999, 9999]):
+        """Convert to other image preparation settings"""
+        if pyrlevel == self.pyrlevel and same_roi(self.roi_abs, roi_abs):
+            print "Same shape settings, returning current line object"""
+            return self
+        print ("THIS Line (x0, y0, x1, y1):\n(%s, %s, %s, %s)" 
+                                %(self.x0, self.y0, self.x1, self.y1))
+        (x0, x1), (y0, y1) = map_coordinates_sub_img([self.x0, self.x1],\
+            [self.y0, self.y1], roi= self._roi_abs, pyrlevel = self._pyrlevel,\
+                                                                inverse = True)
+        print ("Mapped to absolute coords (x0, y0, x1, y1):\n(%s, %s, %s, %s)" 
+                                %(x0, y0, x1, y1))
+        (x0, x1), (y0, y1) = map_coordinates_sub_img([x0, x1],\
+                [y0, y1], roi=roi_abs, pyrlevel = pyrlevel, inverse = False)
+        print ("Mapped to input coords (x0, y0, x1, y1):\n(%s, %s, %s, %s)" 
+                                %(x0, y0, x1, y1))
+        return LineOnImage(x0, y0, x1, y1, roi_abs = roi_abs, pyrlevel =\
+            pyrlevel, line_id=self.line_id)
+            
     def check_coordinates(self):
         """Check if coordinates are in the right order and exchange start/stop
         points if necessary
@@ -414,38 +476,57 @@ class LineOnImage(object):
         
     """Plotting / visualisation etc...
     """
-    def plot_line_on_grid(self, array, ax = None):
-        """Draw the line on the image"""
-        if ax is None:
-            ax = subplot(111)
-        ax.imshow(array, cmap = "gray")
-        ax.plot([self.start[0],self.stop[0]], [self.start[1],self.stop[1]],\
-            'co-')
-#==============================================================================
-#         if roi == None:
-#             roi=self.roi()
-#             dx, dy = roi[1] - roi[0], roi[3] - roi[2]
-#             ax.add_patch(Rectangle((roi[0],roi[2]),dx,dy,fc="none",ec="c"))
-#==============================================================================
+    def plot_line_on_grid(self, img_arr = None, ax = None, **kwargs):
+        """Draw the line on the image
+        
+        :param ndarray img_arr: if specified, the array is plotted using 
+            :func:`imshow` and onto that axes, the line is drawn
+        :param ax: matplotlib axes object. Is created if unspecified. Leave 
+            :param:`img_arr` empty if you want the line to be drawn onto an
+            already existing image (plotted in ax)
+        :param **kwargs: additional keyword arguments for plotting of line
+            (please use following keys: marker for marker style, mec for marker 
+            edge color, c for line color and ls for line style)
+        """
+        new_ax = False
+        keys = kwargs.keys()
+        if not "mec" in keys:
+            kwargs["mec"] = "none"
+        if not "c" in keys:
+            kwargs["c"] = "lime"
+        if not "ls" in keys:
+            kwargs["ls"] = "-"
+        if not "marker" in keys:
+            kwargs["marker"] = "o"
             
-        ax.set_xlim([0,array.shape[1]])
-        ax.set_ylim([array.shape[0],0])
+        if ax is None:
+            new_ax = True
+            ax = subplot(111)
+        if img_arr is not None:
+            ax.imshow(img_arr, cmap = "gray")
+        ax.plot([self.start[0],self.stop[0]], [self.start[1],self.stop[1]],\
+            label = self.line_id, **kwargs)
+        if img_arr is not None:
+            ax.set_xlim([0,img_arr.shape[1]])
+            ax.set_ylim([img_arr.shape[0],0])
         #axis('image')
-        ax.set_title("Line " + str(self.id))
+        if new_ax:
+            ax.set_title("Line " + str(self.line_id))
+        draw()
         return ax
     
-    def plot_line_profile(self, array, ax=None):
+    def plot_line_profile(self, img_arr, ax=None):
         """Plots the line profile"""
         if ax is None:
             ax=subplot(111)
-        p = self.get_line_profile(array)
+        p = self.get_line_profile(img_arr)
         ax.set_xlim([0,self.length()])
         ax.grid()
         ax.plot(p)
         ax.set_title("Profile")
         return ax
     
-    def plot(self,array):
+    def plot(self, img_arr):
         """Basically calls
         
             1. self.plot_line_on_grid() and
@@ -454,8 +535,8 @@ class LineOnImage(object):
         and puts them next to each other in a subplot
         """
         fig, axes = subplots(1,2)
-        self.plot_line_on_grid(array,axes[0])
-        self.plot_line_profile(array,axes[1])
+        self.plot_line_on_grid(img_arr,axes[0])
+        self.plot_line_profile(img_arr,axes[1])
         tight_layout()
     
     def get_kappa(self):
@@ -477,13 +558,17 @@ class LineOnImage(object):
         
         a = self.get_kappa()
         self.normal_vector = (sin(a), cos(a))
+    
+    def to_list(self):
+        """Returns line coordinates as 4-list"""
+        return [self.x0, self.y0, self.x1, self.y1]
         
     """Magic methods
     """
     def __str__(self):
         """String representation
         """
-        s=("LineOnImage " + str(self.id) + 
+        s=("LineOnImage " + str(self.line_id) + 
             "\n----------------------------------------\n")
         s=(s + "Start (X,Y): " + str(self.start) + 
                 "\nStop (X,Y): " + str(self.stop) + "\n")

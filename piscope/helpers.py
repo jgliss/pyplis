@@ -94,6 +94,16 @@ def subimg_shape(img_shape = None, roi = None, pyrlevel = 0):
             shape[k] += 1
     return tuple(shape)
 
+def same_roi(roi1, roi2):
+    """Compares if two ROIs are the same
+    
+    :param list roi1: list with ROI coords ``[x0, y0, x1, y1]``
+    :param list roi2: list with ROI coords ``[x0, y0, x1, y1]``
+    """
+    if not all([x == 0 for x in (asarray(roi1) - asarray(roi2))]):
+        return False
+    return True
+    
 def map_coordinates_sub_img(pos_x_abs, pos_y_abs, roi = [0,0,9999,9999],\
                                             pyrlevel = 0, inverse = False):
     """Maps original input coordinates onto sub image
@@ -133,9 +143,9 @@ time_delta_to_seconds = vectorize(lambda x: x.total_seconds())
 
 def shifted_color_map(vmin, vmax, cmap = None):
     '''Thanks to Paul H (http://stackoverflow.com/users/1552748/paul-h) 
-    who wrote this function, found here:
-    
-    http://stackoverflow.com/questions/7404116/defining-the-midpoint-of-a-colormap-in-matplotlib
+    who wrote this function, found `here <http://stackoverflow.com/questions/
+    7404116/defining-the-midpoint-of-a-colormap-in-matplotlib>`_ (last access:
+    17/01/2017)
     
     Function to offset the "center" of a colormap. Useful for
     data with a negative min and positive max and you want the

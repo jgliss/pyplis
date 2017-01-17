@@ -5,25 +5,14 @@ piscope example script no. 2
 Import plume image dataset from example script 1 and illustrate some important
 features of the MeasGeometry class
 """
-import piscope as piscope
 from geonum.base import GeoPoint
-from matplotlib.pyplot import subplots, close
+from matplotlib.pyplot import subplots, close, show
 
-from os.path import join, exists
-from os import getcwd
+from os.path import join
 
-from ex1_measurement_setup_plume_data import create_dataset
+from ex1_measurement_setup_plume_data import create_dataset, save_path
 
-### Set save directory for figures
-save_path = join(getcwd(), "scripts_out")
-
-# Image base path
-img_dir = join(piscope.inout.find_test_data(), "images")
-
-if not exists(img_dir):
-    raise IOError("Failed to access test data")
-
-def correct_viewing_direction(meas_geometry):
+def correct_viewing_direction(meas_geometry, draw_result = True):
     """Correct viewing direction using location of Etna SE crater
     
     Defines location of Etna SE crater within images (is plotted into current
@@ -35,17 +24,15 @@ def correct_viewing_direction(meas_geometry):
     """
     se_crater_img_pos = [806, 736] #x,y
     se_crater = GeoPoint(37.747757, 15.002643, name = "SE crater")
-    se_alt_googleearth = 3.267 #km
     
     print "Retrieved altitude (SRTM): %s" %se_crater.altitude
-    print "Altitude google earth: %s" %se_alt_googleearth
     
     meas_geometry.geo_setup.add_geo_point(se_crater)
     
     elev_new, az_new, _, map = meas_geometry.correct_viewing_direction(\
         se_crater_img_pos[0], se_crater_img_pos[1], obj_id = "SE crater",\
-                                                        draw_result = True)
-    return map
+                                                draw_result =  draw_result)
+    return map, meas_geometry
     
 def plot_plume_distance_image(meas_geometry):
     """Determines and plots image where each pixel corresponds to the plume 
@@ -65,9 +52,9 @@ def plot_plume_distance_image(meas_geometry):
 if __name__ == "__main__":
     close("all")
     ds = create_dataset()
-    map = correct_viewing_direction(ds.meas_geometry)
+    map, geom = correct_viewing_direction(ds.meas_geometry)
     fig = plot_plume_distance_image(ds.meas_geometry)
-    
+    show()
     map.ax.figure.savefig(join(save_path, "ex2_out_1.png"))
     fig.savefig(join(save_path, "ex2_out_2.png"))
     

@@ -30,15 +30,16 @@ def create_dataset(start = datetime(2015, 9, 16, 7, 6, 00),\
     #camera location and viewing direction (altitude will be retrieved automatically)                    
     geom_cam = {"lon"           :   15.1129,
                 "lat"           :   37.73122,
-                "elev"          :   15.0,
-                "elevErr"       :   5.0,
-                "azim"          :   274.0,
-                "azimErr"       :   10.0,
-                "alt_offset"    :   15.0} #altitude offset (above topography)
+                "elev"          :   20.0,
+                "elev_err"       :  5.0,
+                "azim"          :   270.0,
+                "azim_err"       :  10.0,
+                "alt_offset"    :   15.0,
+                "focal_length"  :   25e-3} #altitude offset (above topography)
     
     #create camera setup
-    cam = piscope.setup.Camera(cam_id = cam_id, geom_data = geom_cam,\
-                filter_list = filters, focal_length = 25e-3)
+    cam = piscope.setup.Camera(cam_id = cam_id, filter_list = filters,\
+                                                                **geom_cam)
     
     ### Load default information for Etna
     source = piscope.setup.Source("etna") 

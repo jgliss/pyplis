@@ -70,4 +70,5 @@ if __name__ == "__main__":
     axes[1].set_title("B) Cell search result off band", fontsize = 18)
     axes[2].set_title("C) Calibration polynomials", fontsize = 18)
     fig.tight_layout()
+    plt.show()
     fig.savefig(join(save_path, "ex5_out_1.png"))

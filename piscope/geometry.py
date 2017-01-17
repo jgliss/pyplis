@@ -16,6 +16,7 @@ from matplotlib.pyplot import figure
 from copy import deepcopy
 
 from piscope import GEONUMAVAILABLE
+#from .processing import LineOnImage
 if GEONUMAVAILABLE:
     from geonum import GeoSetup, GeoPoint, GeoVector3D, TopoData
     from geonum.topodata import TopoAccessError
@@ -49,14 +50,15 @@ class MeasGeometry(object):
                                 ("pix_width"    ,   nan), #in m
                                 ("pix_height"   ,   nan), #in m
                                 ('pixnum_x'     ,   nan),
-                                ('pixnum_y'     ,   nan)])
+                                ('pixnum_y'     ,   nan),
+                                ('alt_offset'   ,   0.0)])  #altitude above 
+                                                            #topo in m
+        
+        self.geo_setup = GeoSetup(id = self.cam_id)
         
         self.update_source_specs(source_info)
         self.update_cam_specs(cam_info)
-        if not self.update_wind_specs(wind_info):
-            print "YOU STILL NEED TO WRITE SET WIND DEFAULT METHOD!!!"
-            #self.set_wind_default()
-        
+        self.update_wind_specs(wind_info)
         self.update_geosetup()
     
     @property
@@ -124,18 +126,23 @@ class MeasGeometry(object):
         """Checks if information is available to create points and vectors in 
         ``self.geo_setup``"""
         check = ["lon", "lat", "elev", "azim", "dir"]
-        ok = 1
+        cam_ok, source_ok = True, True
         for key in check:
             if self.cam.has_key(key) and not\
                         self._check_if_number(self.cam[key]):
                 #print "missing info in cam, key %s" %key
-                ok = 0
+                cam_ok = False
             if self.source.has_key(key) and not self._check_if_number(\
                                         self.source[key]):
                 #print "missing info in source, key %s" %key
-                ok = 0
-
-        return ok
+                source_ok = False
+        if not self._check_if_number(self.wind["dir"]) and cam_ok:
+            print ("setting orientation angle of wind direction relative to "
+                "camera cfov")
+            self.wind["dir"] = (self.cam["azim"] + 90)%360
+            self.wind["dir_err"] = 45
+            
+        return cam_ok, source_ok
         
     def update_geosetup(self):
         """Update the current ``self.geo_setup`` object with coordinates, 
@@ -148,44 +155,57 @@ class MeasGeometry(object):
             plume
             
         """   
-        if not self._check_geosetup_info():
-            print ("GeoSetup could not be updated in MeasGeometry: missing"
-                " information")
-            return False  
-        print "Updating GeoSetup in MeasGeometry..."
-        cam = GeoPoint(self.cam["lat"], self.cam["lon"],\
+        cam_ok, source_ok = self._check_geosetup_info()
+        mag = 20
+        if cam_ok:
+            print "Updating camera in GeoSetup of MeasGeometry"
+            cam = GeoPoint(self.cam["lat"], self.cam["lon"],\
                                 self.cam["altitude"], name = "cam")
-                            
-        source = GeoPoint(self.source["lat"], self.source["lon"],\
+            self.geo_setup.add_geo_point(cam)
+            
+        if source_ok:                            
+            print "Updating source in GeoSetup of MeasGeometry"
+            source = GeoPoint(self.source["lat"], self.source["lon"],\
                         self.source["altitude"], name = "source")
+            self.geo_setup.add_geo_point(source)
 
-        cam_2_source = cam - source #Vector pointing from source to camera
-        mag = cam_2_source.norm #length of this vector
-        cam_2_source.name = "cam_2_source"
-        
-        #check if wind info is available and if not set default
-        if not self._check_if_number(self.wind["dir"]):
-            print "BULLSHIT"
-        #vector representing the emission plume (anchor at source coordinates)
-        plume_vec = GeoVector3D(azimuth = self.plume_dir[0], dist_hor = mag,\
-                                            anchor = source, name = "plume_vec")
-        #vector representing the camer center pixel viewing direction (CFOV),
-        #anchor at camera position
-        cam_view_vec = GeoVector3D(azimuth = self.cam["azim"], elevation =\
-            self.cam["elev"], dist_hor = mag, anchor = cam, name = "cfov")
-        #horizontal intersection of plume and viewing direction
-        offs = plume_vec.intersect_hor(cam_view_vec)
-        #Geopoint at intersection
-        intersect = source + offs
-        intersect.name = "intersect"
-        
-        self.geo_setup = stp = GeoSetup(points = [cam, source, intersect],\
-            vectors = [cam_2_source, plume_vec, cam_view_vec], id = self.cam_id)
-        
-        stp.set_borders_from_points(extend_km = self._map_extend_km(),\
-                                                        to_square = True)
+        if cam_ok and source_ok:
+            source2cam = cam - source #Vector pointing from source to camera
+            mag = source2cam.norm #length of this vector
+            source2cam.name = "source2cam"
+            #vector representing the camera center pix viewing direction (CFOV),
+            #anchor at camera position
+            cam_view_vec = GeoVector3D(azimuth = self.cam["azim"], elevation =\
+                self.cam["elev"], dist_hor = mag, anchor = cam, name = "cfov")
+            print ("Updating source2cam and cam viewing direction vectors in "
+                                                "GeoSetup of MeasGeometry")
+
+            #vector representing the emission plume 
+            #(anchor at source coordinates)
+            plume_vec = GeoVector3D(azimuth = self.plume_dir[0],\
+                    dist_hor = mag, anchor = source, name = "plume_vec")
+            
+            self.geo_setup.add_geo_vectors(source2cam, cam_view_vec, plume_vec)
+            #horizontal intersection of plume and viewing direction
+            offs = plume_vec.intersect_hor(cam_view_vec)
+            #Geopoint at intersection
+            intersect = source + offs
+            intersect.name = "intersect"
+            self.geo_setup.add_geo_point(intersect)
+            self.geo_setup.set_borders_from_points(extend_km =\
+                            self._map_extend_km(), to_square = True)
+            print "MeasGeometry was updated and fulfills all requirements"
+            return True
+        elif cam_ok:
+            cam_view_vec = GeoVector3D(azimuth = self.cam["azim"], elevation =\
+                self.cam["elev"], dist_hor = mag, anchor = cam, name = "cfov")
+            self.geo_setup.add_geo_vector(cam_view_vec)
+            print "MeasGeometry was updated but misses source specifications"
+        print "MeasGeometry not (yet) ready for analysis"
+        return False
+            
     
-    def set_wind_default(self, cam_view_vec, cam_2_source_vec):
+    def set_wind_default(self, cam_view_vec, source2cam_vec):
         """Set default wind direction 
         
         Default wind direction is assumed to be perpendicular on the CFOV 
@@ -195,7 +215,7 @@ class MeasGeometry(object):
         points into the right direction in the image plane, else to the left.
         
         :param GeoVector3D cam_view_vec: geo vector of camera viewing direction
-        :param GeoVector3D cam_2_source_vec: geo vector between camera and 
+        :param GeoVector3D source2cam_vec: geo vector between camera and 
             source
         """
         raise NotImplementedError
@@ -243,7 +263,7 @@ class MeasGeometry(object):
         elevs = -rad2deg(arctan(dy/f)) + self.cam["elev"]
         return azims, elevs, x, y
             
-    def get_distances_to_topo_line(self, line, skip_pix = 30, **kwargs):
+    def get_distances_to_topo_line(self, line, skip_pix = 30):
         """Retrieve distances to topography for a line on an image
         
         Calculates distances to topography based on pixels on the line. This is 
@@ -252,7 +272,8 @@ class MeasGeometry(object):
         and the corresponding camera elevation (pixel row) to find the first
         intersection of the viewing direction (line) with the topography
         
-        :param list line: list with line coordinates: ``[x0, y0, x1, y1]``
+        :param list line: list with line coordinates: ``[x0, y0, x1, y1]`` (can
+            also be :class:`LineOnImage` object)
         :param int skip_pix: step width for retrieval along line
         """
         try:
@@ -281,7 +302,7 @@ class MeasGeometry(object):
         azims, elevs = azims[::int(skip_pix)], elevs[::int(skip_pix)]
         i_pos, j_pos = i_pos[::int(skip_pix)], j_pos[::int(skip_pix)]
     
-        max_dist = self.cam_2_source.magnitude * 1.03
+        max_dist = self.source2cam.magnitude * 1.03
         #initiate results
         res = { "dists"         : [], 
                 "dists_err"     : [],
@@ -292,19 +313,23 @@ class MeasGeometry(object):
         
         for k in range(len(azims)):
             ep = None
-            try:
-                ep = self.get_elevation_profile(azim = azims[k],\
-                                                    dist_hor = max_dist)
-                d, dErr, p , l = ep.get_first_intersection(elevs[k], **kwargs)
-                msg = "ok"
-                ok = True
-                if d == None:
-                    raise ValueError
-            except Exception as e:
-                print repr(e)
-                d, dErr, p = nan, nan, nan
-                msg = "failed: %s" %repr(e)
-                ok = False
+            #try:
+            ep = self.get_elevation_profile(azim = azims[k],\
+                                                dist_hor = max_dist)
+
+            d, dErr, p , l, _ = ep.get_first_intersection(elevs[k],\
+                        view_above_topo_m = self.cam["alt_offset"])
+            msg = "ok"
+            ok = True
+            if d == None:
+                raise ValueError
+#==============================================================================
+#             except Exception as e:
+#                 print repr(e)
+#                 d, dErr, p = nan, nan, nan
+#                 msg = "failed: %s" %repr(e)
+#                 ok = False
+#==============================================================================
                 #return res, ep, elevs[k]
                     
             res["dists"].append(d), res["dists_err"].append(dErr)
@@ -744,9 +769,9 @@ class MeasGeometry(object):
         return self.geo_setup.vectors["plume_vec"]
     
     @property
-    def cam_2_source(self):
+    def source2cam(self):
         """Return vector pointing camera to source"""
-        return self.geo_setup.vectors["cam_2_source"]
+        return self.geo_setup.vectors["source2cam"]
     
     @property
     def cam_view_vec(self):
@@ -855,7 +880,7 @@ class MeasGeometry(object):
         except TypeError:
             az = [az]
         
-        diff_vec = self.geo_setup.vectors["cam_2_source"]
+        diff_vec = self.geo_setup.vectors["source2cam"]
         dv = array((diff_vec.dx, diff_vec.dy)).reshape(2, 1)
         pdrad = deg2rad(self.plume_dir[0])
         azrad = deg2rad(az)
