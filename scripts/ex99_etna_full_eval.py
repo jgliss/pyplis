@@ -197,83 +197,81 @@ if __name__ == "__main__":
     
     times, _ = aa_list.get_img_meta_all_filenames()
     
+    for k in range(aa_list.nof):
+        p1 = doas_poly(pcs_line1.get_line_profile(aa_list.current_img().img))*100**2
+        p2 = doas_poly(pcs_line2.get_line_profile(aa_list.current_img().img))*100**2
+        icas1.append(sum(p1 * dists1))
+        icas2.append(sum(p2 * dists2))
+        aa_list.next_img()
+        
+    s1 = Series(icas1, times).resample("1S").mean().interpolate().dropna()
+    s2 = Series(icas2, times).resample("1S").mean().interpolate().dropna()
+    
+    num_tot = len(s1)
+    start = int(num_tot / 20.0)
+    stop = num_tot - start 
+    s1_cut = gaussian_filter1d(s1[start:stop], 6) 
+    s2_cut = gaussian_filter1d(s2[start:stop], 6) 
 #==============================================================================
-#     for k in range(aa_list.nof):
-#         p1 = doas_poly(pcs_line1.get_line_profile(aa_list.current_img().img))*100**2
-#         p2 = doas_poly(pcs_line2.get_line_profile(aa_list.current_img().img))*100**2
-#         icas1.append(sum(p1 * dists1))
-#         icas2.append(sum(p2 * dists2))
-#         aa_list.next_img()
-#         
-#     s1 = Series(icas1, times).resample("1S").mean().interpolate().dropna()
-#     s2 = Series(icas2, times).resample("1S").mean().interpolate().dropna()
-#     
-#     num_tot = len(s1)
-#     start = int(num_tot / 20.0)
-#     stop = num_tot - start 
-#     s1_cut = gaussian_filter1d(s1[start:stop], 6) 
-#     s2_cut = gaussian_filter1d(s2[start:stop], 6) 
-# #==============================================================================
-# #     xcorr = correlate(s1_cut, s2_cut)
-# #     num = len(s1_cut)
-# #     num_range = np.arange(1 - num, num)
-# # 
-# #     recovered_index_shift = num_range[xcorr.argmax()]
-# # 
-# #     print "Index shift: %d" % (recovered_index_shift)
-# #==============================================================================
-#     
-#     fig, ax = plt.subplots(1,3, figsize=(18,5))
-#     aa_list.goto_img(10)
-#     ax[0].imshow(aa_list.current_img().img, cmap = "gray")
-#     ax[0].set_xlim([0,1343])
-#     ax[0].set_ylim([1023, 0])
-#     ax[0].plot([pcs_line1.start[0], pcs_line1.stop[0]], [pcs_line1.start[1],pcs_line1.stop[1]],\
-#             'go-')
-#     ax[0].plot([pcs_line2.start[0], pcs_line2.stop[0]], [pcs_line2.start[1],pcs_line2.stop[1]],\
-#             'ro--')
-# #==============================================================================
-# #     pcs_line1.plot_line_on_grid()
-# #==============================================================================
-#     ax[1].plot(s1_cut, "-g", label = "ICA1")
-#     ax[1].plot(s2_cut, "--r", label = "ICA2")
-#     
-# #==============================================================================
-# #     ax[1].plot(num_range, xcorr, label = "Cross corr")
-# #==============================================================================
-#     
-#     
-#     from scipy.stats.stats import pearsonr
-#     coeffs = []
-#     for k in range(100):
-#         coeffs.append(pearsonr(np.roll(s1_cut, k), s2_cut)[0])
-#     ax[2].plot(coeffs)
-#     ax[2].set_xlabel("Shift")
-#     ax[2].set_ylabel("Correlation coeff")
-#     
-#     
-#     del_t = np.argmax(coeffs) #already in seconds, since data was resampled to 1s
-#     
-#     delX = 100 #horizontal distance between the two lines (HARD CODED FOR NOW)
-#     dist_pix = np.sin(pcs_line1.get_kappa()) * delX
-#     
-#     dist_in_m = dist_pix * dists1.mean()
-#     
-#     plumespeed = dist_in_m / del_t
-#     fig.suptitle("Retrieved gas speed: %s m/s" %plumespeed)
-#     
-#     fig.savefig(join(save_path, "cross_corr_test.png"))
-#     
-#     mmol = 64 #g/mol
-#     na = 6.022 * 10**23 #n/mol
-#     
-#     flux = np.asarray(icas1) * plumespeed * mmol / na / 1000.0
-#     
-#     fig, ax = plt.subplots(1,1)
-#     ax.plot(times, flux, "--x", label = "Emission rate")
-#     ax.set_ylabel("SO2 emission rate [kg/s]")
-#     fig.savefig(join(save_path, "ex99_emission_rate_etna.png"))
+#     xcorr = correlate(s1_cut, s2_cut)
+#     num = len(s1_cut)
+#     num_range = np.arange(1 - num, num)
+# 
+#     recovered_index_shift = num_range[xcorr.argmax()]
+# 
+#     print "Index shift: %d" % (recovered_index_shift)
 #==============================================================================
+    
+    fig, ax = plt.subplots(1,3, figsize=(18,5))
+    aa_list.goto_img(10)
+    ax[0].imshow(aa_list.current_img().img, cmap = "gray")
+    ax[0].set_xlim([0,1343])
+    ax[0].set_ylim([1023, 0])
+    ax[0].plot([pcs_line1.start[0], pcs_line1.stop[0]], [pcs_line1.start[1],pcs_line1.stop[1]],\
+            'go-')
+    ax[0].plot([pcs_line2.start[0], pcs_line2.stop[0]], [pcs_line2.start[1],pcs_line2.stop[1]],\
+            'ro--')
+#==============================================================================
+#     pcs_line1.plot_line_on_grid()
+#==============================================================================
+    ax[1].plot(s1_cut, "-g", label = "ICA1")
+    ax[1].plot(s2_cut, "--r", label = "ICA2")
+    
+#==============================================================================
+#     ax[1].plot(num_range, xcorr, label = "Cross corr")
+#==============================================================================
+    
+    
+    from scipy.stats.stats import pearsonr
+    coeffs = []
+    for k in range(100):
+        coeffs.append(pearsonr(np.roll(s1_cut, k), s2_cut)[0])
+    ax[2].plot(coeffs)
+    ax[2].set_xlabel("Shift")
+    ax[2].set_ylabel("Correlation coeff")
+    
+    
+    del_t = np.argmax(coeffs) #already in seconds, since data was resampled to 1s
+    
+    delX = 100 #horizontal distance between the two lines (HARD CODED FOR NOW)
+    dist_pix = np.sin(pcs_line1.get_kappa()) * delX
+    
+    dist_in_m = dist_pix * dists1.mean()
+    
+    plumespeed = dist_in_m / del_t
+    fig.suptitle("Retrieved gas speed: %s m/s" %plumespeed)
+    
+    fig.savefig(join(save_path, "cross_corr_test.png"))
+    
+    mmol = 64 #g/mol
+    na = 6.022 * 10**23 #n/mol
+    
+    flux = np.asarray(icas1) * plumespeed * mmol / na / 1000.0
+    
+    fig, ax = plt.subplots(1,1)
+    ax.plot(times, flux, "--x", label = "Emission rate")
+    ax.set_ylabel("SO2 emission rate [kg/s]")
+    fig.savefig(join(save_path, "ex99_emission_rate_etna.png"))
         
     
     

@@ -53,9 +53,8 @@ def check_roi(roi):
             raise ValueError("Invalid number of entries for ROI")
         if not all([x >= 0 for x in roi]):
             raise ValueError("ROI entries must be larger than 0")
-        if not roi[2] > roi[0] and roi[3] > roi[1]:
+        if not (roi[2] > roi[0] and roi[3] > roi[1]):
             raise ValueError("x1 and y1 must be larger than x0 and y0")
-        
         return True
     except:
         return False
@@ -103,6 +102,22 @@ def same_roi(roi1, roi2):
     if not all([x == 0 for x in (asarray(roi1) - asarray(roi2))]):
         return False
     return True
+
+def roi2rect(roi, inverse = False):
+    """Converts ROI to rectangle coordinates or vice versa
+    
+    :param list roi: list containing ROI corner coords ``[x0 , y0, x1, y1]``
+        (input can also be tuple)
+    :param bool inverse:  if True, input param ``roi`` is assumed to be of
+        format ``[x0, y0, w, h]`` and will be converted into ROI
+    :return:
+        - tuple, (x0, y0, w, h) if param ``inverse == False``
+        - tuple, (x0, y0, x1, y1) if param ``inverse == True``
+    """
+    x0, y0, x1, y1 = roi
+    if not inverse:
+        return (x0, y0, x1 - x0, y1 - y0)
+    return (x0, y0, x0 + x1, y0 + y1)
     
 def map_coordinates_sub_img(pos_x_abs, pos_y_abs, roi = [0,0,9999,9999],\
                                             pyrlevel = 0, inverse = False):

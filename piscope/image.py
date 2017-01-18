@@ -191,7 +191,7 @@ class Img(object):
         if self.edit_log["crop"]:
             raise AttributeError("Could not crop image in ROI, image "
                 " was already cropped...")
-        self.roi_abs = roi_abs
+        self.roi_abs = roi_abs #updates current roi_abs setting
         print self.meta["start_acq"]
         roi = self.roi #self.roi is @property method and takes care of ROI conv
         sub = self.img[roi[1]:roi[3], roi[0]:roi[2]] 

@@ -26,7 +26,7 @@ ImageList objects of piSCOPE library
 
     1. ImgStack in ROI
 """
-from numpy import asarray, zeros, argmin, arange, ndarray, float32
+from numpy import asarray, zeros, argmin, arange, ndarray, float32, ceil
 from ntpath import basename
 from datetime import timedelta, datetime
 #from bunch import Bunch
@@ -557,7 +557,7 @@ class BaseImgList(object):
                                 **self.get_img_meta_from_filename(img_file))
             self.update_prev_next_index()
             self.apply_current_edit("this")
-            
+     
         except IOError:
             print ("Invalid file encountered at list index %s, file will"
                 "be removed from list" %self.index)
@@ -908,6 +908,7 @@ class ImgList(BaseImgList):
         #: method (e.g. :func:`activate_tau_mode`) to be changed, dont change
         #: them directly via this private dictionary
         self._list_modes.update({"dark_corr"  :   0,
+                                 "opt_flow"   :   0,
                                  "tau"        :   0,
                                  "aa"         :   0})
         
@@ -940,7 +941,7 @@ class ImgList(BaseImgList):
         #self.currentMaxI=None
     
         #Optical flow engine
-        self.opt_flow_edit = OpticalFlowFarneback()
+        self.opt_flow = OpticalFlowFarneback(name = self.list_id)
         
         if self.data_available and init:
             self.load()
@@ -1008,7 +1009,7 @@ class ImgList(BaseImgList):
         """Set the current optical flow object (type 
         :class:`piscope.Processing.OpticalFlowFarneback`)
         """
-        self.opt_flow_edit = opt_flow
+        self.opt_flow = opt_flow
         
     def set_meas_geometry(self, geometry):
         """Set :class:`piscope.Utils.MeasGeometry` object"""
@@ -1017,7 +1018,7 @@ class ImgList(BaseImgList):
                 + self.list_id + ": wrong input type")
             return
         self.meas_geometry = geometry    
-        self.opt_flow_edit.set_meas_geometry(geometry)
+        self.opt_flow.set_meas_geometry(geometry)
                 
     def link_imglist(self, img_list):
         """Link another image list to this list
@@ -1326,13 +1327,6 @@ class ImgList(BaseImgList):
         self._list_modes["tau"] = val
         self.load()
     
-    def _aa_test_img(self, off_list):
-        """Try to determine an AA image"""
-        on = Img(self.files[self.cfn])
-        off = Img(off_list.files[off_list.cfn])
-        return self.bg_model.get_aa_image(on, off, self.bg_img,\
-                                                      off_list.bg_img)
-        
     def activate_aa_mode(self, val = True):
         """Activates AA mode (i.e. images are loaded as AA images)
         
@@ -1397,7 +1391,34 @@ class ImgList(BaseImgList):
             if lst.list_type == "off":
                 if list_id is None or list_id == lst.list_id:
                     return lst
-                    
+    
+    def activate_opt_flow_mode(self, val = True):
+        """Activate / deactivate optical flow calculation on image load"""
+        if val is self.opt_flow_mode:
+            return
+            
+        if self.crop:
+            raise ValueError("Optical flow analysis can only be applied to "
+                "uncropped images, please deactivate crop mode")
+        im = self.current_img()
+        if im.edit_log["is_tau"]:
+            self.set_flow_images()
+            self.opt_flow.calc_flow()
+            self.opt_flow.draw_flow()
+            if self.bg_model.scale_rect is None:
+                if self.current_img().edit_log["is_tau"]:
+                    raise Exception("Fatal: scale rectangle is not set in "
+                        "background model of list %s, but current image is "
+                        "flagged tau image" %self.list_id)
+                self.bg_model.guess_missing_settings(self.current_img())
+            roi = map_roi(self.bg_model.scale_rect, self.pyrlevel)
+            len_im = self.opt_flow.get_flow_vector_length_image() #is at pyrlevel
+            sub = len_im[roi[1]:roi[3], roi[0]:roi[2]]
+            min_len = ceil(sub.mean() + 3 * sub.std())
+            self.opt_flow.settings.min_length = min_len
+                
+        self._list_modes["opt_flow"] = val
+            
     def activate_vignette_correction(self, val = True):
         """Activate vignetting correction on image load
         
@@ -1433,7 +1454,10 @@ class ImgList(BaseImgList):
         else:
             self.loaded_images["prev"] = self.loaded_images["this"]
             self.loaded_images["next"] = self.loaded_images["this"]
-            
+        
+        if self.opt_flow_mode:  
+            self.set_flow_images()
+            self.opt_flow.calc_flow()
         ##self.prepare_additional_data()
     
     def update_index_linked_lists(self):
@@ -1461,6 +1485,9 @@ class ImgList(BaseImgList):
     
 
         self.apply_current_edit("next")
+        if self.opt_flow_mode:  
+            self.set_flow_images()
+            self.opt_flow.calc_flow()
         return True
         #self.prepare_additional_data()
         
@@ -1483,6 +1510,9 @@ class ImgList(BaseImgList):
                         **self.get_img_meta_from_filename(prev_file))
         
         self.apply_current_edit("prev")
+        if self.opt_flow_mode:  
+            self.set_flow_images()
+            self.opt_flow.calc_flow()
  
     def apply_current_edit(self, key):
         """Applies the current image edit settings to image
@@ -1538,8 +1568,8 @@ class ImgList(BaseImgList):
 #             return
 #==============================================================================
         #self.set_flow_images()
-        #self.opt_flow_edit.calc_flow()
-        #self.opt_flow_edit.calc_flow_lines()
+        #self.opt_flow.calc_flow()
+        #self.opt_flow.calc_flow_lines()
             
         
             
@@ -1578,11 +1608,11 @@ class ImgList(BaseImgList):
 #==============================================================================
         
     def set_flow_images(self):  
-        """Update images for optical flow determination in `self.opt_flow_edit` 
+        """Update images for optical flow determination in `self.opt_flow` 
         object, i.e. `self.loaded_images["this"]` and `self.loaded_images["next"]`
         """
-        self.opt_flow_edit.set_images(self.loaded_images["this"],\
-                                        self.loaded_images["next"])
+        self.opt_flow.set_images(self.loaded_images["this"],\
+                                 self.loaded_images["next"])
 
     def change_index(self, idx):
         """Change current image based on index of file list
@@ -1656,7 +1686,15 @@ class ImgList(BaseImgList):
         """
         return self.activate_dark_corr(value)
     
+    @property
+    def opt_flow_mode(self):
+        """Activate / deactivate optical flow calc on image load"""
+        return self._list_modes["opt_flow"]
     
+    @opt_flow_mode.setter
+    def opt_flow_mode(self, val):
+        self.activate_opt_flow_mode(val)
+        
     @property
     def tau_mode(self):
         """Returns current list tau mode"""
@@ -1694,6 +1732,14 @@ class ImgList(BaseImgList):
         if not isinstance(self.bg_img, Img):
             return False
         return True
+        
+    """Private methods"""        
+    def _aa_test_img(self, off_list):
+        """Try to determine an AA image"""
+        on = Img(self.files[self.cfn])
+        off = Img(off_list.files[off_list.cfn])
+        return self.bg_model.get_aa_image(on, off, self.bg_img,\
+                                                      off_list.bg_img)
         
 class CellImgList(ImgList):
     """Image list object for cell images
