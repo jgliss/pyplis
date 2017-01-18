@@ -4,8 +4,8 @@ Classes for plume speed retrievals
 ----------------------------------
 """
 from time import time
-from numpy import mgrid,vstack,int32,sqrt,arctan2,rad2deg, asarray,\
-    logical_and, histogram, nan, ceil, ones
+from numpy import mgrid,vstack,int32,sqrt,arctan2,rad2deg,ogrid,\
+    asarray, linspace,logical_and, histogram, exp, nan, average
 
 from copy import deepcopy
 #from scipy.misc import bytescale
@@ -14,10 +14,16 @@ from os import mkdir
 from traceback import format_exc
 
 from collections import OrderedDict as od
-from matplotlib.pyplot import subplots, figure, close, Figure
+from matplotlib.pyplot import subplot, subplots, figure,\
+    close, Figure, colorbar
 
-from matplotlib.patches import Rectangle
+from matplotlib.patches import Rectangle, Circle
 from scipy.ndimage.filters import median_filter
+try:
+    from skimage.feature import blob
+    BLOBAVAILABLE = 1
+except:
+    BLOBAVAILABLE = 0
     
 from pandas import Series
 
@@ -25,143 +31,56 @@ from cv2 import calcOpticalFlowFarneback, OPTFLOW_FARNEBACK_GAUSSIAN,\
     cvtColor,COLOR_GRAY2BGR,line,circle,VideoCapture,COLOR_BGR2GRAY,\
     waitKey, imshow
 
-from .helpers import bytescale, check_roi, map_roi, roi2rect
+from .helpers import bytescale
 from .processing import LineOnImage, ImgStack
 from .optimisation import MultiGaussFit
 from .image import Img
-
-def determine_ica_cross_correlation(self, icaValsPCS1, icaValsPCS2, timeStamps):
-    """Determines ICA cross correlation from two ICA time series
-    :param ndarray icaValsPCS1: time series values of first ICA
-    :param ndarray icaValsPCS1: time series values of second ICA
-    :param ndarray timeStamps: array with image acquisition time stamps 
-        (datetime objects)
-    """
-    raise NotImplementedError
     
 class OpticalFlowFarnebackSettings(object):
     """Settings for optical flow Farneback calculations and visualisation"""
-    def __init__(self, **settings):
-        """Initiation of settings object"""
-        self._contrast = od([("i_min"  ,   -9999.0),
-                             ("i_max"  ,   9999.0)])
+    def __init__(self):
+        """Initiation of settings object
+        """
+        self.contrast = od([("i_min"  ,   -9999.0),
+                            ("i_max"  ,   9999.0)])
         
-        self._flow_algo = od([("pyr_scale"  ,   0.5), 
-                              ("levels"     ,   4),
-                              ("winsize"    ,   16), 
-                              ("iterations" ,   6), 
-                              ("poly_n"     ,   5), 
-                              ("poly_sigma" ,   1.1)])
+        self.flowAlgo = od([("pyr_scale"  ,   0.5), 
+                            ("levels"     ,   4),
+                            ("winsize"    ,   16), 
+                            ("iterations" ,   6), 
+                            ("poly_n"     ,   5), 
+                            ("poly_sigma" ,   1.1)])
                             
-        self._analysis = od([("roi_abs"         ,   [0, 0, 9999, 9999]),
-                             ("min_length"      ,   1.0),
-                             ("sigma_tol_mean_dir", 3)])
+        self.analysis = od([("roi"  ,   [0, 0, 9999, 9999])])
         
-        self._display = od([("disp_skip"            ,   10),
-                            ("disp_len_thresh"      ,   3)])
-        
-        for k, v in settings.iteritems():
-            self[k] = v # see __setitem__ method
-            
-    @property
-    def i_min(self):
-        """Get lower intensity limit for image contrast preparation"""
-        return self._contrast["i_min"]
-            
-    @property
-    def i_max(self):
-        """Get upper intensity limit for image contrast preparation"""
-        return self._contrast["i_max"]
+        self.display = od([("skip"               ,   10),
+                           ("length_thresh"       ,   3)])
     
-    @property
-    def pyr_scale(self):
-        """Get param for optical flow algo input"""
-        return self._flow_algo["pyr_scale"]
-    
-    @property
-    def levels(self):
-        """Get param for optical flow algo input"""
-        return self._flow_algo["levels"]    
-        
-    @property
-    def winsize(self):
-        """Get param for optical flow algo input"""
-        return self._flow_algo["winsize"]
-        
-    @property
-    def iterations(self):
-        """Get param for optical flow algo input"""
-        return self._flow_algo["iterations"]
-        
-    @property
-    def poly_n(self):
-        """Get param for optical flow algo input"""
-        return self._flow_algo["poly_n"]
-
-    @property
-    def poly_sigma(self):
-        """Get param for optical flow algo input"""
-        return self._flow_algo["poly_sigma"]
-        
-    @property
-    def roi_abs(self):
-        """Get ROI for analysis of flow field (in absolute image coords)"""
-        return self._analysis["roi_abs"]
-    
-    @roi_abs.setter
-    def roi_abs(self, val):
-        if not check_roi(val):
-            raise ValueError("Invalid ROI, need list [x0, y0, x1, y1], "
-                "got %s" %val)
-        self._analysis["roi_abs"] = val
-    
-    @property
-    def min_length(self):
-        """Get / set minimum flow vector length for post analysis"""
-        return self._analysis["min_length"]
-        
-    @min_length.setter
-    def min_length(self, val):
-        if not val >= 1.0:
-            print ("WARNING: Minimum length of optical flow vectors for "
-                "analysis is smaller than 1 (pixel)")
-        print "Updating param min_length: %.2f" %val
-        self._analysis["min_length"] = val
-    
-    @property
-    def sigma_tol_mean_dir(self):
-        """Get / set sigma tolerance level for mean flow analysis"""
-        return self._analysis["sigma_tol_mean_dir"]
-    
-    @sigma_tol_mean_dir.setter
-    def sigma_tol_mean_dir(self, val):
-        if not 1 <= val <= 4:
-            raise ValueError("Value must be between 1 and 4")
-        self._analysis["sigma_tol_mean_dir"] = val
-        
-    @property
-    def disp_skip(self):
-        """Return current pixel skip value for displaying flow field"""
-        return self._display["disp_skip"]
-    
-    @property
-    def disp_len_thresh(self):
-        """Return current pixel skip value for displaying flow field"""
-        return self._display["disp_len_thresh"]    
-        
     def __str__(self):
         """String representation"""
-        s="Image contrast settings (applied before flow calc):\n"
-        for key, val in self._contrast.iteritems():
+        s="Input contrast:\n"
+        for key, val in self.preEdit.iteritems():
             s += "%s: %s\n" %(key, val)
-        s += "\nOptical flow algo input (see OpenCV docs):\n"
-        for key, val in self._flow_algo.iteritems():
+        s += "\nOptical flow input (see OpenCV docs):\n"
+        for key, val in self.flowAlgo.iteritems():
             s += "%s: %s\n" %(key, val)
-        s += "\nROI (for post analysis, e.g. histograms): %s\n" %self.roi_abs
-        s += "\nDisplay settings:\n"
-        for key, val in self._display.iteritems():
+        s += "\nPlot settings:\n"
+        for key, val in self.display.iteritems():
             s += "%s: %s\n" %(key, val)
         return s
+    
+    def __call__(self, item):
+        """Make it callable
+        
+        Allows e.g. for ``self("pyr_scale")`` which would return the 
+        current setting.
+        """
+        for key, val in self.__dict__.iteritems():
+            try:
+                if val.has_key(item):
+                    return val[item]
+            except:
+                pass
     
     def __setitem__(self, key, value):
         """Set item method"""
@@ -183,14 +102,16 @@ class OpticalFlowFarnebackSettings(object):
             except:
                 pass
 
-
+def determine_ica_cross_correlation(self, icaValsPCS1, icaValsPCS2, timeStamps):
+    """Determines ICA cross correlation from two ICA time series
+    :param ndarray icaValsPCS1: time series values of first ICA
+    :param ndarray icaValsPCS1: time series values of second ICA
+    :param ndarray timeStamps: array with image acquisition time stamps 
+        (datetime objects)
+    """
     
 class OpticalFlowFarneback(object):
-    """Implementation of Optical flow Farneback algorithm of OpenCV library
-    
-    Engine for autmatic optical flow calculation, for settings see
-    :class:`OpticalFlowFarnebackSettings`. The calculation of the flow field
-    is performed for two consecut
+    """Implementation of Optical flow Farneback algorithm of OpenCV library. 
     Advanced post processing analysis of flow field in order to automatically
     identify and distinguish reliable output from unreliable (the latter is 
     mainly in low contrast regions).      
@@ -207,76 +128,34 @@ class OpticalFlowFarneback(object):
         calculate and analyse optical flow fields in detector pixel 
         coordinates.
     """
-    def __init__(self, first_img = None, next_img = None, name = "",\
-                                                            **settings):        
+    def __init__(self, name = "", **settings):        
         """Initialise the Optical flow environment"""
         self.name = name
     
         #settings for determination of flow field
-        self.settings = OpticalFlowFarnebackSettings(**settings)
+        self.settings = OpticalFlowFarnebackSettings()
 
-        self.images_input = {"this" : None,
-                             "next" : None}
+        
         #images used for optical flow
         self.images_prep = {"this" : None,
                             "next" : None}
         
-        self._img_prep_modes = {"auto_update_contrast"   :   False}
-        
-        #the actual flow array (result from cv2 algo)
+        self._img_prep_modes = {"update_contrast"   :   False}
+        #the actual flow arrays (result from cv2 algo)
         self.flow = None
         
+        #flow lines calculated from self.flow
+        self._flow_lines_disp = None
+        
         #if you want, you can connect a TwoDragLinesHor object (e.g. inserted
-        #in a histogram) to change the pre edit settings "i_min" and "i_max"
+        #in a histogram) to change the preEditSettings "i_min" and "i_max"
         #This will be done in both directions
-        self._interactive_contrast_control = None
+        self._contrast_control_object = None
         
-        if all([isinstance(x, Img) for x in [first_img, next_img]]):
-            self.set_images(first_img, next_img)
-            
-    @property
-    def auto_update_contrast(self):
-        """Get / set mode for automatically update contrast range
-        
-        If True, the contrast parameters ``self.settings.i_min`` and 
-        ``self.settings.i_max`` are updated when :func:`set_images`` is 
-        called, based on the min / max intensity of the two images. The latter
-        intensities are retrieved within the current ROI for the flow field 
-        analysis (``self.roi_abs``)
-        """
-        return self._img_prep_modes["auto_update_contrast"]
+        for key, val in settings.iteritems():
+            self.settings[key] = val
     
-    @auto_update_contrast.setter
-    def auto_update_contrast(self, val):
-        self._img_prep_modes["auto_update_contrast"] = val
-        print ("Auto update contrast mode was updated in OpticalFlowFarneback "
-            "but not applied to current image objects, please call method "
-            "set_images in order to apply the changes")
-        return val
     
-    @property
-    def roi_abs(self):
-        """Get / set current ROI (in absolute image coordinates)"""
-        return self.settings.roi_abs
-    
-    @roi_abs.setter
-    def roi_abs(self, val):
-        self.settings.roi_abs = val
-        
-    @property
-    def roi(self):
-        """Get ROI converted to current image preparation settings"""
-        try:
-            return map_roi(self.roi_abs, self.images_input["this"].pyrlevel)
-        except:
-            raise ValueError("Error transforming ROI, check if images are set."
-                "Error msg: %s" %format_exc())
-    @roi.setter
-    def roi(self):
-        """Raises AttributeError"""
-        raise AttributeError("Pleas use attribute roi_abs to change the "
-            "current ROI")
-        
     def set_mode_auto_update_contrast_range(self, value = True):
         """Activate auto update of image contrast range
         
@@ -289,20 +168,32 @@ class OpticalFlowFarneback(object):
         :param bool value (True): new mode
         """
         self._img_prep_modes["update_contrast"] = value
-
+        
+    def set_roi(self, roi = [0, 0, 9999, 9999]):
+        """Set current ROI (Wrapper of :func:`change_roi`)
+        
+        :param list roi: list containing ROI coordinates ``[x0,y0,x1,y1]``
+        
+        """
+        self.settings.analysis["roi"] = roi
+    
+    @property
+    def roi(self):
+        """Get current ROI (property)"""
+        return self.settings.analysis["roi"]
         
     def current_contrast_range(self):
-        """Get min / max intensity values for image preparation"""
-        i_min = float(self.settings._contrast["i_min"])
-        i_max = float(self.settings._contrast["i_max"])
+        """Get min / max intensity values for image preparation
+        """
+        i_min = float(self.settings.contrast["i_min"])
+        i_max = float(self.settings.contrast["i_max"])
         return i_min, i_max
     
     def update_contrast_range(self, i_min, i_max):
         """Updates the actual contrast range for opt flow input images"""
-        self.settings._contrast["i_min"] = i_min
-        self.settings._contrast["i_max"] = i_max
-        print ("Updated contrast range in opt flow, i_min = %s, i_max = %s" 
-                                                            %(i_min, i_max))
+        self.settings.contrast["i_min"] = i_min
+        self.settings.contrast["i_max"] = i_max
+        
     def check_contrast_range(self, img_data):
         """Check input contrast settings for optical flow calculation"""
         i_min, i_max = self.current_contrast_range()
@@ -310,6 +201,10 @@ class OpticalFlowFarneback(object):
                     i_min > img_data.max() and i_max > img_data.max():
             self.update_contrast_range(i_min, i_max)
     
+    def get_contrast_range(self):
+        """Get current min / max intensity for preparation of flow images"""
+        return self.settings.contrast["i_min"], self.settings.contrast["i_max"]
+        
     def set_images(self, this_img, next_img):
         """Update the current image objects 
         
@@ -317,28 +212,17 @@ class OpticalFlowFarneback(object):
         :param ndarray next_img: the next image
         """
         self.flow = None
-        self.images_input["this"] = this_img
-        self.images_input["next"] = next_img
-        if any([x.edit_log["crop"] for x in [this_img, next_img]]):
-            raise ValueError("Error setting images for optical flow calc: "
-                "input images are cropped, please use uncropped images")
-        
-        i_min, i_max = self.current_contrast_range() 
+        self._flow_lines_disp = None
+        i_min, i_max = self.get_contrast_range() 
         if any([abs(int(x)) == 9999 for x in [i_min, i_max]]) or\
-                                            self.auto_update_contrast:
-            roi = map_roi(self.roi_abs, this_img.edit_log["pyrlevel"])
-            sub = this_img.img[roi[1]:roi[3], roi[0]:roi[2]]
+                            self._img_prep_modes["update_contrast"]:
+            roi = self.roi
+            sub = this_img[roi[1]:roi[3], roi[0]:roi[2]]
             i_min, i_max = sub.min(), sub.max()
             self.update_contrast_range(i_min, i_max)
-            if this_img.edit_log["is_tau"]:
-                print "Image is tau, setting i_min = 0.0"
-                self.settings._contrast["i_min"] = 0.0   #exclude negative tau 
-                                                         #areas for flow
 
-        self.images_prep["this"] = bytescale(this_img.img, cmin = i_min,\
-                                                            cmax = i_max)
-        self.images_prep["next"] = bytescale(next_img.img, cmin = i_min,\
-                                                            cmax = i_max)
+        self.images_prep["this"] = bytescale(this_img, cmin = i_min, cmax = i_max)
+        self.images_prep["next"] = bytescale(next_img, cmin = i_min, cmax = i_max)
         
     
     def calc_flow(self, this_img = None, next_img = None):
@@ -356,310 +240,434 @@ class OpticalFlowFarneback(object):
             else, they are updated)
             
         """
-        if all([isinstance(x, Img) for x in [this_img, next_img]]):
+        try:
             self.set_images(this_img, next_img)
-            
-        settings = self.settings._flow_algo
+        except:
+            pass
+        settings = self.settings.flowAlgo
         print "Calculating optical flow"
         t0 = time()
         self.flow = calcOpticalFlowFarneback(self.images_prep["this"],\
                 self.images_prep["next"], flags = OPTFLOW_FARNEBACK_GAUSSIAN,\
                 **settings)
-        print "Elapsed time flow calculation: %s" %(time() - t0)
+        print "Elapsed time: " + str(time() - t0)
         return self.flow 
         
     def get_flow_in_roi(self):
         """Get the flow field in the current ROI"""
         x0, y0, x1, y1 = self.roi
-        return self.flow[y0 : y1, x0 : x1, :]
+        return self.flow[y0 : y1, x0 : x1,:]
     
     def _prep_flow_for_analysis(self):
-        """Flatten the flow fields for analysis
-        
-        :return:
-            - ndarray, vector containing all x displacement lengths
-            - ndarray, vector containing all y displacement lenghts
-            
-        """
+        """Flatten the flow fields for analysis"""
         fl = self.get_flow_in_roi()
-        return fl[:,:,0].flatten(), fl[:,:,1].flatten()
+        fx, fy = fl.T
+        return fx.flatten(), fy.flatten()
     
-    def prepare_intensity_condition_mask(self, lower_val = 0.0,\
-                                                    upper_val = 9999):
-        """Apply intensity threshold to input image in ROI and make mask vector
-        
-        :param float lower_val: lower intensity value, default is 0.9
-        :param float upper_val: upper intensity value, default is 9999
-        :return:
-            - ndarray, flattened mask which can be used e.g. in 
-                :func:`flow_orientation_histo` as additional input param     
-        """
-        x0, y0, x1, y1 = self.roi
-        sub = self.images_input["this"].img[y0 : y1, x0 : x1].flatten()
-        return logical_and(sub > lower_val, sub < upper_val)
-        
-    def get_flow_orientation_image(self, in_roi = False):
+    def get_flow_orientation_image(self):
         """Returns image corresponding to flow orientation values in each pixel"""
-        if in_roi:
-            fl = self.get_flow_in_roi()
-        else:
-            fl = self.flow
+        fl = self.get_flow_in_roi()
         fx, fy = fl[:,:,0], fl[:,:,1]
         return rad2deg(arctan2(fx, -fy))
-      
-    def get_flow_vector_length_image(self, in_roi = False):        
+        
+    def get_flow_vector_length_image(self):        
         """Returns image corresponding to displacement length in each pixel"""
-        if in_roi:
-            fl = self.get_flow_in_roi()
-        else:
-            fl = self.flow
+        fl = self.get_flow_in_roi()
         fx, fy = fl[:,:,0], fl[:,:,1]
         return sqrt(fx ** 2 + fy ** 2)
-      
-    @property
-    def flow_len_and_angle_vectors(self):
-        """Returns vector containing all flow lengths
         
-        :return:
-            - ndarray, all displacement lengths of current flow field 
-                (flattened)
-            -ndarray, all orientation angles of current flow field (flattened)
-            
-        """
-        fx, fy = self._prep_flow_for_analysis()
-        angles = rad2deg(arctan2(fx, -fy))
-        lens = sqrt(fx**2 + fy**2)
-        return lens, angles        
-    
-    def flow_orientation_histo(self, bin_res_degrees = 6, multi_gauss_fit = 1,\
-            exclude_short_vecs = True, cond_mask_flat = None):
-        """Get histogram of orientation distribution of current flow field
+    def _ang_dist_histo(self, bin_res_degrees = 6, multi_gauss_fit = 1, len_thresh = 0):
+        """Get histogram of angular distribution of current flow field
         
         :param int bin_res_degrees (6): bin width of histogram (is rounded to
             nearest integer if not devisor of 360)
         :param bool multi_gauss_fit (True): apply multi gauss fit to histo
-        :param bool exclude_short_vecs: don't include flow vectors which are 
-            shorter than ``self.settings.min_length``
-        :param ndarray cond_mask_flat: additional conditional boolean vector
-            applied to flattened orientation array (for instance all pixels
-            in original imaged that exceed a certain tau value, see also
-            :func:`prepare_intensity_condition_mask`)
+        :param int len_thresh (1): flow vectors shorter than len_thresh are not
+            included into histogram determination
         """
-        lens, angles = self.flow_len_and_angle_vectors
-        cond = ones(len(lens))
-        if cond_mask_flat is not None:
-            cond = cond * cond_mask_flat
-        if exclude_short_vecs:
-            cond = cond * (lens > self.settings.min_length)
-        angles = angles[cond.astype(bool)]
-        
+        fx, fy = self._prep_flow_for_analysis()
+        angles = rad2deg(arctan2(fx,-fy))
+        lens = sqrt(fx**2 + fy**2)
+        cond = lens > len_thresh
+        angles_cond = angles[cond]
         num_bins = int(round(360 / bin_res_degrees))
-        count, bins = histogram(angles, num_bins)
-        fit = None
+        print "Number of bins histo: " + str(num_bins)
+        count, bins = histogram(angles_cond, num_bins)
+        
         if multi_gauss_fit:
             x = asarray([0.5 * (bins[i] + bins[i + 1]) for\
                                                 i in xrange(len(bins) - 1)])
             fit = MultiGaussFit(count, x)
         return count, bins, angles, fit
     
-    def flow_length_histo(self, multi_gauss_fit = 1, exclude_short_vecs =\
-                                                True, cond_mask_flat = None):
-        """Get histogram of displacement length distribution of flow field
-        
-        :param bool multi_gauss_fit (True): apply multi gauss fit to histo
-        :param bool exclude_short_vecs: don't include flow vectors which are 
-            shorter than ``self.settings.min_length``
-        :param ndarray cond_mask_flat: additional conditional boolean vector
-            applied to flattened orientation array (for instance all pixels
-            in original imaged that exceed a certain tau value, see also
-            :func:`prepare_intensity_condition_mask`)
-            
-        """
-        lens, angles = self.flow_len_and_angle_vectors
-        cond = ones(len(lens))
-        if cond_mask_flat is not None:
-            cond = cond * cond_mask_flat
-        if exclude_short_vecs:
-            cond = cond * (lens > self.settings.min_length)
-        lens = lens[cond.astype(bool)]
-        count, bins = histogram(lens, int(ceil(lens.max())))
-        fit = None
-        if multi_gauss_fit:
-            x = asarray([0.5 * (bins[i] + bins[i + 1]) for\
-                                                i in xrange(len(bins) - 1)])
-            fit = MultiGaussFit(count, x)
-        return count, bins, lens, fit
+    def _len_dist_histo(self, fx = None, fy = None, gaussFit = 1):
+        if None in [fx,fy]:
+            fx,fy=self._prep_flow_for_analysis()
+        lens=sqrt(fx**2+fy**2)
+        n, bins=histogram(lens,60)
+#==============================================================================
+#         
+#         m=self.multiGaussHisto.lens
+#         m.init_results()
+#         #estimate the histogram offset by taking the mean
+#         if gaussFit:
+#             x = asarray([0.5 * (bins[i] + bins[i+1]) for i in xrange(len(bins)-1)])
+#             m.set_data(x,n)
+#             if not m.fit_multiple_gaussian():
+#                 #and if this does not work, try to fit a single gaussian (based
+#                 #on position of maximum count)
+#                 m.init_results()
+#                 m.init_data()
+#                 m.fit_single_gaussian()
+#             
+#             if m.got_results() and m.get_peak_to_peak_residual()>2*m.noiseAmpl:
+#                 print ("Non optimum residual after first iteration of (Multi)"
+#                     "gauss fit: Running optimisation")
+#                 
+#                 m.run_optimisation()
+#==============================================================================
+
+        return n, bins, lens#, m
     
-    def get_main_flow_field_params(self, min_length = None,\
-                sigma_tol_mean_dir = None, cond_mask_flat = None):
-        """
+    def get_main_flow_field_params(self, lenThresh=4, angRangeSigmaFrac=1):
+        """Apply
         Try to fit a gaussian to the angular distribution and determine mean
         flow direction (+/- sigma) and the average displacement length from
         statistical using masking operations
         """
+        #n1, bins1, lens1=self._len_dist_histo()
+#==============================================================================
+#         if not m1.got_results():
+#             print ("Could not retrieve main flow field parameters, fit of "
+#                 "length distribution histogram failed")
+#             return 0
+#==============================================================================
+        #mu1, sigma1,_,_=m1.get_main_gauss_info()
+        #lenThresh=mu1+3*sigma1
+        print "\n\nGETTING ANGULAR DISTRIBUTION HISTOGRAM\N------------------------------------------------\n\n"
         #print "Applying length thresh to histo: " + str(lenThresh)
-        count, bins, angles, fit = self.flow_orientation_histo()
-        if not fit.has_results():
+        n, bins, angles, m = self._ang_dist_histo(lenThresh=lenThresh)
+        if not m.got_results():
             print ("Could not retrieve main flow field parameters..probably "
             "due to failure of multi gaussian fit to angular distribution "
             "histogram")
             return 0
-        mu, sigma, add_gaussians =  fit.analyse_fit_result()
-        ang_min, ang_max = mu - sigma * self.settings.sigma_tol_mean_dir,\
-                mu + sigma * self.settings.sigma_tol_mean_dir
-        lens, angles = self.flow_len_and_angle_vectors
-        cond1 = logical_and(angles > ang_min, angles < ang_max)
-        cond2 = lens > self.settings.min_length
+        mu,sigma,_,_=m.get_main_gauss_info()
+        angMin, angMax = mu - sigma * angRangeSigmaFrac,\
+                                    mu + sigma * angRangeSigmaFrac
+        angles = self.get_flow_angle_image().flatten()
+        lens = self.get_flow_vector_length_image().flatten()
+        cond1 = logical_and(angles > angMin, angles < angMax)
+        cond2 = lens > lenThresh
         cond = cond1 * cond2
-        if cond_mask_flat is not None:
-            cond = cond * cond_mask_flat
         
-        good_lens = lens[cond]
-        good_angles = angles[cond]
+        goodLens = lens[cond]
+        goodAngles = angles[cond]
+        #badLens=self.get_flow_vector_length_image().flatten()[invert(cond)]
+        #lMax=badLens.max()
+        v, vErr, vmax = goodLens.mean(), goodLens.std(), goodLens.max()
+#==============================================================================
+#         steps=50
+#         step=float(lMax/steps)
+#==============================================================================
+        #totNum=float(len(badLens))        
+        #print "Maximum length in selected angular range: " + str(lMax)
+        print "AngMin: " + str(angMin)
+        print "AngMax: " + str(angMax)
+#==============================================================================
+#         for k in range(50):
+#             thresh=k*step
+#             if len(badLens[badLens<thresh])/totNum>0.997:
+#==============================================================================
+        return lenThresh, mu, sigma, v, vErr, goodLens, goodAngles, vmax
         
-        return good_lens, good_angles
+    def gauss(self, x, *p):
+        O, A, mu, sigma = p
+        return O+A*exp(-(x-mu)**2/(2.*sigma**2))
+    
+    def _map_blob_coordinates(self, blobs, pyrDownSteps):
+        mapped = []
+        op = 2 ** pyrDownSteps
+        for bl in blobs:
+            b=[]
+            for num in bl:
+                b.append(num * op)
+            mapped.append(b)
+        return asarray(mapped)
+    
+    def create_circular_masks_from_blobs(self, blobs):
+        """
+        Creates circular masks for optical flow image evaluation in areas
+        of increased flow lengths
         
+        :param blobs: output from :func:`find_blobs`        
+        """           
+        masks=[]
+        for bl in blobs:
+            print "Current blob: " + str(bl)
+            masks.append(self.make_circular_mask(bl[1], bl[0],bl[2]))
+        return masks
+            
+    def make_circular_mask(self,cx, cy, radius):
+        """Create a mask for flow field evaluation
+        """
+        h,w = self.flow.shape[:2]
+        y,x = ogrid[:h,:w]
+        m=(x-cx)**2+(y-cy)**2 < radius**2
+        return m
+    
+    def find_blobs(self, minSize=None, maxSize=None, pyrDownSteps=2, draw=0):
+        """
+        Find regions of increased velocity based on the flow length image
         
-    def apply_median_filter(self, shape = (3,3)):
+        :returns list blobs: list of coordinates of regions (y,x,radius)
+        
+        .. todo::
+        
+            separate blob search for anlge image and length image
+            
+        """
+        res=self.settings("winsize")/3
+        if minSize is None:
+            minSize=res
+        if maxSize is None:
+            maxSize=res*6
+        print "Searching blobs"
+        print "Minimum considered size: " + str(res)
+        print "Maximum considered size: " + str(maxSize)
+        prep=ImagePreparation()
+        prep["pyrlevel"]=pyrDownSteps
+        minSize=minSize/2**pyrDownSteps
+        maxSize=maxSize/2**pyrDownSteps
+        arr=self.get_flow_vector_length_image()
+        lenImObj=Img(arr)
+        lenImObj=prep.apply_img_shape_settings(lenImObj)
+        blobs=blob.blob_doh(lenImObj.img,min_sigma=minSize,max_sigma=maxSize)
+        blobs=self._map_blob_coordinates(blobs,pyrDownSteps)
+        if draw:
+            fig, ax=subplots(1,2)
+            self.draw_flow(showInROI=1,ax=ax[0])
+            self.draw_blobs(blobs,ax=ax[0])
+            ax[0].set_title("Flow vector image")
+            disp=ax[1].imshow(arr, cmap="gray")
+            colorbar(disp, ax=ax[1])
+            self.draw_blobs(blobs,ax[1])
+            ax[1].set_title("Flow length image")
+        return blobs
+    
+    def draw_blobs(self, blobs=None,ax=None):
+        """
+        Draw blobs into axes
+        """
+        if blobs is None:
+            blobs=self.find_blobs()
+        if ax is None:
+            fig,ax=subplots(1,1)
+        for bl in blobs:
+             y, x, r = bl
+             c = Circle((x, y), r, color="lime", linewidth=2, fill=False)
+             ax.add_patch(c)
+    
+    def estimate_mean_displacement_from_blobs(self, mu, sigma, lenThresh, nSigma=1):
+        """
+        Get all blobs which are within the angular range of the mean flow and
+        get flow length displacement estimate from those
+        """
+        blobs=self.find_blobs()
+        if len(blobs) is 0:
+            print ("Could not estimate flow displacement from blobs, no blobs"
+                " were detected")
+            return 0
+        angIm = self.get_flow_angle_image()
+        lenIm = self.get_flow_vector_length_image()
+        masks = self.create_circular_masks_from_blobs(blobs)
+        goodMasks=[]
+        meanLens=[]
+        stdLens=[]
+        weights=[]
+        sig=nSigma*sigma
+        for m in masks:
+            angles=angIm[m]
+            lens=lenIm[m]
+            cond=lens>lenThresh
+            angles=angles[cond]
+            lens=lens[cond]
+            if mu-sig < angles.mean() < mu+sig and angles.std() < sig:
+                goodMasks.append(m)
+                meanLens.append(lens.mean())
+                stdLens.append(lens.std())
+                weights.append(len(lens))
+        if len(goodMasks) is 0:
+            print ("Could not estimate flow displacement from blobs")
+            return 0
+        v=average(meanLens,weights=weights)
+        vErr=average(stdLens,weights=weights)
+        return v, vErr, goodMasks,meanLens,stdLens
+        
+    def median_filter(self, shape=(3,3)):
         """Apply a median filter to flow field, i.e. to both flow images (dx, dy
         stored in self.flow) individually
         
         :param tuple shape (3,3): size of the filter
         """
         
-        self.flow[:,:,0] = median_filter(self.flow[:,:,0],shape)
-        self.flow[:,:,1] = median_filter(self.flow[:,:,1],shape)
-    
-    @property
-    def del_t(self):
-        """Return time difference in s between both images"""
-        t0, t1 = self.get_img_acq_times()
-        return (t1 - t0).total_seconds()
+        self.flow[:,:,0]=median_filter(self.flow[:,:,0],shape)
+        self.flow[:,:,1]=median_filter(self.flow[:,:,1],shape)
         
-    def get_img_acq_times(self):
-        """Return acquisition times of current input images
-        
-        :return:
-            - datetime, acquisition time of first image
-            - datetime, acquisition time of next image
-            
-        """
-        t0 = self.images_input["this"].meta["start_acq"]
-        t1 = self.images_input["next"].meta["start_acq"]
-        return t0, t1
     """
     Plotting / visualisation etc...
-    """        
-    def plot_flow_histograms(self, multi_gauss_fit = 1,\
-                exclude_short_vecs = True, cond_mask_flat = None, for_app = 0):
-        """Plot histograms of flow field within roi
+    """
+    def plot_gauss(self, x, gaussParams, ax=None):
+        if ax is None:
+            ax=subplot(1,1,1)
+        xFit=linspace(x.min(),x.max(),100)
+        yFit=self.gauss(xFit,*gaussParams)
+        ax.plot(xFit,yFit,"--r", label="Gauss fit")
+        
+    def plot_flow_histograms(self,lenThresh = 4, drawGauss = 1, forApp = 0):
+        """
+        Plot the histograms of the current flow field (which was determined in 
+        rectangle self.settings.imgShapePrep.settings.roi).
+        
+        :param list rect: get the statistics only in this sub rectangle (in 
+            absolute image coordinates -> needless to say, that rect 
+            needs to be within ROI of flow)
+
+        :param bool applyLenThresh: if true, then the flow vector angle histo
+            only includes vectors with lengths exceeding the length thres which
+            is determined from the upper end (3*sigma) of a gauss fit applied 
+            to the length histogram (based on the assumption that most lengths
+            retrieved in the optical flow calculation window are unreliable and
+            thus short, i.e. most areas of the image have too little contrast 
+            in order for the algorithm to work). 
+            
         """
         #set up figure and axes
-        if not for_app:
-            fig = figure(figsize=(16,8))
+        if not forApp:
+            fig=figure(figsize=(16,6))
         else:
-            fig = Figure(figsize=(16,8))
+            fig=Figure(figsize=(16,6))
         #three strangely named axes for top row 
-        ax1 = fig.add_subplot(2,3,1)
-        ax4 = fig.add_subplot(2,3,2)
-        ax2 = fig.add_subplot(2,3,3)
+        ax1=fig.add_subplot(2,3,1)
+        ax4=fig.add_subplot(2,3,2)
+        ax2=fig.add_subplot(2,3,3)
         
-        ax11 = fig.add_subplot(2,3,4)        
-        ax5 = fig.add_subplot(2,3,5)
-        ax3 = fig.add_subplot(2,3,6)
+        ax11=fig.add_subplot(2,3,4)        
+        ax5=fig.add_subplot(2,3,5)
+        ax3=fig.add_subplot(2,3,6)
         
+        
+#==============================================================================
+#         gs=GridSpec(2,3)
+#         ax1=subplot(gs[0,0])
+#         ax11=subplot(gs[1,0])
+#         ax2=subplot(gs[0,2])
+#         ax3=subplot(gs[1,2])
+#         ax4=subplot(gs[0,1])
+#         ax5=subplot(gs[1,1])
+#==============================================================================
         #draw the optical flow image
-        self.draw_flow(0,ax=ax1)
-        self.draw_flow(1,ax=ax11)
+        self.draw_flow(showInROI=0,ax=ax1)
+        self.draw_flow(showInROI=1,ax=ax11)
         #load and draw the length and angle image
-        angle_im = self.get_flow_orientation_image(True)#rad2deg(arctan2(fx,-fy))
-        len_im = self.get_flow_vector_length_image(True)#sqrt(fx**2+fy**2)
-        angle_im_disp = ax4.imshow(angle_im, interpolation='nearest')
-        ax4.set_title("Displacment orientation", fontsize=11)        
-        fig.colorbar(angle_im_disp, ax = ax4)
+        #fx,fy=self.flow[:,:,0],self.flow[:,:,1]
+        angleIm=self.get_flow_angle_image()#rad2deg(arctan2(fx,-fy))
+        lenIm=self.get_flow_vector_length_image()#sqrt(fx**2+fy**2)
+        aIm=ax4.imshow(angleIm,interpolation='nearest')
+        ax4.set_title("Angles",fontsize=11)        
+        fig.colorbar(aIm,ax=ax4)
+        lIm=ax5.imshow(lenIm,interpolation='nearest')
+        fig.colorbar(lIm,ax=ax5)
+        ax5.set_title("Lengths", fontsize=11)        
+#==============================================================================
+#         if rect is not None:
+#             x0,y0,h,w=self.settings.imgShapePrep._rect_coordinates(rect)
+#             ax1.add_patch(Rectangle((x0,y0),w,h,fc="none",ec="g"))
+#==============================================================================
+        #fx,fy=self._prep_flow_for_analysis(rect)
         
-        len_im_disp = ax5.imshow(len_im, interpolation='nearest')
-        fig.colorbar(len_im_disp, ax = ax5)
-        ax5.set_title("Displacement lengths", fontsize=11)        
-        
-        #prepare the histograms
-        n1, bins1, angles1, fit1 = self.flow_orientation_histo(\
-            multi_gauss_fit = multi_gauss_fit, exclude_short_vecs =\
-                    exclude_short_vecs, cond_mask_flat = cond_mask_flat)
-        tit = "Flow angle histo"
-        if multi_gauss_fit and fit1.has_results():
-            mu, sigma,_ = fit1.analyse_fit_result()
-        
-            info_str=" mu (sigma) = %.1f (+/- %.1f)" %(mu, sigma)
-            tit += info_str
-        if exclude_short_vecs:
+        #now prepare the histograms
+        fx,fy=self._prep_flow_for_analysis()
+        n1, bins1, lens=self._len_dist_histo(fx,fy)
+        tit="Flow angle histo"
+        substr=""
+#==============================================================================
+#         if m1.got_results():
+#             mu1, sigma1,_,_= m1.get_main_gauss_info()
+#==============================================================================
+        if lenThresh>0:
             #lenThresh=mu1+3*sigma1
-            thresh = self.settings.min_length
-            ax3.axvline(thresh, linestyle="--", color="r")
-            tit += "\nOnly vectors longer than %d" %thresh
-            
+            ax3.axvline(lenThresh,linestyle="--", color="r")
+            ax3.text(lenThresh*1.01,n1.max()*0.95,"Length thresh", color="r")
+            substr="\nOnly vectors longer than " + "{:.1f}".format(lenThresh)
+        print "Getting angular histogram, length threshold: " +  str(lenThresh)
+        n, bins, angles, m = self._ang_dist_histo(lenThresh=lenThresh)
         #n, bins,angles,m=self._ang_dist_histo(fx,fy,gaussFit=1)
-        w = bins1[1] - bins1[0]
-        ax2.bar(bins1[:-1], n1, width = w, label = "Histo")
+        if m.got_results():
+            mu,sigma,_,_=m.get_main_gauss_info()
+        
+            muSigmaStr=(" mu (sigma) =" + "{:.1f}".format(mu) + " (+/- " 
+                                               + "{:.1f}".format(sigma) + ")")
+            tit=tit + muSigmaStr + substr
+        w=bins[1]-bins[0]
+        ax2.bar(bins[:-1],n,width=w, label="Histo")
         ax2.set_title(tit, fontsize=11)
-        if multi_gauss_fit and fit1.has_results():
-            fit1.plot_multi_gaussian(ax=ax2, label="Multi-gauss fit")
+        if m.got_results() and drawGauss:
+            m.plot_multi_gaussian(ax=ax2, label="Multi-gauss fit")
         ax2.set_xlim([-180,180])    
         ax2.legend(loc='best', fancybox=True, framealpha=0.5, fontsize=10)                
-        #now the length histogram
-        n2, bins2, lens2, fit2 = self.flow_length_histo(\
-            multi_gauss_fit = multi_gauss_fit, exclude_short_vecs =\
-                    exclude_short_vecs, cond_mask_flat = cond_mask_flat)
-                    
+        #now the lenght histogram
         tit="Flow length histo"
-        if multi_gauss_fit and fit2.has_results():
-            mu, sigma,_ = fit2.analyse_fit_result()
-        
-            info_str=" mu (sigma) = %.1f (+/- %.1f)" %(mu, sigma)
-            tit += info_str
-    
-        w = bins2[1] - bins2[0]
-        ax3.bar(bins2[:-1], n2, width = w, label = "Histo")
+#==============================================================================
+#         if m1.got_results():
+#             muSigmaStr=(" mu (sigma) =" + "{:.1f}".format(mu1) + " (+/- " 
+#                                             + "{:.1f}".format(sigma1) + ")")
+#             tit=tit + muSigmaStr
+#==============================================================================
+        w=bins1[1]-bins1[0]
+        ax3.bar(bins1[:-1],n1,width=w)
+#==============================================================================
+#         if m1.got_results() and drawGauss:
+#             m1.plot_multi_gaussian(ax=ax3, label="Gauss fit")
+#==============================================================================
+        ax3.set_ylim([0,n1.max()*1.1])
+        ax3.set_xlim([0,bins1[-1]])
         ax3.set_title(tit, fontsize=11)
-        if multi_gauss_fit and fit2.has_results():
-            fit2.plot_multi_gaussian(ax=ax3, label="Multi-gauss fit")   
-        ax3.legend(loc='best', fancybox=True, framealpha=0.5, fontsize=10) 
-        
-
-        ax3.set_ylim([0, n2.max()*1.1])
-        ax3.set_xlim([0, bins2[-1]])
+        #suptitle(self.rawImages.this._meta("startUTC").strftime('%d/%m/%Y %H:%M:%S'))
         
         return fig
      
-    def calc_flow_lines(self, in_roi = True):
-        """Determine line objects for visualisation of current flow field
+    def calc_flow_lines(self):
+        """
+        Determine line objects for visualisation of the latest flow field
         
-        .. note::
-
-            The flow lines are calculated only in image area specified
-            by current ROI (``self.roi``).
-            
+        :param step: Resolution of line grid 
+        
         """
         settings = self.settings
-        step, len_thresh = settings.disp_skip, settings.disp_len_thresh
+        step = settings("skip")
         #get the shape of the rectangle in which the flow was determined
-        if in_roi:
-            flow = self.get_flow_in_roi()
-        else:
-            flow = self.flow
+        flow = self.get_flow_in_roi()
         h, w = flow.shape[:2]
         #create and flatten a meshgrid 
-        y, x = mgrid[step / 2: h : step, step / 2: w : step].reshape(2, -1)
-        fx, fy = flow[y, x].T
+        y,x = mgrid[step/2:h:step,step/2:w:step].reshape(2,-1)
+        fx,fy = flow[y,x].T
         
-        if len_thresh > 0:
+        thresh = self.settings("length_thresh")
+        if thresh > 0:
             #use only those flow vectors longer than the defined threshold
-            cond = sqrt(fx**2 + fy**2) > len_thresh
+            cond = sqrt(fx**2 + fy**2) > thresh
             x, y, fx, fy = x[cond], y[cond], fx[cond], fy[cond]
         # create line endpoints
         lines = int32(vstack([x, y,x + fx, y + fy]).T.reshape(-1,2,2))
         return lines
-
+#==============================================================================
+#         dx,dy=self.analysisSettings.get_subimg_offset_xy()
+#         #self.flowLines=lines
+#         self.flowLinesInt=[int32(lines), dx, dy]
+#         return self.flowLinesInt
+#==============================================================================
+    
     def show_flow_field(self, rect=None):
         """Plot the actual flow field (dx,dy images) 
         
@@ -675,57 +683,51 @@ class OpticalFlowFarneback(object):
 #             x0,y0=self.settings.imgShapePrep.map_coordinates(rect[0][0],rect[0][1])
 #             h,w=self.settings.imgShapePrep.get_subimg_shape()
 #==============================================================================
+            
     
-    def plot(self, **kwargs):
-        """Draw current flow field onto image
-        
-        Wrapper for :func:`draw_flow`
-        
-        :param **kwargs: key word args (see :func:`draw_flow`)
-        """
-        return self.draw_flow(**kwargs)
-    
-    def draw_flow(self, in_roi = False, ax = None):
+    def draw_flow(self, showInROI = False, ax = None):
         """Draw the current optical flow field
         
-        :param bool in_roi: if True, the flow field is plotted in a
-            cropped image area (using current ROI), else, the whole image is 
+        :param bool showInROI: if True, the flowfield is plotted in the 
+            cropped image (using current ROI), else, the whole image is 
             drawn and the flow field is plotted within the ROI which is 
             indicated with a rectangle
         :param ax (None): matplotlib axes object
         """
         if ax is None:
-            fig, ax = subplots(1,1)
-        
-        x0, y0 = 0, 0
-        img = self.images_input["this"]
-        if in_roi:
-            img = img.crop(roi_abs = self.roi_abs, new_img = True)
-        i_min, i_max = self.current_contrast_range()
-    
-        disp = cvtColor(bytescale(img.img, cmin = i_min, cmax = i_max),\
-                                                            COLOR_GRAY2BGR)    
-        if self.flow is None:
+            fig, ax=subplots(1,1)
+        dx,dy=0,0
+        img=self.rawImages.this
+        if showInROI:
+            img = img.get_sub_img(self.analysisSettings["roi"])
+        i_min,i_max = self.get_current_contrast_range()
+        disp = cvtColor(bytescale(img.img,cmin=i_min,cmax=i_max),COLOR_GRAY2BGR)    
+
+        if not showInROI:
+#==============================================================================
+#             dx,dy=self.settings.imgShapePrep.get_subimg_offset_xy()
+#             h,w=self.settings.imgShapePrep.get_subimg_shape()
+#==============================================================================
+            dx,dy = self.analysisSettings.get_subimg_offset_xy()
+            h,w = self.analysisSettings.get_subimg_shape()
+            ax.add_patch(Rectangle((dx,dy),w,h,fc="none",ec="c"))
+            
+        lines=self.calc_flow_lines()[0]
+        if lines is None:
             print "Could not draw flow, no flow available"
             return
-        lines = self.calc_flow_lines()
         
-        if not in_roi:
-            x0, y0, w, h = roi2rect(self.roi)
-            ax.add_patch(Rectangle((x0, y0), w, h, fc = "none", ec = "c"))
-    
-        for (x1, y1), (x2, y2) in lines:
-            line(disp, (x0+ x1, y0 + y1),\
-                        (x0 + x2,y0 + y2),(0, 255, 255), 1)
-            circle(disp, (x0 + x2, y0 + y2), 1, (255, 0, 0), -1)
+        for (x1,y1),(x2,y2) in lines:
+            line(disp,(x1+dx,y1+dy),(x2+dx,y2+dy),(0,255,255),1)
+            circle(disp,(x2+dx,y2+dy),1,(255,0,0), -1)
+        self.flowImage=disp
         ax.imshow(disp)
+        tit=("delT: " + str(self.get_current_delt()) + "s, Thresh: " + 
+            str(self.settings.drawSettings["flowLinesThresh"]) + "pix")
+        ax.set_title(tit,fontsize=10)
+        return ax,disp
         
-        tit = "%s (delta t = %.2f s)" %(self.get_img_acq_times()[0],\
-                                                            self.del_t)
-        ax.set_title(tit, fontsize = 10)
-        return ax, disp
-        
-    def live_example(self):
+    def live_example(self, roi = None):
         """Show live example using webcam"""
         cap = VideoCapture(0)
         ret,im = cap.read()
@@ -743,7 +745,7 @@ class OpticalFlowFarneback(object):
         
             # plot the flow vectors
             vis = cvtColor(self.images_prep["this"], COLOR_GRAY2BGR)
-            lines = self.calc_flow_lines(False)
+            lines = self.calc_flow_lines()
             for (x1,y1),(x2,y2) in lines:
                 line(vis,(x1,y1),(x2,y2),(0,255,255),1)
                 circle(vis,(x2,y2),1,(255,0,0), -1)
@@ -756,7 +758,7 @@ class OpticalFlowFarneback(object):
     Connections etc.
     """
     def connect_histo(self,canvasWidget):
-        self._interactive_contrast_control = canvasWidget
+        self.contrastControlObject = canvasWidget
         
     
     """

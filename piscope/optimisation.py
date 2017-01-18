@@ -278,10 +278,10 @@ class MultiGaussFit(object):
     def init_gauss_bounds_auto(self):
         """Set parameter bounds for individual gaussians"""
         if not self.has_data:
-            print "Could not init gauss bounds, no data available..."
+            #print "Could not init gauss bounds, no data available..."
             return 0
         if not self.auto_bounds:
-            print "Automatic update of boundaries is deactivated..."
+            #print "Automatic update of boundaries is deactivated..."
             return 1
         self.gauss_bounds["amp"][0] = 2 * self.noise_amplitude
         self.gauss_bounds["amp"][1] = (self.y_range - self.offset) * 1.5
@@ -302,44 +302,13 @@ class MultiGaussFit(object):
         if not amp > 1.5 * self.noise_amplitude:
             raise IndexError("No significant peak could be found in data")
         w = self.estimate_peak_width(data, ind)
-        return [amp, self.index[ind], w * self.x_resolution]
+        guess = [amp, self.index[ind], w * self.x_resolution]
+        y = self.data - self.offset
+        params, bds = self.prepare_fit_boundaries(guess)
+        return least_squares(self.err_fun, params, args=(self.index, y),\
+                                                                bounds=bds).x
         
-#==============================================================================
-#     def find_peak_positions_data(self):
-#         """Perform peak search and write positions of peaks (indices) into 
-#         variable ``self._peak_indices``
-#         
-#         .. note::
-#         
-#             Performs peak search algorighm using :func:`indexes` from
-#             :mod:`peakutils` package.
-#         """
-#         if not self.has_data:
-#             print "No data available"
-#             return 0
-#         self._peak_indices = []
-#         indices = []
-#         if self._horizontal_baseline:
-#             print ("Automatic peak search...")
-#             #ws=linspace(self.sigmaMin/res,self.sigmaMax/res,len(self.index)/res)
-#             #indices=find_peaks_cwt(self.data,ws)
-#             indices = indexes(self.data_smooth, min_dist = .05 * len(self.data),\
-#                 thres = 3 * self.noise_amplitude / self.gauss_bounds["amp"][1])
-#         
-#         if not len(indices) > 0:
-#             indices = [self.find_main_peak_position_data()]
-#         print "Detected peaks: %s\n" %indices
-#         for ind in indices:
-#             if self.data_smooth[ind] - self.offset > 2 * self.noise_amplitude:
-#                 self._peak_indices.append(ind)
-#             
-#         #find_peaks_cwt(gaussian_filter1d(self.data,15),ws)
-#         if len(self._peak_indices) > 0:
-#             return self._peak_indices
-#         else:
-#             return 0
-#     
-#==============================================================================
+
     def find_peak_positions_residual(self):
         """Search for significant peaks in the current residual
         
@@ -351,7 +320,7 @@ class MultiGaussFit(object):
         num = self.num_of_gaussians #current number of fitted gaussians
         for k in range(self.max_num_gaussians - num):
             if not dat.max() > 2.0 * self.noise_amplitude:
-                print "Residual peak search finished..."
+                #print "Residual peak search finished..."
                 return add_params
             else:
                 ind = argmax(dat)
@@ -397,54 +366,33 @@ class MultiGaussFit(object):
         
         """
         amp = dat[idx]
-        print "Estimating peak width at peak, index: " + str(idx)
-        print "x,y:" + str(self.index[idx]) + ", " + str(amp)
+        #print "Estimating peak width at peak, index: " + str(idx)
+        #print "x,y:" + str(self.index[idx]) + ", " + str(amp)
         maxInd = len(self.index) - 1  
         try:
             ind = next(val[0] for val in enumerate(dat[idx:maxInd])\
                                                 if val[1] < amp/2)
-            print "Width (index units): " + str(abs(ind))
+            #print "Width (index units): " + str(abs(ind))
             
             return ind
         except:
-            print "Trying to the left"#format_exc()
+            #print "Trying to the left"#format_exc()
             try:
                 inv = dat[::-1]
                 idx = len(inv)-1-idx
                 ind = next(val[0] for val in enumerate(inv[idx:maxInd])\
                                                 if val[1] < amp/2)
-                print "Width (index units): " + str(abs(ind))
+                #print "Width (index units): " + str(abs(ind))
                 return ind
             except:
                 pass
-        print "Peak width could not be estimated, return 1"
+        #print "Peak width could not be estimated, return 1"
         return 1#int(.05*len(dat))
             
     
     """
     Fitting etc
     """         
-#==============================================================================
-#     def prepare_fit_from_peak_search(self):
-#         """Initiate fit parameter list using results from :func:`find_peak_positions`
-#         and the corresponding estimates of peak widths
-#         """
-#         if not self.find_peak_positions_data():# or not self.check_peaks():
-#             print ("No peaks detected...")
-#             return []
-#         indices = self._peak_indices
-#         params = []
-#         dat = self.data - self.offset
-#         for k in range(len(indices)):
-#             ind = indices[k]
-#             #estimate the amplitude of this peak
-#             params.append(dat[ind])
-#             params.append(self.index[ind])
-#             params.append(self.estimate_peak_width(dat, ind)*self.x_resolution)
-#         
-#         return params            
-#==============================================================================
-    
     def prepare_fit_boundaries(self, params):
         """Prepare the boundaries tuple (for details see 
         `Minimisation tool <http://docs.scipy.org/doc/scipy-0.17.0/reference/
@@ -461,16 +409,16 @@ class MultiGaussFit(object):
             
         """
         if not mod(len(params),3) == 0:
-            print "Error: length of gauss param list must be divisable by three.."
+            #print "Error: length of gauss param list must be divisable by three.."
             return []
         sub = [params[x : x + 3] for x in range(0, len(params), 3)]
         new_list = []
         for pl in sub:
             if self._in_bounds(pl):
                 new_list.extend(pl)
-            else:
-                print ("Gaussian in param list with params: " + str(pl) + "out "
-                    "of acceptance boundaries -> will be disregarded..:")
+            #else:
+                #print ("Gaussian in param list with params: " + str(pl) + "out "
+                   # "of acceptance boundaries -> will be disregarded..:")
         lower, upper = [], []
         l, u = self._prep_bounds_single_gauss()
         for k in range(len(new_list) / 3):
@@ -488,17 +436,17 @@ class MultiGaussFit(object):
         """
         try:
             params, bds = self.prepare_fit_boundaries(*guess)
-            print "Fitting data..."
+            #print "Fitting data..."
             self._fit_result = res = least_squares(self.err_fun, params,\
                                                     args=(x, y), bounds=bds)
             #params,ok=optimize.leastsq(self.err_fun, *guess, args=(x, y))
             if not res.success:
-                print "Fit failed"
+                #print "Fit failed"
                 return False
             self.params = res.x
             return True
         except Exception as e:
-            print "Fit failed with exception: %s" %repr(e)
+            #print "Fit failed with exception: %s" %repr(e)
             return False
     
     def result_ok(self):
@@ -511,31 +459,23 @@ class MultiGaussFit(object):
     
     def auto_fit(self):
         """Automatic least square analysis"""
-        print "Running multi gauss auto fit routine"
+        #print "Running multi gauss auto fit routine"
         guess = self.find_peak_positions_residual()
-        print "Initial peak search: found %s peaks" %(len(guess)/3.0)
+        #print "Initial peak search: found %s peaks" %(len(guess)/3.0)
                 
         y = self.data - self.offset
         if not self.do_fit(self.index, y, guess):
             return 0
-        print "Fit applied (first iter), current settings:"
-        print self.info()
+        #print "Fit applied (first iter), current settings:"
+        #print self.info()
         add_params = self.find_peak_positions_residual()
         if add_params:
-            print ("Found %s more peaks after first iter, running "
-                "optimisation..." %(len(add_params)/3.0))
+            #print ("Found %s more peaks after first iter, running "
+               # "optimisation..." %(len(add_params)/3.0))
             if not self.run_optimisation():
                 return 0
-        print "Auto fit successfully finished"""
+        #print "Auto fit successfully finished"""
         return 1
-#==============================================================================
-#         if not self.fit_multiple_gaussian():
-#             #and if this does not work, try to fit a single gaussian (based
-#             #on position of max count)
-#             return 0
-#         if self.has_results() and not self.result_ok():   
-#             self.run_optimisation()    
-#==============================================================================
 
     def run_optimisation(self):
         """Run optimisation"""
@@ -544,30 +484,30 @@ class MultiGaussFit(object):
         chis = []
         for k in range(self.max_iter):
             if self.num_of_gaussians >= self.max_num_gaussians:
-                print ("Max num of gaussians (%d) reached "
-                    "abort optimisation" %self.max_num_gaussians)
+                #print ("Max num of gaussians (%d) reached "
+                   # "abort optimisation" %self.max_num_gaussians)
                 self._write_opt_log(chis, residuals)
                 return 0
             if not self.optimise_result():
-                print ("Optimisation failed,  aborted at iter %d" %k)
+                #print ("Optimisation failed,  aborted at iter %d" %k)
                 self._write_opt_log(chis, residuals)
                 return 0
             
             residuals.append(self.get_residual())
             chis.append(residuals[-1].std() / residuals[-2].std())
-            print "Current iter: %s, current chi: %.2f" %(k, chis[-1])
+            #print "Current iter: %s, current chi: %.2f" %(k, chis[-1])
             if chis[-1] > 1:
-                print "Optimisation stopped, chi increased..."
+                #print "Optimisation stopped, chi increased..."
                 self.params = last_params
                 self._write_opt_log(chis, residuals)
                 return 1
             last_params = self.params
             if self.get_peak_to_peak_residual() < self.noise_amplitude or\
                                     0.9 < chis[-1] <= 1.0:
-                print "Optimisation successfully finished"
+                #print "Optimisation successfully finished"
                 self._write_opt_log(chis, residuals)
                 return 1
-        print "Optimisation aborted, maximum number of iterations reached..."
+        #print "Optimisation aborted, maximum number of iterations reached..."
         self._write_opt_log(chis, residuals)
         return 0
         
@@ -590,8 +530,8 @@ class MultiGaussFit(object):
         if add_params is None:
             add_params = self.find_peak_positions_residual()
         if not len(add_params) > 0:
-            print ("Optimisation aborted, no additional peaks could be "
-                    "detected in current fit residual")
+            #print ("Optimisation aborted, no additional peaks could be "
+                  #  "detected in current fit residual")
             return 1
         guess = list(self.params)
         guess.extend(add_params)
@@ -615,8 +555,10 @@ class MultiGaussFit(object):
         """
         info = []
         int_vals = [] # integral values of overlapping gaussians
-        for k in range(len(self.gaussians())):
-            gs = self._get_all_gaussians_within_3sigma(k)[0]
+        all_gaussians = self.gaussians()
+        for gauss in all_gaussians:
+            mu, sigma = gauss[1], gauss[2]
+            gs = self.get_all_gaussians_within_sigma_range(mu, sigma)
             info.append(gs)
             int_val = 0  
             for g in gs:
@@ -624,7 +566,8 @@ class MultiGaussFit(object):
             int_vals.append(int_val)
             
         return info, int_vals
-            
+    
+    #def get_all_gaussians_
     def analyse_fit_result(self):
         """Analyse result of optimisation
         
@@ -633,15 +576,21 @@ class MultiGaussFit(object):
         
         .. todo::
         
-            This method might require some more thinking, there is potentially
-            more useful information to be extracted
+            This method needs some review
             
         """
+        amp0, mu0, sigma0 = self.estimate_main_peak_params() #fits a single gauss
+        low, high = mu0 - sigma0, mu0 + sigma0
         info, ints = self.find_overlaps()
-        ind = argmax(ints)
-        gs = info[ind]
-        max_int = ints[ind]
-        mu0 = self.gaussians()[ind][1]
+        #the peak index with largest integral value for integrated superposition
+        #of all gaussians which are within 3sigma of this peak
+        ind = argmax(ints) 
+        gs = info[ind] #list of all gaussians contributing to max integral val
+        max_int = ints[ind] #value of integrated superposition
+        #mu = self.gaussians()[ind][1] #mu of main peak
+        #if not low < mu < high:
+            #print("Main peak of multi gauss retrieval does not "
+           #     "match with main peak estimate from single gauss fit")
         sigmas = []
         weights = []
         mus = []
@@ -651,15 +600,17 @@ class MultiGaussFit(object):
             mus.append(g[1])
             weights.append(self.integrate_gauss(*g) / max_int)
             sigmas.append(g[2])
-        print "Mu array (used for averaging): " + str(mus)
-        print "del_mu array: " + str(del_mus)
-        print "Sigma array (used for averaging): " + str(sigmas)
-        print "Weights (used for averaging): " + str(weights)
-        mean_mu = average(asarray(mus), weights = asarray(weights))
-        mean_sigma = average(asarray(sigmas), weights = asarray(weights))
-        print "Mu, Sigma: " + str(mean_mu) + ", " + str(mean_sigma)
-                
-        return mean_mu, mean_sigma, mus, sigmas
+        weights = asarray(weights)
+        mean_mu = average(asarray(mus), weights = weights)
+        mean_del_mu = average(asarray(del_mus), weights = weights)
+        mean_sigma = average(asarray(sigmas), weights = weights) + mean_del_mu
+        out = self.get_all_gaussians_out_of_3sigma(mean_mu, mean_sigma)
+        for g in out:
+            sign = int(self.integrate_gauss(*g) * 100 / max_int)
+            #print ("Detected additional gaussian:\n%sSignificany: %s %%\n"
+            #    %(self.gauss_str(g), sign))
+              
+        return mean_mu, mean_sigma, out
         
     """
     Helpers
@@ -833,41 +784,41 @@ class MultiGaussFit(object):
         #diff = dm - d
         ok = False
         for k in range(max_iter):
-            print "Current iteration: " + str(k)
+            #print "Current iteration: " + str(k)
             if dm[b].std() / d[b].std() < thresh: 
-                print "Significant difference found, optimising..."
+                #print "Significant difference found, optimising..."
                 ind1 = argmax(d[b])
                 ind2 = argmin(d[b])       
                 if abs(d[b][ind1]) > abs(d[b][ind2]):
                     ind = ind1
                 else: 
                     ind = ind2
-                print "Bad index at: " + str(ind)
-                print "Cut out index window: " + str(ind-w) + " - " + str(ind+w)
+                #print "Bad index at: " + str(ind)
+                #print "Cut out index window: " + str(ind-w) + " - " + str(ind+w)
                 b[ind-w:ind+w]=False
-                print "Current number of considered indices: " + str(sum(b))
+                #print "Current number of considered indices: " + str(sum(b))
             else:
                 ok = True
-                print "Optimisation finished"
+                #print "Optimisation finished"
                 break
         
         if float(sum(b)) / len(d) < 0.2:
-            print "Too little remaining data points, using conservative approach"
+            #print "Too little remaining data points, using conservative approach"
             ok = False
         if ok:
             self.noise_mask = b
             self.noise_amplitude = 6*d[b].std()#d[b].max()-d[b].min()
         else:
-            print "Optimisation failed, use std of high pass filtered signal"
+            #print "Optimisation failed, use std of high pass filtered signal"
             self.noise_mask = full(len(self.data), True, dtype=bool)
             self.noise_amplitude = 6*d.std()
-        print "Estimated noise amplitude: %s" %self.noise_amplitude
+        #print "Estimated noise amplitude: %s" %self.noise_amplitude
         return self.noise_amplitude
     
     def max(self):
         """Return max value and x position of current parameters (not of data)"""
         if self.has_results():
-            vals = self.multi_gaussian_no_offset(self.index, *self.params) +\
+            vals = multi_gaussian_no_offset(self.index, *self.params) +\
                                                                 self.offset
             return max(vals), self.index[argmax(vals)]
         return [None, None]
@@ -915,7 +866,7 @@ class MultiGaussFit(object):
             ind = insert(ind, 0, 0)
         if bool_arr[-1] == True:
             ind = insert(ind, len(ind), len(bool_arr) - 1)
-        print "Found sub intervals: " + str(ind)
+        #print "Found sub intervals: " + str(ind)
         return ind
         
     def get_residual(self, params = None, mask = None):
@@ -927,7 +878,7 @@ class MultiGaussFit(object):
         
         """
         if not self.has_results():
-            print "No fit results available"
+            #print "No fit results available"
             return self.data - self.offset 
         if params is None:
             params = self.params
@@ -966,8 +917,8 @@ class MultiGaussFit(object):
             data.append([x1, y1])
         if len(x2) > 0:
             data.append([x2, y2])
-        print "Mu: %s, sigma: %s" %(mu, sigma)
-        print "Cutting out range (left, right): %s - %s" %(l, r)
+        #print "Mu: %s, sigma: %s" %(mu, sigma)
+        #print "Cutting out range (left, right): %s - %s" %(l, r)
         return data
     
     def _prep_bounds_single_gauss(self):
@@ -987,13 +938,13 @@ class MultiGaussFit(object):
         """
         bds = self.gauss_bounds
         if not bds["amp"][0] <= params[0] <= bds["amp"][1]:
-            print "Amplitude out of range, value: " + str(params[0]) 
+            #print "Amplitude out of range, value: " + str(params[0]) 
             return 0
         if not bds["mu"][0] <= params[1] <= bds["mu"][1]:
-            print "Mu out of range, value: " + str(params[1]) 
+            #print "Mu out of range, value: " + str(params[1]) 
             return 0
         if not bds["sigma"][0] <= params[2] <= bds["sigma"][1]:
-            print "Sigma out of range, value: " + str(params[2]) 
+            #print "Sigma out of range, value: " + str(params[2]) 
             return 0
         return 1
         
@@ -1008,32 +959,39 @@ class MultiGaussFit(object):
             params.append(0)
         vals = self.gaussian(x, *params)
         return abs(vals.max() - vals.min())     
-
-    def _get_all_gaussians_within_3sigma(self, index):
-        """Find all current gaussians within 3 sigma of a specified gaussian
         
-        :param int index: list index of considered gaussian
+    def get_all_gaussians_within_sigma_range(self, mu, sigma, fac = 3):
+        """Find all current gaussians within sigma range of a gaussian
+        
+        :param float mu: mean (x pos) of considered gaussian
+        :param float sigma: standard deviation
+        :param int fac: factor for sigma range, default 3
         
         """
+        l, r = mu - fac * sigma, mu + fac * sigma
+        gaussians = []
         gs = self.gaussians()
-        g = gs[index]
-        l, r = g[1] - 3 * g[2], g[1] + 3 * g[2]
-        gaussians = [g]
-        rl = l
-        rr = r
-        for k in range(len(gs)):
-            if not k == index:
-                mu = gs[k][1]
-                sig = gs[k][2]
-                l1, r1 = mu - 3 * sig, mu + 3 * sig
-                if l < mu < r:# or l1 < g[1] < r1:
-                    gaussians.append(gs[k])
-                    if l1 < rl:
-                        rl = l1
-                    if r1 > rr:
-                        rr = r1
-        return gaussians, rl, rr
+        for g in gs:
+            if l < g[1] < r:# or l1 < g[1] < r1:
+                gaussians.append(g)
+        return gaussians
     
+    def get_all_gaussians_out_of_3sigma(self, mu, sigma, fac = 3):
+        """Find all current gaussians out of sigma range of a gaussian
+        
+        :param float mu: mean (x pos) of considered gaussian
+        :param float sigma: standard deviation
+        :param int fac: factor for sigma range, default 3
+        
+        """
+        l, r = mu - fac * sigma, mu + fac * sigma
+        gaussians = []
+        gs = self.gaussians()
+        for g in gs:
+            if g[1] < l or g[1] > r:# or l1 < g[1] < r1:
+                gaussians.append(g)
+        return gaussians
+        
     """
     Plotting / Visualisation etc..
     """
@@ -1041,7 +999,7 @@ class MultiGaussFit(object):
         """Plot signal and derivatives both in original and smoothed version
         """
         if not self.has_data:
-            print "No data available..."
+            #print "No data available..."
             return 0 
         fig, ax = subplots(2,1)
         ax[0].plot(self.index, self.data, "--g", label="Signal " + self.id)
@@ -1068,7 +1026,7 @@ class MultiGaussFit(object):
             
         """
         if not self.has_data:
-            print "No data available..."
+            #print "No data available..."
             return 0 
         if ax is None:
             fig, ax = subplots(1,1)
@@ -1131,13 +1089,13 @@ class MultiGaussFit(object):
             
         """
         if not self.has_data:
-            print "Could not plot result, no data available.."
+            #print "Could not plot result, no data available.."
             return 0
         fig,axes = subplots(2,1)
         self.plot_data(sub_min = 0, ax = axes[0])
         x = linspace(self.index.min(), self.index.max(), len(self.index) * 3)
         if not self.has_results():
-            print "Only plotted data, no results available"
+            #print "Only plotted data, no results available"
             return axes
         self.plot_multi_gaussian(x,self.params,ax=axes[0],\
                                         label = "Superposition")        
@@ -1145,7 +1103,7 @@ class MultiGaussFit(object):
             k = 1
             for g in self.gaussians(): 
                 self.plot_gaussian(self.index, g, ax = axes[0],\
-                    label = ("%d. gasussian" %k))
+                    label = ("%d. gaussian" %k))
                 k += 1
                 
         axes[0].legend(loc = 'best', fancybox = True, framealpha = 0.5,\
@@ -1177,7 +1135,7 @@ class MultiGaussFit(object):
         :param list g: gauss parameter list ``[amp, mu, sigma]``
                         
         """
-        return "Amplitude: %.2f\nMu: %.2f\n Sigma: %.2f\n" %(g[0], g[1], g[2])
+        return "Amplitude: %.2f\nMu: %.2f\nSigma: %.2f\n" %(g[0], g[1], g[2])
             
     def info(self):
         """Print string representation"""
@@ -1194,7 +1152,7 @@ class MultiGaussFit(object):
         """Check if fit results are available"""
         if self._fit_result is not None and len(self.params) >= 3:
             return 1
-        print "No multi gauss fit results available"
+        #print "No multi gauss fit results available"
         return 0    
     """
     Magic methods
@@ -1239,7 +1197,7 @@ class PolySurfaceFit(object):
         :param array mask: boolean mask (must have same shape than arr) 
         """
         if not ndim(arr) == 2:
-            print "Could not set data, dimesion mismatch..."
+            print "Could not set data, dimension mismatch..."
             return 0
         if mask is None or mask.shape != arr.shape:
             mask = ones_like(arr)
@@ -1325,7 +1283,7 @@ class PolySurfaceFit(object):
     
     def do_fit(self):
         """Apply the fit to the data and write results"""
-        print "Fitting 2D polynomial to data...(this might take a moment)"
+        #print "Fitting 2D polynomial to data...(this might take a moment)"
         
         try:
             weights=self.make_weights_mask()
