@@ -54,7 +54,7 @@ if FIT_ANALYSIS:
     
     fit5.plot_result()
     fit6.plot_result()
-show() 
+    
     
     
     

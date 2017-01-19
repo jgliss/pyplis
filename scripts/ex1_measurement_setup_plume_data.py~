@@ -7,7 +7,6 @@ dataset from that.
 """
 import piscope as piscope
 from datetime import datetime
-from matplotlib.pyplot import show
 
 from os.path import join
 from os import getcwd
@@ -62,6 +61,5 @@ def create_dataset(start = datetime(2015, 9, 16, 7, 6, 00),\
 if __name__ == "__main__":
     ds = create_dataset()
     ds.get_list("on").show_current()
-    show()
     
     
