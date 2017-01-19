@@ -123,7 +123,7 @@ def set_test_data_path(save_path):
     try:
         if not exists(save_path):
             raise IOError("Could not set test data path: specified location "
-                "does not exist: " %save_path)
+                "does not exist: %s" %save_path)
         with open(join(_LIBDIR, "data", "_paths.txt"), "a") as f:
             f.write("\n" + save_path  + "\n")
             print ("Adding new path for test data location in "

@@ -9,9 +9,10 @@ from copy import deepcopy
 from astropy.io import fits
 from os import getcwd
 from os.path import join, exists
+from traceback import format_exc
 
 from matplotlib.pyplot import subplots
-from matplotlib.patches import Circle
+from matplotlib.patches import Circle, Ellipse
 from matplotlib.cm import RdBu
 from .processing import ImgStack
 from .helpers import shifted_color_map, mesh_from_img, get_img_maximum,\
@@ -317,8 +318,9 @@ class DoasFOV(object):
         """Return pyramide level at which FOV search was performed"""
         try:
             return self.img_prep["pyrlevel"]
-        except KeyError as e:
-            raise e("Image preparation data is not available...")
+        except KeyError:
+            raise KeyError("Image preparation data is not available: %s"
+                           %format_exc())
         
     @property
     def cx_rel(self):
@@ -485,9 +487,19 @@ class DoasFOV(object):
                                                          fontsize = 16)
             
             xgrid, ygrid = mesh_from_img(img)
-        
-            ax.contour(xgrid, ygrid, self.fov_mask,\
-                (popt[0] / e, popt[0] / 10), colors = 'k')
+            if len(popt) == 7:
+                ell = Ellipse(xy = (popt[1], popt[2]), width = popt[3],\
+                    height = popt[3] / popt[4], color="k", lw = 2,\
+                    fc="lime", alpha =.5)
+            else:
+                ell = Ellipse(xy = (popt[1], popt[2]), width = popt[3],\
+                    height = popt[3] / popt[4], angle = popt[7], color="k",\
+                    lw=2, fc="lime", alpha =.5)
+#==============================================================================
+#             ax.contour(xgrid, ygrid, self.fov_mask,\
+#                 (popt[0] / e, popt[0] / 10), colors = 'k')
+#==============================================================================
+            ax.add_artist(ell)
             ax.axhline(self.cy_rel, ls="--", color = "k")
             ax.axvline(self.cx_rel, ls="--", color = "k")
             ax.get_xaxis().set_ticks([0, self.cx_rel, w])
@@ -500,7 +512,8 @@ class DoasFOV(object):
             cb.set_label(r"Pearson corr. coeff.", fontsize = 16)
             ax.autoscale(False)
             
-            c = Circle((self.cx_rel, self.cy_rel), self.radius_rel, ec = "k", fc = "none")
+            c = Circle((self.cx_rel, self.cy_rel), self.radius_rel, ec = "k",\
+                       lw = 2, fc = "lime", alpha = .5)
             ax.add_artist(c)
             ax.set_title("Corr img (pearson), pos abs (x,y): (%d, %d)" %(cx, cy))
             ax.get_xaxis().set_ticks([0, self.cx_rel, w])

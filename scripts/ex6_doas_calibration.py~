@@ -28,11 +28,14 @@ RELOAD_STACK = 0
 #pyrlevel=2
 DO_FINE_SEARCH = 0
 
-my_dat = join("..", "..") #location of image stack
+my_dat = r'D:/repos/tests' #location of image stack
 stack_path = join(my_dat, "piscope_imgstack_id_aa_20150916_0706_0721.fts")
+        
+piscope.inout.set_test_data_path("D:\\repos") #test data location
 
+reload_stack = 0 #re create stack from image list
 if not exists(stack_path):
-    RELOAD_STACK = 1
+    reload_stack =1
 
 # Path containing DOAS result files
 doas_data_path = join(img_dir, "..", "spectra", "plume_prep", "min10Scans",\
@@ -136,9 +139,7 @@ if __name__ == "__main__":
     for k in range(len(axes)):
         axes[k].figure.savefig(join(save_path, "ex6_out_%d.png" %k))
  
-    try:
-        remove(join(my_dat, "piscope_doascalib_id_aa_avg_20150916_0706_0721.fts"))
-    except:
-        pass
+    
+    remove(join(my_dat, "piscope_doascalib_id_aa_avg_20150916_0706_0721.fts"))
     calib_pears.save_as_fits(save_dir = my_dat)
     show()
