@@ -5,16 +5,12 @@ Classes for plume speed retrievals
 """
 from time import time
 from numpy import mgrid,vstack,int32,sqrt,arctan2,rad2deg, asarray,\
-    logical_and, histogram, nan, ceil, ones, roll, argmax, arange
+    logical_and, histogram, ceil, ones, roll, argmax, arange
 
-from copy import deepcopy
-#from scipy.misc import bytescale
-from os.path import exists
-from os import mkdir
 from traceback import format_exc
 
 from collections import OrderedDict as od
-from matplotlib.pyplot import subplots, figure, close, Figure
+from matplotlib.pyplot import subplots, figure, Figure
 
 from matplotlib.patches import Rectangle
 from scipy.ndimage.filters import median_filter, gaussian_filter
@@ -27,7 +23,6 @@ from cv2 import calcOpticalFlowFarneback, OPTFLOW_FARNEBACK_GAUSSIAN,\
     waitKey, imshow
 
 from .helpers import bytescale, check_roi, map_roi, roi2rect
-from .processing import LineOnImage, ImgStack
 from .optimisation import MultiGaussFit
 from .image import Img
 
@@ -43,8 +38,13 @@ def determine_ica_cross_correlation(icas_first_line, icas_second_line,\
     if reg_grid_tres is None:
         delts = asarray([delt.total_seconds() for delt in\
                         (time_stamps[1:] - time_stamps[:-1])])
-        reg_grid_tres = ceil(delts.mean()) - 1 #time resolution for re gridded data
+        reg_grid_tres = ceil(delts.mean()) - 1  #time resolution for re gridded data
     
+    if reg_grid_tres < 1:
+        reg_grid_tres = 1
+    elif reg_grid_tres > 2:
+        reg_grid_tres = int(reg_grid_tres / 2.0)
+        
     delt_str = "%dS" %(reg_grid_tres)
 
     s1 = Series(icas_first_line, time_stamps).resample(delt_str).\
@@ -56,9 +56,7 @@ def determine_ica_cross_correlation(icas_first_line, icas_second_line,\
         s2 = s2[cut_border:-cut_border]
     s1_vec = gaussian_filter(s1, sigma_smooth) 
     s2_vec = gaussian_filter(s2, sigma_smooth) 
-    
-    fig, ax = subplots(1,1)
-    
+        
     coeffs = []
     max_coeff = -10
     max_coeff_signal = None
@@ -66,22 +64,39 @@ def determine_ica_cross_correlation(icas_first_line, icas_second_line,\
         shift_s1 = roll(s1_vec, k)
         coeffs.append(pearsonr(shift_s1, s2_vec)[0])
         if coeffs[-1] > max_coeff:
+            max_coeff = coeffs[-1]
             max_coeff_signal = Series(shift_s1, s1.index)
     coeffs = asarray(coeffs)
+    s1_ana = Series(s1_vec, s1.index)
+    s2_ana = Series(s2_vec, s2.index)
     ax = None
     if plot:
-        fig, ax = subplots(1, 2, figsize = (18,6))
-        x = arange(0, len(coeffs), 1) * reg_grid_tres
+        fig, ax = subplots(1, 3, figsize = (18,6))
+        
         s1.plot(ax = ax[0], label="First line")
         s2.plot(ax = ax[0], label="Second line")
-        ax[1].plot(x, coeffs)
-        ax[1].set_xlabel("Delta t [%s]" %delt_str)
+        ax[0].set_title("Original time series")
+        ax[0].legend(loc='best', fancybox=True, framealpha=0.5, fontsize=10) 
+        ax[0].grid()
+        
+        max_coeff_signal.plot(ax = ax[1], label =\
+                        "Data vector 1. line (best shift)")
+        s2_ana.plot(ax = ax[1], label = "Data vector 2. line")
+        
+                        
+        ax[1].set_title("Signal match")
+        ax[1].legend(loc='best', fancybox=True, framealpha=0.5, fontsize=10) 
         ax[1].grid()
+        
+        x = arange(0, len(coeffs), 1) * reg_grid_tres
+        ax[2].plot(x, coeffs)
+        ax[2].set_xlabel("Delta t [%s]" %delt_str)
+        ax[2].grid()
         #ax[1].set_xlabel("Shift")
-        ax[1].set_ylabel("Correlation coeff")
-       
+        ax[2].set_ylabel("Correlation coeff")
+        ax[2].set_title("Correlation signal")
     lag = argmax(coeffs) * reg_grid_tres
-    return lag, coeffs, s1, s2, max_coeff_signal, ax
+    return lag, coeffs, s1_ana, s2_ana, max_coeff_signal, ax
     
 class OpticalFlowFarnebackSettings(object):
     """Settings for optical flow Farneback calculations and visualisation"""
@@ -818,536 +833,3 @@ class OpticalFlowFarneback(object):
             except:
                 pass 
             
-class OpticalFlowAnalysis(object):
-    """A class for analysis of optical flow characteristics considering
-    all images in an :class: ImgList` object. The analysis of the flow field 
-    is based on one or more ROIs within the original images. These ROIs have to 
-    be added manually using:: 
-    
-        self.add_roi(rect=None,id)
-    
-    """
-    def __init__(self, lst = None, line = None, settings = None, imgPrepDict = None):
-        self.line = None
-        self.imgList = None
-        
-        self.optFlowEdit = None
-        
-        #:Main ROIs, i.e. ROIs for which the optical flow field will be determined
-        #:(size needs to be large than 80x80 pixels)
-        self.mainROI = None
-        #: Sub ROIs: ROIs within main ROIs
-        self.subRois=Bunch()
-        
-        self.meanFlowFieldInfo=None
-        if lst:
-            self.set_imglist(lst,imgPrepDict)        
-        if line is not None:
-            self.set_line(line)
-        if settings is not None:
-            self.optFlowEdit.add_settings(settings)
-            self.optFlowEdit.change_current_settings_object(settings.id)
-    
-    def set_imglist(self, lst, imgPrepDict = None):
-        """Set a deepcopy of the input list and if applicable, change image 
-        preparation settings
-        
-        :param ImgListStatic lst: the image list
-        :param dict imgPrepDict (None): img preparation settings
-        
-        """
-        try:
-            if lst.numberOfFiles>0:
-                self.imgList=deepcopy(lst)
-                self.optFlowEdit=self.imgList.optFlowEdit=OpticalFlowFarneback(id=self.imgList.id)
-                if isinstance(imgPrepDict, dict):
-                    self.imgList.update_img_prep_settings(imgPrepDict)
-        except:
-            raise TypeError(format_exc())
-
-    def img_prep_settings(self):
-        """Return info about the image preparation setting
-        """
-        return self.imgList.current_edit()
-        
-    def add_settings(self, optFlowSettings):
-        self.optFlowEdit.add_settings(optFlowSettings)
-    
-    def change_current_settings_object(self, key):
-        self.optFlowEdit.change_current_settings_object(key)
-        self.imgList.update_img_prep_settings(self.optFlowEdit.settings.imgPrepSettings)
-        
-    def set_save_path(self, p):
-        if exists(p):
-            self.savePath=p
-            
-    def set_line(self, line):
-        if not isinstance(line, LineOnImage):
-            raise TypeError("Input is not a piscope.Processing.LineOnImage object")
-        self.line=line
-        
-    def set_main_roi(self,rect):
-        """Add one ROI for optical flow analysis
-        """
-        self.mainROI=self.rect_2_roi(rect)
-    
-    def _in_roi(self, subRoi, roi):
-        """Test if subRoi lies in roi
-        """
-        s,r=subRoi,roi
-        if not(s[0]>=r[0] and s[1]<=r[1] and s[2]>=r[2] and s[3]<=r[3]):
-            raise ValueError("Sub-ROI exceeds borders of parent ROI")
-        return 1
-        
-        
-    def add_sub_roi(self, rect, id):
-        """Add sub ROI to existing main ROI
-        
-        :param list rect: rectangle defining ROI
-        :param str id: id of sub-roi (e.g. "zoom")
-        
-        If main ROI exists and sub-ROI is within main ROI then add subROI        
-        """
-        subRoi=self.rect_2_roi(rect)
-        mainRoi=self.mainROI
-        if self._in_roi(subRoi, mainRoi):
-            self.subRois[id]=subRoi
-        
-    def rect_2_roi(self,rect,inverse=0):
-        return self.optFlowEdit.settings.imgShapePrep.rect_2_roi(rect, inverse)
-        
-    def set_main_roi_from_line(self,**kwargs):
-        if self.line is None:
-            raise KeyError("No line found")
-        self.line.set_roi(self.imgList.loadedImages.this.img,**kwargs)
-        self.mainROI=self.line.roi()
-        self.update_flow_roi(self.line.id)
-    
-    def update_flow_roi(self, roiId):
-        self.optFlowEdit.set_roi(self.rect_2_roi(self.mainROI,1))
-    
-    def estimate_mean_flow(self, plotLengthProfile=0):
-        """Estimates the mean values of the flow field along the line
-        """
-        p=self.optFlowEdit.get_main_flow_field_params()
-        if p == 0:
-            return 0
-        lenThresh, mu, sigma, v, vErr, goodLens, goodAngles,vmax=p
-        fx,fy=self.optFlowEdit.flow[:,:,0],self.optFlowEdit.flow[:,:,1]
-        lx=self.line.get_line_profile(fx,key="roi")
-        ly=self.line.get_line_profile(fy,key="roi")
-        #totNum=len(lx)
-        lens=sqrt(lx**2+ly**2)
-        if plotLengthProfile:
-            fig,ax=subplots(1,1)
-            ax.plot(lens, ' x')
-            ax.set_title("Flow length vector distribution along line")
-        angles=rad2deg(arctan2(lx,-ly))
-        cond1=lens>lenThresh
-        #cond2=logical_and(mu-3*sigma<angles,mu+3*sigma>angles)
-        cond2=logical_and(mu-sigma<angles,mu+sigma>angles)
-        cond=cond1*cond2
-        #get all lens on line pointing in the right direction and having
-        #an acceptable length
-        mask=lens[cond]
-        if len(mask)>0:
-#==============================================================================
-#         if not len(mask) > 0.1*totNum or len(mask) < 20:
-#             print ("Mean flow could not be estimated too little amount of"
-#                 " datapoints on the line")
-#             return 0
-#==============================================================================
-            fit = MultiGaussFit(datY=lens, id="Lengths on PCS")
-            fit.set_noise_amplitude(lenThresh)
-            if not fit.fit_multiple_gaussian():
-                #and if this does not work, try to fit a single gaussian (based
-                #on position of maximum count)
-                fit.init_results()
-                fit.init_data()
-                fit.fit_single_gaussian()
-            if fit.got_results():   
-                fit.run_optimisation()
-                mu1, sigma1,_,_=fit.get_main_gauss_info()
-                mask=lens[logical_and(mu1-sigma1<fit.x,mu1+sigma1>fit.x)]
-                print fit.gauss_info()
-                #v,vErr=mask.mean(),mask.std()
-                v,vErr=mask.max(),mask.std()
-                print "\nSuccesfully estimated mean flow"
-                print v, vErr, lenThresh
-            else:
-                print ("Mean flow velocity along PCS could not be determined")
-                v, vErr=nan,nan
-        else:
-            v, vErr=nan,nan
-            
-        return lenThresh, mu, sigma, v, vErr, fit
-
-    def flow_field_mean_analysis(self, lenThresh=4):
-        """Histogram based analysis of optical flow in image time series of 
-        `self.imgList`.
-        """
-        self.optFlowEdit.active=1
-        self.imgList.goto_im(0)
-        num=self.imgList.numberOfFiles
-        #bad=FlowFieldAnalysisResults(self.mainROI)
-        good=FlowFieldAnalysisResults(self.mainROI)
-        h,w=self.optFlowEdit.flow.shape[:2]
-        good.init_stacks(h,w,num-1)
-        times=self.imgList.get_img_times()
-        lastParams=self.optFlowEdit.get_main_flow_field_params()
-        if lastParams == 0:
-            print("Mean analysis of flow field failed, significant flow direction"
-                " could not be initialised, gaussian fit insignificant, check"
-                " optical flow input and contrast input settings for ROI: " +
-                str(self.mainROI))
-            return 0
-        lenThresh, mu, sigma, v, vErr, goodLens, goodAngles, vmax=lastParams
-#==============================================================================
-#         blInfo=self.optFlowEdit.estimate_mean_displacement_from_blobs(mu=mu,\
-#                                             sigma=sigma, lenThresh=lenThresh)
-#         if blInfo is not 0:
-#             v1, v1Err=blInfo[0], blInfo[1]
-#         else:
-#             v1,v1Err=nan,nan
-#==============================================================================
-        good.append_result(times[0],v,vErr,lenThresh, mu, sigma,vmax)
-        good.stacks.angleImgs.set_img(self.optFlowEdit.get_flow_angle_image(),0)
-        good.stacks.lenImgs.set_img(self.optFlowEdit.get_flow_vector_length_image(),0)
-        for k in range(1,num-1):
-            self.imgList.next_im()
-            good.stacks.angleImgs.set_img(self.optFlowEdit.get_flow_angle_image(),k)
-            good.stacks.lenImgs.set_img(self.optFlowEdit.get_flow_vector_length_image(),k)
-            lastParams=self.optFlowEdit.get_main_flow_field_params()
-            if lastParams !=0:
-                lenThresh, mu, sigma, v, vErr, goodLens, goodAngles, vmax=lastParams
-#==============================================================================
-#                 blInfo=self.optFlowEdit.estimate_mean_displacement_from_blobs(\
-#                                         mu=mu, sigma=sigma, lenThresh=lenThresh)
-#                 if blInfo is not 0:
-#                     v1, v1Err=blInfo[0], blInfo[1]
-#                 else:
-#                     v1,v1Err=nan,nan
-#==============================================================================
-            else:
-                print "Failed to estimate mean flow at image num: " + str(k)
-                lenThresh, mu, sigma, v, vErr,vmax =[nan,nan,nan,nan,nan,nan]
-            good.append_result(times[k],v,vErr,lenThresh, mu, sigma,vmax)
-        good.make_pandas_series()
-        self.meanFlowFieldInfo=good
-        return good
-        
-    def draw_current_flow(self, includeBlobs=1, disp=1):
-        if disp:
-            fig=figure(figsize=(18,8))
-        else:
-            fig=Figure(figsize=(18,8))
-        axes=[]
-        axes.append(fig.add_subplot(1,2,1))
-        axes.append(fig.add_subplot(1,2,2))
-        axes[0], img=self.optFlowEdit.draw_flow(showInROI=0, ax=axes[0])
-        axes[1], roiImg=self.optFlowEdit.draw_flow(showInROI=1, ax=axes[1])
-        if includeBlobs:
-            self.optFlowEdit.draw_blobs(ax=axes[1])
-        if isinstance(self.line, LineOnImage):
-            l=self.line
-            axes[0].plot([l.start[0],l.stop[0]], [l.start[1],l.stop[1]],'co-')
-            roi=l.roi()
-            if roi is not None:
-                dx,dy=roi[1]-roi[0], roi[3]-roi[2]
-                axes[0].add_patch(Rectangle((roi[0],roi[2]),dx,dy,fc="none",ec="c"))
-        
-            x0,y0=self.optFlowEdit.settings.imgShapePrep.map_coordinates(l.start[0], l.start[1])
-            x1,y1=self.optFlowEdit.settings.imgShapePrep.map_coordinates(l.stop[0], l.stop[1])
-            axes[1].plot([x0,x1], [y0,y1],'co-')
-            
-        axes[0].set_xlim([0,img.shape[1]])
-        axes[0].set_ylim([img.shape[0],0])
-        axes[1].set_xlim([0,roiImg.shape[1]])
-        axes[1].set_ylim([roiImg.shape[0],0])
-        #axis('image')
-        s=self.imgList.current_time().strftime("%Y.%m.%d %H:%M:%S")
-#==============================================================================
-#         try:
-#==============================================================================
-        lenThresh, mu, sigma, v, vErr, _,_,vmax=self.\
-                    optFlowEdit.get_main_flow_field_params()
-        s=(s+"\nMean displacement: " + "{:.1f}".format(v) + " (+/- " + "{:.1f}".format(vErr) + "), Max: " + "{:.1f}".format(vmax) + "pix\n"
-        "Mean direction: " + "{:.1f}".format(mu) + " (+/- " + "{:.1f}".format(sigma) + ") deg")
-#==============================================================================
-#         except:
-#             raise ValueError()
-#==============================================================================
-        axes[0].set_title(s,fontsize=12)
-        return fig, axes
-    
-    def determine_and_save_all_flow_images(self, folderName, startNum=None, stopNum=None):
-        if startNum is None:
-            startNum=0
-        if stopNum is None:
-            stopNum=self.imgList.numberOfFiles-1
-        if not self.savePath:
-            print "Error"
-            
-            return
-        p=self.savePath + folderName + "/"
-        if exists(p):
-            print "Path already exists, choose another name"
-            return
-        mkdir(p)
-        self.optFlowEdit.active=1
-        self.imgList.goto_im(startNum)
-        for k in range(startNum+1,stopNum):
-            fig, ax=self.draw_current_flow(disp=1)
-            fig.savefig(p+str(k)+".png")
-            close(fig) 
-            del fig, ax
-            self.imgList.next_im()
-        
-        
-
-class FlowFieldAnalysisResults(object):
-    """This object stores results (mean direction +/-, mean length, thresholds
-    etc...) for an image time series (:class:`ImgList`) in a certain ROI
-    of the image stack
-    """
-    def __init__(self, roi):
-        self.roi=roi
-        self.times=[]
-        self.stacks=Bunch({"lenImgs" : ImgStack("lenImgs"),
-                           "angleImgs": ImgStack("angleImgs")})
-                           
-        self.results=Bunch({"lenThreshs"    :   [],
-                            "meanDirs"      :   [],
-                            "meanDirErrs"   :   [],
-                            "meanVelos"     :   [],
-                            "meanVeloErrs"  :   [],
-                            "maxVelos"      :   []})
-        
-        self.pandasSeries=Bunch()
-        
-        
-    def init_stacks(self,h,w,d):
-        for stack in self.stacks.values():
-            stack.init_stack(h,w,d)
-    
-    def plot_overview(self):
-        fig, axes=subplots(2,1)
-        errs=self.pandasSeries.meanDirErrs
-        self.pandasSeries.meanDirs.plot(ax=axes[0],yerr=errs.values)        
-        axes[0].set_title("Mean flow direction [deg]")
-        errs=self.pandasSeries.meanVeloErrs
-        self.pandasSeries.meanVelos.plot(ax=axes[1], label="Mean (histogram analysis)",yerr=errs.values)
-        blobErrs=self.pandasSeries.blobVeloErrs.values
-        self.pandasSeries.blobVelos.plot(ax=axes[1], label="Mean (Blob analysis)",yerr=blobErrs)
-        axes[1].set_title("Flow diplacement length [pix]")
-        self.pandasSeries.maxVelos.plot(ax=axes[1], label="Max")
-        axes[1].legend(loc='best', fancybox=True, framealpha=0.5, fontsize=10)
-        
-    def append_result(self,time,v,verr,lenThresh, mu, sigma, vmax):
-        self.times.append(time)
-        self.results.lenThreshs.append(lenThresh)
-        self.results.meanVelos.append(v)
-        self.results.meanVeloErrs.append(verr)
-        self.results.maxVelos.append(vmax)
-        self.results.meanDirs.append(mu)
-        self.results.meanDirErrs.append(sigma)
-
-    
-    def make_pandas_series(self):
-        """Make pandas time series objects of all results
-        """
-        for key,val in self.results.iteritems():
-            self.pandasSeries[key]=Series(val,self.times)
-    def prepare_pandas_series(self,):
-        """
-        """
-        
-#==============================================================================
-# class WindRetrievalCollection(object):
-#     """The base class for storing any information about the wind field and
-#     standard algorithms to retrieve wind information using different methods. 
-#     
-#     In the current version, this is mainly:
-#     
-#         1. Manually setting average displacement and average orientation angle
-#         #. Optical flow farneback analysis
-#             1. Use output as is 
-#             #. Do meanFlowField analysis (link..)
-#     
-#     """
-#     def __init__(self, imgList=None, measGeometry=None):
-#         self.imgList = imgList
-#         self.measGeometry = measGeometry
-#         
-#         self.optFlowAnalysis = OpticalFlowAnalysis()
-#         #this dictionary sets the image preparation info for optical flow
-#         #calculations (see also :func:`self.set_imglist`)
-#         self.optFlowImgPrep = Bunch([("DarkCorr"    ,   1),
-#                                      ("Blurring"    ,   1)])
-#         
-#         
-#         #:In this dictionary, global displacements (however measured, e.g. in
-#         #: GUI) can be added, please use :func:`self.add_glob_displacement` to
-#         #: do so. 
-#         self._glob_displacements = Bunch()
-#         self.warnings=["No warning"]
-#     
-#     def get_opt_flow_settings(self):
-#         """Get current optical flow settings
-#         """
-#         try:
-#             return self.optFlowAnalysis.optFlowEdit.settings
-#         except:
-#             msg=("Could not retrieve optical flow settings, OpticalFlowAnalysis "
-#                 "tool might not be set")
-#             self._warning(msg)
-#             return 0
-#             
-#     def set_opt_flow_settings(self, settings):
-#         """Set settings object for optical flow calculations
-#         """
-#         try:
-#             if self.optFlowAnalysis.optFlowEdit.moreSettings.has_key(settings.id):
-#                 msg=("Opt flow settings with id: " + str(settings.id) + " were "
-#                     "overwritten")
-#                 self._warning(msg)
-#             self.optFlowAnalysis.add_settings(settings)
-#             self.optFlowAnalysis.change_current_settings_object(settings.id)
-#         except:
-#             msg=("Could not retrieve optical flow settings, OpticalFlowAnalysis "
-#                 "tool might not be set")
-#             self._warning(msg)
-#             return 0
-#         
-#     def add_glob_displacement(self,timeStamp, delt, len, lenErr, orientation,\
-#                                                                 orientationErr):
-#         """Set global values for displacement vector
-#         
-#         :param datetime timeStamp: datetime to which the displacment corresponds
-#         :param float delt: time difference between the two images used to 
-#             measure displacement
-#         :param float len: length of displacement in pix
-#         :param float len: uncertainty of length of displacement in pix
-#         :param float orientation: orientation angle in deg 
-#             0: upwards (-y direction)
-#             180 and -180: downwards (+ y direction)
-#             90: to the right (+ x direction)
-#             -90: to the left (- x direction)
-#         
-#         Writes the data into `self._glob_displacements` in the following format::
-#         
-#             self._glob_displacements[timeStamp]=[delt, len, lenErr, orientation,\
-#                 orientationErr]
-#         
-#         .. note::
-#         
-#             if you use this, make sure, to use the right datatypes, no control
-#             of input performed here
-#             
-#         """
-#         self._glob_displacements[timeStamp]=[delt, len, lenErr, orientation,\
-#                                                                 orientationErr]
-#     
-#     def get_wind_info_glob(self, timeStamp=None):            
-#         """Get global information about wind velocity and vetor orientation from
-#         information in `self._glob_displacements`
-#         :param datetime timeStamp: the time at which the data is supposed to be
-#             retrieved (searches closest available info in 
-#             `self._glob_displacements` dictionary)
-#         """
-#         if timeStamp is None:
-#             try:
-#                 timeStamp=self.imgList.current_time()
-#             except:
-#                 self.warning()
-#         t0=min(self._glob_displacements.keys(), key=lambda x: abs(x - timeStamp))
-#         dx=self.measGeometry.calcs["pixLengthX"] #the pixel lenght in m
-#         info=self._glob_displacements[t0]
-#         v, vErr=float(info[1])*dx/info[0],float(info[2])*dx/info[0]
-#         return WindVector2D(v, vErr, info[3], info[4])
-#     
-#     def update_imprep_optflow(self, dictLike):
-#         """Update valid entries in image preparation dict for optical flow 
-#         calculations
-#         :param dict dictLike: dictionary with variables
-#         
-#         """
-#         for key, val in dictLike.iteritems():
-#             if self.optFlowImgPrep.has_key(key):
-#                 self.optFlowImgPrep[key]=val
-#                 
-#     def set_imglist(self,imgList, imgPrepDict=None):
-#         """Try setting imgList object used for wind field analysis
-#         """
-#         try: 
-#             if isinstance(imgPrepDict, dict):
-#                 self.update_imprep_optflow(imgPrepDict)
-#             if imgList.numberOfFiles>0:
-#                 self.imgList=imgList
-#                 self.optFlowAnalysis.set_imglist(imgList,self.optFlowImgPrep)
-#             return 1
-#         except:
-#             msg=("Could not set imgList, probably wrong input type or empty list")
-#             self._warning(msg)
-#             return 0
-# 
-#     def set_and_init_pcs_line_optflow(self, line, **kwargs):
-#         """Set the line of interest for optical flow calculations
-#         
-#         :param LineOnImage line: line object
-#         :param **kwargs: accepted keys (addTop, addBottom, addLeft, addRight)
-#         
-#         .. note::
-#         
-#             a ROI is determined automatically such that it includes the 
-#             rectangle spanned by the line on the image using 
-#             :func:`LineOnImage.set_roi`, **kwargs (expand line borders) are 
-#             passed to :func:`LineOnImage.set_roi`
-#         
-#         """
-#         self.optFlowAnalysis.set_line(line)
-#         self.optFlowAnalysis.set_main_roi_from_line(**kwargs)
-#         self.optFlowAnalysis.update_flow_roi(line.id)
-#         
-#         
-#     def set_meas_geometry(self, measGeometry):
-#         """Try setting :class:`piscope.Utils.MeasGeometry` object used 
-#         for wind field analysis
-#         """
-#         try: 
-#             if not measGeometry.basicDataAvailable:
-#                 msg=("Could not set measGeometry, basic data not available")
-#                 self._warning(msg)
-#                 return 0
-#                 
-#             self.measGeometry=measGeometry
-#             return 1
-#         except:
-#             msg=("Could not set measGeometry, probably wrong input type")
-#             self._warning(msg)
-#             return 0
-#            
-#     def _warning(self,msg):
-#         self.warnings.append(msg)
-#         print msg
-#         
-# class WindVector2D(object):
-#     """Object representing a 2D wind vector"""
-#     def __init__(self,v,vErr,orientation, orientationErr,unit="m/s"):
-#         self.v=v
-#         self.vErr=vErr
-#         self.orientation=orientation
-#         self.orientationErr=orientationErr
-#         self.unit=unit
-#     
-#     def __call__(self):
-#         """On call, return velocity information
-#         """
-#         return (self.v,self.vErr)
-#         
-#     def __str__(self):
-#         s = "Wind vector info\n------------------\n"
-#         s = s + "v (+/-): " + str(self.v) + "+/-" + str(self.vErr) + " " + self.unit + "\n"
-#         s = s + "Angle [deg] (+/-) " + str(self.orientation) + "+/-" + str(self.orientationErr) + "\n"
-#         return s
-#==============================================================================

@@ -6,6 +6,8 @@ Basic and advanced processing objects
 from numpy import vstack, ogrid, empty, ones, asarray, ndim, round, hypot,\
     linspace, sum, dstack, float32, zeros, poly1d, polyfit, argmin, where,\
     logical_and, rollaxis, complex, angle, array, ndarray
+    
+from numpy.linalg import norm
 
 from scipy.ndimage import map_coordinates 
 from scipy.ndimage.filters import gaussian_filter1d, median_filter
@@ -317,6 +319,15 @@ class LineOnImage(object):
         return [self.x1, self.y1]
     
     @property
+    def center_pix(self):
+        """Returns coordinate of center pixel"""
+        dx, dy = self._delx_dely()
+        xm = self.x0 + dx / 2.
+        ym = self.y0 + dy / 2.
+        return xm, ym
+        
+    
+    @property
     def normal_orientation(self):
         """Get / set value for orientation of normal vector"""
         return self._normal_orientation
@@ -518,7 +529,8 @@ class LineOnImage(object):
         
     """Plotting / visualisation etc...
     """
-    def plot_line_on_grid(self, img_arr = None, ax = None, **kwargs):
+    def plot_line_on_grid(self, img_arr = None, ax = None,\
+                                include_normal = False, **kwargs):
         """Draw the line on the image
         
         :param ndarray img_arr: if specified, the array is plotted using 
@@ -547,11 +559,20 @@ class LineOnImage(object):
             ax = subplot(111)
         if img_arr is not None:
             ax.imshow(img_arr, cmap = "gray")
-        ax.plot([self.start[0],self.stop[0]], [self.start[1],self.stop[1]],\
+        p = ax.plot([self.start[0],self.stop[0]], [self.start[1],self.stop[1]],\
              **kwargs)
         if img_arr is not None:
             ax.set_xlim([0,img_arr.shape[1]])
             ax.set_ylim([img_arr.shape[0],0])
+        if include_normal:
+            mag = self.norm * 0.03 #3 % of length of line
+            n = self.normal_vector * mag
+            xm, ym = self.center_pix
+            epx, epy = n[0], n[1]
+            c = p[0].get_color()
+            ax.arrow(xm, ym, epx, epy, head_width=mag/2, head_length=mag,\
+                                    fc = c, ec = c, label = "Scaled normal")
+            
         #axis('image')
         if new_ax:
             ax.set_title("Line " + str(self.line_id))
@@ -584,18 +605,20 @@ class LineOnImage(object):
         
     def _delx_dely(self):
         """Length of x and y range covered by line"""
-        return self.x1 - self.x0, self.y1 - self.y0
+        return float(self.x1) - float(self.x0), float(self.y1) - float(self.y0)
     
     @property
     def norm(self):
         """Return length of line in pixels"""
-        return self.length()
+        dx, dy = self._delx_dely()
+        return norm([dx, dy])
     
     def normal_vecs(self):
         """Get both normal vectors"""
         dx, dy = self._delx_dely()
-        return array([-dy, dx])/self.norm, array([dy, -dx])/self.norm
-    
+        v1, v2 = array([-dy, dx]), array([dy, -dx])
+        return v1 / norm(v1), v2 / norm(v2)
+            
     @property
     def normal_vector(self):
         """Get normal vector corresponding to current orientation setting"""

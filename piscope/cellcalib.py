@@ -402,7 +402,7 @@ class CellCalibEngine(Dataset):
             
         self.search_results.add_cell_search_result(filter_id, cell_info,\
                                                                 bg_info, rest)
-        self.store_pixel_mean_time_series(ts, ("%s_autoSearch" %filter_id))
+        self.pix_mean_tseries["%s_auto_search" %filter_id] = ts
         bg_info.img_list.change_index(argmin(bg_info.mean_vals_err))
         
         
@@ -678,7 +678,8 @@ class CellCalibEngine(Dataset):
             lst.activate_dark_corr()
             cell_img = lst.current_img()
             try:
-                bg_mean_now = bg_mean_tseries.get_poly_vals(cell_img.meta["start_acq"])
+                bg_mean_now = bg_mean_tseries.get_poly_vals(cell_img.meta[\
+                                                                "start_acq"])
                 offset = bg_mean - bg_mean_now
             except:
                 print ("Warning while calculating tau image stack for filter "
@@ -756,12 +757,12 @@ class CellCalibEngine(Dataset):
                                         include_tit = True, ax = None):
         """High level plotting function for results from automatic cell search
         
-        :param str filter_id ("on"): image type ID (e.g. "on", "off"), i.e. usually
-            ID of filter used
+        :param str filter_id ("on"): image type ID (e.g. "on", "off"), i.e. 
+        usually ID of filter used
             
         """
         # get stored time series (was automatically saved in :func:`find_cells`)
-        ts_all = self.pix_mean_tseries[("%s_autoSearch" %filter_id)]
+        ts_all = self.pix_mean_tseries[("%s_auto_search" %filter_id)]
         # get cell search results
         res = self.search_results
         if not res.cell_info.has_key(filter_id) or\
@@ -778,7 +779,8 @@ class CellCalibEngine(Dataset):
         ts_all.plot(include_tit = include_tit, ax = ax)
         info = res.cell_info[filter_id]
         ts = ts_all.index
-        dt = timedelta(0, (ts[-1] - ts[0]).total_seconds() / (len(ts_all) * 10))
+        dt = timedelta(0, (ts[-1] - ts[0]).total_seconds() /\
+                                                (len(ts_all) * 10))
         for cell in info.values():                
             lbl = "Cell %s: %.2e cm-2" %(cell.img_list.cell_id,\
                                             cell.img_list.gas_cd)
@@ -884,84 +886,10 @@ class CellCalibEngine(Dataset):
         ax.set_ylim([y_min - so2.min() * 0.1, so2.max()*1.05])
         ax.set_xlim([0, tau_max * 1.05])
         ax.grid()
-        ax.legend(loc = "best", fancybox = True, framealpha = 0.5, fontsize = 14)
+        ax.legend(loc = "best", fancybox = True,\
+                            framealpha = 0.5, fontsize = 14)
         return ax
-        
-#==============================================================================
-#     def plot_calib_curve(self, filter_id, pos_x_abs = None, pos_y_abs = None, radius = 1,\
-#                                                     mask = None, ax = None):
-#         """Plot the calibration curve in a certain image pixel region
-#         
-#         :param str filter_id: image type ID (e.g. "on", "off")
-#         :param int pos_x_abs (None): x position of center pixel on detector
-#         :param int pos_y_abs (None): y position of center pixel on detector
-#         :param float radius (1): radius of pixel disk on detector (centered
-#             around pos_x_abs, pos_y_abs)
-#         :param ndarray mask (None): boolean mask for image pixel access, 
-#             default is None, if the mask is specified and valid (i.e. same
-#             shape than images in stack) then the other three input parameters
-#             are ignored
-#         :param ax (None): matplotlib axes (if None, a new figure with axes
-#             will be created)
-#             
-#         """
-#         if ax is None:
-#             fig, ax = subplots(1,1)
-#         #self.tau_stacks[filter_id].get_time_series(pos_x_abs, pos_y_abs, radius, mask)
-#         poly, tau_arr, so2_arr = self.fit_calib_poly(pos_x_abs,pos_y_abs,filter_id,radius)
-#         ax=subplot(1,1,1)
-#         ax.plot(tau_arr,so2_arr," ob",label="Cell data " + str(filter_id))
-#         xp=linspace(0,0.5,10)
-#         ax.plot(xp,poly(xp), "--r", label="Cell poly " + str(filter_id))            
-#         ax.set_title("Cell calib " + filter_id + \
-#         " at pos (x,y,r) : (" + str(pos_x_abs) + "," + str(pos_y_abs) + "," + str(radius) + ")")
-#         ax.set_xlabel("Tau")
-#         ax.set_ylabel("SO2-SCD [cm-2]")
-#         ax.grid()
-#         ax.legend(loc='best', fancybox=True, framealpha=0.5, fontsize=10)
-#         return ax
-#==============================================================================
-            
-#==============================================================================
-#     def plot_tau_image(self, cellAcro, filter_id = "on", scaleMinMax = 1):
-#         """Plot tau image of one specific cell
-#         
-#         :param str cellAcro: cell ID of this image
-#         """
-#         if filter_id, stack in self.tau_stacks.iteritems():
-#             tauMin=stack.min()
-#             tau_max=stack.max()
-#             fig,axes=subplots(1,3, figsize=(18,5))
-#             for k in range(self.numberOfCells):
-#                 tit=("Cell " + str(self.stacks.suppl.abbr[k]) + ", SO2-SCD: "
-#                     + str(self.stacks.suppl.so2[k]) + " cm-2")
-#                 if scaleMinMax:
-#                     disp=axes[k].imshow(stack[:,:,k], vmin=tauMin, vmax=tau_max)
-#                 else:
-#                     disp=axes[k].imshow(stack[:,:,k])
-#                 axes[k].set_title(tit)
-#                 fig.colorbar(disp,ax=axes[k])
-#             return fig,axes
-#==============================================================================
-            
-    def store_pixel_mean_time_series(self, pix_mean_ts, save_id):
-        """Option to store :class:`PixelMeanTimeSeries` in this class
-        
-        :param PixelMeanTimeSeries pix_mean_ts: the object to be saved
-        :param str save_id: string ID used for storing
-
-        The object is saved in ``self.pix_mean_tseries`` dictionary
-        
-        .. note::
-        
-            existing objects with same ID will be overwritten without 
-            warning
-            
-        """
-        if not isinstance(pix_mean_ts, PixelMeanTimeSeries):
-            raise TypeError("Invalid input type %s: need PixelMeanTimeSeries "
-                " object" %type(pix_mean_ts))
-        self.pix_mean_tseries[save_id] = pix_mean_ts
+   
 
         
 
