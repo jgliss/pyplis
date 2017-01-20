@@ -79,7 +79,7 @@ def determine_ica_cross_correlation(icas_first_line, icas_second_line,\
         ax[1].grid()
         #ax[1].set_xlabel("Shift")
         ax[1].set_ylabel("Correlation coeff")
-        
+       
     lag = argmax(coeffs) * reg_grid_tres
     return lag, coeffs, s1, s2, max_coeff_signal, ax
     

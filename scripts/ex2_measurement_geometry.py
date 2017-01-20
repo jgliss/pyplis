@@ -32,18 +32,18 @@ def correct_viewing_direction(meas_geometry, draw_result = True):
     elev_new, az_new, _, map = meas_geometry.correct_viewing_direction(\
         se_crater_img_pos[0], se_crater_img_pos[1], obj_id = "SE crater",\
                                                 draw_result =  draw_result)
-    return map, meas_geometry
+    return meas_geometry, map
     
 def plot_plume_distance_image(meas_geometry):
     """Determines and plots image where each pixel corresponds to the plume 
     distance"""
     dist_img, plume_dist_img = meas_geometry.get_all_pix_to_pix_dists()
     fig, ax = subplots(1, 2, figsize = (16,4))
-    disp0 = ax[0].imshow(dist_img, cmap = "gray")
+    disp0 = ax[0].imshow(dist_img.img, cmap = "gray")
     ax[0].set_title("Parametrised pixel to pixel distances")
     cb0 = fig.colorbar(disp0, ax =ax[0], shrink = 0.9)
     cb0.set_label("Pixel to pixel distance [m]")
-    disp1 = ax[1].imshow(plume_dist_img / 1000.0, cmap = "gray")
+    disp1 = ax[1].imshow(plume_dist_img.img / 1000.0, cmap = "gray")
     cb1 = fig.colorbar(disp1, ax =ax[1], shrink = 0.9)
     cb1.set_label("Plume distance [km]")
     ax[1].set_title("Retrieved plume distances")
@@ -52,8 +52,8 @@ def plot_plume_distance_image(meas_geometry):
 if __name__ == "__main__":
     close("all")
     ds = create_dataset()
-    map, geom = correct_viewing_direction(ds.meas_geometry)
-    fig = plot_plume_distance_image(ds.meas_geometry)
+    geom_corr, map = correct_viewing_direction(ds.meas_geometry)
+    fig =  plot_plume_distance_image(ds.meas_geometry)
     show()
     map.ax.figure.savefig(join(save_path, "ex2_out_1.png"))
     fig.savefig(join(save_path, "ex2_out_2.png"))
