@@ -5,7 +5,8 @@ import matplotlib.cm as cmaps
 from matplotlib.pyplot import imread, figure, tight_layout
 from numpy import ndarray, argmax, histogram, float32, uint, nan, linspace,\
                                                 swapaxes, flipud, isnan
-from os.path import abspath, splitext, basename, exists
+from os.path import abspath, splitext, basename, exists, join
+from os import getcwd, remove
 from datetime import datetime
 from re import sub
 from decimal import Decimal
@@ -545,6 +546,36 @@ class Img(object):
         self.meta["path"] = abspath(file_path)
         self.meta["file_name"] = basename(file_path)
         self.meta["file_type"] = ext
+    
+    def save_as_fits(self, save_dir = None, save_name = None):
+        """Save stack as FITS file"""
+        self._format_check()
+        try:
+            save_name = save_name.split(".")[0]
+        except:
+            pass
+        if save_dir is None:
+            save_dir = getcwd()
+        if save_name is None:
+            if self.meta["file_name"] == "":
+                save_name = "piscope_img_name_undefined.fts"
+            else:
+                save_name = self.meta["file_name"].split(".")[0] + ".fts"
+        else:
+            save_name = save_name + ".fts"
+        hdu = fits.PrimaryHDU()
+        hdu.data = self._img
+        hdu.header.update(self.edit_log)
+        hdu.header.update(self.meta)
+        hdu.header.append()
+        roi_abs = fits.BinTableHDU.from_columns([fits.Column(name = "roi_abs",\
+                                format = "I", array = self._roi_abs)])
+        hdulist = fits.HDUList([hdu, roi_abs])
+        path = join(save_dir, save_name)
+        if exists(path):
+            print "Image already exists at %s and will be overwritten" %path
+            remove(path)
+        hdulist.writeto(path)
         
     def import_ec2_header(self, ec2header):
         """Import image meta info for ECII camera type from FITS file header"""
