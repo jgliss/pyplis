@@ -16,7 +16,8 @@ from matplotlib.pyplot import figure
 from copy import deepcopy
 
 from piscope import GEONUMAVAILABLE
-#from .processing import LineOnImage
+from .image import Img
+from .helpers import check_roi
 if GEONUMAVAILABLE:
     from geonum import GeoSetup, GeoPoint, GeoVector3D, TopoData
     from geonum.topodata import TopoAccessError
@@ -578,13 +579,16 @@ class MeasGeometry(object):
         """Determine pix to pix distances for all pix cols on the detector
         
         Based on angle between horizontal plume propagation and the individual
-        horizontal viewing directions for each pixel column.
-        
+        horizontal viewing directions for each pixel column in original image
+        coordinates. Thus, note that these values need to be converted in 
+        case binning was applied or the images were downscaled (i.e. using
+        gaussian pyramid).
 
         .. note::
         
-            this is inadequate for complicated viewing geometries (i.e if the 
+            1. this is inadequate for complicated viewing geometries (i.e if the 
             the angles between viewing direction and plume are sharp)
+            
         """
         ratio = self.cam["pix_width"] / self.cam["focal_length"] #in m
         azims = self._get_all_azimuth_angles_fov()
@@ -592,12 +596,19 @@ class MeasGeometry(object):
         pix_dists_m = dists * ratio
         return pix_dists_m, dists
     
-    def get_all_pix_to_pix_dists(self):
+    def get_all_pix_to_pix_dists(self, pyrlevel = 0, roi_abs = None):
         """Determine image containing pixel to pixel distances"""
         pix_dists_m, plume_dists = self.calculate_pixel_col_distances()
         h = self.cam["pixnum_y"]
-        p2p_img = pix_dists_m * ones(h).reshape((h, 1))
-        plume_dist_img = plume_dists * ones(h).reshape((h, 1))
+        p2p_img = Img(pix_dists_m * ones(h).reshape((h, 1)))
+        plume_dist_img = Img(plume_dists * ones(h).reshape((h, 1)))
+        #the pix-to-pix distances need to be transformed based on pyrlevel
+        p2p_img.pyr_down(pyrlevel)# * 2**pyrlevel
+        p2p_img = p2p_img * 2**pyrlevel
+        plume_dist_img.pyr_down(pyrlevel)
+        if check_roi(roi_abs):
+            p2p_img.crop(roi_abs)
+            plume_dist_img.crop(roi_abs)
         return p2p_img, plume_dist_img
         
     def get_plume_direction(self):

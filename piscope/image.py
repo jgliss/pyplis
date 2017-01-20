@@ -89,7 +89,7 @@ class Img(object):
         if isinstance(input, Img):
             return input
             
-        self.img = None #: the actual image data
+        self._img = None #: the actual image data
         self.dtype = dtype
         
         self.cam_id = cam_id
@@ -135,6 +135,16 @@ class Img(object):
             self.set_roi_whole_image()
         except:
             pass
+    
+    @property
+    def img(self):
+        """Get / set image data"""
+        return self._img
+    
+    @img.setter
+    def img(self, val):
+        """Setter for image data"""
+        self._img = val
         
     def set_data(self, input):
         """Try load input"""
@@ -151,7 +161,7 @@ class Img(object):
                 self.load_file(input)
             
             elif isinstance(input, ndarray):
-                self.img = input
+                self.img = input.astype(self.dtype)
         except:
             raise IOError("Image data could not be imported:\nError msg: %s"\
                                         %format_exc())
@@ -390,10 +400,20 @@ class Img(object):
         #print self.meta["file_name") + ' successfully duplicated'
         return deepcopy(self)
     
+    def mean(self):
+        """Returns mean value of current image data"""
+        return self.img.mean()
+        
+    def std(self):
+        """Returns standard deviation of current image data"""
+        return self.img.std()
+        
     def min(self):
+        """Returns minimum value of current image data"""
         return self.img.min()
     
     def max(self):
+        """Returns maximum value of current image data"""
         return self.img.max()
         
     def _valid_cam_id(self):
@@ -648,55 +668,79 @@ class Img(object):
         """Return image numpy array on call"""
         return self.img
         
-    def __add__(self, img_obj):
+    def __add__(self, val):
         """Add another image object
         
         :param Img img_obj: object to be added
         :return: new image object
         """
         try:
-            return Img(self.img + img_obj.img)
-            
+            im = self.duplicate()
+            im.img = self.img + val.img
+            return im
         except:
-            raise TypeError("Could not add target image of type %s"
-                                                                %type(img_obj))
+            try:
+                im = self.duplicate()
+                im.img = self.img + val
+                return im
+            except:
+                raise TypeError("Could not add value %s to image" %type(val))
+        
             
-    def __sub__(self, img_obj):
+    def __sub__(self, val):
         """Subtract another image object
         
         :param Img img_obj: object to be subtracted
         :return: new image object
         """
         try:
-            return Img(self.img - img_obj.img)            
+            im = self.duplicate()
+            im.img = self.img - val.img
+            return im
         except:
-            raise TypeError("Could not subtract target image of type %s"
-                                                                %type(img_obj))
+            try:
+                im = self.duplicate()
+                im.img = self.img - val
+                return im
+            except:
+                raise TypeError("Could not subtract value %s from image" 
+                                                                %type(val))
     
-    def __mul__(self, img_obj):
+    def __mul__(self, val):
         """Multiply another image object
         
         :param Img img_obj: object to be multiplied
         :return: new image object
         """
         try:
-            return Img(self.img * img_obj.img)
+            im = self.duplicate()
+            im.img = self.img * val.img
+            return im
         except:
-            raise TypeError("Could not subtract target image of type %s"
-                                                                %type(img_obj))
+            try:
+                im = self.duplicate()
+                im.img = self.img * val
+                return im
+            except:
+                raise TypeError("Could not multilply image with value %s" 
+                                                                %type(val))
 
-    def __div__(self, img_obj):
+    def __div__(self, val):
         """Divide another image object
         
         :param Img img_obj: object to be multiplied
         :return: new image object
         """
         try:
-            return Img(self.img / img_obj.img)
+            im = self.duplicate()
+            im.img = self.img / val.img
+            return im
         except:
             try:
-                return Img(self.img / img_obj)
+                im = self.duplicate()
+                im.img = self.img / val
+                return im
             except:
-                raise TypeError("Could not divide target image of type %s"
-                                                                %type(img_obj))
+                raise TypeError("Could not divide image with value %s" 
+                                                                %type(val))
             

@@ -5,8 +5,7 @@ Basic and advanced processing objects
 """
 from numpy import vstack, ogrid, empty, ones, asarray, ndim, round, hypot,\
     linspace, sum, dstack, float32, zeros, poly1d, polyfit, argmin, where,\
-    logical_and, rollaxis, complex, angle, array, sign
-from numpy.linalg import norm
+    logical_and, rollaxis, complex, angle, array, ndarray
 
 from scipy.ndimage import map_coordinates 
 from scipy.ndimage.filters import gaussian_filter1d, median_filter
@@ -495,7 +494,12 @@ class LineOnImage(object):
         
         :param ndarray array: the image array (color images are converted into
                             gray scale using :func:`cv2.cvtColor`) 
+        :return
         """
+        try:
+            array = array.img #if input is Img object
+        except:
+            pass
         if ndim(array) != 2:
             if ndim(array) != 3:
                 print ("Error retrieving line profile, invalid dimension of input "
@@ -585,8 +589,7 @@ class LineOnImage(object):
     @property
     def norm(self):
         """Return length of line in pixels"""
-        dx, dy = self._delx_dely()
-        return norm([dx, dy])
+        return self.length()
     
     def normal_vecs(self):
         """Get both normal vectors"""
@@ -641,6 +644,125 @@ class LineOnImage(object):
         s=(s + "Start (X,Y): " + str(self.start) + 
                 "\nStop (X,Y): " + str(self.stop) + "\n")
         return s
+
+class ProfileTimeSeriesImg(Img):
+    """Image representing time series of line profiles
+    
+    The y axis of the profile image corresponds to the actual profiles 
+    (retrieved from the individual images) and the x axis corresponds to the 
+    image time axis (i.e. the individual frames). Time stamps (mapping of 
+    x indices) can also be stored in this object.
+    
+    Example usage is, for instance to represent ICA time series retrieved
+    along a profile (e.g. using :class:`LineOnImage`) for plume speed cross 
+    correlation
+    """
+    def __init__(self, img_data = None, time_stamps = asarray([]),\
+                                img_id = "", dtype = float32, **meta_info):
+        self.img_id = img_id
+        self.time_stamps = asarray(time_stamps)
+        #Initiate object as Img object
+        super(ProfileTimeSeriesImg, self).__init__(input = img_data,\
+                                            dtype = dtype, **meta_info)
+                                                
+    @property
+    def img(self):
+        """Get / set image data"""
+        return self._img
+    
+    @img.setter
+    def img(self, val):
+        """Setter for image data"""
+        if not isinstance(val, ndarray) or val.ndim != 2:
+            raise ValueError("Could not set image data, need 2 dimensional"
+                " numpy array as input")
+        self._img = val
+        num = val.shape[1]
+        if not len(self.time_stamps) == num:
+            self.time_stamps = asarray([datetime(1900,1,1)] * num)
+        
+    def _format_check(self):
+        """Checks if current data is of right format"""
+        if not all([isinstance(x, ndarray) for x in [self._img,\
+                                                self.time_stamps]]):
+            raise TypeError("self.img and self.time_stamps must be numpy "
+                "arrays")
+        if not len(self.time_stamps) == self.shape[1]:
+            raise ValueError("Mismatch in array lengths")
+
+    @property
+    def start(self):
+        """Returns first datetime from ``self.time_stamps``"""
+        try:
+            return self.time_stamps[0]
+        except:
+            print "no time information available, return 1/1/1900"
+            return datetime(1900,1,1)
+    
+    @property
+    def stop(self):
+        """Returns first datetime from ``self.time_stamps``"""
+        try:
+            return self.time_stamps[-1]
+        except:
+            print "no time information available, return 1/1/1900"
+            return datetime(1900,1,1)
+              
+    def save_as_fits(self, save_dir = None, save_name = None):
+        """Save stack as FITS file"""
+        self._format_check()
+        try:
+            save_name = save_name.split(".")[0]
+        except:
+            pass
+        if save_dir is None:
+            save_dir = getcwd()
+        if save_name is None:
+            save_name = "piscope_profile_tseries_id_%s_%s_%s_%s.fts"\
+                %(self.img_id, self.start.strftime("%Y%m%d"),\
+                self.start.strftime("%H%M"), self.stop.strftime("%H%M"))
+        else:
+            save_name = save_name + ".fts"
+        hdu = fits.PrimaryHDU()
+        time_strings = [x.strftime("%Y%m%d%H%M%S%f") for x in self.time_stamps]
+        col1 = fits.Column(name = "time_stamps", format = "25A", array =\
+            time_strings)
+    
+        cols = fits.ColDefs([col1])
+        arrays = fits.BinTableHDU.from_columns(cols)
+        
+        hdu.data = self._img
+        hdu.header.update(self.edit_log)
+        hdu.header["img_id"] = self.img_id
+        hdu.header.append()
+        hdulist = fits.HDUList([hdu, arrays])
+        path = join(save_dir, save_name)
+        if exists(path):
+            print "Stack already exists at %s and will be overwritten" %path
+            remove(path)
+
+        hdulist.writeto(path)
+    
+    def load_fits(self, file_path):
+        """Load stack object (fits)
+        
+        :param str file_path: file path of fits image
+        """
+        if not exists(file_path):
+            raise IOError("Img could not be loaded, path does not exist")
+        hdu = fits.open(file_path)
+        self.img = asarray(hdu[0].data)
+        prep = Img().edit_log
+        for key, val in hdu[0].header.iteritems():
+            if key.lower() in prep.keys():
+                self.edit_log[key.lower()] = val
+        self.img_id = hdu[0].header["img_id"]
+        try:
+            self.time_stamps = asarray([datetime.strptime(x, "%Y%m%d%H%M%S%f")\
+                for x in hdu[1].data["time_stamps"]])
+        except:
+            print "Failed to import time stamps"
+        self._format_check()
         
 class ImgStack(object):
     """Basic img stack object with some functionality, stack data is based
@@ -1345,26 +1467,28 @@ def model_dark_image(img, dark, offset):
     
     return Img(dark_img, start_acq = img.meta["start_acq"],\
                                             texp = img.meta["texp"])
-import matplotlib.animation as animation
-
-def animate_stack(img_stack):
-    
-    fig = figure() # make figure
-    
-    # make axesimage object
-    # the vmin and vmax here are very important to get the color map correct
-    im = imshow(sta, cmap=plt.get_cmap('jet'), vmin=0, vmax=255)
-    
-    # function to update figure
-    def updatefig(j):
-        # set the data in the axesimage object
-        im.set_array(imagelist[j])
-        # return the artists set
-        return im,
-    # kick off the animation
-    animation.FuncAnimation(fig, updatefig, frames=range(20), 
-                                  interval=50, blit=True)
-    plt.show()
+#==============================================================================
+# import matplotlib.animation as animation
+# 
+# def animate_stack(img_stack):
+#     
+#     fig = figure() # make figure
+#     
+#     # make axesimage object
+#     # the vmin and vmax here are very important to get the color map correct
+#     im = imshow(sta, cmap=plt.get_cmap('jet'), vmin=0, vmax=255)
+#     
+#     # function to update figure
+#     def updatefig(j):
+#         # set the data in the axesimage object
+#         im.set_array(imagelist[j])
+#         # return the artists set
+#         return im,
+#     # kick off the animation
+#     animation.FuncAnimation(fig, updatefig, frames=range(20), 
+#                                   interval=50, blit=True)
+#     plt.show()
+#==============================================================================
 
  
 #==============================================================================

@@ -93,3 +93,6 @@ piscope/data/piscope_etna_testdata
 
 # _private folder
 _private
+
+# FITS files (.fts) in scripts_out folder
+scripts/scripts_out/*.fts
