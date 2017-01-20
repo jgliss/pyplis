@@ -331,6 +331,18 @@ class BaseImgList(object):
                                                                     img_file)
         return {"start_acq" : start_acq, "texp": texp}
     
+    @property
+    def acq_times(self):
+        """Returns list of acquisition time stamps
+        
+        The time stamps are extracted from the file names
+        """
+        ts = self.get_img_meta_all_filenames()[0]
+        if ts is False:
+            raise ValueError("Image acquisition times could not be extracted"
+                " from file names")
+        return ts
+        
     def get_img_meta_all_filenames(self):   
         """Try to load acquisition and exposure times from filenames
         

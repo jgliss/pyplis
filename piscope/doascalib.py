@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from numpy import min, arange, asarray, zeros, linspace, column_stack,\
-    ones, e, nan, float32, polyfit, poly1d, sqrt, isnan
+    ones, nan, float32, polyfit, poly1d, sqrt, isnan
 from scipy.stats.stats import pearsonr 
 from datetime import datetime 
 from scipy.sparse.linalg import lsmr
@@ -14,6 +14,7 @@ from traceback import format_exc
 from matplotlib.pyplot import subplots
 from matplotlib.patches import Circle, Ellipse
 from matplotlib.cm import RdBu
+
 from .processing import ImgStack
 from .helpers import shifted_color_map, mesh_from_img, get_img_maximum,\
         sub_img_to_detector_coords, map_coordinates_sub_img

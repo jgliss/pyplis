@@ -4,8 +4,9 @@ Basic and advanced processing objects
 -------------------------------------
 """
 from numpy import vstack, ogrid, empty, ones, asarray, ndim, round, hypot,\
-    linspace, sum, arctan, sin, cos, dstack, deg2rad, float32, zeros,\
-    poly1d, polyfit, argmin, where, logical_and, rollaxis
+    linspace, sum, dstack, float32, zeros, poly1d, polyfit, argmin, where,\
+    logical_and, rollaxis, complex, angle, array, sign
+from numpy.linalg import norm
 
 from scipy.ndimage import map_coordinates 
 from scipy.ndimage.filters import gaussian_filter1d, median_filter
@@ -258,14 +259,17 @@ class LineOnImage(object):
     Main purpose is data extraction along the line, which is done using 
     spline interpolation.    
     """
-    def __init__(self, x0, y0, x1, y1, roi_abs = [0, 0, 9999, 9999],\
-                                            pyrlevel = 0, line_id = ""):
+    def __init__(self, x0, y0, x1, y1, normal_orientation = "right",\
+                roi_abs = [0, 0, 9999, 9999], pyrlevel = 0, line_id = ""):
         """Initiation of line
         
         :param int x0: start x coordinate
         :param int y0: start y coordinate
         :param int x1: stop x coordinate
         :param int y1: stop y coordinate
+        :param str normal_orientation: orientation of normal vector, choose 
+            from left or right (left means in negative x direction for a 
+            vertical line)
         :param list roi_abs: region of interest in image for which start / stop
             coordinates are defined (is used to convert to other image shape
             settings)
@@ -282,6 +286,9 @@ class LineOnImage(object):
         """
         self.line_id = line_id # string ID of line
         
+        if x0 > x1:
+            x0, y0, x1, y1 = x1, y1, x0, y0
+            
         self.x0 = x0 #start x coordinate
         self.y0 = y0 #start y coordinate
         self.x1 = x1 #stop x coordinate
@@ -290,14 +297,16 @@ class LineOnImage(object):
         self._roi_abs = roi_abs
         self._pyrlevel = pyrlevel
         
-        self.normal_vector = None
         self.profile_coords = None
         
+        self._dir_idx = {"left"   :   0,
+                         "right"  :   1}
+                         
         self.check_coordinates()
-        
-        self._det_normal_vec()
+        self.normal_orientation = normal_orientation
+                                       
         self.prepare_profile_coordinates()
-    
+            
     @property
     def start(self):
         """Returns start coordinates ``[x0, y0]``"""
@@ -308,6 +317,22 @@ class LineOnImage(object):
         """Returns stop coordinates ``[x1, y1]``"""
         return [self.x1, self.y1]
     
+    @property
+    def normal_orientation(self):
+        """Get / set value for orientation of normal vector"""
+        return self._normal_orientation
+        
+    @normal_orientation.setter
+    def normal_orientation(self, val):
+        if not val in ["left", "right"]:
+            raise ValueError("Invalid input for attribute orientation, please"
+                " choose from left or right")
+        dx, dy = self._delx_dely()
+        if dx*dy < 0:
+            self._dir_idx["left"] =1
+            self._dir_idx["right"] = 0
+        self._normal_orientation = val
+        
     @property
     def roi_abs(self):
         """Returns current ROI (in absolute detector coordinates)"""
@@ -332,6 +357,18 @@ class LineOnImage(object):
             "please use method convert() to create a new LineOnImage object "
             "corresponding to other image shape settings")
      
+    def offset(self, pixel_num = 20, line_id = None):
+        """Returns a shifted line at given distance along normal orientation"""
+        if line_id is None:
+            line_id = self.line_id + "_shifted_%dpix" %pixel_num
+        dx, dy = self.normal_vector*pixel_num
+        print dx, dy
+        x0, x1 = self.x0 + dx, self.x1 + dx
+        y0, y1 = self.y0 + dy, self.y1 + dy
+        return LineOnImage(x0, y0, x1, y1, normal_orientation =\
+                self.normal_orientation, line_id= line_id)
+        
+        
     def convert(self, pyrlevel = 0, roi_abs = [0, 0, 9999, 9999]):
         """Convert to other image preparation settings"""
         if pyrlevel == self.pyrlevel and same_roi(self.roi_abs, roi_abs):
@@ -349,7 +386,8 @@ class LineOnImage(object):
         print ("Mapped to input coords (x0, y0, x1, y1):\n(%s, %s, %s, %s)" 
                                 %(x0, y0, x1, y1))
         return LineOnImage(x0, y0, x1, y1, roi_abs = roi_abs, pyrlevel =\
-            pyrlevel, line_id=self.line_id)
+            pyrlevel, normal_orientation = self.normal_orientation,\
+            line_id=self.line_id)
             
     def check_coordinates(self):
         """Check if coordinates are in the right order and exchange start/stop
@@ -498,14 +536,15 @@ class LineOnImage(object):
             kwargs["ls"] = "-"
         if not "marker" in keys:
             kwargs["marker"] = "o"
-            
+        if not "label" in keys:
+            kwargs["label"] = self.line_id
         if ax is None:
             new_ax = True
             ax = subplot(111)
         if img_arr is not None:
             ax.imshow(img_arr, cmap = "gray")
         ax.plot([self.start[0],self.stop[0]], [self.start[1],self.stop[1]],\
-            label = self.line_id, **kwargs)
+             **kwargs)
         if img_arr is not None:
             ax.set_xlim([0,img_arr.shape[1]])
             ax.set_ylim([img_arr.shape[0],0])
@@ -538,30 +577,59 @@ class LineOnImage(object):
         self.plot_line_on_grid(img_arr,axes[0])
         self.plot_line_profile(img_arr,axes[1])
         tight_layout()
-    
-    def get_kappa(self):
-        """Returns angle of line with respect to detector coords"""
-        delx, dely = self._delx_dely()
-        try:
-            a = arctan(float(dely)/float(delx))
-        except ZeroDivisionError:
-            a = deg2rad(90.)
-        return a
         
     def _delx_dely(self):
         """Length of x and y range covered by line"""
-        return abs(self.stop[0] - self.start[0]),\
-                                abs(self.stop[1] - self.start[1])
-        
-    def _det_normal_vec(self):
-        """Determine the normal vector of this line"""
-        
-        a = self.get_kappa()
-        self.normal_vector = (sin(a), cos(a))
+        return self.x1 - self.x0, self.y1 - self.y0
     
+    @property
+    def norm(self):
+        """Return length of line in pixels"""
+        dx, dy = self._delx_dely()
+        return norm([dx, dy])
+    
+    def normal_vecs(self):
+        """Get both normal vectors"""
+        dx, dy = self._delx_dely()
+        return array([-dy, dx])/self.norm, array([dy, -dx])/self.norm
+    
+    @property
+    def normal_vector(self):
+        """Get normal vector corresponding to current orientation setting"""
+        return self.normal_vecs()[self._dir_idx[self.normal_orientation]]
+        
+    @property
+    def complex_normal(self):
+        """Return current normal vector as complex number"""
+        dx, dy = self.normal_vector
+        return complex(-dy, dx)
+    
+    @property
+    def normal_theta(self):
+        """Returns orientation of normal vector in degrees
+        
+        The angles correspond to:
+        
+            1. 0    =>  to the top (neg. y direction)
+            2. 90   =>  to the right (pos. x direction)
+            3. 180  =>  to the bottom (pos. y direction)
+            4. 270  =>  to the left (neg. x direction)
+        """
+        return angle(self.complex_normal, True)%360
+        
     def to_list(self):
         """Returns line coordinates as 4-list"""
         return [self.x0, self.y0, self.x1, self.y1]
+    
+    @property
+    def orientation_info(self):
+        """Returns string about orientation of line and normal"""
+        dx, dy = self._delx_dely()
+        s = "delx, dely = %s, %s\n" %(dx, dy)
+        s += "normal orientation: %s\n" %self.normal_orientation
+        s += "normal vector: %s\n" %self.normal_vector
+        s += "Theta normal: %s\n" %self.normal_theta
+        return s
         
     """Magic methods
     """
