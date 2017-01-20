@@ -5,7 +5,7 @@ Classes for plume speed retrievals
 """
 from time import time
 from numpy import mgrid,vstack,int32,sqrt,arctan2,rad2deg, asarray,\
-    logical_and, histogram, nan, ceil, ones
+    logical_and, histogram, nan, ceil, ones, roll, argmax, arange
 
 from copy import deepcopy
 #from scipy.misc import bytescale
@@ -17,7 +17,8 @@ from collections import OrderedDict as od
 from matplotlib.pyplot import subplots, figure, close, Figure
 
 from matplotlib.patches import Rectangle
-from scipy.ndimage.filters import median_filter
+from scipy.ndimage.filters import median_filter, gaussian_filter
+from scipy.stats.stats import pearsonr
     
 from pandas import Series
 
@@ -30,14 +31,57 @@ from .processing import LineOnImage, ImgStack
 from .optimisation import MultiGaussFit
 from .image import Img
 
-def determine_ica_cross_correlation(self, icaValsPCS1, icaValsPCS2, timeStamps):
+def determine_ica_cross_correlation(icas_first_line, icas_second_line,\
+        time_stamps, reg_grid_tres = None, cut_border = 0,\
+                                            sigma_smooth = 1, plot = False):
     """Determines ICA cross correlation from two ICA time series
     :param ndarray icaValsPCS1: time series values of first ICA
     :param ndarray icaValsPCS1: time series values of second ICA
     :param ndarray timeStamps: array with image acquisition time stamps 
         (datetime objects)
     """
-    raise NotImplementedError
+    if reg_grid_tres is None:
+        delts = asarray([delt.total_seconds() for delt in\
+                        (time_stamps[1:] - time_stamps[:-1])])
+        reg_grid_tres = ceil(delts.mean()) - 1 #time resolution for re gridded data
+    
+    delt_str = "%dS" %(reg_grid_tres)
+
+    s1 = Series(icas_first_line, time_stamps).resample(delt_str).\
+            interpolate().dropna()
+    s2 = Series(icas_second_line, time_stamps).resample(delt_str).\
+                                                interpolate().dropna()
+    if cut_border > 0:
+        s1 = s1[cut_border:-cut_border]
+        s2 = s2[cut_border:-cut_border]
+    s1_vec = gaussian_filter(s1, sigma_smooth) 
+    s2_vec = gaussian_filter(s2, sigma_smooth) 
+    
+    fig, ax = subplots(1,1)
+    
+    coeffs = []
+    max_coeff = -10
+    max_coeff_signal = None
+    for k in range(len(s1_vec)):
+        shift_s1 = roll(s1_vec, k)
+        coeffs.append(pearsonr(shift_s1, s2_vec)[0])
+        if coeffs[-1] > max_coeff:
+            max_coeff_signal = Series(shift_s1, s1.index)
+    coeffs = asarray(coeffs)
+    ax = None
+    if plot:
+        fig, ax = subplots(1, 2, figsize = (18,6))
+        x = arange(0, len(coeffs), 1) * reg_grid_tres
+        s1.plot(ax = ax[0], label="First line")
+        s2.plot(ax = ax[0], label="Second line")
+        ax[1].plot(x, coeffs)
+        ax[1].set_xlabel("Delta t [%s]" %delt_str)
+        ax[1].grid()
+        #ax[1].set_xlabel("Shift")
+        ax[1].set_ylabel("Correlation coeff")
+        
+    lag = argmax(coeffs) * reg_grid_tres
+    return lag, coeffs, s1, s2, max_coeff_signal, ax
     
 class OpticalFlowFarnebackSettings(object):
     """Settings for optical flow Farneback calculations and visualisation"""

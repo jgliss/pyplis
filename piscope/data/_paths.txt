@@ -1,2 +1,4 @@
 
 /media/jg/Data/repos/
+
+D:\repos

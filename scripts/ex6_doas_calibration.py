@@ -28,7 +28,7 @@ RELOAD_STACK = 0
 #pyrlevel=2
 DO_FINE_SEARCH = 0
 
-my_dat = join("..", "..") #location of image stack
+my_dat = join("..", "..", "tests") #location of image stack
 stack_path = join(my_dat, "piscope_imgstack_id_aa_20150916_0706_0721.fts")
 
 if not exists(stack_path):
