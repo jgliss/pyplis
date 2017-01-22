@@ -11,7 +11,7 @@ from numpy.linalg import norm
 
 from scipy.ndimage import map_coordinates 
 from scipy.ndimage.filters import gaussian_filter1d, median_filter
-
+from json import loads, dumps
 from copy import deepcopy
 from datetime import datetime, timedelta
 from matplotlib.pyplot import subplot, subplots, tight_layout, draw
@@ -260,8 +260,8 @@ class LineOnImage(object):
     Main purpose is data extraction along the line, which is done using 
     spline interpolation.    
     """
-    def __init__(self, x0, y0, x1, y1, normal_orientation = "right",\
-                roi_abs = [0, 0, 9999, 9999], pyrlevel = 0, line_id = ""):
+    def __init__(self, x0 = 0, y0 = 0, x1 = 1, y1 = 1,  normal_orientation =\
+            "right", roi_abs = [0, 0, 9999, 9999], pyrlevel = 0, line_id = ""):
         """Initiation of line
         
         :param int x0: start x coordinate
@@ -366,17 +366,45 @@ class LineOnImage(object):
         raise AttributeError("This attribute is not supposed to be changed, "
             "please use method convert() to create a new LineOnImage object "
             "corresponding to other image shape settings")
-     
+    
+    def dist_other(self, other):
+        """Determines the distance to another line
+        
+        :param LineOnImage other: the line to which the distance is retrieved
+            
+        .. note::
+        
+            The offset is applied in relative coordinates, i.e. it does not
+            consider the pyramide level or ROI
+            
+        """
+        dx0, dy0 = other.x0 - self.x0, other.y0 - self.y0
+        dx1, dy1 = other.x1 - self.x1, other.y1 - self.y1
+        if dx1 != dx0 or dy1 != dy0:
+            print "dx0, dx1: %s, %s"%(dx0, dx1)
+            print "dy0, dy1: %s, %s"%(dy0, dy1)
+            raise ValueError("Lines are not parallel...")
+        return norm([dx0, dy0]), dx0, dy0
+        
     def offset(self, pixel_num = 20, line_id = None):
-        """Returns a shifted line at given distance along normal orientation"""
+        """Returns a shifted line at given distance along normal orientation
+        
+        .. note::
+                
+            1. The offset is applied in relative coordinates, i.e. it does not
+                consider the pyramide level or ROI
+            
+            2. The determined required displacement (dx, dy) is converted into
+                integers                
+            
+        """
         if line_id is None:
             line_id = self.line_id + "_shifted_%dpix" %pixel_num
-        dx, dy = self.normal_vector*pixel_num
-        print dx, dy
-        x0, x1 = self.x0 + dx, self.x1 + dx
-        y0, y1 = self.y0 + dy, self.y1 + dy
+        dx, dy = self.normal_vector * pixel_num
+        x0, x1 = self.x0 + int(dx), self.x1 + int(dx)
+        y0, y1 = self.y0 + int(dy), self.y1 + int(dy)
         return LineOnImage(x0, y0, x1, y1, normal_orientation =\
-                self.normal_orientation, line_id= line_id)
+                        self.normal_orientation, line_id= line_id)
         
         
     def convert(self, pyrlevel = 0, roi_abs = [0, 0, 9999, 9999]):
@@ -546,8 +574,8 @@ class LineOnImage(object):
         keys = kwargs.keys()
         if not "mec" in keys:
             kwargs["mec"] = "none"
-        if not "c" in keys:
-            kwargs["c"] = "lime"
+        if not "color" in keys:
+            kwargs["color"] = "lime"
         if not "ls" in keys:
             kwargs["ls"] = "-"
         if not "marker" in keys:
@@ -646,6 +674,18 @@ class LineOnImage(object):
     def to_list(self):
         """Returns line coordinates as 4-list"""
         return [self.x0, self.y0, self.x1, self.y1]
+        
+    def to_dict(self):
+        """Returns ID, coordinates and pyramide level in dictionary"""
+        return {"class"                 :   "LineOnImage",
+                "line_id"               :   self.line_id,
+                "x0"                    :   self.x0,
+                "y0"                    :   self.y0,
+                "x1"                    :   self.x1, 
+                "y1"                    :   self.y1,
+                "normal_orientation"    :   self.normal_orientation,
+                "pyrlevel"              :   self.pyrlevel, 
+                "roi_abs"               :   self.roi_abs}
     
     @property
     def orientation_info(self):
@@ -680,10 +720,13 @@ class ProfileTimeSeriesImg(Img):
     along a profile (e.g. using :class:`LineOnImage`) for plume speed cross 
     correlation
     """
-    def __init__(self, img_data = None, time_stamps = asarray([]),\
-                                img_id = "", dtype = float32, **meta_info):
+    def __init__(self, img_data = None, time_stamps = asarray([]), img_id =\
+                    "", dtype = float32, profile_info_dict = {}, **meta_info):
         self.img_id = img_id
         self.time_stamps = asarray(time_stamps)
+        self.profile_info = {}
+        if isinstance(profile_info_dict, dict):
+            self.profile_info = profile_info_dict
         #Initiate object as Img object
         super(ProfileTimeSeriesImg, self).__init__(input = img_data,\
                                             dtype = dtype, **meta_info)
@@ -757,6 +800,12 @@ class ProfileTimeSeriesImg(Img):
         hdu.data = self._img
         hdu.header.update(self.edit_log)
         hdu.header["img_id"] = self.img_id
+        for key, val in self.profile_info.iteritems():
+            if key == "roi_abs":
+                hdu.header["roi_abs"] = dumps(val)
+            else:
+                hdu.header[key] = val
+    
         hdu.header.append()
         hdulist = fits.HDUList([hdu, arrays])
         path = join(save_dir, save_name)
@@ -766,20 +815,39 @@ class ProfileTimeSeriesImg(Img):
 
         hdulist.writeto(path)
     
-    def load_fits(self, file_path):
+    def _profile_dict_keys(self, profile_type = "LineOnImage"):
+        """Returns profile dictionary keys for input profile type"""
+        d = {"LineOnImage"  :   LineOnImage().to_dict().keys()}
+        return d[profile_type]
+        
+    def load_fits(self, file_path, profile_type = "LineOnImage"):
         """Load stack object (fits)
         
         :param str file_path: file path of fits image
         """
+        
         if not exists(file_path):
             raise IOError("Img could not be loaded, path does not exist")
         hdu = fits.open(file_path)
         self.img = asarray(hdu[0].data)
         prep = Img().edit_log
+        try:
+            profile_keys = self._profile_dict_keys(profile_type)
+        except:
+            profile_keys = []
+            print "Failed to load profile info dictionary"
+        
         for key, val in hdu[0].header.iteritems():
-            if key.lower() in prep.keys():
-                self.edit_log[key.lower()] = val
+            k = key.lower()
+            if k in prep.keys():
+                self.edit_log[k] = val
+            elif k in profile_keys:
+                if k == "roi_abs":
+                    self.profile_info[k] = loads(val)
+                else:
+                    self.profile_info[k] = val
         self.img_id = hdu[0].header["img_id"]
+        
         try:
             self.time_stamps = asarray([datetime.strptime(x, "%Y%m%d%H%M%S%f")\
                 for x in hdu[1].data["time_stamps"]])

@@ -10,7 +10,7 @@ from os import getcwd, remove
 from datetime import datetime
 from re import sub
 from decimal import Decimal
-from cv2 import pyrDown,resize, pyrUp
+from cv2 import pyrDown,resize, pyrUp, addWeighted
 from scipy.ndimage.filters import gaussian_filter, median_filter
 from traceback import format_exc
 from collections import OrderedDict as od
@@ -313,6 +313,7 @@ class Img(object):
         diff = int(sigma_final - self.edit_log["blurring"])
         if diff > 0:
             self.apply_gaussian_blurring(diff)
+        return self
                 
     def apply_gaussian_blurring(self, sigma, **kwargs):
         """Add gaussian blurring using :class:`scipy.ndimage.filters.gaussian_filter`
@@ -350,6 +351,20 @@ class Img(object):
         self.edit_log["others"] = 1
         return self
     
+    def bytescale(self, cmin = None, cmax = None, high = 255, low = 0):
+        """Convert image to 8 bit integer values
+        
+        :param float cmin: minimum intensity for mapping, if None, the current 
+            ``self.min()`` is used.
+        :param float cmax: maximum intensity for mapping, if None, the current 
+            ``self.max()`` is used.
+        :param int high: mapping value of cmax
+        :param int low: mapping value of cmin
+        """
+        img = deepcopy(self)
+        img.img = bytescale(self.img, cmin, cmax, high, low)
+        return img
+        
     def _to_8bit_int(self, current_bit_depth = None, new_img = True):
         """Convert image to 8 bit representation and return new image object
         
@@ -362,11 +377,13 @@ class Img(object):
         """
         if current_bit_depth == None:
             current_bit_depth = self.meta["bit_depth"]
-            if isnan(current_bit_depth):
-                raise ValueError("Image cannot be converted into 8 bit repr."
-                    "Plese insert the bit depth of the current image")
+            
+        if isnan(current_bit_depth):
+            cmax = None
+        else:
+            cmax = 2**(current_bit_depth) - 1
 
-        sc = bytescale(self.img, cmin = 0, cmax = 2**(current_bit_depth) - 1)
+        sc = bytescale(self.img, cmin = 0, cmax = cmax)
 
         if new_img:
             img = self.duplicate()
@@ -416,6 +433,27 @@ class Img(object):
     def max(self):
         """Returns maximum value of current image data"""
         return self.img.max()
+    
+    def blend_other(self, other, fac = 0.5):
+        """Blends another image to this and returns new Img object
+        
+        Uses cv2 :func:`addWeighted` method"
+        
+        :param float fac: percentage blend factor (between 0 and 1)
+        """
+        if not 0 < fac < 1:
+            raise ValueError("Invalid input valued for fac: %.2f ... "
+                "must be between 0 and 1")
+        try:
+            other = other.img
+        except:
+            pass
+        if any([x < 0 for x in [self.img.min(), other.min()]]):
+            raise ValueError("Could not blend images, has one of the input "
+                "images has negative values, you might remap the value (e.g. "
+                "using _to_8bit_int method)")
+        im = addWeighted(self.img, 1-fac, other, fac, 0)
+        return Img(im)
         
     def _valid_cam_id(self):
         """Checks if current cam ID is one of the piscope default IDs"""

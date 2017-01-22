@@ -5,10 +5,10 @@ Classes for plume speed retrievals
 """
 from time import time
 from numpy import mgrid,vstack,int32,sqrt,arctan2,rad2deg, asarray,\
-    logical_and, histogram, ceil, ones, roll, argmax, arange
+    logical_and, histogram, ceil, ones, roll, argmax, arange, ndarray
 
 from traceback import format_exc
-
+from datetime import datetime
 from collections import OrderedDict as od
 from matplotlib.pyplot import subplots, figure, Figure
 
@@ -26,34 +26,66 @@ from .helpers import bytescale, check_roi, map_roi, roi2rect
 from .optimisation import MultiGaussFit
 from .image import Img
 
-def determine_ica_cross_correlation(icas_first_line, icas_second_line,\
-        time_stamps, reg_grid_tres = None, cut_border = 0,\
-                                            sigma_smooth = 1, plot = False):
-    """Determines ICA cross correlation from two ICA time series
-    :param ndarray icaValsPCS1: time series values of first ICA
-    :param ndarray icaValsPCS1: time series values of second ICA
-    :param ndarray timeStamps: array with image acquisition time stamps 
-        (datetime objects)
-    """
-    if reg_grid_tres is None:
-        delts = asarray([delt.total_seconds() for delt in\
-                        (time_stamps[1:] - time_stamps[:-1])])
-        reg_grid_tres = ceil(delts.mean()) - 1  #time resolution for re gridded data
+def find_signal_correlation(first_data_vec, next_data_vec,\
+        time_stamps = None, reg_grid_tres = None, freq_unit = "S",\
+            itp_method = "linear", cut_border_idx = 0, sigma_smooth = 1,\
+                                                                plot = False):
+    """Determines cross correlation from two ICA time series
     
-    if reg_grid_tres < 1:
-        reg_grid_tres = 1
-    elif reg_grid_tres > 2:
-        reg_grid_tres = int(reg_grid_tres / 2.0)
-        
-    delt_str = "%dS" %(reg_grid_tres)
-
-    s1 = Series(icas_first_line, time_stamps).resample(delt_str).\
-            interpolate().dropna()
-    s2 = Series(icas_second_line, time_stamps).resample(delt_str).\
-                                                interpolate().dropna()
-    if cut_border > 0:
-        s1 = s1[cut_border:-cut_border]
-        s2 = s2[cut_border:-cut_border]
+    :param ndarray first_data_vec: first data vector (i.e. left or before 
+        ``next_data_vec``)
+    :param ndarray next_data_vec: second data vector (i.e. behind
+        ``first_data_vec``)
+    :param ndarray time_stamps: array containing time stamps of the two data
+        vectors. If default (None), then the two vectors are assumed to be
+        sampled on a regular grid and the returned lag corresponds to the 
+        index shift with highest correlation. If 
+        ``len(time_stamps) == len(first_data_vec)`` and if entries are 
+        datetime objects, then the two input time series are resampled and 
+        interpolated onto a regular grid, for resampling and interpolation 
+        settings, see following 3 parameters.
+    :param int reg_grid_tres: sampling resolution of resampled time series
+        data in units specified by input parameter ``freq_unit``. If None, 
+        then the resolution is determined from the mean time difference 
+        between consecutive points in ``time_stamps``,
+    """
+    if not all([isinstance(x, ndarray) for x in\
+                    [first_data_vec, next_data_vec]]):
+        raise IOError("Need numpy arrays as input")
+    if not len(first_data_vec) == len(next_data_vec):
+        raise IOError("Mismatch in lengths of input data vectors")
+    lag_fac = 1 #factor to convert retrieved lag from indices to seconds  
+    if time_stamps is not None and len(time_stamps) == len(first_data_vec)\
+                    and all([isinstance(x, datetime) for x in time_stamps]):
+        print "Input is time series data"
+        if not itp_method in ["linear", "quadratic", "cubic"]:
+            print ("Invalid interpolation method %s: setting default (linear)" 
+                                                                %itp_method)
+        if reg_grid_tres is None:
+            delts = asarray([delt.total_seconds() for delt in\
+                            (time_stamps[1:] - time_stamps[:-1])])
+             #time resolution for re gridded data
+            reg_grid_tres = (ceil(delts.mean()) - 1) / 4.0
+            if reg_grid_tres < 1: #mean delt is smaller than 4s
+                freq_unit = "L" #L decodes to milliseconds
+                reg_grid_tres = int(reg_grid_tres * 1000)
+            else:
+                freq_unit = "S"
+                
+        delt_str = "%d%s" %(reg_grid_tres, freq_unit)
+        print "Delta t string for resampling: %s" %delt_str
+        s1 = Series(first_data_vec, time_stamps).resample(delt_str).\
+                                        interpolate(itp_method).dropna()
+        s2 = Series(next_data_vec, time_stamps).resample(delt_str).\
+                                        interpolate(itp_method).dropna()
+                                        
+        lag_fac = (s1.index[10] - s1.index[9]).total_seconds()
+    else:
+        s1 = Series(first_data_vec)
+        s2 = Series(next_data_vec)
+    if cut_border_idx > 0:
+        s1 = s1[cut_border_idx:-cut_border_idx]
+        s2 = s2[cut_border_idx:-cut_border_idx]
     s1_vec = gaussian_filter(s1, sigma_smooth) 
     s2_vec = gaussian_filter(s2, sigma_smooth) 
         
@@ -75,7 +107,7 @@ def determine_ica_cross_correlation(icas_first_line, icas_second_line,\
         
         s1.plot(ax = ax[0], label="First line")
         s2.plot(ax = ax[0], label="Second line")
-        ax[0].set_title("Original time series")
+        ax[0].set_title("Original time series", fontsize = 10)
         ax[0].legend(loc='best', fancybox=True, framealpha=0.5, fontsize=10) 
         ax[0].grid()
         
@@ -84,18 +116,18 @@ def determine_ica_cross_correlation(icas_first_line, icas_second_line,\
         s2_ana.plot(ax = ax[1], label = "Data vector 2. line")
         
                         
-        ax[1].set_title("Signal match")
+        ax[1].set_title("Signal match", fontsize = 10)
         ax[1].legend(loc='best', fancybox=True, framealpha=0.5, fontsize=10) 
         ax[1].grid()
         
-        x = arange(0, len(coeffs), 1) * reg_grid_tres
+        x = arange(0, len(coeffs), 1) * lag_fac
         ax[2].plot(x, coeffs)
-        ax[2].set_xlabel("Delta t [%s]" %delt_str)
+        ax[2].set_xlabel(r"$\Delta$t [s]")
         ax[2].grid()
         #ax[1].set_xlabel("Shift")
         ax[2].set_ylabel("Correlation coeff")
-        ax[2].set_title("Correlation signal")
-    lag = argmax(coeffs) * reg_grid_tres
+        ax[2].set_title("Correlation signal", fontsize = 10)
+    lag = argmax(coeffs) * lag_fac
     return lag, coeffs, s1_ana, s2_ana, max_coeff_signal, ax
     
 class OpticalFlowFarnebackSettings(object):
@@ -292,6 +324,7 @@ class OpticalFlowFarneback(object):
         
         if all([isinstance(x, Img) for x in [first_img, next_img]]):
             self.set_images(first_img, next_img)
+            self.calc_flow()
             
     @property
     def auto_update_contrast(self):
@@ -757,13 +790,19 @@ class OpticalFlowFarneback(object):
             fig, ax = subplots(1,1)
         
         x0, y0 = 0, 0
-        img = self.images_input["this"]
-        if in_roi:
-            img = img.crop(roi_abs = self.roi_abs, new_img = True)
         i_min, i_max = self.current_contrast_range()
     
+        img = self.images_input["this"]#.bytescale(i_min, i_max)
+#==============================================================================
+#         img2 = self.images_input["this"].bytescale(i_min, i_max)
+#         img = img1.blend_other(img2)
+#==============================================================================
+        if in_roi:
+            img = img.crop(roi_abs = self.roi_abs, new_img = True)
+        
         disp = cvtColor(bytescale(img.img, cmin = i_min, cmax = i_max),\
-                                                            COLOR_GRAY2BGR)    
+                                                            COLOR_GRAY2BGR) 
+        
         if self.flow is None:
             print "Could not draw flow, no flow available"
             return
@@ -779,8 +818,14 @@ class OpticalFlowFarneback(object):
             circle(disp, (x0 + x2, y0 + y2), 1, (255, 0, 0), -1)
         ax.imshow(disp)
         
-        tit = "%s (delta t = %.2f s)" %(self.get_img_acq_times()[0],\
-                                                            self.del_t)
+        tit = r"1. img"
+        try:
+            tit += (r": %s \n $\Delta$t (next) = %.2f s" %(\
+                self.get_img_acq_times()[0].strftime("%H:%M:%S"), self.del_t))
+            tit = tit.decode("string_escape")
+        except:
+            pass
+        
         ax.set_title(tit, fontsize = 10)
         return ax, disp
         

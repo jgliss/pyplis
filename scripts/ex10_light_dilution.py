@@ -13,6 +13,8 @@ plt.close("all")
 
 from ex1_measurement_setup_plume_data import img_dir, save_path
 
+skip_pix_line = 15
+color = "r"
 def create_dataset_dilution(start = datetime(2015, 9, 16, 6, 43, 00),\
                             stop = datetime(2015, 9, 16, 6, 47, 00)):
     #the camera filter setup
@@ -56,15 +58,8 @@ on_list = ds.get_list("on")
 off_list = ds.get_list("off")
 
 # Line definitions from manuscript
-l1 = piscope.processing.LineOnImage(40, 860, 1335, 750, line_id = "flank_far")
-l2 = piscope.processing.LineOnImage(820, 1015, 1340, 1015, line_id = "flank_close")
-l3 = piscope.processing.LineOnImage(672, 624,672, 950, line_id= "cfov")
 
-#put them all into a list and define search parameters
-lines       = [l1, l2, l3]
-skip_pix    = [60, 25, 15]          
-colors      = ["b", "lime", "r"]
-labels      = [["left", "right"], ["left", "right"], ["top", "bottom"]]
+line = piscope.processing.LineOnImage(672, 624,672, 950, line_id= "cfov")
 
 geom = ds.meas_geometry
 se_crater_img_pos = [735, 575] #x,y
@@ -76,67 +71,51 @@ elev_new, az_new, _, map = geom.correct_viewing_direction(\
                                                     draw_result =  True)
                                                     
 ax = on_list.show_current()
-for k in range(len(lines)):
-    lines[k].plot_line_on_grid(ax = ax, c = colors[k], marker = "")
+line.plot_line_on_grid(ax = ax, color = color, marker = "")
 ax.set_xlim([0, 1343])
 ax.set_ylim([1023, 0])
 
-results = []  
-for k in range(len(lines)):     
-    results.append(geom.get_distances_to_topo_line(lines[k].to_list(),\
-                                                    skip_pix = skip_pix[k]))
+l = line.to_list() #line coords as list
+res = geom.get_distances_to_topo_line(l, skip_pix = skip_pix_line)
 
 #Create 3D map of scene
 map3d = geom.draw_map_3d(0, 0, 0, 0)
 #insert camera position into 3D map
 geom.cam_pos.plot_3d(map = map3d, add_name = True, dz_text = 40)
 
-fig_dists, axes = plt.subplots(3,1, figsize = (6,8))
+fig_dists, ax = plt.subplots(1,1, figsize = (12,8))
 
 handles = []
 handles2 = []
 #now draw the lines into the plume raw image and into the 3D map
-for k in range(len(results)):
-    res = results[k]
-    color = colors[k]
     
-    #plot line into image
-    v = lines[k].to_list()
-    l = plt.Line2D([v[0],v[2]],[v[1],v[3]], color = color, label =\
-                                                        lines[k].line_id)
-    handles.append(l)
-    
-    #boolean mask for accessing data for which distance retrieval worked
-    mask = res["ok"]
+#plot line into image
+l2d = plt.Line2D([l[0], l[2]],[l[1],l[3]], color = color, label =\
+                                                    line.line_id)
+handles.append(l2d)
 
-    y, yErr = res["dists"], res["dists_err"]
-    handles2.append(axes[k].plot(masked_where(~mask, y), "--x",\
-                        color = color, label = lines[k].line_id)[0])
-    axes[k].set_xlim([0, len(y)-1])
-    num = len(y)
-    dd = num*.03
-    axes[k].get_xaxis().set_ticks([0, num - 1])
-    axes[k].grid()
-    axes[k].get_xaxis().set_ticklabels(labels[k], rotation = 15)
+#boolean mask for accessing data for which distance retrieval worked
+mask = res["ok"]
 
-    pts = res["geo_points"][mask]
-    
-    xs, ys, zs = [], [], []
-    for p in pts:
-        if isinstance(p, GeoPoint):
-            px, py= map3d(p.lon.decimal_degree,p.lat.decimal_degree)
-            xs.append(px), ys.append(py), zs.append(p.altitude)
-            map3d.draw_geo_point_3d(p, marker = "x", s= 20, c = color)
-    
-    map3d.ax.plot(xs, ys, zs, "--", c = color, lw = 2, zorder = 100000)
+y, yErr = res["dists"], res["dists_err"]
+num = len(y)
+handles2.append(ax.plot(masked_where(~mask, y), "--x",\
+                    color = color, label = line.line_id)[0])
+ax.set_xlim([0, num - 1])
+ax.get_xaxis().set_ticks([0, num - 1])
+ax.grid()
+ax.get_xaxis().set_ticklabels(["top", "bottom"], rotation = 15)
+
+pts = res["geo_points"][mask]
+map3d.add_geo_points_3d(pts, color = color)
+
 ax.legend(handles = handles, loc = 'best', fancybox = True,\
                                 framealpha = 0.5, fontsize = 16).draggable()
-ax.set_axis_off()
 
 map3d.ax.set_axis_off()
-axes[0].set_title("Distance retrievals")
-axes[2].set_xlabel("Position in image", fontsize = 16)
-axes[1].set_ylabel("Distance [km]", fontsize = 16)
+ax.set_title("Distance retrievals")
+ax.set_xlabel("Position in image", fontsize = 16)
+ax.set_ylabel("Distance [km]", fontsize = 16)
 
 ax.figure.savefig(join(save_path, "ex10_out_1.png"))
 fig_dists.savefig(join(save_path, "ex10_out_2.png"))

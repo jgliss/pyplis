@@ -7,7 +7,7 @@ from os.path import join
 import numpy as np
 
 from piscope.processing import LineOnImage, ProfileTimeSeriesImg
-from piscope.plumespeed import determine_ica_cross_correlation
+from piscope.plumespeed import find_signal_correlation
 
 from ex2_measurement_geometry import create_dataset, correct_viewing_direction
 from ex4_prepare_aa_imglist import prepare_aa_image_list, path_bg_on,\
@@ -18,12 +18,6 @@ p2 = join(save_path, "second_ica_tseries.fts")
 
 RELOAD = 0
 
-#options
-sigma = 3
-first_idx = 30
-last_idx = 190
-second_pcs_shift = 40
-
 def create_pcs_lines():
     #these coordinates correspond to a cross section defined 
     #at pyrlevel=2
@@ -32,10 +26,16 @@ def create_pcs_lines():
     
     #convert line to pyrlevel 0
     pcs1 = pcs1.convert(pyrlevel=0)
-    pcs2 = pcs1.offset(pixel_num=second_pcs_shift)    
+    pcs2 = pcs1.offset(pixel_num = 40)    
     return pcs1, pcs2
     
 def reload_profile_tseries_from_aa_list(aa_list, pcs1, pcs2):
+    """Reload profile time series pictures from AA img list
+    
+    .. note::
+    
+        This takes some time
+    """
     aa_list.goto_img(0)
         
     profile_len = len(pcs1.get_line_profile(dist_img.img))
@@ -53,27 +53,49 @@ def reload_profile_tseries_from_aa_list(aa_list, pcs1, pcs2):
         aa_list.next_img()
         
     times = aa_list.acq_times
-    prof_pic1 = ProfileTimeSeriesImg(profiles1, time_stamps=times, img_id =\
-                            pcs1.line_id, **aa_list.current_img().edit_log)
+    prof_pic1 = ProfileTimeSeriesImg(profiles1, time_stamps=times,\
+            img_id = pcs1.line_id, profile_info_dict=pcs1.to_dict(),\
+                                        **aa_list.current_img().edit_log)
     prof_pic2 = ProfileTimeSeriesImg(profiles2, time_stamps=times, img_id =\
-                            pcs2.line_id, **aa_list.current_img().edit_log)
+                            pcs2.line_id, profile_info_dict=pcs2.to_dict(),\
+                                            **aa_list.current_img().edit_log)
+                                            
     #mutiply pix to pix dists to the AA profiles in the image
     prof_pic1.img = prof_pic1.img * d1.reshape((len(d1), 1)) 
     prof_pic2.img = prof_pic2.img * d2.reshape((len(d2), 1)) 
     
     prof_pic1.save_as_fits(save_path, "first_ica_tseries.fts")
     prof_pic2.save_as_fits(save_path, "second_ica_tseries.fts")
-    return prof_pic1, prof_pic2, times
+    return prof_pic1, prof_pic2
 
 def load_profile_tseries_from_fits(fits_path1, fits_path2):
+    """Load profile time series pictures from fits file
     
+    :param str fits_path1: path of first line
+    :param str fits_path2: path of second line
+    """
     prof_pic1 = ProfileTimeSeriesImg()
     prof_pic1.load_fits(fits_path1)
     prof_pic2 = ProfileTimeSeriesImg()
     prof_pic2.load_fits(fits_path2)
-    times = prof_pic1.time_stamps
-    return prof_pic1, prof_pic2, times
+    return prof_pic1, prof_pic2
     
+def apply_cross_correlation(prof_pic1, prof_pic2, dist_img, **kwargs):
+    """Applies correlation search algorighm to ICA time series of both lines
+    
+    :param prof_pic1: first profile time series picture
+    """
+    icas1 = np.sum(prof_pic1.img, axis = 0)
+    icas2 = np.sum(prof_pic2.img, axis = 0)
+    times = prof_pic1.time_stamps
+    #lag, coeffs, s1, s2, max_coeff_signal, ax = 
+    res = find_signal_correlation(icas1, icas2, times, **kwargs)
+    lag = res[0]
+    pix_dist_avg = np.mean([pcs1.get_line_profile(dist_img.img).mean(),\
+                            pcs2.get_line_profile(dist_img.img).mean()])
+    v = 40 * pix_dist_avg / lag 
+    return v, res
+
 if __name__ == "__main__":
     close("all")
     ds = create_dataset()
@@ -95,28 +117,24 @@ if __name__ == "__main__":
     ax.legend(loc='best', fancybox=True, framealpha=0.5, fontsize=10) 
     if not RELOAD:
         try:
-            prof_pic1, prof_pic2, times = load_profile_tseries_from_fits(p1,p2)
+            prof_pic1, prof_pic2 = load_profile_tseries_from_fits(p1, p2)
         except:
             RELOAD = 1
     if RELOAD:
-        prof_pic1, prof_pic2, times = reload_profile_tseries_from_aa_list(\
+        prof_pic1, prof_pic2 = reload_profile_tseries_from_aa_list(\
             aa_list, pcs1, pcs2)
             
-    icas1 = np.sum(prof_pic1.img, axis = 0)
-    icas2 = np.sum(prof_pic2.img, axis = 0)
-    
-    lag, coeffs, s1, s2, max_coeff_signal, ax = determine_ica_cross_correlation(\
-        icas1, icas2, times, cut_border = 10, sigma_smooth = 2, plot = True)
-    pix_dist_avg = np.mean([pcs1.get_line_profile(dist_img.img).mean(),\
-                            pcs2.get_line_profile(dist_img.img).mean()])
-    v = second_pcs_shift * pix_dist_avg / lag    
-    print "Shift: %s" %second_pcs_shift
-    print "pix_dist_avg = %s m" %pix_dist_avg
-    print "dist lines = %s"     %(pix_dist_avg * second_pcs_shift)
-    print "lag = %s s" %lag
-    ax[0].figure.suptitle("Retrieved plume velocity v = %.2f m/s" %v)
+    v0, res0 = apply_cross_correlation(prof_pic1, prof_pic2, dist_img,\
+            cut_border_idx = 10, reg_grid_tres = 100, freq_unit = "L",\
+                                            sigma_smooth = 2, plot = True) 
+    v1, res1 = apply_cross_correlation(prof_pic1, prof_pic2, dist_img,\
+                                            sigma_smooth = 0, plot = True) 
+    res0[-1][0].figure.suptitle("Retrieved plume velocity v = %.2f m/s" %v0)
+    res1[-1][0].figure.suptitle("Retrieved plume velocity v = %.2f m/s" %v1)
     show()
+    
+
 #==============================================================================
 # print "Avg. plume velocity = %.2f m / s"\
-#             %(second_pcs_shift * dist_img.mean() / lag)
+#             %(pcs_offset * dist_img.mean() / lag)
 #==============================================================================
