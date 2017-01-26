@@ -507,7 +507,7 @@ class DoasFOV(object):
             ax.get_yaxis().set_ticks([0, self.cy_rel, h])
             #ax.set_axis_off()
             ax.set_title(r"Corr img (IFR), pos abs (x,y): (%d, %d), "
-                "lambda=%.1e" %(cx, cy, self.search_settings["ifr_lambda"]))
+                "lambda=%.1e" %(cx, cy, self.search_settings["ifrlbda"]))
                         
         elif self.method == "pearson":
             cb.set_label(r"Pearson corr. coeff.", fontsize = 16)
@@ -530,14 +530,14 @@ class DoasFOVEngine(object):
                                         method = "pearson", **settings):
         
         self._settings = {"method"              :   "pearson",
-                          "pearson_max_radius"  :   80,
-                          "ifr_lambda"          :   1e-6,
-                          "ifr_g2d_asym"        :   True,
-                          "ifr_g2d_super_gauss" :   True,
-                          "ifr_g2d_crop"        :   True,
-                          "ifr_g2d_tilt"        :   False,
-                          "smooth_corr_img"     :   4,
-                          "merge_type"          :   "average"}
+                          "maxrad"              :   80,
+                          "ifrlbda"             :   1e-6, #lambda val IFR
+                          "g2dasym"             :   True, #elliptic FOV
+                          "g2dsuper"            :   True, #super gauss fit (IFR)
+                          "g2dcrop"             :   True,
+                          "g2dtilt"             :   False,
+                          "blur"                :   4,
+                          "mergeopt"            :   "average"}
         
         
         self.DATA_MERGED = False
@@ -610,7 +610,7 @@ class DoasFOVEngine(object):
         """
         self.calib_data = DoasCalibData() #includes DoasCalibData class
         self.update_search_settings(**settings)
-        self.merge_data(merge_type = self._settings["merge_type"])
+        self.merge_data(merge_type = self._settings["mergeopt"])
         self.det_correlation_image(search_type = self.method)
         self.get_fov_shape()
         self.calib_data.fov.search_settings = deepcopy(self._settings)
@@ -642,7 +642,7 @@ class DoasFOVEngine(object):
         if len(new_doas_series) == new_stack.shape[0]:
             self.img_stack = new_stack
             self.doas_series = new_doas_series
-            self._settings["merge_type"] = merge_type
+            self._settings["mergeopt"] = merge_type
             self.DATA_MERGED = True
             return True
         print "Data merging failed..."
@@ -701,10 +701,10 @@ class DoasFOVEngine(object):
         self._settings["method"] = "pearson"
         return corr_img, corr_img_err
     
-    def _det_correlation_image_ifr_lsmr(self, ifr_lambda = 1e-6, **kwargs):
+    def _det_correlation_image_ifr_lsmr(self, ifrlbda = 1e-6, **kwargs):
         """Apply LSMR algorithm to identify the FOV
         
-        :param float ifr_lambda: tolerance parameter lambda
+        :param float ifrlbda: tolerance parameter lambda
         """
         # some input data size checking
         (m,) = self.doas_data_vec.shape
@@ -721,7 +721,7 @@ class DoasFOVEngine(object):
         # and stacking in the end
         h = column_stack((h_vec, h_matrix))
         # solve using LSMR regularisation
-        a = lsmr(h, self.doas_data_vec, atol = ifr_lambda, btol = ifr_lambda)
+        a = lsmr(h, self.doas_data_vec, atol = ifrlbda, btol = ifrlbda)
         c = a[0]
         # separate offset and image
         lsmr_offset = c[0]
@@ -729,7 +729,7 @@ class DoasFOVEngine(object):
         #THIS NORMALISATION IS NEW
         #lsmr_image = lsmr_image / abs(lsmr_image).max()
         self._settings["method"] = "ifr"
-        self._settings["ifr_lambda"] = ifr_lambda
+        self._settings["ifrlbda"] = ifrlbda
         return lsmr_image, lsmr_offset
     
     def get_fov_shape(self, **settings):
@@ -752,7 +752,7 @@ class DoasFOVEngine(object):
             raise Exception("Could not access correlation image")
         if self.method == "pearson":
             cy, cx = get_img_maximum(self.calib_data.fov.corr_img.img,\
-                gaussian_blur = self._settings["smooth_corr_img"])
+                gaussian_blur = self._settings["blur"])
             print "Start radius search in stack around x/y: %s/%s" %(cx, cy)
             radius, corr_curve, tau_vec, doas_vec, fov_mask =\
                                     self.fov_radius_search(cx, cy)
@@ -810,10 +810,10 @@ class DoasFOVEngine(object):
         #find maximum radius (around CFOV pos) which still fits into the image
         #shape of the stack used to find the best radius
         max_rad = min([cx, cy, w - cx, h - cy])
-        if self._settings["pearson_max_radius"] < max_rad:
-            max_rad = self._settings["pearson_max_radius"]
+        if self._settings["maxrad"] < max_rad:
+            max_rad = self._settings["maxrad"]
         else:
-            self._settings["pearson_max_radius"] = max_rad
+            self._settings["maxrad"] = max_rad
         #radius array
         radii = arange(1, max_rad, 1)
         print "Maximum radius: " + str(max_rad - 1)
@@ -845,9 +845,9 @@ class DoasFOVEngine(object):
         
     # define IFR model function (Super-Gaussian)    
         
-    def fov_gauss_fit(self, corr_img, ifr_g2d_asym = True,\
-                      ifr_g2d_super_gauss = True, ifr_g2d_crop = True,\
-                      ifr_g2d_tilt = False, smooth_corr_img = 4, **kwargs):
+    def fov_gauss_fit(self, corr_img, g2dasym = True,\
+                      g2dsuper = True, g2dcrop = True,\
+                      g2dtilt = False, blur = 4, **kwargs):
         """Apply 2D gauss fit to correlation image
         
         :param corr_img: correlation image
@@ -860,11 +860,11 @@ class DoasFOVEngine(object):
         """
         xgrid, ygrid = mesh_from_img(corr_img)
         # apply maximum of filtered image to initialise 2D gaussian fit
-        (cy, cx) = get_img_maximum(corr_img, smooth_corr_img)
+        (cy, cx) = get_img_maximum(corr_img, blur)
         # constrain fit, if requested
-        (popt, pcov, fov_mask) = gauss_fit_2d(corr_img, cx, cy, ifr_g2d_asym,\
-            g2d_super_gauss = ifr_g2d_super_gauss, g2d_crop = ifr_g2d_crop,\
-                                            g2d_tilt = ifr_g2d_tilt, **kwargs)
+        (popt, pcov, fov_mask) = gauss_fit_2d(corr_img, cx, cy, g2dasym,\
+            g2d_super_gauss = g2dsuper, g2d_crop = g2dcrop,\
+                                            g2d_tilt = g2dtilt, **kwargs)
         # normalise
         return (popt, pcov, fov_mask)
     

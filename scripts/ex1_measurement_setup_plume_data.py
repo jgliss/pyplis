@@ -61,7 +61,8 @@ def create_dataset(start = datetime(2015, 9, 16, 7, 6, 00),\
     
 if __name__ == "__main__":
     ds = create_dataset()
-    ds.get_list("on").show_current()
+    img = ds.get_list("on").current_img()
+    print str(img) #the image object has an informative string representation
     show()
     
     

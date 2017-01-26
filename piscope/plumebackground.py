@@ -7,7 +7,7 @@ Created on Tue Sep 06 14:38:54 2016
 @author: jg
 """
 from numpy import polyfit, poly1d, linspace, logical_and, log, full, argmin,\
-    gradient, average, nan, exp, ndarray, arange, ones
+    gradient, nan, exp, ndarray, arange, ones
 from matplotlib.patches import Rectangle
 from matplotlib.pyplot import GridSpec, figure, subplots_adjust, subplot,\
     subplots, setp
@@ -43,8 +43,6 @@ class PlumeBackgroundModel(object):
         
         #: Correction mode
         self.CORR_MODE = 1
-        
-        self.vign_mask = None
         
         #: settings for poly surface fit (corr mode: 0)
         self.surface_fit_mask = None
@@ -87,7 +85,7 @@ class PlumeBackgroundModel(object):
             self.guess_missing_settings(plume_init.img)
             self.surface_fit_mask = ones(plume_init.img.shape,\
                                                          dtype = bool)
-    
+                
     def get_current(self, key = "tau"):
         """Returns current image, specify type via input key
         
@@ -131,46 +129,6 @@ class PlumeBackgroundModel(object):
         if rect[0] < 0 or rect[1] < 0 or rect[2] >= w or rect[3] >= h:
             return False
         return True
-   
-    def set_vignetting_mask(self, mask):
-        """Sets mask to correct for vignetting"""
-        plume = self.get_current("plume")
-        bg = self.get_current("bg_raw")
-        
-        if isinstance(plume, Img):
-            if not mask.shape == plume.img.shape:
-                raise ValueError("Could not set vignetting mask in background "
-                    "model, dimension mismatch with current plume image")
-        elif isinstance(bg, Img):
-            if not mask.shape == bg.img.shape:            
-                raise ValueError("Could not set vignetting mask in background "
-                    "model, dimension mismatch with current bg image")
-        self.vign_mask = mask
-        
-    def set_vignetting_mask_from_bg(self, sigma_blur = 4):
-        """Determines a vignetting mask from current background image
-        
-        :param int sigma_blur: width of gaussian kernel used for blurring of 
-            ``self.bg_raw`` before mask is determined
-        :return ndarray: the actual mask wich was set in ``self.vign_mask``
-            
-        .. note::
-        
-            The sky background radiance might vary over the image area, this is
-            superimposed to the mask
-            
-        """
-        try:
-            bg = self.get_current("bg_model")
-        except:
-            bg = self.get_current("bg_raw")
-        if not isinstance(bg, Img):
-            print "Background image not available"
-            return False
-        bg_blur = gaussian_filter(bg.img, sigma_blur)
-        mask = bg_blur / bg_blur.max()
-        self.set_vignetting_mask(mask)
-        return mask
             
     def guess_missing_settings(self, plume_img):
         """Checks current settings and inits defaults based on image dimension
@@ -219,7 +177,31 @@ class PlumeBackgroundModel(object):
             self.ygrad_rect = res["ygrad_rect"]
         if not self._check_rect(self.xgrad_rect, plume):
             self.xgrad_rect = res["xgrad_rect"]
+    
+    def settings_dict(self):
+        """Write current sky reference areas and masks into dictionary"""
+        d = {}
+        d["CORR_MODE"] = self.CORR_MODE
+        d["surface_fit_mask"] = self.surface_fit_mask 
+        d["surface_fit_pyrlevel"] = self.surface_fit_pyrlevel
+        d["surface_fit_polyorder"] = self.surface_fit_polyorder
+        d["scale_rect"] = self.scale_rect
+        d["ygrad_rect"] = self.ygrad_rect
         
+        d["ygrad_line_colnum"] = self.ygrad_line_colnum
+        d["ygrad_line_polyorder"] = self.ygrad_line_polyorder
+        d["ygrad_line_startrow"] = self.ygrad_line_startrow
+        d["ygrad_line_stoprow"] = self.ygrad_line_stoprow
+        d["ygrad_line_mask"] = self.ygrad_line_mask
+        
+        d["xgrad_rect"] = self.xgrad_rect
+    
+        d["xgrad_line_rownum"] = self.xgrad_line_rownum
+        d["xgrad_line_polyorder"] = self.xgrad_line_polyorder
+        d["xgrad_line_stopcol"] = self.xgrad_line_stopcol
+        d["xgrad_line_startcol"] = self.xgrad_line_startcol
+        d["xgrad_line_mask"] = self.xgrad_line_mask
+        return d
         
     def bg_from_poly_surface_fit(self, plume, mask = None, polyorder = 2,\
                                                                 pyrlevel = 4):
@@ -295,7 +277,7 @@ class PlumeBackgroundModel(object):
             print ("Warning in PlumeBackgroundModel: plume image is not "
              " corrected for dark current" )
         if plume_img.is_tau:
-            raise IOError("Input image is already tau image")
+            raise AttributeError("Input image is already tau image")
         plume = plume_img.img
         if self.CORR_MODE != 0:
             if not isinstance(bg_img, Img):
@@ -405,8 +387,6 @@ class PlumeBackgroundModel(object):
         #self.set_current_images(plume_img, bg_img, tau_img)
         
         return aa_img#, Img(aa2)
-        
-                                
         
     def _prep_img_type(self, img):
         """Checks input images and converts them into ndarrays if they are Img"""
@@ -716,6 +696,7 @@ def corr_tau_curvature_vert_line(tau0, pos_x, start_y = 0,\
     if isinstance(tau0, Img):
         tau0 = tau0.img
     max_y = tau0.shape[0]
+    
     line_vert = LineOnImage(pos_x, 0, pos_x, max_y)
     vert_profile = line_vert.get_line_profile(tau0)
     
@@ -767,7 +748,6 @@ def corr_tau_curvature_hor_line(tau0, pos_y, start_x = 0,\
     except:
         mask = logical_and(xgrid >= start_x, xgrid <= stop_x)
     
-    
     hor_poly = poly1d(polyfit(xgrid[mask], hor_profile[mask], polyorder))
     
     poly_vals = hor_poly(xgrid)
@@ -781,56 +761,54 @@ def _roi_coordinates(roi):
     """
     return roi[0], roi[1], roi[2] - roi[0], roi[3] - roi[1]
         
-def find_sky_reference_areas(plume_img, plot = False):
+def find_sky_reference_areas(plume_img, sigma_blur = 2, plot = False):
     """Takes an input plume image and identifies suited sky reference areas"""
     if isinstance(plume_img, Img):
         plume = plume_img.img    
     else:
         plume = plume_img
-
+    plume = gaussian_filter(plume, sigma_blur)
     h, w = plume.shape
     results = {}
-    vert_mag, hor_mag = int(h * 0.05), int(w * 0.05)
+    vert_mag, hor_mag = int(h * 0.005) + 1, int(w * 0.005) + 1
     
     #estimate mean intensity in left image part (without flank pixels)
-    y0_left = argmin(gradient(average(plume[vert_mag : h - vert_mag,\
-        hor_mag : hor_mag * 2], axis = 1)))
+    y0_left = argmin(gradient(plume[vert_mag : h - vert_mag, hor_mag]))
     
     avg_left = plume[\
             vert_mag : y0_left - vert_mag, hor_mag:hor_mag * 2].mean()
-    print "Left: %s, %s" %(y0_left, avg_left)
     #estimate mean intensity in right image part (without flank pixels
-    y0_right = argmin(gradient(average(plume[vert_mag : h - vert_mag,\
-                            w - 2 * hor_mag : w - hor_mag], axis=1)))
-    
+#==============================================================================
+#     grad = gradient(average(plume[vert_mag : h - vert_mag,\
+#                             w - 2 * hor_mag : w - hor_mag], axis=1))
+#==============================================================================
+    grad = gradient(plume[vert_mag : h - vert_mag, w - hor_mag])
+    y0_right = argmin(grad)
     avg_right = plume[vert_mag : y0_right - vert_mag,\
                         w - 2 * hor_mag : w - hor_mag].mean()
-    print "Right: %s, %s" %(y0_right, avg_right)
+    results["xgrad_line_rownum"] = vert_mag
     if avg_right > avg_left: #brighter on the right image side (assume this is clear sky)
-        print "set vert line right corner"
         results["ygrad_line_colnum"] = w - hor_mag
         results["ygrad_line_stoprow"] = int(y0_right - 0.2 * vert_mag)
+        results["xgrad_line_startcol"] = int(w / 2.0)    
+        results["xgrad_line_stopcol"] = int(w - 1)
+        results["scale_rect"] = [int(w - 5 * hor_mag), int(vert_mag), 
+                                 int(w - hor_mag), int(5 * vert_mag)]
     else:
-        print "set vert line left corner"
-        results["ygrad_line_colnum"] = hor_mag
-        results["ygrad_line_stoprow"] = int(y0_left - 0.2 * vert_mag)
-    results["ygrad_line_startrow"] = int(0.1 * vert_mag)
+        results["ygrad_line_colnum"] = 1
+        results["ygrad_line_stoprow"] = int(y0_left - 2 * vert_mag)
+        results["xgrad_line_startcol"] = hor_mag    
+        results["xgrad_line_stopcol"] = int(w / 2.0)
+        results["scale_rect"] = [int(hor_mag), int(vert_mag), 
+                                 int(5 * hor_mag), int(5 * vert_mag)]
+    results["ygrad_line_startrow"] = 1
     
-    results["xgrad_line_rownum"] = vert_mag
-    results["xgrad_line_startcol"] = hor_mag
-    results["xgrad_line_stopcol"] = w - hor_mag
-    x0, y0 = int(results["ygrad_line_colnum"] - hor_mag * 0.5),\
-                                                    0.5 * vert_mag
-    x1, y1 = x0 + hor_mag, y0 + vert_mag
-    results["scale_rect"] = [int(x) for x in [x0, y0, x1, y1]]
+    x0, y0, x1, y1 = results["scale_rect"]
+    ymax = results["ygrad_line_stoprow"]
     
-    x0, y0 = int(results["ygrad_line_colnum"] - hor_mag * 0.5),\
-                        int(results["ygrad_line_stoprow"] - vert_mag)
-    x1, y1 = x0 + hor_mag, y0 + vert_mag
-    results["ygrad_rect"] = [int(x) for x in [x0, y0, x1, y1]]
-    x0, y0 = int(w*.5 - hor_mag * .5), 0.5 * vert_mag
-    x1, y1 = x0 + hor_mag, y0 + vert_mag
-    results["xgrad_rect"] = [int(x) for x in [x0, y0, x1, y1]]
+    results["ygrad_rect"] = [x0, int(ymax - 8 * hor_mag), x1, int(ymax - 4 * hor_mag)]
+    results["xgrad_rect"] = [int(w / 2.0 - 2 * hor_mag), y0,
+                             int(w / 2.0 + 2 * hor_mag), y1]
     if plot:
         plot_sky_reference_areas(plume, results)
     return results
@@ -851,27 +829,27 @@ def plot_sky_reference_areas(plume_img, settings_dict, ax = None):
     r = settings_dict
     h0, w0 = plume.shape[:2]
     ax.imshow(plume, cmap = "gray")
-    ax.plot([r["ygrad_line_colnum"], r["ygrad_line_colnum"]],\
-                [r["ygrad_line_startrow"], r["ygrad_line_stoprow"]],\
-                                "-", c="lime", label = "vert profile")
-    ax.plot([r["xgrad_line_startcol"], r["xgrad_line_stopcol"]],\
-                [r["xgrad_line_rownum"], r["xgrad_line_rownum"]],\
-                                "-", c="lime", label = "hor profile")
+    ax.plot([r["ygrad_line_colnum"], r["ygrad_line_colnum"]],
+            [r["ygrad_line_startrow"], r["ygrad_line_stoprow"]],
+            "-", c="lime", label = "vert profile")
+    ax.plot([r["xgrad_line_startcol"], r["xgrad_line_stopcol"]], 
+            [r["xgrad_line_rownum"], r["xgrad_line_rownum"]],
+            "-", c="lime", label = "hor profile")
     ax.set_xlim([0, w0 - 1])
     ax.set_ylim([h0 - 1, 0])
     
     
     xs, ys, ws, hs = _roi_coordinates(r["scale_rect"])
-    ax.add_patch(Rectangle((xs, ys), ws, hs, ec="lime",fc="none",\
-                                            label = "scale_rect"))
+    ax.add_patch(Rectangle((xs, ys), ws, hs, ec="c",fc="c", alpha = 0.7,
+                           label = "scale_rect"))
     
     xs, ys, ws, hs = _roi_coordinates(r["ygrad_rect"])
-    ax.add_patch(Rectangle((xs, ys), ws, hs, ec="lime",fc="none",\
-                                            label = "ygrad_rect"))
+    ax.add_patch(Rectangle((xs, ys), ws, hs, ec="r",fc="r", alpha = 0.7,
+                           label = "ygrad_rect"))
     
     xs, ys, ws, hs = _roi_coordinates(r["xgrad_rect"])
-    ax.add_patch(Rectangle((xs, ys), ws, hs, ec="lime",fc="none",\
-                                            label = "xgrad_rect"))
+    ax.add_patch(Rectangle((xs, ys), ws, hs, ec="g",fc="g", alpha = 0.7,
+                           label = "xgrad_rect"))
     ax.legend(loc="best", fancybox=True, framealpha=0.5, fontsize=10)
         
     return ax

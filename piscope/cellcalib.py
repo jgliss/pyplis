@@ -660,7 +660,7 @@ class CellCalibEngine(Dataset):
 
         bg_list = self.bg_lists[filter_id]
         bg_list.update_img_prep(blurring = blurring)
-        bg_list.activate_dark_corr()
+        bg_list.activate_darkcorr()
         #prep = bg_list.img_prep.update({"pyrlevel" : pyrlevel})
         
         bg_img = bg_list.current_img()
@@ -675,7 +675,7 @@ class CellCalibEngine(Dataset):
         
         for cell_id, lst in self.cell_lists[filter_id].iteritems():
             lst.update_img_prep(blurring = blurring)
-            lst.activate_dark_corr()
+            lst.activate_darkcorr()
             cell_img = lst.current_img()
             try:
                 bg_mean_now = bg_mean_tseries.get_poly_vals(cell_img.meta[\

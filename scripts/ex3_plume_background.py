@@ -17,6 +17,7 @@ import matplotlib.pyplot as plt
 
 from ex1_measurement_setup_plume_data import save_path, img_dir
 
+plt.close("all")
 ###OPTIONS
 USE_AUTO_SETTINGS = False # If this is True, then sky reference areas are set in auto mode
 
