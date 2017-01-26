@@ -4,9 +4,10 @@ from matplotlib import gridspec
 import matplotlib.cm as cmaps
 from matplotlib.pyplot import imread, figure, tight_layout
 from numpy import ndarray, argmax, histogram, float32, uint, nan, linspace,\
-                                                swapaxes, flipud, isnan
+            swapaxes, flipud, isnan, uint8
 from os.path import abspath, splitext, basename, exists, join
 from os import getcwd, remove
+from warnings import warn
 from datetime import datetime
 from re import sub
 from decimal import Decimal
@@ -77,7 +78,7 @@ class Img(object):
     """
     _FITSEXT = [".fits", ".fit", ".fts"]
     
-    def __init__(self, input = None, cam_id = "", dtype = float32,\
+    def __init__(self, input=None, cam_id="", dtype=float32,\
                                                          **meta_info):
         """Class initialisation
         
@@ -92,21 +93,25 @@ class Img(object):
             
         self._img = None #: the actual image data
         self.dtype = dtype
+        self.vign_mask = None
         
         self.cam_id = cam_id
         
         #Log of applied edit operations
-        self.edit_log = od([  ("darkcorr"  ,   0), # boolean
-                              ("blurring"  ,   0), # int (width of kernel)
-                              ("median"    ,   0), # int (size of filter)
-                              ("crop"      ,   0), # boolean
-                              ("8bit"      ,   0), # boolean
-                              ("pyrlevel"  ,   0), # int (pyramide level)
-                              ("is_tau"    ,   0), # boolean
-                              ("others"    ,   0)])# boolean 
+        self.edit_log = od([  ("darkcorr"       ,   0), # boolean
+                              ("blurring"       ,   0), # int (width of kernel)
+                              ("median"         ,   0), # int (size of filter)
+                              ("crop"           ,   0), # boolean
+                              ("8bit"           ,   0), # boolean
+                              ("pyrlevel"       ,   0), # int (pyramide level)
+                              ("is_tau"         ,   0), # boolean
+                              ("vigncorr"       ,   0), # boolean (vignette corrected)
+                              ("dilcorr"        ,   0), # light dilution corrected
+                              ("others"         ,   0)])# boolean 
         
         self._roi_abs = [0, 0, 9999, 9999] #will be set on image load
         
+        self._header_raw = {}
         self.meta = od([("start_acq"     ,   datetime(1900, 1, 1)),#datetime(1900, 1, 1)),
                         ("stop_acq"      ,   datetime(1900, 1, 1)),#datetime(1900, 1, 1)),
                         ("texp"          ,   float(0.0)), # exposure time [s]
@@ -153,7 +158,11 @@ class Img(object):
             self.load_input(input)
         except Exception as e:
             print repr(e)
-            
+    
+    def reload(self):
+        """Try reload from file"""
+        self.__init__(self.meta["path"])
+        
     def load_input(self, input):
         """Try to load input as numpy array and additional meta data"""
         try:
@@ -274,6 +283,31 @@ class Img(object):
         
         return dark
     
+    def correct_vignetting(self, mask, new_state=True):
+        """Apply vignetting correction
+        
+        Performs either of the following operations::
+        
+            self.img * mask     (if input param ``new_state=False``)
+            self.img / mask     (if input param ``new_state=True``)
+            
+        :param ndarray mask: vignetting correction mask
+        :param bool reverse: if False, the inverse correction is applied (img
+            needs to be corrected)
+        """
+        if new_state == self.edit_log["vigncorr"]:
+            return self
+        try:
+            if self.edit_log["vigncorr"]: #then, new_state is 0, i.e. want uncorrected image
+                self.img = self.img * mask
+            else: #then, new_state is 1, i.e. want corrected image
+                self.img = self.img / mask
+        except Exception as e:
+            raise type(e), type(e)(e.message + "\nPlease check vignetting mask")  
+        self.edit_log["vigncorr"] = new_state
+        self.vign_mask = mask
+        return self
+        
     def subtract_dark_image(self, dark):
         """Subtracts a dark (+offset) image and updates ``self.edit_log``
         
@@ -294,7 +328,7 @@ class Img(object):
     
         self._roi_abs = [0, 0, w * 2**self.pyrlevel, h * 2**self.pyrlevel]     
     
-    def apply_median_filter(self, size_final = 3):
+    def apply_median_filter(self, size_final=3):
         """Apply a median filter to 
         
         :param tuple shape (3,3): size of the filter        
@@ -305,7 +339,7 @@ class Img(object):
             self.edit_log["median"] += diff
 
         
-    def add_gaussian_blurring(self, sigma_final = 1):
+    def add_gaussian_blurring(self, sigma_final=1):
         """Add blurring to image
         
         :param int sigma_final: the final width of gauss blurring kernel
@@ -322,8 +356,16 @@ class Img(object):
         """
         self.img = gaussian_filter(self.img, sigma, **kwargs)
         self.edit_log["blurring"] += sigma   
-        
-    def pyr_down(self, steps = 0):
+    
+    def to_pyrlevel(self, final_state = 0):
+        """Down / upscale image to a given pyramide level"""
+        steps = final_state - self.edit_log["pyrlevel"]
+        if steps > 0:
+            return self.pyr_down(steps)
+        elif steps < 0:
+            return self.pyr_up(steps)
+            
+    def pyr_down(self, steps=0):
         """Reduce the image size using gaussian pyramide 
         
         :param int steps: steps down in the pyramide
@@ -351,7 +393,7 @@ class Img(object):
         self.edit_log["others"] = 1
         return self
     
-    def bytescale(self, cmin = None, cmax = None, high = 255, low = 0):
+    def bytescale(self, cmin=None, cmax=None, high=255, low=0):
         """Convert image to 8 bit integer values
         
         :param float cmin: minimum intensity for mapping, if None, the current 
@@ -365,7 +407,7 @@ class Img(object):
         img.img = bytescale(self.img, cmin, cmax, high, low)
         return img
         
-    def _to_8bit_int(self, current_bit_depth = None, new_img = True):
+    def _to_8bit_int(self, current_bit_depth=None, new_img=True):
         """Convert image to 8 bit representation and return new image object
         
         :returns array 
@@ -418,6 +460,14 @@ class Img(object):
         #print self.meta["file_name") + ' successfully duplicated'
         return deepcopy(self)
     
+    def normalise(self, blur=1):
+        """Normalise this image"""
+        new = self.duplicate()
+        if self.edit_log["blurring"] == 0 and blur != 0:
+            new.add_gaussian_blurring(blur)
+            new.img = new.img / new.img.max()
+        return new
+        
     def mean(self):
         """Returns mean value of current image data"""
         return self.img.mean()
@@ -434,7 +484,7 @@ class Img(object):
         """Returns maximum value of current image data"""
         return self.img.max()
     
-    def blend_other(self, other, fac = 0.5):
+    def blend_other(self, other, fac=0.5):
         """Blends another image to this and returns new Img object
         
         Uses cv2 :func:`addWeighted` method"
@@ -553,25 +603,7 @@ class Img(object):
             #self.meta["read_gain"] = 0
         except:
             print "Error loading image meta info for HD custom cam"
-        
-    def load_fits(self, file_path):
-        """Import a FITS file 
-        
-        `Fits info <http://docs.astropy.org/en/stable/io/fits/>`_
-        """
-        #t0 = time()
-        hdu = fits.open(file_path)
-        h = hdu[0].header 
-        self.img = hdu[0].data.astype(self.dtype)
-        #self.img=hdu[0].data.astype(np.float16)
-        hdu.close()
-        try:
-            if h["CAMTYPE"] == 'EC2':
-                self.cam_id = "ecII"
-                self.import_ec2_header(h)
-        except:
-            pass
-            
+    
     def load_file(self, file_path):
         """Try to import file specified by input path"""
         ext = splitext(file_path)[-1]
@@ -584,10 +616,45 @@ class Img(object):
         self.meta["path"] = abspath(file_path)
         self.meta["file_name"] = basename(file_path)
         self.meta["file_type"] = ext
-    
-    def save_as_fits(self, save_dir = None, save_name = None):
+        
+    def load_fits(self, file_path):
+        """Import a FITS file 
+        
+        `Fits info <http://docs.astropy.org/en/stable/io/fits/>`_
+        """
+        #t0 = time()
+        hdu = fits.open(file_path)
+        head = hdu[0].header 
+        self._header_raw = head
+        self.img = hdu[0].data.astype(self.dtype)
+        #self.img=hdu[0].data.astype(np.float16)
+        hdu.close()
+        try:
+            if head["CAMTYPE"] == 'EC2':
+                self.cam_id = "ecII"
+                self.import_ec2_header(head)
+        except:
+            pass
+        editkeys = self.edit_log.keys()
+        metakeys = self.meta.keys()
+        for key, val in head.iteritems():
+            k = key.lower()
+            if k in editkeys:
+                self.edit_log[k] = val
+            elif k in metakeys:
+                self.meta[k] = val
+        try:
+            self._roi_abs = hdu[1].data["roi_abs"]
+        except:
+            pass
+        try:
+            self.vign_mask = hdu[2].data
+            print "Fits file includes vignetting mask"
+        except:
+            pass
+            
+    def save_as_fits(self, save_dir=None, save_name=None):
         """Save stack as FITS file"""
-        self._format_check()
         try:
             save_name = save_name.split(".")[0]
         except:
@@ -604,11 +671,15 @@ class Img(object):
         hdu = fits.PrimaryHDU()
         hdu.data = self._img
         hdu.header.update(self.edit_log)
-        hdu.header.update(self.meta)
+        hdu.header.update(self._header_raw)
         hdu.header.append()
+        
+    
         roi_abs = fits.BinTableHDU.from_columns([fits.Column(name = "roi_abs",\
                                 format = "I", array = self._roi_abs)])
         hdulist = fits.HDUList([hdu, roi_abs])
+        if isinstance(self.vign_mask, ndarray):
+            hdulist.append(fits.ImageHDU(data = self.vign_mask.astype(uint8)))
         path = join(save_dir, save_name)
         if exists(path):
             print "Image already exists at %s and will be overwritten" %path
@@ -642,7 +713,7 @@ class Img(object):
         """Plot image"""
         return self.show_img(**kwargs)
 
-    def show_img(self, ax = None, **kwargs):
+    def show_img(self, ax=None, **kwargs):
         """Show image using plt.imshow"""
         if not "cmap" in kwargs.keys():
             kwargs["cmap"] = self.get_cmap()
@@ -677,7 +748,7 @@ class Img(object):
         tight_layout()
         return ax
             
-    def show_histogram(self, ax = None):
+    def show_histogram(self, ax=None):
         """Plot histogram of current image
         
         .. todo::
@@ -716,7 +787,7 @@ class Img(object):
     
     def info(self):
         """Image info (prints string representation)"""
-        print self.__str__
+        print self.__str__()
         
     """MAGIC METHODS"""
     def __str__(self):

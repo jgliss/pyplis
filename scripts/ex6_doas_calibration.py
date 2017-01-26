@@ -20,6 +20,7 @@ from ex4_prepare_aa_imglist import prepare_aa_image_list
 #reload and save stack in folder my_dat (see below), results in increased
 #running time due to stack calculation
 RELOAD_STACK = 0
+stack_path = join(save_path, "piscope_imgstack_id_aa_20150916_0706_0721.fts")
 
 #Default search settings are at pyramid level 2, the FOV results are upscaled
 #to original resolution, if the following option is set 1, then, based on 
@@ -27,9 +28,6 @@ RELOAD_STACK = 0
 #(i.e. in full resolution) within ROI around the center position from 
 #pyrlevel=2
 DO_FINE_SEARCH = 0
-
-my_dat = join("..", "..", "tests") #location of image stack
-stack_path = join(my_dat, "piscope_imgstack_id_aa_20150916_0706_0721.fts")
 
 if not exists(stack_path):
     RELOAD_STACK = 1
@@ -46,6 +44,7 @@ path_bg_off = join(img_dir, 'EC2_1106307_1R02_2015091607022820_F02_Etna.fts')
                   
 def load_doas_results():
     """ Specify DOAS data import from DOASIS fit result files
+    
     In order to perform the DOAS FOV search, as much spectrum datapoints 
     as possible are needed. Therefore, we only added 10 scans per plume
     spectrum. In this case (and because the spectrometer was not temperature 
@@ -73,7 +72,7 @@ def make_aa_stack_from_list(aa_list, roi_abs = None, pyrlevel = 2,\
     aa_list.auto_reload = False
     if roi_abs is not None:
         aa_list.roi_abs = roi_abs
-        aa_list.crop=True
+        aa_list.crop = True
     aa_list.pyrlevel = pyrlevel
     aa_list.auto_reload = True
     
@@ -83,7 +82,7 @@ def make_aa_stack_from_list(aa_list, roi_abs = None, pyrlevel = 2,\
             remove(stack_path)
         except:
             pass    
-        stack.save_as_fits(save_dir = my_dat)  
+        stack.save_as_fits(save_dir = save_path)  
     return stack
 
 
@@ -99,10 +98,9 @@ if __name__ == "__main__":
         stack.load_stack_fits(stack_path)
         
     doas_time_series = load_doas_results()
-    s = piscope.doascalib.DoasFOVEngine(stack, doas_time_series,\
-                                                pearson_max_radius = 10)
+    s = piscope.doascalib.DoasFOVEngine(stack, doas_time_series, maxrad = 10)
     calib_pears = s.perform_fov_search(method = "pearson")
-    calib_ifr= s.perform_fov_search(method = "ifr", ifr_lambda = 2e-3)
+    calib_ifr= s.perform_fov_search(method = "ifr", ifrlbda = 2e-3)
     
     axes = [] #used to store axes objects from plots (for saving)
     calib_pears.fit_calib_polynomial()
@@ -135,10 +133,10 @@ if __name__ == "__main__":
         axes.append(calib_pears_fine.fov.plot())
     for k in range(len(axes)):
         axes[k].figure.savefig(join(save_path, "ex6_out_%d.png" %k))
- 
     try:
-        remove(join(my_dat, "piscope_doascalib_id_aa_avg_20150916_0706_0721.fts"))
+        remove(join(save_path, 
+                    "piscope_doascalib_id_aa_avg_20150916_0706_0721.fts"))
     except:
         pass
-    calib_pears.save_as_fits(save_dir = my_dat)
+    calib_pears.save_as_fits(save_dir = save_path)
     show()

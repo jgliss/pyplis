@@ -10,7 +10,8 @@
     
 """
 from numpy import nan, arctan, deg2rad, linalg, sqrt, abs, array, radians,\
-    sin, cos, arcsin, tan, rad2deg, zeros, linspace, isnan, asarray, ones
+    sin, cos, arcsin, tan, rad2deg, zeros, linspace, isnan, asarray, ones,\
+    arange, argmin, round
 from collections import OrderedDict as od
 from matplotlib.pyplot import figure
 from copy import deepcopy
@@ -239,7 +240,41 @@ class MeasGeometry(object):
             print ("Failed to retrieve coordinates of image borders in "
                 "MeasGeometry, check camera specs: %s" %self.cam)
             return False
+    
+    def horizon_analysis(self, skip_cols = 30):
+        """Searches pixel coordinates of horizon for image columns
+        
+        The algorithm performs a topography analysis for a number of image
+        columns. Elevation profiles are determined for each column (azimuth)
+        and from those, the horizon elevation angle is searched. The retrieved
+        values are returned in pixel coordinates.
+        
+        :param skip_cols: distance between pixel columns for which the analysis
+            is performed
             
+        .. note::
+        
+            This is a Beta version, please report any problems
+        
+        """
+        cam = self.cam_pos
+        cols = arange(0, self.cam["pixnum_x"], skip_cols)
+        rows = arange(0, self.cam["pixnum_y"], 1)
+        azims, elevs = self.get_azim_elev(cols, rows)
+        dist = self.geo_len_scale() * 1.2
+        idx_x, idx_y = [], []
+        elev_min, elev_max = min(elevs), max(elevs)
+        for k in range(len(azims)):
+            azim = azims[k]
+            elev_profile = cam.get_elevation_profile(azimuth = azim,\
+                                                        dist_hor = dist)
+            elev, elev_secs, dist_secs = elev_profile.find_horizon_elev(\
+                elev_start = elev_min, elev_stop = elev_max, step_deg = 0.1,\
+                            view_above_topo_m = self.cam["alt_offset"])
+            idx_x.append(cols[k])
+            idx_y.append(argmin(abs(elev - elevs)))
+        return idx_x, idx_y
+                        
     def get_viewing_directions_line(self, line):
         """Determine viewing direction coords for a line in an image
         
@@ -260,8 +295,8 @@ class MeasGeometry(object):
         y = linspace(y0, y1, l)
         dx = self.cam["pix_width"] * (x - self.cam["pixnum_x"] / 2)
         dy = self.cam["pix_height"] * (y - self.cam["pixnum_y"] / 2)
-        azims = rad2deg(arctan(dx/f)) + self.cam["azim"]
-        elevs = -rad2deg(arctan(dy/f)) + self.cam["elev"]
+        azims = rad2deg(arctan(dx / f)) + self.cam["azim"]
+        elevs = -rad2deg(arctan(dy / f)) + self.cam["elev"]
         return azims, elevs, x, y
             
     def get_distances_to_topo_line(self, line, skip_pix = 30):
@@ -340,8 +375,12 @@ class MeasGeometry(object):
             res["ok"].append(ok)
         res["azims"] = azims
         res["elevs"] = elevs
+#==============================================================================
+#         res["i_pos"] = round(i_pos).astype(int)
+#         res["j_pos"] = round(j_pos).astype(int)
+#==============================================================================
         res["i_pos"] = i_pos
-        res["j_pos"] = j_pos
+        res["j_pos"] = j_pos        
         for k in res:
             res[k] = asarray(res[k])
         res["ok"] = res["ok"].astype(bool)
@@ -699,7 +738,7 @@ class MeasGeometry(object):
                                                             alpha = alpha)
         
     def draw_map_3d(self, draw_cam = True, draw_source = True, draw_plume =\
-            True, draw_fov = True, ax = None, **kwargs):
+            True, draw_fov = True, cmap_topo = "Oranges", ax = None, **kwargs):
         """Draw the current setup in a 3D map
         
         :param bool draw_cam: insert camera position into map
@@ -718,7 +757,7 @@ class MeasGeometry(object):
             fig = figure(figsize = (14, 8))
             ax = fig.add_subplot(1, 1, 1, projection = '3d')  
         s = self.geo_setup
-        m = s.plot_3d(False, False, ax = ax, **kwargs)
+        m = s.plot_3d(False, False, cmap_topo = cmap_topo, ax = ax, **kwargs)
         zr = self.geo_setup.topo_data.alt_range * 0.05
         if draw_cam:
             self.cam_pos.plot_3d(m, add_name = True, dz_text = zr)

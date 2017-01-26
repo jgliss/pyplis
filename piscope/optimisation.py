@@ -22,7 +22,7 @@ from traceback import format_exc
 try:
     from .model_functions import supergauss_2d, supergauss_2d_tilt,\
         multi_gaussian_no_offset, gaussian_no_offset, gaussian,\
-        multi_gaussian_same_offset
+        multi_gaussian_same_offset, dilutioncorr_model
     from .helpers import mesh_from_img
 except:
     from piscope.model_functions import supergauss_2d, supergauss_2d_tilt,\
@@ -32,7 +32,26 @@ except:
 
 GAUSS_2D_PARAM_INFO = ["amplitude", "mu_x", "mu_y", "sigma", "asymmetry",\
     "exp_super_gauss", "offset", "tilt_theta"]
+ 
+
+def dilution_corr_fit(rads, dists, rad_ambient, i0_guess = None,\
+        i0_min = 0, i0_max = None, ext_guess = 1e-4, ext_min = 0,\
+                                                        ext_max = 1e-3):
+    """Performs least square fit of data"""
+    if i0_guess is None:
+        print "No input for i0 guess, assuming albedo of 5%"
+        i0_guess = rad_ambient * 0.05
+    if i0_max is None:
+        print "No input for i0 max, assuming maximum albedo of 50%"
+        i0_max = rad_ambient * 0.5
+    guess = [i0_guess, ext_guess]
+    lower = [i0_min, ext_min]
+    upper = [i0_max, ext_max]
+    bounds = (lower, upper)
+    errfun = lambda p, x, y: (dilutioncorr_model(x, rad_ambient, *p) - y)**2
     
+    return least_squares(errfun, guess, args = (dists, rads), bounds=bounds)
+
 def gauss_fit_2d(img_arr, cx, cy, g2d_asym = True,\
         g2d_super_gauss = True, g2d_crop = True, g2d_tilt = False, **kwargs):
     """Apply 2D gauss fit to input image at its maximum pixel coordinate
@@ -1091,7 +1110,7 @@ class MultiGaussFit(object):
         if not self.has_data:
             #print "Could not plot result, no data available.."
             return 0
-        fig,axes = subplots(2,1)
+        fig, axes = subplots(2,1)
         self.plot_data(sub_min = 0, ax = axes[0])
         x = linspace(self.index.min(), self.index.max(), len(self.index) * 3)
         if not self.has_results():

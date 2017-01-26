@@ -4,6 +4,24 @@ piscope model functions for optimisation
 """
 from numpy import exp, sin, cos
 
+def dilutioncorr_model(dist, rad_ambient, i0, ext):
+    """Model function for light dilution correction
+    
+    This model is based on the findings of `Campion et al., 2015 
+    <http://www.sciencedirect.com/science/article/pii/S0377027315000189>`_.
+    
+    :param float dist: distance of dark (black) object in m
+    :param float rad_ambient: intensity of ambient atmosphere at position of
+        dark object
+    :param float i0: initial intensity of dark object before it enters the 
+        scattering medium. It is determined from the illumination intensity
+        and the albedo of the dark object.
+    :param float atm_ext: atmospheric scattering extincion coefficient 
+        :math:`\epsilon` (in Campion et al., 2015 denoted with :math:`\sigma`).
+        
+    """
+    return i0 * exp(-ext * dist) + rad_ambient * (1 - exp(-ext * dist))
+    
 def gaussian_no_offset(x, ampl, mu, sigma):
     """1D gauss with baseline zero
     

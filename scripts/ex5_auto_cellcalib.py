@@ -56,7 +56,7 @@ def perform_auto_cell_calib():
     c.prepare_tau_stack("off", pyrlevel = 2)
     c.prepare_aa_stack()
     return c
-#ax.legend(loc="best", fancybox=True, framealpha=0.5, fontsize=12)
+
 
 if __name__ == "__main__":
     c = perform_auto_cell_calib()

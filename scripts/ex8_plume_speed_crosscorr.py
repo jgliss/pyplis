@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-piscope example script no. 8 - optical flow analysis
+piscope example script no. 8 - plume speed via cross correlation
 """
 from matplotlib.pyplot import close, show
 from os.path import join
