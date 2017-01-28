@@ -8,7 +8,7 @@ from numpy import vstack, ogrid, empty, ones, asarray, ndim, round, hypot,\
     logical_and, rollaxis, complex, angle, array, ndarray
     
 from numpy.linalg import norm
-
+from warnings import warn
 from scipy.ndimage import map_coordinates 
 from scipy.ndimage.filters import gaussian_filter1d, median_filter
 from json import loads, dumps
@@ -21,11 +21,17 @@ from cv2 import cvtColor, COLOR_BGR2GRAY, pyrDown, pyrUp
 from os import getcwd, remove
 from os.path import join, exists
 from astropy.io import fits
-
+try:
+    from scipy.constants import Avogadro
+    NA = Avogadro
+except:
+    NA = 6.022140857e+23
+    
 from .image import Img
 from .setupclasses import Camera
 from .exceptions import ImgMetaError, ImgModifiedError
 from .helpers import map_coordinates_sub_img, same_roi
+from .plumespeed import OpticalFlowFarneback
 
 class PixelMeanTimeSeries(Series):
     """A ``pandas.Series`` object with extended functionality representing time
@@ -555,6 +561,33 @@ class LineOnImage(object):
         zi = map_coordinates(array, self.profile_coords)
         return zi
         
+    def det_emission_rate(self, gas_cd_img, pix_dists, cd_min_val=1e15,
+                          plume_velo_glob=None, optflow=None, mmol=64.0638):
+        """
+        
+        .. note::
+        
+            currently based on the assumption that vertical pixel pitch is the 
+            same than horizontal pixel pitch
+        """
+        pyrlevel = gas_cd_img.edit_log["pyrlevel"]        
+        if pyrlevel != self.pyrlevel:
+            raise ValueError("Mismatch in pyramid level between input image"
+                " and LineOnGrid")
+        gas_cds = self.get_line_profile(gas_cd_img)
+        cond = gas_cds > cd_min_val
+        dists = self.get_line_profile(pix_dists)[cond]
+        if isinstance(optflow, OpticalFlowFarneback):
+            if optflow.pyrlevel != pyrlevel:
+                warn("Mismatch in pyramid level between input image and "
+                    "optical flow field, no data will be extracted from "
+                    "optical flow, try global wind speed")
+            else:
+                dt = optflow.del_t
+        
+        ica = sum(gas_cds[cond] * 100**2 * dists)
+    
+        flux_uncorr = ica * plume_velo * mmol / NA / 1000.0 #kg/s
     """Plotting / visualisation etc...
     """
     def plot_line_on_grid(self, img_arr = None, ax = None,\
@@ -585,6 +618,9 @@ class LineOnImage(object):
         if ax is None:
             new_ax = True
             ax = subplot(111)
+        else:
+            xlim = ax.get_xlim()
+            ylim = ax.get_ylim()
         if img_arr is not None:
             ax.imshow(img_arr, cmap = "gray")
         p = ax.plot([self.start[0],self.stop[0]], [self.start[1],self.stop[1]],\
@@ -604,6 +640,9 @@ class LineOnImage(object):
         #axis('image')
         if new_ax:
             ax.set_title("Line " + str(self.line_id))
+        else:
+            ax.set_xlim(xlim)
+            ax.set_ylim(ylim)
         draw()
         return ax
     
@@ -859,9 +898,9 @@ class ImgStack(object):
     """Basic img stack object with some functionality, stack data is based
     on 3D numpy array
     """
-    def __init__(self, height = 0, width = 0, img_num = 0, dtype = float32,\
-                 stack_id = "", img_prep = {}, camera = None, geometry = None,\
-                                                             **stack_data):
+    def __init__(self, height=0, width=0, img_num=0, dtype=float32,
+                 stack_id="", img_prep=None, camera=None, geometry=None,
+                    **stack_data):
         """Specify input
         
         :param int height: height of images to be stacked
@@ -890,7 +929,11 @@ class ImgStack(object):
         
         self._access_mask = zeros(img_num, dtype = bool)
         
-        self.img_prep = img_prep
+        if img_prep is None:
+            img_prep = {"pyrlevel"     :   0}
+        self.img_prep = img_prep 
+        
+        
         self.roi_abs = [0, 0, 9999, 9999]
         
         self._cam = Camera()
@@ -1405,14 +1448,24 @@ class ImgStack(object):
             new_stack.append_img(img_arr = im, start_acq = self.start_acq[i],\
                 texp = self.texps[i], add_data = self.add_data[i])
         new_stack._format_check()
-        new_stack.img_prep["pyrlevel"] += steps
+        new_stack.img_prep["pyrlevel"] -= steps
         return new_stack
+    
+    def to_pyrlevel(self, final_state = 0):
+        """Down / upscale image to a given pyramide level"""
+        steps = final_state - self.img_prep["pyrlevel"]
+        print "STEPS: %s" %steps
+        if steps > 0:
+            print "HEEERE"
+            return self.pyr_down(steps)
+        elif steps < 0:
+            print "THEEERE"
+            return self.pyr_up(-steps)
     
     def duplicate(self):
         """Returns deepcopy of this object"""
         return deepcopy(self)
-
-    
+        
     def _format_check(self):
         """Checks if all relevant data arrays have the same length"""
         if not all([len(x) == self.num_of_imgs for x in [self.add_data,\

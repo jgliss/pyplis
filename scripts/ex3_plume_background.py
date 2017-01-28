@@ -136,8 +136,6 @@ ax1.set_xticklabels([])
 ax1.set_xlabel("PCS", fontsize=16)
 ax1.legend(loc="best", fancybox=True, framealpha=0.5, fontsize=12)
 
-plt.show()
-
 fig0.savefig(join(save_path, "ex3_out_1.png"))
 fig1.savefig(join(save_path, "ex3_out_2.png"))
 fig2.savefig(join(save_path, "ex3_out_3.png"))
@@ -145,5 +143,4 @@ fig3.savefig(join(save_path, "ex3_out_4.png"))
 fig.savefig(join(save_path, "ex3_out_5.png"))
 fig4.savefig(join(save_path, "ex3_out_6.png"))
 
-
-
+plt.show()

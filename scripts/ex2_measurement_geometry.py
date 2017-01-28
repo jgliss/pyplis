@@ -37,7 +37,7 @@ def correct_viewing_direction(meas_geometry, draw_result = True):
 def plot_plume_distance_image(meas_geometry):
     """Determines and plots image where each pixel corresponds to the plume 
     distance"""
-    dist_img, plume_dist_img = meas_geometry.get_all_pix_to_pix_dists()
+    dist_img, _, plume_dist_img = meas_geometry.get_all_pix_to_pix_dists()
     fig, ax = subplots(1, 2, figsize = (16,4))
     disp0 = ax[0].imshow(dist_img.img, cmap = "gray")
     ax[0].set_title("Parametrised pixel to pixel distances")
@@ -54,10 +54,9 @@ if __name__ == "__main__":
     ds = create_dataset()
     geom_corr, map = correct_viewing_direction(ds.meas_geometry)
     fig =  plot_plume_distance_image(ds.meas_geometry)
-    show()
     map.ax.figure.savefig(join(save_path, "ex2_out_1.png"))
     fig.savefig(join(save_path, "ex2_out_2.png"))
-    
+    show()
     
     
     

@@ -48,7 +48,13 @@ Plume background analysis
 .. automodule:: piscope.plumebackground
    :members:
    :undoc-members:
-   
+
+Plume velocity analysis
+-----------------------
+
+.. automodule:: piscope.plumespeed
+   :members:
+   :undoc-members:   
 
 Cell calibration
 ----------------
@@ -63,6 +69,13 @@ DOAS calibration
 .. automodule:: piscope.doascalib
    :members:
    :undoc-members:
+   
+Signal dilution correction
+--------------------------
+
+.. automodule:: piscope.dilutioncorr
+   :members:
+   :undoc-members:  
       
 Low level utils
 ---------------

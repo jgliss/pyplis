@@ -7,7 +7,7 @@ plume background images.
 
 """
 
-import piscope as piscope
+import piscope
 from datetime import datetime
 from os.path import join
 from os import getcwd
@@ -17,7 +17,7 @@ import matplotlib.pyplot as plt
 save_path = join(getcwd(), "scripts_out")
 
 # Image base path
-img_dir = join(piscope.inout.find_test_data(), "images")
+img_dir = join(piscope.io.find_test_data(), "images")
 
 def perform_auto_cell_calib():
     ### Calibration time stamps
@@ -59,6 +59,7 @@ def perform_auto_cell_calib():
 
 
 if __name__ == "__main__":
+    plt.close("all")
     c = perform_auto_cell_calib()
     ### Determine exemplary tau time series from on band stack at pixel 100, 100, radius=10
     fig, axes = plt.subplots(1,3, figsize=(20,6))
@@ -70,5 +71,5 @@ if __name__ == "__main__":
     axes[1].set_title("B) Cell search result off band", fontsize = 18)
     axes[2].set_title("C) Calibration polynomials", fontsize = 18)
     fig.tight_layout()
-    plt.show()
     fig.savefig(join(save_path, "ex5_out_1.png"))
+    plt.show()

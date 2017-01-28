@@ -12,8 +12,7 @@ from matplotlib.pyplot import close, show
 from os.path import join, exists
 from os import remove
 
-from ex1_measurement_setup_plume_data import create_dataset, img_dir, save_path
-from ex4_prepare_aa_imglist import prepare_aa_image_list
+from ex4_prepare_aa_imglist import prepare_aa_image_list, img_dir, save_path
                                                                 
 ### SCRIPT OPTONS
 
@@ -35,13 +34,7 @@ if not exists(stack_path):
 # Path containing DOAS result files
 doas_data_path = join(img_dir, "..", "spectra", "plume_prep", "min10Scans",\
     "ResultFiles")
-    
-### Set plume background images for on and off
-# this is the same image which is also used for example script NO
-# demonstrating the plume background routines
-path_bg_on = join(img_dir, 'EC2_1106307_1R02_2015091607022602_F01_Etna.fts')
-path_bg_off = join(img_dir, 'EC2_1106307_1R02_2015091607022820_F02_Etna.fts')
-                  
+                      
 def load_doas_results():
     """ Specify DOAS data import from DOASIS fit result files
     
@@ -90,53 +83,56 @@ if __name__ == "__main__":
     close("all")
     aa_list = None
     if RELOAD_STACK:
-        dataset = create_dataset()
-        aa_list = prepare_aa_image_list(dataset, path_bg_on, path_bg_off)
+        aa_list = prepare_aa_image_list()
         stack = make_aa_stack_from_list(aa_list)
     else:
         stack = piscope.processing.ImgStack()
         stack.load_stack_fits(stack_path)
+    proc = 1
+    if proc:
+        doas_time_series = load_doas_results()
+        s = piscope.doascalib.DoasFOVEngine(stack, doas_time_series, maxrad = 10)
+        calib_pears = s.perform_fov_search(method = "pearson")
+        calib_ifr= s.perform_fov_search(method = "ifr", ifrlbda = 2e-3)
         
-    doas_time_series = load_doas_results()
-    s = piscope.doascalib.DoasFOVEngine(stack, doas_time_series, maxrad = 10)
-    calib_pears = s.perform_fov_search(method = "pearson")
-    calib_ifr= s.perform_fov_search(method = "ifr", ifrlbda = 2e-3)
+        axes = [] #used to store axes objects from plots (for saving)
+        calib_pears.fit_calib_polynomial()
+        axes.append(calib_pears.plot())
+        axes.append(calib_pears.fov.plot())
+        
+        calib_ifr.fit_calib_polynomial()
+        axes.append(calib_ifr.plot())
+        axes.append(calib_ifr.fov.plot())
     
-    axes = [] #used to store axes objects from plots (for saving)
-    calib_pears.fit_calib_polynomial()
-    axes.append(calib_pears.plot())
-    axes.append(calib_pears.fov.plot())
+        if DO_FINE_SEARCH:    
+            """Get position in absolute coordinates and perform a fov search within
+            ROI around result from pearson fov search at full resolution 
+            (pyrlevel=0)
+            """
+            if aa_list is None:
+                aa_list = prepare_aa_image_list()
+            extend = calib_pears.fov.pixel_extend(abs_coords=True)
+            pos_x, pos_y = calib_pears.fov.pixel_position_center(abs_coords=True)
     
-    calib_ifr.fit_calib_polynomial()
-    axes.append(calib_ifr.plot())
-    axes.append(calib_ifr.fov.plot())
-    
-    #now get position in absolute coordinates and perform a fov search within
-    #ROI around result from pearson fov search at full resolution (pyrlevel=0)
-    if aa_list is None:
-        dataset = create_dataset()
-        aa_list = prepare_aa_image_list(dataset, path_bg_on, path_bg_off)
-    extend = calib_pears.fov.pixel_extend(abs_coords=True)
-    pos_x, pos_y = calib_pears.fov.pixel_position_center(abs_coords=True)
-    if DO_FINE_SEARCH:
-        del stack # make space for new stack
-        #create ROI around center position of FOV
-        roi = [ pos_x - 5*extend, pos_y - 5*extend,\
-                pos_x + 5*extend, pos_y + 5*extend]
-                
-        stack = make_aa_stack_from_list(aa_list, roi_abs=roi, pyrlevel=0, save = 0)
-        s = piscope.doascalib.DoasFOVEngine(stack, doas_time_series,\
-                                                    pearson_max_radius = 30)
-        calib_pears_fine = s.perform_fov_search(method = "pearson")
-        calib_pears_fine.fit_calib_polynomial()
-        axes.append(calib_pears_fine.plot())
-        axes.append(calib_pears_fine.fov.plot())
-    for k in range(len(axes)):
-        axes[k].figure.savefig(join(save_path, "ex6_out_%d.png" %k))
-    try:
-        remove(join(save_path, 
-                    "piscope_doascalib_id_aa_avg_20150916_0706_0721.fts"))
-    except:
-        pass
-    calib_pears.save_as_fits(save_dir = save_path)
-    show()
+            del stack # make space for new stack
+            #create ROI around center position of FOV
+            roi = [ pos_x - 5*extend, pos_y - 5*extend,\
+                    pos_x + 5*extend, pos_y + 5*extend]
+                    
+            stack = make_aa_stack_from_list(aa_list, roi_abs=roi, pyrlevel=0, 
+                                            save=0)
+            s = piscope.doascalib.DoasFOVEngine(stack, doas_time_series,\
+                                                        pearson_max_radius = 30)
+            calib_pears_fine = s.perform_fov_search(method = "pearson")
+            calib_pears_fine.fit_calib_polynomial()
+            axes.append(calib_pears_fine.plot())
+            axes.append(calib_pears_fine.fov.plot())
+        for k in range(len(axes)):
+            axes[k].figure.savefig(join(save_path, "ex6_out_%d.png" %k))
+        try:
+            remove(join(save_path, 
+                        "piscope_doascalib_id_aa_avg_20150916_0706_0721.fts"))
+        except:
+            pass
+        calib_pears.save_as_fits(save_dir = save_path)
+        show()

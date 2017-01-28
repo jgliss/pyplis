@@ -34,10 +34,23 @@ GAUSS_2D_PARAM_INFO = ["amplitude", "mu_x", "mu_y", "sigma", "asymmetry",\
     "exp_super_gauss", "offset", "tilt_theta"]
  
 
-def dilution_corr_fit(rads, dists, rad_ambient, i0_guess = None,\
-        i0_min = 0, i0_max = None, ext_guess = 1e-4, ext_min = 0,\
-                                                        ext_max = 1e-3):
-    """Performs least square fit of data"""
+def dilution_corr_fit(rads, dists, rad_ambient, i0_guess=None,
+                      i0_min=0.0, i0_max=None, ext_guess=1e-4, ext_min=0.0,
+                      ext_max = 1e-3):
+    """Performs least square fit of data
+    
+    :param ndarray rads: vector containing measured radiances
+    :param ndarray dists: vector containing corresponding dictances
+    :param float rad_ambient: ambient intensity
+    :param i0_guess: guess value for initial intensity of topographic features,
+        i.e. the reflected radiation before entering scattering medium 
+        (if None, then it is set 5% of the ambient intensity ``rad_ambient``)
+    :param float i0_min: minimum initial intensity of topographic features
+    :param float i0_max: maximum initial intensity of topographic features
+    :param float ext_guess: guess value for atm. extinction coefficient
+    :param float ext_min: minimum value for atm. extinction coefficient
+    :param float ext_max: maximum value for atm. extinction coefficient
+    """
     if i0_guess is None:
         print "No input for i0 guess, assuming albedo of 5%"
         i0_guess = rad_ambient * 0.05
@@ -48,6 +61,8 @@ def dilution_corr_fit(rads, dists, rad_ambient, i0_guess = None,\
     lower = [i0_min, ext_min]
     upper = [i0_max, ext_max]
     bounds = (lower, upper)
+    print lower
+    print upper
     errfun = lambda p, x, y: (dilutioncorr_model(x, rad_ambient, *p) - y)**2
     
     return least_squares(errfun, guess, args = (dists, rads), bounds=bounds)
@@ -599,7 +614,6 @@ class MultiGaussFit(object):
             
         """
         amp0, mu0, sigma0 = self.estimate_main_peak_params() #fits a single gauss
-        low, high = mu0 - sigma0, mu0 + sigma0
         info, ints = self.find_overlaps()
         #the peak index with largest integral value for integrated superposition
         #of all gaussians which are within 3sigma of this peak
@@ -623,13 +637,9 @@ class MultiGaussFit(object):
         mean_mu = average(asarray(mus), weights = weights)
         mean_del_mu = average(asarray(del_mus), weights = weights)
         mean_sigma = average(asarray(sigmas), weights = weights) + mean_del_mu
-        out = self.get_all_gaussians_out_of_3sigma(mean_mu, mean_sigma)
-        for g in out:
-            sign = int(self.integrate_gauss(*g) * 100 / max_int)
-            #print ("Detected additional gaussian:\n%sSignificany: %s %%\n"
-            #    %(self.gauss_str(g), sign))
-              
-        return mean_mu, mean_sigma, out
+        add_gaussians = self.get_all_gaussians_out_of_3sigma(mean_mu,
+                                                             mean_sigma)
+        return mean_mu, mean_sigma, max_int, add_gaussians
         
     """
     Helpers
@@ -1127,8 +1137,16 @@ class MultiGaussFit(object):
                 
         axes[0].legend(loc = 'best', fancybox = True, framealpha = 0.5,\
                             fontsize = self.plot_font_sizes["legends"])
-        axes[0].set_title("Fit result", fontsize =\
+        tit = r"Result"
+        try:
+            mu, sigma, _, _= self.analyse_fit_result()
+            tit += r" main peak: $\mu (+/-\sigma$) = %.1f (+/- %.1f)" %(mu, sigma)
+        except:
+            pass
+        
+        axes[0].set_title(tit, fontsize =\
                             self.plot_font_sizes["titles"])
+        
         res = self.get_residual(self.params)
         axes[1].plot(self.index, res)
         axes[1].set_title("Residual", fontsize =\

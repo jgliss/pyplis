@@ -1,19 +1,23 @@
 # -*- coding: utf-8 -*-
 from matplotlib.pyplot import subplots
+from warnings import warn
 from numpy import float, log, arange, polyfit, poly1d, linspace, isnan,\
                                             diff, mean, argmin, ceil
 from matplotlib.pyplot import Figure
 from datetime import timedelta
 from os.path import exists
+from collections import OrderedDict as od
 
 from .dataset import Dataset
 from .setupclasses import AutoCellCalibSetup
 from .processing import ImgStack, PixelMeanTimeSeries#, ImgListStack, ImagePreparation
 from .imagelists import ImgList, CellImgList
-from .exceptions import CellSearchError
+from .exceptions import CellSearchError, ImgMetaError
 from .image import Img
 from .helpers import subimg_shape, map_coordinates_sub_img
-        
+from .doascalib import DoasFOV
+from .optimisation import PolySurfaceFit
+      
 class CellSearchInfo(object):
     """Class for collecting cell search results in a given time window"""
     def __init__(self, filter_id, id, y_max):
@@ -189,13 +193,34 @@ class CellCalibEngine(Dataset):
         self.bg_tseries = {}
         
         self.tau_stacks = {}
-        
-        self.warnings = []
- 
         print 
         print "FILELISTS IN CALIB DATASET OBJECT INITIALISED"
         print
     
+    def add_cell_images(self, img_paths, cell_gas_cd, cell_id, filter_id):
+        """Add list corresponding to cell measurement
+        
+        :param list img_paths: list containing image file paths
+        :param float cell_gas_cd: column amount of gas in cell
+        :param str cell_id: string identification of cell
+        :param str filter_id: filter ID for images (e.g. "on", "off")
+            
+        """
+        try:
+            #input is not a list but a valid path to (hopefully) an image 
+            if exists(img_paths): 
+                img_paths = [img_paths,]
+        except:
+            pass
+        
+        paths = [p for p in img_paths if exists(p)]
+        if not len(paths) > 0:
+            raise TypeError("No valid filepaths could be identified")
+        
+        lst = CellImgList(files = paths, list_id = filter_id, camera =\
+            self.camera, cell_id = cell_id, gas_cd = cell_gas_cd)
+        self.add_cell_img_list(lst)
+            
     def add_cell_img_list(self, lst):
         """Add a :class:`CellImgList` object in ``self.cell_lists``
         
@@ -223,8 +248,8 @@ class CellCalibEngine(Dataset):
             ``self.bg_lists`` with it's ID as key
         """
         if not isinstance(lst, ImgList):
-            raise TypeError("Error adding bg image list, need ImgList object, got "
-                "%s" %type(lst))
+            raise TypeError("Error adding bg image list, need ImgList object, "
+                "got %s" %type(lst))
         elif not lst.nof > 0:
             raise IOError("No files available in bg ImgList %s, %s" 
             %(lst.list_id, lst.cell_id))
@@ -243,42 +268,19 @@ class CellCalibEngine(Dataset):
         large SZA measurements where the background radiance changes 
         fastly).
         """
-        if filter_id in self.search_results.bg_info.keys():
-            info = self.search_results.bg_info[filter_id]
-            ts = PixelMeanTimeSeries(info.mean_vals, info.start_acq,\
-                info.mean_vals_err, info.texps)
-        else:
-            ts = self.bg_lists[filter_id].get_mean_value()
+#==============================================================================
+#         if filter_id in self.search_results.bg_info.keys():
+#             info = self.search_results.bg_info[filter_id]
+#             ts = PixelMeanTimeSeries(info.mean_vals, info.start_acq,\
+#                 info.mean_vals_err, info.texps)
+#         else:
+#==============================================================================
+        ts = self.bg_lists[filter_id].get_mean_value()
         ts.fit_polynomial()
+        ts.img_prep.update(self.bg_lists[filter_id].current_img().edit_log)
         self.bg_tseries[filter_id] = ts
+        return ts
             
-    def add_cell_images(self, img_paths, cell_gas_cd, cell_id, filter_id):
-        """Add list corresponding to cell measurement
-        
-        :param list img_paths: list containing imagery file paths
-        :param float cell_gas_cd: column amount of gas in cell
-        :param str cell_id: string identification of cell
-        :param str filter_id: filter ID for images (e.g. "on", "off")
-        
-        .. note:: 
-        
-            No input check performed
-            
-        """
-        try:
-            if exists(img_paths): #input is not a list but a valid path
-                img_paths = [img_paths,]
-        except:
-            pass
-        
-        paths = [p for p in img_paths if exists(p)]
-        if not len(paths) > 0:
-            raise TypeError("No valid filepaths could be identified")
-        
-        lst = CellImgList(files = paths, list_id = filter_id, camera =\
-            self.camera, cell_id = cell_id, gas_cd = cell_gas_cd)
-        
-        
     def find_cells(self, filter_id = "on", threshold = 0.10,\
                                         accept_last_in_dip = False):
         """Autodetection of cell images and bg images using mean value series
@@ -310,15 +312,15 @@ class CellCalibEngine(Dataset):
         l = self.get_list(filter_id)
         ts = l.get_mean_value()
         ts.name = filter_id
-        x, y, yErr, texps = ts.index, ts.values, ts.std, ts.texps
+        x, y, yerr, texps = ts.index, ts.values, ts.std, ts.texps
         #this will be overwritten in the loop to find the BG image with the 
         #lowest standard deviation, which is then set as current bg image
-        #yErrCurrentBG = 9999 
+        #yerrCurrentBG = 9999 
         ydiff = diff(y) #1st derivative (finite differences)
         y_max = max(y)
         bg_info = CellSearchInfo(filter_id, "bg", y_max)
         rest = CellSearchInfo(filter_id, "rest", y_max)
-        cell_info = {} #will be filled with CellSearchInfo objects in the loop        
+        cell_info = od() #will be filled with CellSearchInfo objects in the loop        
         cell_count = 0 #counter for number of cells detected
         on_cell = 0 #flag which is set when cell entry_cond is fulfilled
         for k in range(len(y) - 2):
@@ -345,7 +347,8 @@ class CellCalibEngine(Dataset):
             if entry_cond:
                 if on_cell:
                     ts.plot()
-                    raise Exception("Fatal error, found cell dip within cell dip")
+                    raise Exception("Fatal: found cell dip within cell dip"
+                        "plotted time series...")
                     
                 print "Found cell at %s, %s" %(k,x[k])
                 on_cell = 1
@@ -360,7 +363,7 @@ class CellCalibEngine(Dataset):
                 #result.stop = x[k]
                 on_cell = 0
                 result.mean_vals.append(y[k])
-                result.mean_vals_err.append(yErr[k])
+                result.mean_vals_err.append(yerr[k])
                 result.file_paths.append(l.files[k])
                 result.start_acq.append(x[k])
                 result.texps.append(texps[k])
@@ -369,20 +372,20 @@ class CellCalibEngine(Dataset):
             elif bg_cond:
                 print "Found BG candidate at %s, %s" %(k,x[k])
                 bg_info.mean_vals.append(y[k])
-                bg_info.mean_vals_err.append(yErr[k])
+                bg_info.mean_vals_err.append(yerr[k])
                 bg_info.file_paths.append(l.files[k])
                 bg_info.start_acq.append(x[k])
                 bg_info.texps.append(texps[k])
             else: 
                 if on_cell:
                     result.mean_vals.append(y[k])
-                    result.mean_vals_err.append(yErr[k])
+                    result.mean_vals_err.append(yerr[k])
                     result.file_paths.append(l.files[k])
                     result.start_acq.append(x[k])
                     result.texps.append(texps[k])
                 else:
                     rest.mean_vals.append(y[k])
-                    rest.mean_vals_err.append(yErr[k])
+                    rest.mean_vals_err.append(yerr[k])
                     rest.file_paths.append(l.files[k])
                     rest.start_acq.append(x[k])
                     rest.texps.append(texps[k])
@@ -393,6 +396,8 @@ class CellCalibEngine(Dataset):
                 "from number of cells specified in cellSpecInfo (%s) " 
                 %(len(self._cell_info_auto_search.keys()), len(cell_info.keys())))
         
+        #Create new image lists from search results for background images
+        #and one list for each cell that was detected
         bg_info.create_image_list(self.camera)
         bg_info.img_list.update_cell_info("bg", 0.0, 0.0)
         self.assign_dark_offset_lists(into_list = bg_info.img_list)
@@ -403,7 +408,10 @@ class CellCalibEngine(Dataset):
         self.search_results.add_cell_search_result(filter_id, cell_info,\
                                                                 bg_info, rest)
         self.pix_mean_tseries["%s_auto_search" %filter_id] = ts
-        bg_info.img_list.change_index(argmin(bg_info.mean_vals_err))
+        #link background image list to earliest cell list
+        cell_info.items()[0][1].img_list.link_imglist(bg_info.img_list)
+        
+        #bg_info.img_list.change_index(argmin(bg_info.mean_vals_err))
         
         
     def _assign_calib_specs(self, filter_id = None):
@@ -481,7 +489,11 @@ class CellCalibEngine(Dataset):
         """
         for filter_id, info in self.search_results.bg_info.iteritems():
             self.add_bg_img_list(info.img_list)
-            self.det_bg_mean_pix_timeseries(filter_id)
+        dff = self.filters.default_key_on
+        #link all background image lists to default background image list such
+        for filter_id, lst in self.bg_lists.iteritems():
+            if filter_id != dff:
+                self.bg_lists[dff].link_imglist(self.bg_lists[filter_id])
         for filter_id, cellDict in self.search_results.cell_info.iteritems():
             for cell_id, cell in cellDict.iteritems():
                 lst = cell.img_list
@@ -495,34 +507,12 @@ class CellCalibEngine(Dataset):
             try:
                 self.find_cells(filter_id, threshold, False)
             except:
-                try:
-                    self.find_cells(filter_id, threshold, True)
-                except:
-                    raise
+                self.find_cells(filter_id, threshold, True)
+        
         self._assign_calib_specs()
         self.add_search_results()
         self.check_all_lists()
         self.cell_search_performed = 1
-        
-#==============================================================================
-#     def copy_dark_offset_info(self, into_list, fromListKey):
-#         """Copy dark and offset infor from one list into another
-#         
-#         :param str fromListKey: key of base list (``self.get_list(key)``)
-#         :param BaseImgList into_list: destination list
-#         
-#         """
-#         into_list.darkLists = self.get_list(fromListKey).darkLists      
-#         into_list.offsetLists = self.get_list(fromListKey).offsetLists        
-#         print ("Succesfully copied dark and offset info from %s to %s " 
-#                                                 %(fromListKey, into_list.id))
-#==============================================================================
-#==============================================================================
-#     def ready_2_go(self,filter_id):
-#         if filter_id in self.stacks.tau.keys():
-#             return 1
-#         return 0
-#==============================================================================
             
     def bg_img_available(self, filter_id):
         """Checks if a background image is available
@@ -564,10 +554,10 @@ class CellCalibEngine(Dataset):
         
         for filter_id in filter_ids:
             if not len(self.cell_lists[filter_id]) == cellNum0:
-                raise Exception("Mismatch in number of cells in self.cell_lists "
-                    " between filter list %s and %s" %(filter_ids[0], filter_id))
+                raise Exception("Mismatch in number of cells in "
+                    "self.cell_lists between filter list %s and %s" 
+                    %(filter_ids[0], filter_id))
             for cell_id in cell_ids:
-                print "filter_id: " + str(filter_id) + ", CellId: " + str(cell_id)
                 self.check_image_list(self.cell_lists[filter_id][cell_id])
             if not self.bg_lists.has_key(filter_id):
                 raise KeyError("Error: BG image data (list) for filter ID %s "
@@ -578,7 +568,7 @@ class CellCalibEngine(Dataset):
         return True
         
     def check_cell_info_dict_autosearch(self, cell_info_dict):
-        """Checks if dictionary including cell gas column info is in right format
+        """Checks if dictionary including cell gas column info is right format
         
         :param dict cell_info_dict: keys: cell ids (e.g. "a57"), 
             values: list of gas column density and uncertainty in cm-2:
@@ -614,14 +604,9 @@ class CellCalibEngine(Dataset):
         """Checks if all current cell lists contain images and gas CD info"""
         return self.check_all_lists()
     
-    def create_background_dataset(self):
-        """Creates a :class:`piscope.dataset.Dataset` object from bg image data
-        """
-        raise NotImplementedError
-    def prepare_calibration_stacks(self, on_id, off_id, darkCorr = True,
-            blurring = 1):
-        """High level function to prepare all stacks etc to retrieve the actual
-        calibration
+    def prepare_calibration_stacks(self, on_id, off_id, darkcorr = True,
+                                               blurring = 1, pyrlevel = 0):
+        """High level function to prepare all calibration stacks (on, off, aa)
         
         :param str on_id: ID of onband filter used to determine calib curve
         :param str off_id: ID of offband filter
@@ -630,16 +615,17 @@ class CellCalibEngine(Dataset):
         ids = [on_id, off_id]
         self.check_all_lists()
         for filter_id in ids:
-            if not self.prepare_tau_stack(filter_id):
+            if not self.prepare_tau_stack(filter_id, darkcorr, blurring,
+                                          pyrlevel):
                 print ("Failed to prepare cell calibration, check tau stack "
-                    "determination for filter ID: " + str(filter_id))
+                    "determination for filter ID: %s" %filter_id)
                 return 0
         if not self.prepare_aa_stack(on_id, off_id):
             print ("Failed to prepare cell AA calibration, check tau stack "
-                    "determination for filter ID: " + str(filter_id))
+                    "determination for filter ID: %s" %filter_id)
             return 0
         return 1
-       
+    
     def prepare_tau_stack(self, filter_id, darkcorr = True, blurring = 1,\
                                                             pyrlevel = 0):
         """Prepare a stack of tau images for input filter images
@@ -660,29 +646,26 @@ class CellCalibEngine(Dataset):
 
         bg_list = self.bg_lists[filter_id]
         bg_list.update_img_prep(blurring = blurring)
-        bg_list.activate_darkcorr()
-        #prep = bg_list.img_prep.update({"pyrlevel" : pyrlevel})
-        
+        bg_list.darkcorr_mode = darkcorr
+        bg_mean_tseries = self.det_bg_mean_pix_timeseries(filter_id)
         bg_img = bg_list.current_img()
         bg_mean = bg_img.img.mean()
-        bg_mean_tseries = self.bg_tseries[filter_id]
+         
         h, w = subimg_shape(bg_list.current_img().img.shape,\
                                                 pyrlevel = pyrlevel)
         num = len(self.cell_lists[filter_id])
         tau_stack = ImgStack(h, w, num, stack_id = filter_id)
-        tau_stack.img_prep.update(bg_list.img_prep, darkcorr = darkcorr,\
-                                                      pyrlevel = pyrlevel)
         
         for cell_id, lst in self.cell_lists[filter_id].iteritems():
             lst.update_img_prep(blurring = blurring)
-            lst.activate_darkcorr()
+            lst.darkcorr_mode = True
             cell_img = lst.current_img()
             try:
                 bg_mean_now = bg_mean_tseries.get_poly_vals(cell_img.meta[\
                                                                 "start_acq"])
                 offset = bg_mean - bg_mean_now
             except:
-                print ("Warning while calculating tau image stack for filter "
+                warn("Warning in tau image stack calculation for filter "
                 " %s: Time series data for background list (background poly) "
                 " is not available. Calculating tau image for cell image  %s, "
                 " %s based on unchanged background image recorded at %s"
@@ -690,14 +673,21 @@ class CellCalibEngine(Dataset):
                                                 bg_img.meta["start_acq"]))
                     
                 offset = 0.0
-            bg_data = bg_img.img - offset
-            tau_img = Img(log(bg_data / cell_img.img))
-            tau_img.pyr_down(pyrlevel)
+            
+            bg_img = bg_img - offset
+            tau_img = cell_img.duplicate()
+            if bg_img.edit_log["darkcorr"] != cell_img.edit_log["darkcorr"]:
+                raise ImgMetaError("Fatal: cannot determine tau stack, bg "
+                    "image and cell image have different darkcorr modes")
+            tau_img.img = log(bg_img.img / cell_img.img)
+            
+            tau_img.to_pyrlevel(pyrlevel)
             tau_stack.append_img(tau_img.img, start_acq =\
                     cell_img.meta["start_acq"], texp = cell_img.meta["texp"],\
                                     add_data = lst.gas_cd)
-        
+        tau_stack.img_prep.update(tau_img.edit_log)
         self.tau_stacks[filter_id] = tau_stack
+        return tau_stack
     
     def prepare_aa_stack(self, on_id = "on", off_id = "off", stack_name = "aa"):
         """Prepare stack containing AA images
@@ -713,13 +703,96 @@ class CellCalibEngine(Dataset):
         The new AA stack is added to ``self.tau_stacks`` dictionary
         
         """
-        aa = self.tau_stacks[on_id] - self.tau_stacks[off_id]
+        try:
+            aa = self.tau_stacks[on_id] - self.tau_stacks[off_id]
+        except:
+            warn("Tau on and / or tau off stacks are not available for AA "
+                "stack calculation, trying to determine these ... ")
+            self.prepare_tau_stack(on_id, darkcorr = True)
+            self.prepare_tau_stack(off_id, darkcorr = True)
+            aa = self.tau_stacks[on_id] - self.tau_stacks[off_id]
         aa.stack_id  = "aa"
         self.tau_stacks[stack_name] = aa
         return aa
-                
-    def get_calibration_polynomial(self, filter_id, pos_x_abs, pos_y_abs,\
-                                radius_abs = 1, mask = None, polyorder = 1):
+    
+    def get_sensitivity_corr_mask(self, doas_fov=None, filter_id="aa",
+                                  cell_cd = 1e16, surface_fit_pyrlevel=2):
+        """Get sensitivity correction mask 
+        
+        Prepares a sensitivity correction mask to corrector for filter 
+        transmission shifts. These shifts result in increaing optical densities
+        towards the image edges for a given gas column density.
+        
+        The mask is determined from a specified cell optical density image (aa, tau_on, tau_off) which is normalised either
+        with respect to the pixel position of a DOAS field of view within the
+        images, or, alternatively with respect to the image center coordinate.
+        
+        Plume AA (or tau_on, tau_off) images can then be corrected for these
+        sensitivity variations by division with the mask. If DOAS calibration 
+        is used, the calibration polynomial can then be used for all image 
+        pixels. If only cell calibration is used, the mask is normalised with
+        respect to the image center, the corresponding cell calibration 
+        polynomial should then be retrieved in the center coordinate which
+        is the default polynomial when using :func:`get_calibration_polynomial` 
+        or func:`__call__`) if not explicitely specified. You may then 
+        calibrate a given aa image (``aa_img``) as follows with using a 
+        :class:`CellCalibEngine` object (denoted with ``cellcalib``)::
+        
+            mask, cell_cd = cellcalib.get_sensitivity_corr_mask()
+            aa_corr = aa_img.duplicate()
+            aa_corr.img = aa_img.img / mask
+            #this is retrieved in the image center if not other specified
+            so2img = cellcalib(aa_corr)
+            so2img.show()
+            
+        :param DoasFov doas_fov: DOAS field of view class, if unspecified, the
+            correction mask is determined with respect to the image center
+        :param str filter_id: mask is determined from the corresponding calib
+            data (e.g. "on", "off", "aa")
+        :param float cell_cd: use the cell which is closest to this column
+        :param int surface_fit_pyrlevel: additional downscaling factor for 
+            2D polynomial surface fit
+        
+        .. note::
+        
+            This function was only tested for AA images and not for on / off
+            cell tau images
+            
+        """
+        if not filter_id in self.tau_stacks.keys():
+            raise ValueError("Stack with ID %s not available")
+        stack = self.tau_stacks[filter_id]
+        #convert stack to pyramid level 0
+        stack = stack.to_pyrlevel(0)
+        print stack.shape
+        try:
+            if stack.img_prep["crop"]:
+                raise ValueError("Stack is cropped: sensitivity mask can only"
+                    "be determined for uncropped images")
+        except:
+            pass
+        idx = argmin(abs(stack.add_data - cell_cd))
+        cell_img, cd = stack.stack[idx], stack.add_data[idx]
+        if isinstance(doas_fov, DoasFOV):
+            fov_x, fov_y = doas_fov.pixel_position_center(abs_coords=True)
+            fov_extend = doas_fov.pixel_extend(abs_coords=True)
+            
+        else:
+            print "Using image center coordinates and radius 3"
+            h, w = stack.shape[1:]
+            fov_x, fov_y = int(w / 2.0), int(h / 2.0)
+            fov_extend = 3
+        print fov_x, fov_y, fov_extend
+        fov_mask = stack.make_circular_access_mask(fov_x, fov_y, fov_extend)
+        cell_img = PolySurfaceFit(cell_img, 
+                                  pyrlevel=surface_fit_pyrlevel).model
+        mean = (cell_img * fov_mask).sum() / fov_mask.sum()
+        mask = cell_img / mean
+        return mask, cd 
+          
+    def get_calibration_polynomial(self, filter_id="aa", pos_x_abs=None,
+                                   pos_y_abs=None, radius_abs=1,
+                                   mask=None, polyorder=1):
         """Retrieve calibration polynomial within a certain pixel neighbourhood
         
         :param str filter_id: image type ID (e.g. "on", "off")
@@ -741,15 +814,48 @@ class CellCalibEngine(Dataset):
         
         """
         stack = self.tau_stacks[filter_id]
-        x_rel, y_rel = map_coordinates_sub_img(pos_x_abs, pos_y_abs,\
-                                    stack.roi_abs, stack.img_prep["pyrlevel"])
-        rad_rel = int(ceil(float(radius_abs) / 2**stack.img_prep["pyrlevel"]))
-        print "ABS: %s, %s, %s" %(pos_x_abs, pos_y_abs, radius_abs)
-        print "REL: %s, %s, %s" %(x_rel, y_rel, rad_rel)
+        try:
+            x_rel, y_rel = map_coordinates_sub_img(pos_x_abs, pos_y_abs,
+                                                   stack.roi_abs,
+                                                   stack.img_prep["pyrlevel"])
+        except:
+            print "Using image center coordinates"
+            h, w = stack.shape[1:]
+            x_rel, y_rel = int(w / 2.0), int(h / 2.0)
+        try:
+            rad_rel = int(ceil(float(radius_abs) /\
+                            2**stack.img_prep["pyrlevel"]))
+        except:
+            print "Using radius of 3"
+            rad_rel = 3
         tau_arr = stack.get_time_series(x_rel, y_rel, rad_rel, mask)[0].values
         so2_arr = stack.add_data
         return poly1d(polyfit(tau_arr, so2_arr, polyorder)), tau_arr, so2_arr
     
+    """
+    Redefinitions
+    """
+    def get_list(self, list_id, cell_id=None):
+        """Expanding funcionality of this method from :class:`Dataset` object
+        
+        :param str list_id: filter ID of list (e.g. on, off). If parameter 
+            ``cell_id`` is None, then this function returns the initial
+            Dataset list (containing all images, not the ones separated by 
+            cells / background).
+        :param cell_id: if input is specified (type str) and valid (available
+            cell img list), then the corresponding list is returned which only
+            contains images from this cell. The string "bg" might be used to 
+            access the background image list of the filter specified with 
+            parameter ``list_id``
+        :return: - ImgList, the actual list object
+        """
+        if cell_id is not None and isinstance(cell_id, str):
+            if cell_id in self.cell_lists[list_id].keys():
+                return self.cell_lists[list_id][cell_id]
+            elif cell_id == "bg":
+                return self.bg_lists[list_id]
+        return super(CellCalibEngine, self).get_list(list_id)
+        
     """
     Plotting etc
     """           
@@ -796,9 +902,11 @@ class CellCalibEngine(Dataset):
             ax.plot(bg_info.start_acq, bg_info.mean_vals,' o', ms = 10,\
                 markerfacecolor = "None", markeredgecolor = 'c',\
                 mew = 2,label = 'BG image canditates')
-                
-            bg_poly_vals = self.bg_tseries[filter_id].get_poly_vals(\
-                                    bg_info.start_acq, ext_border_secs = 30)
+            ts = PixelMeanTimeSeries(bg_info.mean_vals, bg_info.start_acq)
+            ts.fit_polynomial(2)
+            bg_poly_vals = ts.get_poly_vals(bg_info.start_acq,
+                                            ext_border_secs=30)
+                                            
             ax.plot(bg_info.start_acq, bg_poly_vals,'-', c = 'lime', lw = 2,
                                                 label = 'Fitted BG polynomial')
             
@@ -806,7 +914,7 @@ class CellCalibEngine(Dataset):
             ax.plot(bg_info.start_acq[cfn], bg_info.mean_vals[cfn],\
             ' +r', ms = 14, mew = 4, label = 'Current BG image')
             
-        ax.legend(loc = 4, fancybox = True, framealpha = 0.5).draggable()
+        ax.legend(loc = 4, fancybox = True, framealpha = 0.5, fontsize=10)
         ax.set_ylabel("Avg. pixel intensity", fontsize = 16)
         return ax.figure, ax
     
@@ -874,7 +982,7 @@ class CellCalibEngine(Dataset):
             taus = linspace(0, tau.max() * 1.2, 100)
             pl = ax.plot(tau, so2, " ^", label = "Data %s" %filter_id)
             ax.plot(taus, poly(taus),"-", color = pl[0].get_color(), label =\
-                                                    "Poly %s" %filter_id)
+                                                    "Poly %s" %poly)
             tm = tau.max()
             if tm > tau_max:
                 tau_max = tm
@@ -887,8 +995,32 @@ class CellCalibEngine(Dataset):
         ax.set_xlim([0, tau_max * 1.05])
         ax.grid()
         ax.legend(loc = "best", fancybox = True,\
-                            framealpha = 0.5, fontsize = 14)
+                            framealpha = 0.5, fontsize = 10)
         return ax
+        
+    def __call__(self, value, filter_id="aa", **kwargs):
+        """Define call function to apply calibration
+        
+        :param float value: tau or AA value
+        :return: corresponding column density
+        """
+        poly = self.get_calibration_polynomial(filter_id, **kwargs)[0]
+        if isinstance(value, Img):
+            calib_im = value.duplicate()
+            calib_im.img = poly(calib_im.img)
+            calib_im.edit_log["gascalib"] = True
+            return calib_im
+        elif isinstance(value, ImgStack):
+            try:
+                value = value.duplicate()
+            except MemoryError:
+                warn("Stack cannot be duplicated, applying calibration to "
+                "input stack")
+            value.stack=poly(value.stack)
+            value.img_prep["gascalib"] = True
+            return value
+        return poly(value)
+        
    
 
         

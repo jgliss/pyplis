@@ -32,7 +32,7 @@ class Dataset(object):
                                                         
     def load_input(self, input):
         """Extract information from input and set / update self.setup"""
-        print "Checking and loading input in piscope.Dataset (if applicable)"
+        print "Checking and loading input in Dataset"
         if self.set_setup(input):
             return 1
         msg = ("Input is not MeasSetup, create new (default) MeasSetup object")
