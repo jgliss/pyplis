@@ -242,6 +242,7 @@ class DilutionCorr(object):
                 map3d.add_geo_points_3d(pts, **kwargs)
         if axis_off:
             map3d.ax.set_axis_off()
+        return map3d
             
 def get_topo_dists_lines(lines, geom, img = None, skip_pix = 5,\
         topo_res_m = 5.0, min_slope_angle = 5.0, plot = False,\
