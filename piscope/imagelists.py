@@ -1509,7 +1509,7 @@ class ImgList(BaseImgList):
                         "flagged tau image" %self.list_id)
                 self.bg_model.guess_missing_settings(self.current_img())
             roi = map_roi(self.bg_model.scale_rect, self.pyrlevel)
-            len_im = self.optflow.get_flow_vector_length_image() #is at pyrlevel
+            len_im = self.optflow.get_flow_vector_length_img() #is at pyrlevel
             sub = len_im[roi[1]:roi[3], roi[0]:roi[2]]
             min_len = ceil(sub.mean() + 3 * sub.std())
             self.optflow.settings.min_length = min_len

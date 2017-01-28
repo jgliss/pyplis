@@ -12,13 +12,7 @@ from os.path import join
 #import relevant paths and methods from example one
 from ex1_measurement_setup_plume_data import create_dataset, save_path, img_dir
 
-### Set plume background images for on and off
-# this is the same image which is also used for example script NO
-# demonstrating the plume background routines
-path_bg_on = join(img_dir, 'EC2_1106307_1R02_2015091607022602_F01_Etna.fts')
-path_bg_off = join(img_dir, 'EC2_1106307_1R02_2015091607022820_F02_Etna.fts')
-
-def prepare_aa_image_list(dataset, bg_path_on, bg_path_off, bg_corr_mode = 6):
+def prepare_aa_image_list(bg_corr_mode = 6):
     """Get and prepare onband list for aa image mode
     
     The relevant gas free areas for background image modelling are set 
@@ -26,6 +20,17 @@ def prepare_aa_image_list(dataset, bg_path_on, bg_path_off, bg_corr_mode = 6):
     
     :return: - on list in AA mode    
     """
+
+    dataset = create_dataset()
+    
+    ### Set plume background images for on and off
+    # this is the same image which is also used for example script NO
+    # demonstrating the plume background routines
+    path_bg_on = join(img_dir, 
+                      'EC2_1106307_1R02_2015091607022602_F01_Etna.fts')
+    path_bg_off = join(img_dir, 
+                       'EC2_1106307_1R02_2015091607022820_F02_Etna.fts')
+    
     ### Get on and off lists and activate dark correction
     on_list = dataset.get_list("on")
     on_list.activate_darkcorr() #same as on_list.darkcorr_mode = 1
@@ -61,17 +66,12 @@ def prepare_aa_image_list(dataset, bg_path_on, bg_path_off, bg_corr_mode = 6):
     
     return on_list
 
-    #stack, hdu = load_stack_fits(stack, stack_path)
-
-
 if __name__ == "__main__":
     from matplotlib.pyplot import show
     from time import time
     
-    
     close("all")
-    dataset = create_dataset()
-    aa_list = prepare_aa_image_list(dataset, path_bg_on, path_bg_off)
+    aa_list = prepare_aa_image_list()
     
     aa_list.show_current()
     
@@ -92,7 +92,8 @@ if __name__ == "__main__":
     print "Elapsed time: %s s" %(time() - t0)
     
     aa_list.crop = False
-    aa_list.bg_model.plot_sky_reference_areas(aa_list.current_img())
-    aa_list.bg_model.plot_tau_result(aa_list.current_img())
-    show()
+    ax1 = aa_list.bg_model.plot_sky_reference_areas(aa_list.current_img())
+    fig = aa_list.bg_model.plot_tau_result(aa_list.current_img())
     ax.figure.savefig(join(save_path, "ex4_out_1.png"))
+
+    show()

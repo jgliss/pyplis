@@ -11,7 +11,7 @@
 """
 from numpy import nan, arctan, deg2rad, linalg, sqrt, abs, array, radians,\
     sin, cos, arcsin, tan, rad2deg, zeros, linspace, isnan, asarray, ones,\
-    arange, argmin, round
+    arange, argmin
 from collections import OrderedDict as od
 from matplotlib.pyplot import figure
 from copy import deepcopy
@@ -299,7 +299,8 @@ class MeasGeometry(object):
         elevs = -rad2deg(arctan(dy / f)) + self.cam["elev"]
         return azims, elevs, x, y
             
-    def get_distances_to_topo_line(self, line, skip_pix = 30):
+    def get_distances_to_topo_line(self, line, skip_pix = 30, topo_res_m = 5.,
+                                   min_slope_angle = 5.):
         """Retrieve distances to topography for a line on an image
         
         Calculates distances to topography based on pixels on the line. This is 
@@ -338,52 +339,42 @@ class MeasGeometry(object):
         azims, elevs = azims[::int(skip_pix)], elevs[::int(skip_pix)]
         i_pos, j_pos = i_pos[::int(skip_pix)], j_pos[::int(skip_pix)]
     
-        max_dist = self.source2cam.magnitude * 1.03
+        max_dist = self.source2cam.magnitude * 1.10
         #initiate results
         res = { "dists"         : [], 
                 "dists_err"     : [],
                 "geo_points"    : [],
-                "profiles"      : [],
-                "ok"            : [],
-                "msg"           : []} 
+                "ok"            : []} 
         
         for k in range(len(azims)):
             ep = None
             #try:
-            ep = self.get_elevation_profile(azim = azims[k],\
-                                                dist_hor = max_dist)
+            ep = self.get_elevation_profile(azim = azims[k], dist_hor = 
+                max_dist, topo_res_m = topo_res_m)
 
-            d, dErr, p , l, _ = ep.get_first_intersection(elevs[k],\
+            d, d_err, p , l, _ = ep.get_first_intersection(elevs[k],\
                         view_above_topo_m = self.cam["alt_offset"])
-            msg = "ok"
+            if min_slope_angle > 0:
+                slope = ep.slope_angle(d)
+                if slope <  min_slope_angle:
+                    print "Slope angle too small, remove point at dist %.1f" %d
+                    d = None
             ok = True
-            if d == None:
-                raise ValueError
-#==============================================================================
-#             except Exception as e:
-#                 print repr(e)
-#                 d, dErr, p = nan, nan, nan
-#                 msg = "failed: %s" %repr(e)
-#                 ok = False
-#==============================================================================
-                #return res, ep, elevs[k]
-                    
-            res["dists"].append(d), res["dists_err"].append(dErr)
+            if d == None: #then, the intersection could be found
+                ok = False
+                d, d_err = nan, nan
+                
+            res["dists"].append(d)
+            res["dists_err"].append(d_err)
             res["geo_points"].append(p)
-            res["profiles"].append(ep)
-            res["msg"].append(msg)
             res["ok"].append(ok)
+            
         res["azims"] = azims
         res["elevs"] = elevs
-#==============================================================================
-#         res["i_pos"] = round(i_pos).astype(int)
-#         res["j_pos"] = round(j_pos).astype(int)
-#==============================================================================
         res["i_pos"] = i_pos
-        res["j_pos"] = j_pos        
-        for k in res:
-            res[k] = asarray(res[k])
-        res["ok"] = res["ok"].astype(bool)
+        res["j_pos"] = j_pos
+        for key in res:
+            res[key] = asarray(res[key])
         return res
     
     def get_angular_displacement_pix_to_cfov(self, pos_x, pos_y):
@@ -422,8 +413,8 @@ class MeasGeometry(object):
                 return False
         return True
         
-    def get_elevation_profile(self, col_num = None, azim = None,\
-                                                        dist_hor = None):
+    def get_elevation_profile(self, col_num=None, azim=None, dist_hor=None,
+                                topo_res_m=5.):
         """Retrieves elev profile from camera into a certain azim direction
         
         :param int col_num: pixel column number of profile, if None or
@@ -435,6 +426,7 @@ class MeasGeometry(object):
         :param float dist_hor: horizontal distance (from camera, in km) 
             up to witch the profile is determined. If None, then use 1.05 times 
             the camera source distance
+        :param float topo_res_m: desired horizontal grid resolution in m ()
         """
         try:
             az = azim
@@ -443,8 +435,8 @@ class MeasGeometry(object):
             
             if dist_hor == None:
                 dist_hor = (self.cam_pos - self.source_pos).norm * 1.05
-            p = self.cam_pos.get_elevation_profile(azimuth = az,\
-                                                    dist_hor = dist_hor)
+            p = self.cam_pos.get_elevation_profile(azimuth=az, dist_hor=
+                dist_hor, resolution=topo_res_m)
             print "Succesfully determined elevation profile for az = %s" %az
             return p
         
@@ -493,8 +485,8 @@ class MeasGeometry(object):
             if not bool(p):
                 raise TopoAccessError("Failed to retrieve topography profile")
             # Find first intersection
-            d, dErr, pf = p.get_first_intersection(elev, min_dist)
-            return d, dErr, pf
+            d, d_err, pf = p.get_first_intersection(elev, min_dist)
+            return d, d_err, pf
         except Exception as e:
             print ("Failed to retrieve distance to topo:" %repr(e))
             return False
@@ -625,8 +617,8 @@ class MeasGeometry(object):
 
         .. note::
         
-            1. this is inadequate for complicated viewing geometries (i.e if the 
-            the angles between viewing direction and plume are sharp)
+            this is inadequate for complicated viewing geometries (i.e if 
+            the the angles between viewing direction and plume are sharp)
             
         """
         ratio = self.cam["pix_width"] / self.cam["focal_length"] #in m
@@ -636,19 +628,39 @@ class MeasGeometry(object):
         return pix_dists_m, dists
     
     def get_all_pix_to_pix_dists(self, pyrlevel = 0, roi_abs = None):
-        """Determine image containing pixel to pixel distances"""
-        pix_dists_m, plume_dists = self.calculate_pixel_col_distances()
+        """Determine images containing pixel and plume distances
+        
+        :param int pyrlevel: returns images at a given gauss pyramid level
+        :param roi_abs: ROI in absolute detector coordinates, if valid, then 
+            the images are cropped
+        :return:
+            - Img, col_dist_img: image where each pixel corresponds to pixel 
+                column distances in m
+            - Img, row_dist_img: image where each pixel corresponds to pixel 
+                row distances in m (same as col_dist_img if pixel width and
+                height are equal)
+            - Img, plume_dist_img: image where each pixel corresponds to plume
+                distance in m
+        """
+        col_dists_m, plume_dists = self.calculate_pixel_col_distances()
+        row_dists_m = col_dists_m * self.cam["pix_height"] /\
+                                                    self.cam["pix_width"]
+                                                
         h = self.cam["pixnum_y"]
-        p2p_img = Img(pix_dists_m * ones(h).reshape((h, 1)))
+        col_dist_img = Img(col_dists_m * ones(h).reshape((h, 1)))
+        row_dist_img = Img(row_dists_m * ones(h).reshape((h, 1)))
         plume_dist_img = Img(plume_dists * ones(h).reshape((h, 1)))
         #the pix-to-pix distances need to be transformed based on pyrlevel
-        p2p_img.pyr_down(pyrlevel)# * 2**pyrlevel
-        p2p_img = p2p_img * 2**pyrlevel
+        col_dist_img.pyr_down(pyrlevel)
+        col_dist_img = col_dist_img * 2**pyrlevel
+        row_dist_img.pyr_down(pyrlevel)
+        row_dist_img = row_dist_img * 2**pyrlevel
         plume_dist_img.pyr_down(pyrlevel)
         if check_roi(roi_abs):
-            p2p_img.crop(roi_abs)
+            col_dist_img.crop(roi_abs)
+            row_dist_img.crop(roi_abs)
             plume_dist_img.crop(roi_abs)
-        return p2p_img, plume_dist_img
+        return col_dist_img, row_dist_img, plume_dist_img
         
     def get_plume_direction(self):
         """Return the plume direction plus error based on wind direction"""
@@ -676,7 +688,7 @@ class MeasGeometry(object):
         if not bool(ep):
             raise TopoAccessError("Failed to retrieve topography profile")
         # Find first intersection
-        d, dErr, pf = ep.get_first_intersection(elev, min_dist = sc * 0.05,\
+        d, d_err, pf = ep.get_first_intersection(elev, min_dist = sc * 0.05,\
                                                                 plot = True)
         return ep
             
@@ -745,6 +757,7 @@ class MeasGeometry(object):
         :param bool draw_source: insert source position into map
         :param bool draw_plume: insert plume vector into map
         :param bool draw_fov: insert camera FOV (az range) into map
+        :param cmap_topo: colormap for topography plot (default="Oranges")
         :param ax: 3D axes object (default: None -> creates new one)
         :param *args: additional non-keyword arguments for setting up the base
             map (`see here <http://matplotlib.org/basemap/api/basemap_api.

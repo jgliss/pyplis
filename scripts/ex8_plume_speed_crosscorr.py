@@ -84,37 +84,50 @@ def apply_cross_correlation(prof_pic1, prof_pic2, dist_img, **kwargs):
     """Applies correlation search algorighm to ICA time series of both lines
     
     :param prof_pic1: first profile time series picture
+    :param prof_pic2: second profile time series picture
     """
     icas1 = np.sum(prof_pic1.img, axis = 0)
     icas2 = np.sum(prof_pic2.img, axis = 0)
     times = prof_pic1.time_stamps
-    #lag, coeffs, s1, s2, max_coeff_signal, ax = 
+    
     res = find_signal_correlation(icas1, icas2, times, **kwargs)
     lag = res[0]
-    pix_dist_avg = np.mean([pcs1.get_line_profile(dist_img.img).mean(),\
-                            pcs2.get_line_profile(dist_img.img).mean()])
+    
+    #Average pix-to-pix distances for both lines
+    pix_dist_avg_line1 = pcs1.get_line_profile(dist_img.img).mean()
+    pix_dist_avg_line2 = pcs2.get_line_profile(dist_img.img).mean()
+    
+    #Take the mean of those to determine distance between both lines in m
+    pix_dist_avg = np.mean([pix_dist_avg_line1, pix_dist_avg_line2])
+    
+    #the lines are 40 pixels apart from each other, this yields the velocity
     v = 40 * pix_dist_avg / lag 
     return v, res
 
 if __name__ == "__main__":
     close("all")
     ds = create_dataset()
-    geom, m = correct_viewing_direction(ds.meas_geometry)
+    geom, basemap = correct_viewing_direction(ds.meas_geometry)
     
+    #get pix-to-pix and plume distance image
     dist_img, plume_dist_img = geom.get_all_pix_to_pix_dists()
     
+    #prepare the AA image list (see ex4)
     aa_list = prepare_aa_image_list(ds, path_bg_on, path_bg_off)
     
-    ax = aa_list.show_current()
+    #draw current AA image 
+    img = aa_list.current_img()
+    img.add_gaussian_blurring(1)
+    ax = img.show()
     
+    #Create two PCS lines for cross correlation analysis
     pcs1, pcs2 = create_pcs_lines()
     
-    pcs1.plot_line_on_grid(ax = ax, include_normal=True)    
-    pcs2.plot_line_on_grid(ax = ax, include_normal=True)
-    h, w = aa_list.current_img().shape
-    ax.set_xlim([0, w - 1])
-    ax.set_ylim([h -1, 0])
+    #plot the two PCS lines (with normal vector) into AA image
+    pcs1.plot_line_on_grid(ax = ax, include_normal=True, c = "b")    
+    pcs2.plot_line_on_grid(ax = ax, include_normal=True, c = "g")
     ax.legend(loc='best', fancybox=True, framealpha=0.5, fontsize=10) 
+    
     if not RELOAD:
         try:
             prof_pic1, prof_pic2 = load_profile_tseries_from_fits(p1, p2)
@@ -123,18 +136,14 @@ if __name__ == "__main__":
     if RELOAD:
         prof_pic1, prof_pic2 = reload_profile_tseries_from_aa_list(\
             aa_list, pcs1, pcs2)
-            
-    v0, res0 = apply_cross_correlation(prof_pic1, prof_pic2, dist_img,\
+    
+    # Apply cross correlation analysis to the two            
+    v, res = apply_cross_correlation(prof_pic1, prof_pic2, dist_img,\
             cut_border_idx = 10, reg_grid_tres = 100, freq_unit = "L",\
                                             sigma_smooth = 2, plot = True) 
-    v1, res1 = apply_cross_correlation(prof_pic1, prof_pic2, dist_img,\
-                                            sigma_smooth = 0, plot = True) 
-    res0[-1][0].figure.suptitle("Retrieved plume velocity v = %.2f m/s" %v0)
-    res1[-1][0].figure.suptitle("Retrieved plume velocity v = %.2f m/s" %v1)
+    ax = res[-1][0]
+    tit = "Retrieved plume velocity of v = %.2f m/s" %v
+    ax.figure.suptitle(tit)
+    print tit
     show()
     
-
-#==============================================================================
-# print "Avg. plume velocity = %.2f m / s"\
-#             %(pcs_offset * dist_img.mean() / lag)
-#==============================================================================

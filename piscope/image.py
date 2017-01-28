@@ -7,7 +7,6 @@ from numpy import ndarray, argmax, histogram, float32, uint, nan, linspace,\
             swapaxes, flipud, isnan, uint8
 from os.path import abspath, splitext, basename, exists, join
 from os import getcwd, remove
-from warnings import warn
 from datetime import datetime
 from re import sub
 from decimal import Decimal
@@ -98,16 +97,17 @@ class Img(object):
         self.cam_id = cam_id
         
         #Log of applied edit operations
-        self.edit_log = od([  ("darkcorr"       ,   0), # boolean
-                              ("blurring"       ,   0), # int (width of kernel)
-                              ("median"         ,   0), # int (size of filter)
-                              ("crop"           ,   0), # boolean
-                              ("8bit"           ,   0), # boolean
-                              ("pyrlevel"       ,   0), # int (pyramide level)
-                              ("is_tau"         ,   0), # boolean
-                              ("vigncorr"       ,   0), # boolean (vignette corrected)
-                              ("dilcorr"        ,   0), # light dilution corrected
-                              ("others"         ,   0)])# boolean 
+        self.edit_log = od([  ("darkcorr"   ,   0), # boolean
+                              ("blurring"   ,   0), # int (width of kernel)
+                              ("median"     ,   0), # int (size of filter)
+                              ("crop"       ,   0), # boolean
+                              ("8bit"       ,   0), # boolean
+                              ("pyrlevel"   ,   0), # int (pyramide level)
+                              ("is_tau"     ,   0), # boolean
+                              ("vigncorr"   ,   0), # boolean (vignette corrected)
+                              ("dilcorr"    ,   0), # light dilution corrected
+                              ("gascalib"   ,   0), # image is gas CD image
+                              ("others"     ,   0)])# boolean 
         
         self._roi_abs = [0, 0, 9999, 9999] #will be set on image load
         
@@ -709,11 +709,11 @@ class Img(object):
             return shifted_color_map(self.min(), self.max(), cmaps.RdBu)
         return cmaps.gray
         
-    def show(self, **kwargs):
+    def show(self, zlabel=None, tit=None,**kwargs):
         """Plot image"""
-        return self.show_img(**kwargs)
+        return self.show_img(zlabel,tit,**kwargs)
 
-    def show_img(self, ax=None, **kwargs):
+    def show_img(self, zlabel=None, tit=None, ax=None, **kwargs):
         """Show image using plt.imshow"""
         if not "cmap" in kwargs.keys():
             kwargs["cmap"] = self.get_cmap()
@@ -726,8 +726,12 @@ class Img(object):
             ax = fig.add_subplot(111)
         
         im = ax.imshow(self.img, **kwargs)
-        fig.colorbar(im, ax = ax)
-        ax.set_title(self.make_info_header_str(), fontsize = 9)
+        cb = fig.colorbar(im, ax = ax)
+        if isinstance(zlabel, str):
+            cb.set_label(zlabel, fontsize = 16)
+        if not isinstance(tit, str):
+            tit = self.make_info_header_str()
+        ax.set_title(tit, fontsize = 9)
         tight_layout()
         return ax
         

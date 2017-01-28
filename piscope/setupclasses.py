@@ -296,13 +296,13 @@ class FilterSetup(object):
         if not ids_on:
             raise ValueError("No onband filter specified in FilterSetup")
         if default_key_on is None or default_key_on not in ids_on:
-            print "No onband default key specified, use 1st entry in FilterDict"
+            #print "No onband default key specified, use 1st entry in FilterDict"
             self.default_key_on = ids_on[0]
         else:
             self.default_key_on = default_key_on
         if ids_off:
             if default_key_off is None or default_key_off not in ids_off:
-                print "No offband default key specified, use 1st entry in FilterDict"
+                #print "No offband default key specified, use 1st entry in FilterDict"
                 self.default_key_off = ids_off[0]
             else:
                 self.default_key_off = default_key_off
@@ -990,7 +990,7 @@ class MeasSetup(BaseSetup):
     
     def edit_in_gui(self):
         """Edit the current dataSet object"""
-        from gui.SetupWidgets import MeasSetupEdit
+        from piscope.gui_features.setup_widgets import MeasSetupEdit
         QApplication(argv)
         dial = MeasSetupEdit(deepcopy(self))
         dial.exec_()

@@ -123,7 +123,7 @@ class PlumeBackgroundModel(object):
         :param ndarray img: exemplary image
         :return bool: 
         """
-        if rect == None:
+        if rect is None:
             return False
         h, w = img.shape
         if rect[0] < 0 or rect[1] < 0 or rect[2] >= w or rect[3] >= h:
@@ -158,16 +158,16 @@ class PlumeBackgroundModel(object):
         plume = plume_img.img
         if self.check_settings():
             return
-        if self.surface_fit_mask == None:
+        if self.surface_fit_mask is None:
             self.surface_fit_mask = full(plume.shape, True, dtype = bool)
         h, w = plume.shape
         
         res = find_sky_reference_areas(plume)
-        if self.ygrad_line_colnum == None:
+        if self.ygrad_line_colnum is None:
             self.ygrad_line_colnum = res["ygrad_line_colnum"]
             self.ygrad_line_stoprow = res["ygrad_line_stoprow"]
             self.ygrad_line_startrow = res["ygrad_line_startrow"]
-        if self.xgrad_line_rownum == None:
+        if self.xgrad_line_rownum is None:
             self.xgrad_line_rownum = res["xgrad_line_rownum"]
             self.xgrad_line_startcol = res["xgrad_line_startcol"]
             self.xgrad_line_stopcol = res["xgrad_line_stopcol"]
@@ -236,7 +236,7 @@ class PlumeBackgroundModel(object):
             imshow(log(bg/plume))
         """
         #update settings from input keyword args
-        if mask == None or not mask.shape == plume.shape:
+        if mask is None or not mask.shape == plume.shape:
             print ("Warning: invalid mask for poly surface fit (bg modelling)"
                     " considering all image pixels for retrieval")
             mask = full(plume.shape, True, dtype = bool)   
@@ -434,9 +434,9 @@ class PlumeBackgroundModel(object):
         if not isinstance(tau, Img):
             raise AttributeError("No tau image available in background model")
             
-        if tau_max == None:
+        if tau_max is None:
             tau_max = tau.max()
-        if tau_min == None:
+        if tau_min is None:
             tau_min = - tau_max
             
         h0, w0 = tau.shape
@@ -700,7 +700,7 @@ def corr_tau_curvature_vert_line(tau0, pos_x, start_y = 0,\
     line_vert = LineOnImage(pos_x, 0, pos_x, max_y)
     vert_profile = line_vert.get_line_profile(tau0)
     
-    if stop_y == None:
+    if stop_y is None:
         stop_y = max_y
     
     ygrid = linspace(0, max_y - 1, max_y, dtype = int)
@@ -738,7 +738,7 @@ def corr_tau_curvature_hor_line(tau0, pos_y, start_x = 0,\
     line_hor = LineOnImage(0, pos_y, max_x, pos_y)
     hor_profile = line_hor.get_line_profile(tau0)
     
-    if stop_x == None:
+    if stop_x is None:
         stop_x = max_x
     
     xgrid = linspace(0, max_x - 1, max_x, dtype = int)

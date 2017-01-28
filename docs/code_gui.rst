@@ -3,7 +3,7 @@ piscope GUI features
 
 .. automodule:: piscope.gui_features
 
-Setuo widgets
+Setup widgets
 -------------
 
 .. automodule:: piscope.gui_features.setup_widgets

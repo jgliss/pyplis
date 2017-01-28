@@ -10,6 +10,7 @@ from astropy.io import fits
 from os import getcwd
 from os.path import join, exists
 from traceback import format_exc
+from warnings import warn
 
 from matplotlib.pyplot import subplots
 from matplotlib.patches import Circle, Ellipse
@@ -48,7 +49,7 @@ class DoasCalibData(object):
         
         self.fov = DoasFOV(camera)
         
-        self.coeffs = None
+        self.poly = None
         self.cov = None
         self.polyorder = polyorder
         if isinstance(camera, Camera):
@@ -71,9 +72,9 @@ class DoasCalibData(object):
             return self.fov.stop_search
             
     @property
-    def calib_poly(self):
+    def coeffs(self):
         """return poly1d object of current coefficients"""
-        return poly1d(self.coeffs)
+        return self.poly.coeffs 
         
     @property
     def slope(self):
@@ -144,11 +145,11 @@ class DoasCalibData(object):
         coeffs, cov = polyfit(self.tau_vec, self.doas_vec,\
                                         polyorder, cov = True)
         self.polyorder = polyorder
-        self.coeffs = coeffs
+        self.poly = poly1d(coeffs)
         self.cov = cov
         if plot:
             self.plot()
-        return self.calib_poly
+        return self.poly
     
     def save_as_fits(self, save_dir = None, save_name = None):
         """Save stack as FITS file"""
@@ -179,7 +180,7 @@ class DoasCalibData(object):
         
         rd = self.fov.result_pearson
         fov_mask.header.update(cx_rel = rd["cx_rel"], cy_rel = rd["cy_rel"],\
-                                                radius_rel = rd["radius_rel"])
+                                                rad_rel = rd["rad_rel"])
         
         
         hdu_cim = fits.ImageHDU(data = self.fov.corr_img.img)        
@@ -252,8 +253,8 @@ class DoasCalibData(object):
         taumin, taumax = self.tau_range
         x = linspace(taumin, taumax, 100)
         try:
-            ax.plot(x, self.calib_poly(x), "--r", label = "Fit %s"\
-                                                %self.calib_poly)
+            ax.plot(x, self.poly(x), "--r", label = "Fit %s"\
+                                                %self.poly)
         except TypeError:
             print "Calibration poly probably not fitted"
         ax.legend(loc='best', fancybox=True, framealpha=0.5)
@@ -283,6 +284,29 @@ class DoasCalibData(object):
         
         return ax, ax2
         
+    def __call__(self, value, filter_id="aa", **kwargs):
+        """Define call function to apply calibration
+        
+        :param float value: tau or AA value
+        :return: corresponding column density
+        """
+        if not isinstance(self.poly, poly1d):
+            self.fit_calib_polynomial()
+        if isinstance(value, Img):
+            calib_im = value.duplicate()
+            calib_im.img = self.poly(calib_im.img)
+            calib_im.edit_log["gascalib"] = True
+            return calib_im
+        elif isinstance(value, ImgStack):
+            try:
+                value = value.duplicate()
+            except MemoryError:
+                warn("Stack cannot be duplicated, applying calibration to "
+                "input stack")
+            value.stack = self.poly(value.stack)
+            value.img_prep["gascalib"] = True
+            return value
+        return self.poly(value)
         
 class DoasFOV(object):
     """Class for storage of FOV information"""
@@ -301,7 +325,7 @@ class DoasFOV(object):
         
         self.result_pearson = {"cx_rel"     :   nan,
                                "cy_rel"     :   nan,
-                               "radius_rel" :   nan,
+                               "rad_rel" :   nan,
                                "corr_curve" :   None}
         self.result_ifr = {"popt"           :   None,
                            "pcov"           :   None}
@@ -348,7 +372,7 @@ class DoasFOV(object):
         if self.method == "ifr":
             raise TypeError("Invalid value: method IFR does not have FOV "
                 "parameter radius, call self.popt for relevant parameters")
-        return self.result_pearson["radius_rel"]
+        return self.result_pearson["rad_rel"]
     
     @property
     def popt(self):
@@ -765,7 +789,7 @@ class DoasFOVEngine(object):
 #==============================================================================
             self.calib_data.fov.result_pearson["cx_rel"] = cx
             self.calib_data.fov.result_pearson["cy_rel"] = cy
-            self.calib_data.fov.result_pearson["radius_rel"] = radius
+            self.calib_data.fov.result_pearson["rad_rel"] = radius
             self.calib_data.fov.result_pearson["corr_curve"] = corr_curve
             
             self.calib_data.fov.fov_mask = fov_mask
