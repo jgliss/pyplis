@@ -92,42 +92,38 @@ if USE_AUTO_SETTINGS:
 
 mask = np.ones(plume_corr.shape, dtype = np.float32)   
 mask[plume_corr < mask_thresh] = 0
-### Fourth Method: retrieve tau image using poly surface fit
+
+### First method: retrieve tau image using poly surface fit
 tau0 = m.get_tau_image(piscope.Img(plume_corr), CORR_MODE = 0,\
                 surface_fit_mask = mask, surface_fit_polyorder = 1)
 fig0 = m.plot_tau_result(tau0, pcs = pcs)
-### First method: scale background image to plume image in "scale" rect
+
+### Second method: scale background image to plume image in "scale" rect
 tau1 = m.get_tau_image(plume, bg, CORR_MODE = 1)
 fig1 = m.plot_tau_result(tau1, pcs = pcs)
-### Second method: Linear correction for radiance differences based on two 
+
+### Third method: Linear correction for radiance differences based on two 
 ### rectangles (scale, ygrad)
 tau2 = m.get_tau_image(plume, bg, CORR_MODE = 4)
 fig2 = m.plot_tau_result(tau2, pcs = pcs)
 
-### Third method: 2nd order polynomial fit along vertical profile line
+### 4th method: 2nd order polynomial fit along vertical profile line
 ### For this method, determine tau on tau off and AA image
 tau3 = m.get_tau_image(plume, bg, CORR_MODE = 6)
 fig3 = m.plot_tau_result(tau3, pcs = pcs)
 
 ### Plot PCS profiles for all 4 methods
-
 pcs_line = piscope.processing.LineOnImage(*pcs, line_id = "pcs")
 fig4, ax1 = plt.subplots(1,1)
 p0 = pcs_line.get_line_profile(tau0.img)
 p1 = pcs_line.get_line_profile(tau1.img)
 p2 = pcs_line.get_line_profile(tau2.img)
 p3 = pcs_line.get_line_profile(tau3.img)
-num = len(p0)
 
-phi0 = sum(p0)/num
-phi1 = sum(p1)/num
-phi2 = sum(p2)/num
-phi3 = sum(p3)/num
-ax1.plot(p0, "-", label = r"Mode 0: $\phi=%.3f$" %(phi0))
-ax1.plot(p1, "-", label = r"Mode 1: $\phi=%.3f$" %(phi1))
-ax1.plot(p2, "-", label = r"Mode 2: $\phi=%.3f$" %(phi2))
-ax1.plot(p3, "-", label = r"Mode 6: $\phi=%.3f$" %(phi3))
-
+ax1.plot(p0, "-", label = r"Mode 0: $\phi=%.3f$" %np.mean(p0))
+ax1.plot(p1, "-", label = r"Mode 1: $\phi=%.3f$" %np.mean(p1))
+ax1.plot(p2, "-", label = r"Mode 4: $\phi=%.3f$" %np.mean(p2))
+ax1.plot(p3, "-", label = r"Mode 6: $\phi=%.3f$" %np.mean(p3))
 
 ax1.grid()
 ax1.set_ylabel(r"$\tau$", fontsize=20)

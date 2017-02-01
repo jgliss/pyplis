@@ -29,9 +29,12 @@ def correct_viewing_direction(meas_geometry, draw_result = True):
     
     meas_geometry.geo_setup.add_geo_point(se_crater)
     
-    elev_new, az_new, _, map = meas_geometry.correct_viewing_direction(\
-        se_crater_img_pos[0], se_crater_img_pos[1], obj_id = "SE crater",\
-                                                draw_result =  draw_result)
+    elev_new, az_new, _, map =\
+    meas_geometry.correct_viewing_direction(se_crater_img_pos[0], 
+                                            se_crater_img_pos[1],
+                                            pix_pos_err=100, #for uncertainty estimate
+                                            obj_id="SE crater",
+                                            draw_result=draw_result)
     return meas_geometry, map
     
 def plot_plume_distance_image(meas_geometry):
@@ -53,6 +56,7 @@ if __name__ == "__main__":
     close("all")
     ds = create_dataset()
     geom_corr, map = correct_viewing_direction(ds.meas_geometry)
+
     fig =  plot_plume_distance_image(ds.meas_geometry)
     map.ax.figure.savefig(join(save_path, "ex2_out_1.png"))
     fig.savefig(join(save_path, "ex2_out_2.png"))

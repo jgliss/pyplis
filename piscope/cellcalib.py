@@ -1004,7 +1004,10 @@ class CellCalibEngine(Dataset):
         :param float value: tau or AA value
         :return: corresponding column density
         """
-        poly = self.get_calibration_polynomial(filter_id, **kwargs)[0]
+        try:
+            poly = self.get_calibration_polynomial(filter_id, **kwargs)[0]
+        except:
+            raise ValueError("Calibration data not available")
         if isinstance(value, Img):
             calib_im = value.duplicate()
             calib_im.img = poly(calib_im.img)
@@ -1019,7 +1022,7 @@ class CellCalibEngine(Dataset):
             value.stack=poly(value.stack)
             value.img_prep["gascalib"] = True
             return value
-        return poly(value)
+        return poly(value) - poly.coeffs[-1]
         
    
 

@@ -11,8 +11,9 @@
 """
 from numpy import nan, arctan, deg2rad, linalg, sqrt, abs, array, radians,\
     sin, cos, arcsin, tan, rad2deg, zeros, linspace, isnan, asarray, ones,\
-    arange, argmin
+    arange, argmin, argmax
 from collections import OrderedDict as od
+from warnings import warn
 from matplotlib.pyplot import figure
 from copy import deepcopy
 
@@ -496,10 +497,32 @@ class MeasGeometry(object):
         if not isinstance(val, float) or isnan(val):
             return False
         return True
+    
+    def _correct_view_dir_lowlevel(self, pix_x, pix_y, obj_pos):
+        #get the angular differnce of the object position to CFOV of camera
+        del_az, del_elev = self.get_angular_displacement_pix_to_cfov(\
+                                                            pix_x, pix_y)
+        print "Angular x displacement of obj on detector: " + str(del_az)
+        print "Angular y displacement of obj on detector: " + str(del_elev)
+        cam_pos = self.geo_setup.points["cam"]
+        v = obj_pos - cam_pos
+        print "Cam / Object vector info:"
+        print v
+        az_obj = (v.azimuth + 360)%360
+        elev_obj = v.elevation#rad2deg(arctan(delH/v.magnitude/1000))#the true elevation of the object
+        print "Elev object: ", elev_obj
+        elev_cam = elev_obj + del_elev
+        az_cam = az_obj - del_az
+        print ("Current Elev / Azim cam CFOV: " + 
+            str(self.cam["elev"]) + " / " + str(self.cam["azim"]))
+        print ("New Elev / Azim cam CFOV: " + str(elev_cam) + " / " + 
+                                                            str(az_cam))
+        return elev_cam, az_cam
         
-    def correct_viewing_direction(self, x_det, y_det, update = True, obj_id =\
-            "", geo_point = None, lon_pt = None, lat_pt = None, alt_pt = None,\
-            draw_result = False):
+    def correct_viewing_direction(self, pix_x, pix_y, pix_pos_err=10,
+                                  obj_id="", geo_point=None, lon_pt=None, 
+                                  lat_pt=None, alt_pt=None, update=True, 
+                                  draw_result=False):
         """Retrieve camera viewing direction from point in image
         
         Uses the geo coordinates of a characteristic point in the image (e.g.
@@ -507,10 +530,12 @@ class MeasGeometry(object):
         (Lon / Lat) to determine the viewing direction of the camera (azimuth,
         elevation).
         
-        :param int x_det: x position of object on camera detector 
+        :param int pix_x: x position of object on camera detector 
             (measured from left)
-        :param int y_det: y position of object on camera detector 
+        :param int pix_y: y position of object on camera detector 
             (measured from top)
+        :param int pix_pos_err: radial uncertainty in pixel location (used to
+            estimate and update ``self.cam["elev_err"], self.cam["azim_err"]``)
         :param bool update: if True current data will be updated and
             ``self.geo_setup`` will be updated accordingly
         :param str obj_id: string ID of object, if this object is available
@@ -544,36 +569,36 @@ class MeasGeometry(object):
                 raise IOError("Invalid input, characteristic point for "
                     "retrieval of viewing direction could not be extracted"
                     "from input params..")
-                
-        #get the angular differnce of the object position to CFOV of camera
-        del_az, del_elev = self.get_angular_displacement_pix_to_cfov(\
-                                                            x_det, y_det)
-        print "Angular x displacement of obj on detector: " + str(del_az)
-        print "Angular y displacement of obj on detector: " + str(del_elev)
-        camPos = self.geo_setup.points["cam"]
-        v = obj_pos - camPos
-        print "Cam / Object vector info:"
-        print v
-        az_obj = (v.azimuth + 360)%360
-        elev_obj = v.elevation#rad2deg(arctan(delH/v.magnitude/1000))#the true elevation of the object
-        print "Elev object: ", elev_obj
-        elev_cam = elev_obj + del_elev
-        az_cam = az_obj - del_az
-        print ("Current Elev / Azim cam CFOV: " + 
-            str(self.cam["elev"]) + " / " + str(self.cam["azim"]))
-        print ("New Elev / Azim cam CFOV: " + str(elev_cam) + " / " + 
-                                                            str(az_cam))
         
+        elev_cam, az_cam = self._correct_view_dir_lowlevel(pix_x, pix_y,
+                                                           obj_pos)
+        
+        pix_range_x = [pix_x - pix_pos_err,
+                       pix_x - pix_pos_err]
+        pix_range_y = [pix_y - pix_pos_err,
+                       pix_y + pix_pos_err]
+        elevs, azims = [], []
+        for xpos in pix_range_x:
+            for ypos in pix_range_y:
+                elev, azim = self._correct_view_dir_lowlevel(xpos, ypos,
+                                                             obj_pos)
+                elevs.append(elev), azims.append(azim)
+        elev_err = max(abs(elev_cam - asarray(elevs)))
+        azim_err = max(abs(az_cam - asarray(azims)))
+                
         if update:
             self.cam["elev"] = elev_cam
             self.cam["azim"] = az_cam
+            self.cam["elev_err"] = elev_err
+            self.cam["azim_err"] = azim_err
             stp = self.geo_setup
             plume_vec = stp.vectors["plume_vec"]
             #new vector representing the camera center pixel viewing direction (CFOV),
             #anchor at camera position
+            cam_pos = self.geo_setup.points["cam"]
             cam_view_vec = GeoVector3D(azimuth = self.cam["azim"],\
                 elevation = self.cam["elev"], dist_hor = stp.magnitude,\
-                                            anchor = camPos, name = "cfov")
+                                            anchor = cam_pos, name = "cfov")
             #horizontal intersection of plume and viewing direction
             offs = plume_vec.intersect_hor(cam_view_vec)
             #Geopoint at intersection
@@ -627,6 +652,18 @@ class MeasGeometry(object):
         pix_dists_m = dists * ratio
         return pix_dists_m, dists
     
+    def pix_dist_err(self, col_num, pyrlevel = 0):
+        """Get uncertainty measure for pixel distance of a pixel column
+        
+        ..todo::
+
+            Include uncertainty in focal length
+            
+        """
+        az = self._get_all_azimuth_angles_fov()[int(col_num)]
+        return self.plume_dist_err(az) *1000 * self.cam["pix_width"] /\
+                        self.cam["focal_length"] * 2**pyrlevel
+                                        
     def get_all_pix_to_pix_dists(self, pyrlevel = 0, roi_abs = None):
         """Determine images containing pixel and plume distances
         
@@ -810,6 +847,11 @@ class MeasGeometry(object):
     def plume_dir(self):
         """Return current plume direction angle"""
         return self.get_plume_direction()
+    
+    @property
+    def view_azim(self):
+        """Return vector containing azimuth (+ uncertainty) of CFOV"""
+        return (self.cam["azim"], self.cam["azim_err"])
         
     @property
     def cam_pos(self):
@@ -942,7 +984,6 @@ class MeasGeometry(object):
             len(az)
         except TypeError:
             az = [az]
-        
         diff_vec = self.geo_setup.vectors["source2cam"]
         dv = array((diff_vec.dx, diff_vec.dy)).reshape(2, 1)
         pdrad = deg2rad(self.plume_dir[0])
@@ -952,6 +993,39 @@ class MeasGeometry(object):
         x = tan(pdrad) * y
         v = array((x,y)) - dv
         return linalg.norm(v, axis = 0)
+    
+    def plume_dist_err(self, az=None):
+        """Estimate plume distance error from uncertainties"""
+        try:
+            az=float(az)
+        except:
+            warn("invalid input, using camera CFOV azimuth")
+            az = self.cam["azim"]
+        #the vector between camera and source (errors here are assumed
+        #negligible)
+        diff_vec = self.geo_setup.vectors["source2cam"]
+        dv = array((diff_vec.dx, diff_vec.dy)).reshape(2, 1)
+        pdir, pdir_err = self.plume_dir
+
+        plume_dirs = [(pdir - pdir_err)%360,
+                      (pdir + pdir_err)%360]
+
+        cam_azims = [(az - self.cam["azim_err"])%360,
+                     (az + self.cam["azim_err"])%360]
+        print plume_dirs
+        print cam_azims
+        azrads = deg2rad(cam_azims)
+        pdrads = deg2rad(plume_dirs)
+        dists = []
+        for pdrad in pdrads:
+            for azrad in azrads:
+                y = (diff_vec.dx - tan(azrad) * diff_vec.dy) /\
+                                        (tan(pdrad) - tan(azrad))
+                x = tan(pdrad) * y
+                v = array((x,y)) - dv
+            dists.append(linalg.norm(v, axis = 0))
+        dists = asarray(dists)
+        return dists.max() - dists.mean()
         
     def _get_all_azimuth_angles_fov(self):
         """Returns array containing azimuth angles for all pixel columns"""

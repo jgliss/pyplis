@@ -11,6 +11,7 @@ from os.path import join
 
 #import relevant paths and methods from example one
 from ex1_measurement_setup_plume_data import create_dataset, save_path, img_dir
+from ex2_measurement_geometry import correct_viewing_direction
 
 def prepare_aa_image_list(bg_corr_mode = 6):
     """Get and prepare onband list for aa image mode
@@ -22,6 +23,7 @@ def prepare_aa_image_list(bg_corr_mode = 6):
     """
 
     dataset = create_dataset()
+    geom, _ = correct_viewing_direction(dataset.meas_geometry, False)
     
     ### Set plume background images for on and off
     # this is the same image which is also used for example script NO
@@ -64,6 +66,7 @@ def prepare_aa_image_list(bg_corr_mode = 6):
     
     on_list.aa_mode = True # activate AA mode 
     
+    on_list.meas_geometry = geom
     return on_list
 
 if __name__ == "__main__":
@@ -94,6 +97,7 @@ if __name__ == "__main__":
     aa_list.crop = False
     ax1 = aa_list.bg_model.plot_sky_reference_areas(aa_list.current_img())
     fig = aa_list.bg_model.plot_tau_result(aa_list.current_img())
+    
     ax.figure.savefig(join(save_path, "ex4_out_1.png"))
 
     show()

@@ -63,6 +63,7 @@ if __name__ == "__main__":
     ds = create_dataset()
     img = ds.get_list("on").current_img()
     print str(img) #the image object has an informative string representation
+    img.show()
     show()
     
     

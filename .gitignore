@@ -99,3 +99,6 @@ scripts/scripts_out/*.fts
 
 # private scripts folder
 scripts/_private
+
+# scripts_out backup folder
+scripts/scripts_out/bu

@@ -243,80 +243,90 @@ if __name__ == "__main__":
     dil.det_topo_dists_line("close")
     dil.det_topo_dists_line("far")
     
-    #Plot the results in a 3D map
-    basemap = dil.plot_distances_3d(alt_offset_m = 10, axis_off = False)
-    
-    #exemplary plume cross section line
-    pcs_line = piscope.processing.LineOnImage(*[530, 586,910,200],
-                                                      line_id = "pcs")                                                          
-    
-    ax.figure.savefig(join(save_path, "ex11_out_1.png"))
-    basemap.ax.figure.savefig(join(save_path, "ex11_out_2.png"))
-    k=3
-    for AMBIENT_ROI in AMBIENT_ROIS:
-        aa_uncorr = tau_on - tau_off
+    go_on = True
+    if not go_on:
+        onlist.tau_mode= True
+        onlist.vigncorr_mode = False
+        s1, s2 = dil.get_extinction_coeffs_imglist(onlist, AMBIENT_ROIS[0])
+        fig, ax = plt.subplots(1,2)
+        s1.plot(ax=ax[0])
+        s2.plot(ax=ax[1])
         
-        aa_noise = aa_uncorr.crop(AMBIENT_ROI, True)
-        aa_noise_amp = aa_noise.max() - aa_noise.min()
+    else:
+        #Plot the results in a 3D map
+        basemap = dil.plot_distances_3d(alt_offset_m = 10, axis_off = False)
         
-        aa_profile_uncorr = pcs_line.get_line_profile(aa_uncorr)
-        cond = aa_profile_uncorr > aa_noise_amp
-        so2_cds = calib(aa_profile_uncorr[cond])*100**2 #per sqm
-        pix_dists_line = pcs_line.get_line_profile(pix_dists)[cond]
-        ica = sum(so2_cds * pix_dists_line)
+        #exemplary plume cross section line
+        pcs_line = piscope.processing.LineOnImage(*[530, 586,910,200],
+                                                          line_id = "pcs")                                                          
         
-        flux_uncorr = ica * PLUME_VEL * SO2_MMOL / NA / 1000.0 #kg/s
-        
-        fig, ax = plt.subplots(2, 2, figsize = (12,8))
-        
-        ia_on = on_vigncorr.crop(AMBIENT_ROI, True).mean()
-        ia_off = off_vigncorr.crop(AMBIENT_ROI, True).mean()
-        
-        ext_on, i0_on, _, _ = dil.apply_dilution_fit(on_vigncorr, ia_on, 
-                                                     i0_min=I0_MIN, 
-                                                     line_ids=USE_LINES,
-                                                     ax=ax[0, 0])
-                                                     
-        ax[0, 0].set_title(r"On: $I_A$ = %.1f DN" %(ia_on))        
-        
-        ext_off, i0_off, _, _ = dil.apply_dilution_fit(off_vigncorr, ia_off,
-                                                       i0_min=I0_MIN, 
-                                                       line_ids=USE_LINES,
-                                                       ax=ax[0, 1])
-        ax[0, 1].set_title(r"Off: $I_A$ = %.1f DN" %(ia_off), fontsize = 12)        
-        
-        on_corr = dil.correct_img(on_vigncorr, ext_on, bg_on,
-                                  plume_dist_img, tau_mask)
-                                  
-        tau_on_corr = piscope.Img(np.log(bg_on.img / on_corr.img))
-        
-        off_corr = dil.correct_img(off_vigncorr, ext_off, bg_off,
-                                  plume_dist_img, tau_mask)
-                                  
-        tau_off_corr = piscope.Img(np.log(bg_off.img / off_corr.img))
-        
-        aa_corr = tau_on_corr - tau_off_corr
-        aa_corr.edit_log["is_tau"] = True #for plotting
-        aa_profile_corr = pcs_line.get_line_profile(aa_corr)
-        aa_corr.show(ax = ax[1, 0])
-        ax[1, 0].set_title("Dilution corrected AA image", fontsize = 12)
-        pcs_line.plot_line_on_grid(ax = ax[1, 0], ls="-", color = "g")
-        x0, y0, w, h = piscope.helpers.roi2rect(AMBIENT_ROI)
-        ax[1, 0].add_patch(plt.Rectangle((x0, y0), w, h, fc = "none", ec = "c"))
-        
-        
-        so2_cds = calib(aa_profile_corr[cond])*100**2 #per sqm
-        ica = sum(so2_cds * pix_dists_line)
-        flux_corr = ica * PLUME_VEL * SO2_MMOL / NA / 1000.0 #kg/s
-        ax[1,1].plot(aa_profile_uncorr, "--b", label = r"Flux (uncorr): $\phi=%.2f$ kg/s" 
-                                                                %(flux_uncorr))
-        ax[1,1].plot(aa_profile_corr, "-g", label = r"Flux (corr): $\phi=%.2f$ kg/s" 
-                                                                %(flux_corr))
-        ax[1,1].set_title("Cross section profile", fontsize = 12)
-        ax[1,1].legend(loc="best", framealpha=0.5, fancybox= True, fontsize = 10)
-        
-        fig.savefig(join(save_path, ("ex11_out_%d.png" %k)))
-        k+=1
+        ax.figure.savefig(join(save_path, "ex11_out_1.png"))
+        basemap.ax.figure.savefig(join(save_path, "ex11_out_2.png"))
+        k=3
+        for AMBIENT_ROI in AMBIENT_ROIS:
+            aa_uncorr = tau_on - tau_off
             
+            aa_noise = aa_uncorr.crop(AMBIENT_ROI, True)
+            aa_noise_amp = aa_noise.max() - aa_noise.min()
+            
+            aa_profile_uncorr = pcs_line.get_line_profile(aa_uncorr)
+            cond = aa_profile_uncorr > aa_noise_amp
+            so2_cds = calib(aa_profile_uncorr[cond])*100**2 #per sqm
+            pix_dists_line = pcs_line.get_line_profile(pix_dists)[cond]
+            ica = sum(so2_cds * pix_dists_line)
+            
+            flux_uncorr = ica * PLUME_VEL * SO2_MMOL / NA / 1000.0 #kg/s
+            
+            fig, ax = plt.subplots(2, 2, figsize = (12,8))
+            
+            ia_on = on_vigncorr.crop(AMBIENT_ROI, True).mean()
+            ia_off = off_vigncorr.crop(AMBIENT_ROI, True).mean()
+            
+            ext_on, i0_on, _, _ = dil.apply_dilution_fit(on_vigncorr, ia_on, 
+                                                         i0_min=I0_MIN, 
+                                                         line_ids=USE_LINES,
+                                                         ax=ax[0, 0])
+                                                         
+            ax[0, 0].set_title(r"On: $I_A$ = %.1f DN" %(ia_on))        
+            
+            ext_off, i0_off, _, _ = dil.apply_dilution_fit(off_vigncorr, ia_off,
+                                                           i0_min=I0_MIN, 
+                                                           line_ids=USE_LINES,
+                                                           ax=ax[0, 1])
+            ax[0, 1].set_title(r"Off: $I_A$ = %.1f DN" %(ia_off), fontsize = 12)        
+            
+            on_corr = dil.correct_img(on_vigncorr, ext_on, bg_on,
+                                      plume_dist_img, tau_mask)
+                                      
+            tau_on_corr = piscope.Img(np.log(bg_on.img / on_corr.img))
+            
+            off_corr = dil.correct_img(off_vigncorr, ext_off, bg_off,
+                                      plume_dist_img, tau_mask)
+                                      
+            tau_off_corr = piscope.Img(np.log(bg_off.img / off_corr.img))
+            
+            aa_corr = tau_on_corr - tau_off_corr
+            aa_corr.edit_log["is_tau"] = True #for plotting
+            aa_profile_corr = pcs_line.get_line_profile(aa_corr)
+            aa_corr.show(ax = ax[1, 0])
+            ax[1, 0].set_title("Dilution corrected AA image", fontsize = 12)
+            pcs_line.plot_line_on_grid(ax = ax[1, 0], ls="-", color = "g")
+            x0, y0, w, h = piscope.helpers.roi2rect(AMBIENT_ROI)
+            ax[1, 0].add_patch(plt.Rectangle((x0, y0), w, h, fc = "none", ec = "c"))
+            
+            
+            so2_cds = calib(aa_profile_corr[cond])*100**2 #per sqm
+            ica = sum(so2_cds * pix_dists_line)
+            flux_corr = ica * PLUME_VEL * SO2_MMOL / NA / 1000.0 #kg/s
+            ax[1,1].plot(aa_profile_uncorr, "--b", label = r"Flux (uncorr): $\phi=%.2f$ kg/s" 
+                                                                    %(flux_uncorr))
+            ax[1,1].plot(aa_profile_corr, "-g", label = r"Flux (corr): $\phi=%.2f$ kg/s" 
+                                                                    %(flux_corr))
+            ax[1,1].set_title("Cross section profile", fontsize = 12)
+            ax[1,1].legend(loc="best", framealpha=0.5, fancybox= True, fontsize = 10)
+            
+            fig.savefig(join(save_path, ("ex11_out_%d.png" %k)))
+            k+=1
+                
 
     

@@ -3,7 +3,7 @@ from numpy import abs, linspace, random, asarray, ndarray, where, diff,\
     insert, argmax, average, gradient, arange,argmin, full, inf, sqrt, pi,\
     nan, mod, mgrid, ndim, ones_like,ogrid, finfo, remainder, e
     
-from warnings import catch_warnings, simplefilter
+from warnings import catch_warnings, simplefilter, warn
 from matplotlib.pyplot import subplots
 
 from astropy.modeling import models
@@ -176,8 +176,8 @@ class MultiGaussFit(object):
             gaussians for data 
         :param int max_iter (10): max number of iterations for optimisation
             routine
-        :param bool auto_bounds (True): if True, bounds will be set automatically from
-            data ranges whenever data is updated
+        :param bool auto_bounds (True): if True, bounds will be set 
+            automatically from data ranges whenever data is updated
         :param bool do_fit (True): if True and input data available & ok, then
             :func:`self.auto_fit` will be performed on initialisation
         :param bool horizontal_baseline: data has horizontal baseline (if this 
@@ -264,7 +264,7 @@ class MultiGaussFit(object):
         elif isinstance(index, list):
             self.index = asarray(index)
         else:
-            self.index = arange(0, len(self.data),1)
+            self.index = arange(len(self.data))
                 
         self.init_results()
         self.init_data()
@@ -330,7 +330,7 @@ class MultiGaussFit(object):
     """
     def estimate_main_peak_params(self):
         """Get rough estimate and position of main peak"""
-        data = self.data_smooth - self.offset
+        data = self.data - self.offset
         ind = argmax(data)
         amp = data[ind] 
         if not amp > 1.5 * self.noise_amplitude:
@@ -339,9 +339,9 @@ class MultiGaussFit(object):
         guess = [amp, self.index[ind], w * self.x_resolution]
         y = self.data - self.offset
         params, bds = self.prepare_fit_boundaries(guess)
+        
         return least_squares(self.err_fun, params, args=(self.index, y),\
                                                                 bounds=bds).x
-        
 
     def find_peak_positions_residual(self):
         """Search for significant peaks in the current residual
@@ -367,7 +367,7 @@ class MultiGaussFit(object):
                     cut_low = 0
                 cut_high = ind + 3*w
                 dat[cut_low:cut_high] = 0
-        raise ValueError("Number of detected peaks exceeds allowed max "
+        warn("Number of detected peaks exceeds allowed max "
             "number of superimposed gaussians in model")
     
     def add_peak_from_residual(self):
@@ -479,7 +479,7 @@ class MultiGaussFit(object):
                 return False
             self.params = res.x
             return True
-        except Exception as e:
+        except Exception:
             #print "Fit failed with exception: %s" %repr(e)
             return False
     
@@ -493,6 +493,10 @@ class MultiGaussFit(object):
     
     def auto_fit(self):
         """Automatic least square analysis"""
+        idx_max = argmax(self.data)
+        if any([idx_max == x for x in [0, (len(self.data)-1)]]):
+            raise ValueError("Could not perform MultiGaussFit: maximum of "
+                "data is at first or last index of data")
         #print "Running multi gauss auto fit routine"
         guess = self.find_peak_positions_residual()
         #print "Initial peak search: found %s peaks" %(len(guess)/3.0)
@@ -521,10 +525,13 @@ class MultiGaussFit(object):
                 #print ("Max num of gaussians (%d) reached "
                    # "abort optimisation" %self.max_num_gaussians)
                 self._write_opt_log(chis, residuals)
+                warn ("MultiGaussFit reached aborted at maximum number of "
+                    "allowed gaussians")
                 return 0
             if not self.optimise_result():
                 #print ("Optimisation failed,  aborted at iter %d" %k)
                 self._write_opt_log(chis, residuals)
+                warn ("Optimisation failed in MultiGaussFit")
                 return 0
             
             residuals.append(self.get_residual())
@@ -543,6 +550,7 @@ class MultiGaussFit(object):
                 return 1
         #print "Optimisation aborted, maximum number of iterations reached..."
         self._write_opt_log(chis, residuals)
+        warn("MultiGaussFit max iter reached..")
         return 0
         
     def _write_opt_log(self, chis, residuals):
@@ -1028,7 +1036,7 @@ class MultiGaussFit(object):
         """Plot signal and derivatives both in original and smoothed version
         """
         if not self.has_data:
-            #print "No data available..."
+            print "No data available..."
             return 0 
         fig, ax = subplots(2,1)
         ax[0].plot(self.index, self.data, "--g", label="Signal " + self.id)
@@ -1055,7 +1063,7 @@ class MultiGaussFit(object):
             
         """
         if not self.has_data:
-            #print "No data available..."
+            print "No data available..."
             return 0 
         if ax is None:
             fig, ax = subplots(1,1)

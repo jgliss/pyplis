@@ -98,10 +98,12 @@ if __name__ == "__main__":
         axes = [] #used to store axes objects from plots (for saving)
         calib_pears.fit_calib_polynomial()
         axes.append(calib_pears.plot())
+        axes[-1].set_title("Calibration curve Pearson method")
         axes.append(calib_pears.fov.plot())
         
         calib_ifr.fit_calib_polynomial()
         axes.append(calib_ifr.plot())
+        axes[-1].set_title("Calibration curve IFR method")
         axes.append(calib_ifr.fov.plot())
     
         if DO_FINE_SEARCH:    

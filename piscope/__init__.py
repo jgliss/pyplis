@@ -29,7 +29,7 @@ import doascalib
 import plumespeed
 import processing
 import dilutioncorr
-#import evaluation
+import fluxcalc
 import optimisation
 import model_functions
 import setupclasses as setup   
