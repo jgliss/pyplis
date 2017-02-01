@@ -5,6 +5,9 @@ piscope helper methods
 
 import matplotlib.cm as colormaps
 import matplotlib.colors as colors
+from traceback import format_exc
+from warnings import warn
+from matplotlib.pyplot import draw
 from numpy import mod, linspace, hstack, vectorize, uint8, cast, asarray,\
     unravel_index, nanargmax, meshgrid
 from scipy.ndimage.filters import gaussian_filter
@@ -46,7 +49,7 @@ def sub_img_to_detector_coords(img_arr, shape_orig, pyrlevel,\
     new_arr[roi_abs[1]:roi_abs[3], roi_abs[0] : roi_abs[2]] = img_arr
     return new_arr
     
-def check_roi(roi):
+def check_roi(roi, shape=None):
     """Checks if input is valid ROI"""
     try:
         if not len(roi) == 4:
@@ -55,6 +58,11 @@ def check_roi(roi):
             raise ValueError("ROI entries must be larger than 0")
         if not (roi[2] > roi[0] and roi[3] > roi[1]):
             raise ValueError("x1 and y1 must be larger than x0 and y0")
+        if shape is not None:
+            if any([y > shape[0] for y in [roi[1], roi[3]]]):
+                raise ValueError("ROI out of bounds of input shape..")
+            elif any([x > shape[1] for x in [roi[0], roi[2]]]):
+                raise ValueError("ROI out of bounds of input shape..")
         return True
     except:
         return False
@@ -119,8 +127,8 @@ def roi2rect(roi, inverse = False):
         return (x0, y0, x1 - x0, y1 - y0)
     return (x0, y0, x0 + x1, y0 + y1)
     
-def map_coordinates_sub_img(pos_x_abs, pos_y_abs, roi = [0,0,9999,9999],\
-                                            pyrlevel = 0, inverse = False):
+def map_coordinates_sub_img(pos_x_abs, pos_y_abs, roi=[0,0,9999,9999],\
+                                            pyrlevel=0, inverse=False):
     """Maps original input coordinates onto sub image
     
     :param (int, ndarray) pos_x_abs: x coordinate(s) (in original image coords)
@@ -139,20 +147,24 @@ def map_coordinates_sub_img(pos_x_abs, pos_y_abs, roi = [0,0,9999,9999],\
     x_offs, y_offs = roi[0], roi[1]
     if inverse:
         return x_offs + x * op, y_offs + y * op
-    return ((x - x_offs) / op, (y - y_offs) / op)
+    return (x - x_offs) / op, (y - y_offs) / op
 
-def map_roi(roi, pyrlevel = 0, inverse = False):
+def map_roi(roi, pyrlevel_rel=0, inverse=False):
     """Maps a list containing start / stop coords onto size reduced image
     
     :param list roi: ``[x0, y0, x1, y1]``
-    :param int pyrlevel: down scale factor (level of gauss pyramide)
+    :param int pyrlevel_rel: relative pyramid level (use negative numbers to 
+        go up)
     :param bool inverse: inverse mapping
     :returns: - roi coordinates for size reduced image
     
     """
-    (x0, x1), (y0, y1) = map_coordinates_sub_img([roi[0], roi[2]],\
-            [roi[1], roi[3]], pyrlevel = pyrlevel, inverse = inverse)
-    return (x0, y0, x1, y1)
+    (x0, x1), (y0, y1) = map_coordinates_sub_img([roi[0], roi[2]],
+                                                 [roi[1], roi[3]], 
+                                                 pyrlevel=pyrlevel_rel, 
+                                                 inverse=inverse)
+            
+    return [int(num) for num in [x0, y0, x1, y1]]
     
 time_delta_to_seconds = vectorize(lambda x: x.total_seconds())
 
@@ -217,6 +229,15 @@ def _print_list(lst):
     for item in lst:
         print item
 
+def rotate_xtick_labels(ax, deg=30, ha="right"):
+    """Rotate existing xtick labels in matplotlib axes"""
+    draw()
+    lbls = ax.get_xticklabels()
+    lbls = [lbl.get_text() for lbl in lbls]
+    ax.set_xticklabels(lbls, rotation = 30, ha = "right")
+    draw()
+    return ax
+    
 def bytescale(data, cmin = None, cmax = None, high = 255, low = 0):
     """
     Byte scales an array (image).

@@ -17,7 +17,7 @@ file_type:tiff 			#image file_type
 main_filter_id:on 		#ID of main filter 
 meas_type_pos:1 		#position of meastype info, e.g. dark offset (after split using delim)
 DARK_CORR_OPT:2		#0: no dark corr, 1: dark + offset, 2: one dark at same exposure time (NOTE: USE CAPITAL LETTERS FOR THIS FLAG)
-texp_pos:			#position of exposure time
+texp_pos:			#position of exposure time (in exposure times are assumed to be in ms)
 focal_length:32.0e-3 #in m
 pix_height:13.0e-6  #in m
 pix_width:13.0e-6   #in m

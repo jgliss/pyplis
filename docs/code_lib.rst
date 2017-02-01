@@ -14,12 +14,6 @@ Data Set object
 .. automodule:: piscope.dataset
    :members:
    :undoc-members:
-
-Processing module
------------------
-.. automodule:: piscope.processing
-   :members:
-   :undoc-members:
    
 Measurement geometry
 --------------------
@@ -39,6 +33,12 @@ Image list objects
 ------------------
 
 .. automodule:: piscope.imagelists
+   :members:
+   :undoc-members:
+   
+Processing module
+-----------------
+.. automodule:: piscope.processing
    :members:
    :undoc-members:
 
@@ -67,6 +67,13 @@ DOAS calibration
 ----------------
 
 .. automodule:: piscope.doascalib
+   :members:
+   :undoc-members:
+   
+Emission rate retrieval
+-----------------------
+
+.. automodule:: piscope.fluxcalc
    :members:
    :undoc-members:
    

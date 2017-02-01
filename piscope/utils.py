@@ -137,7 +137,7 @@ class CameraBaseInfo(object):
             warnings.append("Failed to extract meas_type from filename")
             flags["meas_type"] = False
         try:
-            texp = float(spl[self.texp_pos])
+            texp = float(spl[self.texp_pos]) / 1000.0 #convert to s
             flags["texp"] = True
         except:
             warnings.append("Failed to extract texp from filename")

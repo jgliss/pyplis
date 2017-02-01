@@ -3,25 +3,21 @@
 piscope example script no. 8 - optical flow analysis
 """
 from matplotlib.pyplot import close, show
-
+from os.path import join
 import piscope
-from ex1_measurement_setup_plume_data import create_dataset, save_path, join
-from ex4_prepare_aa_imglist import prepare_aa_image_list, path_bg_on,\
-    path_bg_off
+from ex4_prepare_aa_imglist import prepare_aa_image_list, save_path
 
 # Options    
-SAVEFIGS = 0
+SAVEFIGS = 1
 PYRLEVEL = 1
 BLUR = 0
 ROI_FLOW = [615, 350, 1230, 790]
 
 close("all")
 if __name__ == "__main__":
-    ds = create_dataset()
-    dist_img, _, plume_dist_img = ds.meas_geometry.get_all_pix_to_pix_dists(
+    aa_list = prepare_aa_image_list()
+    dist_img, _, plume_dist_img = aa_list.meas_geometry.get_all_pix_to_pix_dists(
                                             pyrlevel=PYRLEVEL)
-    #pix_len = dist_img.mean()
-    aa_list = prepare_aa_image_list(ds, path_bg_on, path_bg_off)
     aa_list.pyrlevel = PYRLEVEL
     aa_list.add_gaussian_blurring(BLUR)
     fl = aa_list.optflow
@@ -46,19 +42,11 @@ if __name__ == "__main__":
                   tit = "Optical flow plume velocities",
                   zlabel ="Plume velo [m/s]")
     
-    #The following function can be used to perform a his
-    dir_mu, dir_sigma, len_mu, len_sigma, cond = fl.get_main_flow_field_params(\
-                                                    cond_mask_flat = mask)
-    #the return parameter "cond" is a flattend condition mask which was used
-    #to retrieve the main flow field parameters within the ROI, it may be used
-    #to visualise which vectors were used for the statistics
+    plume_params = piscope.plumespeed.LocalPlumeProperties()
+    #mask = fl.prepare_intensity_condition_mask(lower_val = 0.10)
+    plume_params.get_and_append_from_farneback(fl, cond_mask_flat = mask)  
     
-    #first reshape to ROI sub image
-    shape = fl.get_flow_in_roi().shape[:2]
-    stat_mask = piscope.Img(cond.reshape(shape))
-    
-    
-    v = len_mu * dist_img.mean() / fl.del_t
+    v = plume_params.len_mu[-1] * dist_img.mean() / fl.del_t
     fig = fl.plot_flow_histograms()
     fig.suptitle("v = %.2f m/s" %(v))
     

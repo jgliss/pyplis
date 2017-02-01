@@ -105,6 +105,7 @@ class Img(object):
                               ("pyrlevel"   ,   0), # int (pyramide level)
                               ("is_tau"     ,   0), # boolean
                               ("vigncorr"   ,   0), # boolean (vignette corrected)
+                              ("senscorr"   ,   0), # boolean (correction for sensitivity changes due to filter shifts)
                               ("dilcorr"    ,   0), # light dilution corrected
                               ("gascalib"   ,   0), # image is gas CD image
                               ("others"     ,   0)])# boolean 

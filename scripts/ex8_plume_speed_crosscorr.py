@@ -10,8 +10,7 @@ from piscope.processing import LineOnImage, ProfileTimeSeriesImg
 from piscope.plumespeed import find_signal_correlation
 
 from ex2_measurement_geometry import create_dataset, correct_viewing_direction
-from ex4_prepare_aa_imglist import prepare_aa_image_list, path_bg_on,\
-        path_bg_off, save_path
+from ex4_prepare_aa_imglist import prepare_aa_image_list, save_path
 
 p1 = join(save_path, "first_ica_tseries.fts")
 p2 = join(save_path, "second_ica_tseries.fts")
@@ -110,10 +109,10 @@ if __name__ == "__main__":
     geom, basemap = correct_viewing_direction(ds.meas_geometry)
     
     #get pix-to-pix and plume distance image
-    dist_img, plume_dist_img = geom.get_all_pix_to_pix_dists()
+    dist_img, _, plume_dist_img = geom.get_all_pix_to_pix_dists()
     
     #prepare the AA image list (see ex4)
-    aa_list = prepare_aa_image_list(ds, path_bg_on, path_bg_off)
+    aa_list = prepare_aa_image_list()
     
     #draw current AA image 
     img = aa_list.current_img()

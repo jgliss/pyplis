@@ -22,9 +22,6 @@ ImageList objects of piscope library
         from :class:`ImgList` (to enable dark and offset correction) and is 
         mainly used in the :class:`piscope.Calibration.CellCalib` object.
 
-.. todo::
-
-    1. ImgStack in ROI
 """
 from numpy import asarray, zeros, argmin, arange, ndarray, float32, ceil
 from ntpath import basename
@@ -161,6 +158,20 @@ class BaseImgList(object):
         self.img_prep["pyrlevel"] = int(value)
         self.load()
     
+    @property
+    def gaussian_blurring(self):
+        """Get / set current blurring level"""
+        return self.img_prep["blurring"]
+    
+    @gaussian_blurring.setter
+    def gaussian_blurring(self, val):
+        if val < 0:
+            raise ValueError("Negative smoothing kernel does not make sense..")
+        elif val > 10:
+            warn("Activate gaussian blurring with kernel size exceeding 10, "
+                "this might significantly slow down things..")
+        self.img_prep["blurring"] = val
+        
     @property
     def roi(self):
         """Return current ROI (in relative coordinates)
@@ -949,21 +960,24 @@ class ImgList(BaseImgList):
         self.loaded_images.update({"prev": None, 
                                    "next": None})
     
-        self.meas_geometry = None
+        self._meas_geometry = None
         #: List modes (currently only tau) are flags for different list states
         #: and need to be activated / deactivated using the corresponding
         #: method (e.g. :func:`activate_tau_mode`) to be changed, dont change
         #: them directly via this private dictionary
-        self._list_modes.update({"darkcorr"  :   0,
-                                 "optflow"   :   0,
-                                 "vigncorr"  :   0,
-                                 "tau"       :   0,
-                                 "aa"        :   0})
+        self._list_modes.update({"darkcorr"  :  0,
+                                 "optflow"   :  0,
+                                 "vigncorr"  :  0,
+                                 "tau"       :  0,
+                                 "aa"        :  0,
+                                 "senscorr"  :  0,
+                                 "gascalib"  :  0})
         
         self._bg_imgs = [None, None] #sets bg images, 
         self.bg_model = PlumeBackgroundModel()
         
-        
+        self._aa_corr_mask = None
+        self._calib_data = None
         # these two images can be set manually, if desired
         self.master_dark = None
         self.master_offset = None
@@ -994,8 +1008,7 @@ class ImgList(BaseImgList):
         
         if self.data_available and init:
             self.load()
-
-    
+        
     def init_filelist(self):
         """Adding functionality to filelist init"""
         super(ImgList, self).init_filelist()
@@ -1038,6 +1051,66 @@ class ImgList(BaseImgList):
     @bg_img.setter
     def bg_img(self, val):
         self.set_bg_img(val)
+        
+    @property
+    def aa_corr_mask(self):
+        """Get / set AA correction mask"""
+        if isinstance(self._aa_corr_mask, ndarray):
+            warn("AA correction mask in list %s is numpy array and"
+            "will be converted into Img object" %self.list_id)
+            self._aa_corr_mask = Img(self._aa_corr_mask)
+        if not isinstance(self._aa_corr_mask, Img):
+            raise AttributeError("AA correction mask is not available...")
+        return self._aa_corr_mask
+        
+    @aa_corr_mask.setter
+    def aa_corr_mask(self, val):
+        """Setter for AA correction mask"""
+        if isinstance(val, ndarray):
+            warn("Input for AA correction mask in list %s is numpy array and"
+                    "will be converted into Img object" %self.list_id)
+        if not isinstance(val, Img):
+            raise TypeError("Invalid input for AA correction mask: need Img"
+                " object (or numpy array)")
+        if not val.pyrlevel == 0:
+            warn("AA correction mask is required to be at pyramid level 0 and "
+                "will be converted")
+            val.to_pyrlevel(0)
+        if val.shape != Img(self.files[self.cfn]).shape:
+            raise ValueError("Img shape mismatch between AA correction mask "
+                "and list images")
+        self._aa_corr_mask = val
+     
+    @property
+    def calib_data(self):
+        """Get set object to perform calibration"""
+        from piscope.cellcalib import CellCalibEngine as cc
+        from piscope.doascalib import DoasCalibData as dc
+        if not any([isinstance(self._calib_data, x) for x in [cc, dc]]):
+            warn("No calibration data available in imglist %s" %self.list_id)
+        return self._calib_data
+    
+    @calib_data.setter
+    def calib_data(self, val):
+        from piscope.cellcalib import CellCalibEngine as cc
+        from piscope.doascalib import DoasCalibData as dc
+        if not any([isinstance(val, x) for x in [cc, dc]]):
+            raise TypeError("Could not set calibration data in imglist %s: "
+            "need CellCalibEngine obj or DoasCalibData obj" %self.list_id)
+        try:
+            val(0.1) #try converting a fake tau value into a gas column
+        except ValueError:
+            raise ValueError("Cannot set calibration data in image list, "
+                "calibration object is not ready")
+        self._calib_data = val
+        
+    @property
+    def doas_fov(self):
+        """Try access DOAS FOV info (in case cailbration data is available)"""
+        try:
+            return self.calib_data.fov
+        except:
+            warn("No DOAS FOV information available")
         
     @property
     def img_mode(self):
@@ -1084,15 +1157,19 @@ class ImgList(BaseImgList):
         :class:`piscope.Processing.OpticalFlowFarneback`)
         """
         self.optflow = optflow
-        
-    def set_meas_geometry(self, geometry):
+    
+    @property
+    def meas_geometry(self):
+        """Get / set current measurement geometry"""
+        return self._meas_geometry
+    
+    @meas_geometry.setter
+    def meas_geometry(self, val):
         """Set :class:`piscope.Utils.MeasGeometry` object"""
-        if not isinstance(geometry, MeasGeometry):
-            print ("Could not set meas_geometry in " + self.__str__() + ", id: "
-                + self.list_id + ": wrong input type")
-            return
-        self.meas_geometry = geometry    
-        self.optflow.set_meas_geometry(geometry)
+        if not isinstance(val, MeasGeometry):
+            raise TypeError("Could not set meas_geometry, need MeasGeometry "
+                "object")
+        self._meas_geometry = val
                 
     def link_imglist(self, other_list):
         """Link another image list to this list
@@ -1410,7 +1487,7 @@ class ImgList(BaseImgList):
         In tau mode, images will be loaded as tau images (if background image
         data is available). 
         """
-        if val is self.tau_mode:
+        if val is self.tau_mode: #do nothing
             return
         if val:
             if not self.has_bg_img():
@@ -1442,31 +1519,31 @@ class ImgList(BaseImgList):
         if val is self.aa_mode:
             return
         if not self.list_type == "on":
-            raise TypeError("This list is not a on band list")
-        
-        offlist = self.get_off_list()
-        if not isinstance(offlist, ImgList):
-            raise Exception("Linked off band list could not be found")
-        if not offlist.nof / float(self.nof) > 0.5:
-            raise IndexError("Off band list does not have enough images...")
-        if not self.has_bg_img():
-            raise AttributeError("no background image available, please set "
-                "suitable background image using method set_bg_img")
-        if not offlist.has_bg_img():
-            raise AttributeError("no background image available in off "
-                "band list")
-        #offlist.update_img_prep(**self.img_prep)
-        #offlist.init_bg_model(CORR_MODE = self.bg_model.CORR_MODE)
-        self.tau_mode = 0
-        offlist.tau_mode = 0
-
-        aa_test = self._aa_test_img(offlist)
+            raise TypeError("This list is not an on band list")
+        aa_test = None
+        if val:
+            offlist = self.get_off_list()
+            if not isinstance(offlist, ImgList):
+                raise Exception("Linked off band list could not be found")
+            if not offlist.nof / float(self.nof) > 0.5:
+                raise IndexError("Off band list does not have enough images...")
+            if not self.has_bg_img():
+                raise AttributeError("no background image available, please set "
+                    "suitable background image using method set_bg_img")
+            if not offlist.has_bg_img():
+                raise AttributeError("no background image available in off "
+                    "band list")
+            #offlist.update_img_prep(**self.img_prep)
+            #offlist.init_bg_model(CORR_MODE = self.bg_model.CORR_MODE)
+            self.tau_mode = 0
+            offlist.tau_mode = 0
+    
+            aa_test = self._aa_test_img(offlist)
         self._list_modes["aa"] = val
 
         self.load()
 
         return aa_test
-    
      
     def get_off_list(self, list_id = None):
         """Search off band list in linked lists
@@ -1497,8 +1574,7 @@ class ImgList(BaseImgList):
         if self.crop:
             raise ValueError("Optical flow analysis can only be applied to "
                 "uncropped images, please deactivate crop mode")
-        im = self.current_img()
-        if im.edit_log["is_tau"]:
+        if val:
             self.set_flow_images()
             self.optflow.calc_flow()
             self.optflow.draw_flow()
@@ -1661,6 +1737,12 @@ class ImgList(BaseImgList):
             off = self.get_off_list()
             img = self.bg_model.get_aa_image(img, off.current_img(),\
                                                 self.bg_img, off.bg_img)
+            if self.sensitivity_corr_mode:
+                img = img / self.aa_corr_mask
+                img.edit_log["senscorr"] = 1
+            if self.calib_mode:
+                img.img = self.calib_data(img.img)
+                img.edit_log["gascalib"] = True
        
         img.to_pyrlevel(self.img_prep["pyrlevel"])
         if self.img_prep["crop"]:
@@ -1762,6 +1844,26 @@ class ImgList(BaseImgList):
     @vigncorr_mode.setter
     def vigncorr_mode(self, val):
         self.activate_vigncorr(val)
+    
+    @property
+    def sensitivity_corr_mode(self):
+        """Activate / deactivate AA sensitivity correction mode"""
+        return self._list_modes["senscorr"]
+        
+    @sensitivity_corr_mode.setter 
+    def sensitivity_corr_mode(self, val):
+        """Activate / deactivate AA sensitivity correction mode"""
+        if val == self._list_modes["senscorr"]:
+            return
+        if val:    
+            mask = self.aa_corr_mask #raises AttributeError if mask is not available
+            if not self.aa_mode:
+                raise AttributeError("AA sensitivity correction mode can only "
+                    "be activated in list aa_mode, please activate aa_mode "
+                    "first...")
+   
+        self._list_modes["senscorr"] = val
+        self.load()
         
     @property
     def tau_mode(self):
@@ -1783,17 +1885,33 @@ class ImgList(BaseImgList):
         
     @aa_mode.setter
     def aa_mode(self, value):
-        """Change current list tau mode
+        """Change current list AA mode
         
         Wrapper for :func:`activate_aa_mode`        
         """
         self.activate_aa_mode(value)
-    
-    @property
-    def gas_calib_mode(self):
-        """Returns current list gas calibration mode"""
-        raise NotImplementedError
         
+    @property
+    def calib_mode(self):
+        """Acitivate / deactivate current list gas calibration mode"""
+        return self._list_modes["gascalib"]
+        
+    @calib_mode.setter
+    def calib_mode(self, val):
+        """Change current list calibration mode"""
+        if val == self._list_modes["gascalib"]:
+            return
+        if val:    
+            if not self.aa_mode:
+                self.aa_mode = True
+                print "Activated AA mode in image list"
+            if not self.sensitivity_corr_mode:
+                warn("AA sensitivity correction mode is deactivated. This "
+                    "may yield erroneous results at the image edges")
+            self.calib_data(self.current_img())
+            
+        self._list_modes["gascalib"] = val
+        self.load()
     
     def has_bg_img(self):
         """Returns boolean whether or not background image is available"""

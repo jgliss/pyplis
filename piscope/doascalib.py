@@ -78,14 +78,24 @@ class DoasCalibData(object):
         
     @property
     def slope(self):
-        """return current calib curve slope plus std"""
-        return self.coeffs[-2], sqrt(self.cov[-2][-2])
+        """returns slope of current calib curve"""
+        return self.coeffs[-2]
+        
+    @property
+    def slope_err(self):
+        """returns slope error of current calib curve"""
+        return sqrt(self.cov[-2][-2])
     
     @property
     def y_offset(self):
-        """return y axis offset of calib curve plus uncertainty"""
-        return self.coeffs[-1], sqrt(self.cov[-1][-1])
+        """return y axis offset of calib curve"""
+        return self.coeffs[-1]
     
+    @property
+    def y_offset_err(self):
+        """return error of y axis offset of calib curve"""
+        return sqrt(self.cov[-1][-1])
+        
     @property
     def doas_tseries(self):
         """Return pandas Series object of doas data"""
@@ -306,7 +316,7 @@ class DoasCalibData(object):
             value.stack = self.poly(value.stack)
             value.img_prep["gascalib"] = True
             return value
-        return self.poly(value)
+        return self.poly(value) - self.y_offset
         
 class DoasFOV(object):
     """Class for storage of FOV information"""
@@ -408,6 +418,11 @@ class DoasFOV(object):
             return ext_rel
         return ext_rel*2**2
     
+    @property
+    def pos_abs(self):
+        """Returns center coordinates of FOV (in absolute detector coords)"""
+        return self.pixel_position_center(True)
+        
     def pixel_position_center(self, abs_coords = False):
         """Return pixel position of center of FOV
         

@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
 """
-Created on Fri Dec 09 09:15:51 2016
-
-@author: jg
+piscope module for image based light dilution correction
 """
-from numpy import asarray, linspace, exp
+from numpy import asarray, linspace, exp, ones, nan
 from matplotlib.pyplot import subplots
 from collections import OrderedDict as od
+from warnings import warn
+from pandas import Series
 
 from .processing import LineOnImage
 from .image import Img
@@ -92,7 +92,7 @@ class DilutionCorr(object):
         self._masks[line_id] = res["ok"]
         self._skip_pix[line_id] = self.settings["skip_pix"]
         return dists
-    
+            
     def get_data(self, img, line_ids = []):
         """Returns array with all available distances
         
@@ -115,6 +115,10 @@ class DilutionCorr(object):
                 mask = self._masks[line_id]
                 dists.extend(self._dists[line_id][mask])
                 rads.extend(l.get_line_profile(img)[::skip][mask])
+            else:
+                warn("Distances to line %s not available, please apply "
+                    "distance retrieval first using class method "
+                    "det_topo_dists_line")
         return asarray(dists), asarray(rads)
     
     def apply_dilution_fit(self, img, rad_ambient, i0_guess=None,
@@ -212,7 +216,42 @@ class DilutionCorr(object):
         ax.legend(loc = "best", fancybox = True, framealpha = 0.5,\
                                                         fontsize = 12)
         return ax
-
+    
+    def get_extinction_coeffs_imglist(self, imglist, ambient_roi_abs,
+                                      darkcorr=True, line_ids=[],
+                                      **fit_settings):
+                                            
+        """Retrieve extinction coefficients for all imags in list"""
+        imglist.aa_mode = False
+        imglist.tau_mode = False
+        imglist.auto_reload = False
+        imglist.darkcorr_mode = True
+        if imglist.gaussian_blurring and imglist.pyrlevel == 0:
+            print ("Adding gaussian blurring of 2 for topographic radiance "
+                "retrieval")
+            imglist.gaussian_blurring = 2
+        if imglist.pyrlevel != self.lines.values()[0].pyrlevel:
+            raise ValueError("Mismatch in pyramid level of lines and imglist")
+        if len(line_ids) == 0:
+            line_ids = self.line_ids
+        imglist.vigncorr_mode = True
+        imglist.goto_img(0)
+        imglist.auto_reload = True
+        num = imglist.nof
+        i0s, exts, acq_times = ones(num)*nan, ones(num)*nan, [nan]*num
+        for k in range(num):
+            img = imglist.current_img()
+            rad_ambient = img.crop(ambient_roi_abs, True).mean()
+            ext, i0, _, _ = self.apply_dilution_fit(img, rad_ambient,
+                                                    line_ids=line_ids,
+                                                    plot=False,
+                                                    **fit_settings)
+            acq_times[k] = img.meta["start_acq"]
+            i0s[k] = i0
+            exts[k] = ext
+        
+        return Series(exts, acq_times), Series(i0s, acq_times)
+        
     def plot_distances_3d(self, draw_cam = 1, draw_source = 1, draw_plume = 0,
                           draw_fov = 0, cmap_topo = "gray", axis_off = True,
                           line_ids =[], **kwargs):
@@ -243,7 +282,7 @@ class DilutionCorr(object):
         if axis_off:
             map3d.ax.set_axis_off()
         return map3d
-            
+        
 def get_topo_dists_lines(lines, geom, img = None, skip_pix = 5,\
         topo_res_m = 5.0, min_slope_angle = 5.0, plot = False,\
                                                     line_color = "lime"):

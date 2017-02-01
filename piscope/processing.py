@@ -8,9 +8,9 @@ from numpy import vstack, ogrid, empty, ones, asarray, ndim, round, hypot,\
     logical_and, rollaxis, complex, angle, array, ndarray
     
 from numpy.linalg import norm
-from warnings import warn
 from scipy.ndimage import map_coordinates 
 from scipy.ndimage.filters import gaussian_filter1d, median_filter
+from warnings import warn
 from json import loads, dumps
 from copy import deepcopy
 from datetime import datetime, timedelta
@@ -21,17 +21,11 @@ from cv2 import cvtColor, COLOR_BGR2GRAY, pyrDown, pyrUp
 from os import getcwd, remove
 from os.path import join, exists
 from astropy.io import fits
-try:
-    from scipy.constants import Avogadro
-    NA = Avogadro
-except:
-    NA = 6.022140857e+23
     
 from .image import Img
 from .setupclasses import Camera
 from .exceptions import ImgMetaError, ImgModifiedError
-from .helpers import map_coordinates_sub_img, same_roi
-from .plumespeed import OpticalFlowFarneback
+from .helpers import map_coordinates_sub_img, same_roi, map_roi
 
 class PixelMeanTimeSeries(Series):
     """A ``pandas.Series`` object with extended functionality representing time
@@ -472,7 +466,7 @@ class LineOnImage(object):
             return 0
         return 1
     
-    def get_roi(self, img_array, add_left = 80, add_right = 80,\
+    def get_roi_abs_coords(self, img_array, add_left = 80, add_right = 80,\
                                         add_bottom = 80, add_top = 80):
         """Get a rectangular ROI covering this line 
                 
@@ -490,10 +484,9 @@ class LineOnImage(object):
         y_arr = [self.start[1], self.stop[1]]
         y_min, y_max = min(y_arr), max(y_arr)
         y0, y1 = y_min - add_top, y_max + add_bottom
-        rect = self.check_roi_borders([x0, y0, x1, y1], img_array)
-        #self.subImgInfo.set_roi(rect)
-        #self.prepare_profile_coordinates(key = "roi")
-        return rect
+        roi = self.check_roi_borders([x0, y0, x1, y1], img_array)
+        roi_abs = map_roi(roi, pyrlevel_rel=-1 * self.pyrlevel)
+        return roi_abs
     
     def check_roi_borders(self, roi, img_array):
         """ Check if all points of ROI are within image borders
@@ -561,33 +554,6 @@ class LineOnImage(object):
         zi = map_coordinates(array, self.profile_coords)
         return zi
         
-    def det_emission_rate(self, gas_cd_img, pix_dists, cd_min_val=1e15,
-                          plume_velo_glob=None, optflow=None, mmol=64.0638):
-        """
-        
-        .. note::
-        
-            currently based on the assumption that vertical pixel pitch is the 
-            same than horizontal pixel pitch
-        """
-        pyrlevel = gas_cd_img.edit_log["pyrlevel"]        
-        if pyrlevel != self.pyrlevel:
-            raise ValueError("Mismatch in pyramid level between input image"
-                " and LineOnGrid")
-        gas_cds = self.get_line_profile(gas_cd_img)
-        cond = gas_cds > cd_min_val
-        dists = self.get_line_profile(pix_dists)[cond]
-        if isinstance(optflow, OpticalFlowFarneback):
-            if optflow.pyrlevel != pyrlevel:
-                warn("Mismatch in pyramid level between input image and "
-                    "optical flow field, no data will be extracted from "
-                    "optical flow, try global wind speed")
-            else:
-                dt = optflow.del_t
-        
-        ica = sum(gas_cds[cond] * 100**2 * dists)
-    
-        flux_uncorr = ica * plume_velo * mmol / NA / 1000.0 #kg/s
     """Plotting / visualisation etc...
     """
     def plot_line_on_grid(self, img_arr = None, ax = None,\
@@ -895,12 +861,38 @@ class ProfileTimeSeriesImg(Img):
         self._format_check()
         
 class ImgStack(object):
-    """Basic img stack object with some functionality, stack data is based
-    on 3D numpy array
+    """Image stack object 
+    
+    The images are stacked into a 3D numpy array, note, that for large datasets
+    this may cause MemoryErrors. This object is for instance used to perform
+    a DOAS field of view search (see also :mod:`doascalib`).
+    
+    It provides basic image processing functionality, for instance changing
+    the pyramid level, time merging with other time series data (e.g. DOAS 
+    CD time series vector).
+    
+    The most important attributes (data objects) are:
+    
+        1. ``self.stack``: 3D numpy array containing stacked images. The first 
+        axis corresponds to the time axis, allowing for easy image access,
+        e.g. ``self.stack[10]`` would yield the 11th image in the time series.
+        
+        2. ``self.start_acq``: 1D array containing acquisition time stamps
+        (datetime objects)
+        
+        3. ``self.texps``: 1D array conaining exposure times in s for each 
+        image
+        
+        4. ``self.add_data``: 1D array which can be used to store additional 
+        data for each image (e.g. DOAS CD vector)
+        
+    .. todo::
+    
+        1. Include optical flow routine for emission rate retrieval
+        
     """
     def __init__(self, height=0, width=0, img_num=0, dtype=float32,
-                 stack_id="", img_prep=None, camera=None, geometry=None,
-                    **stack_data):
+                 stack_id="", img_prep=None, camera=None, **stack_data):
         """Specify input
         
         :param int height: height of images to be stacked
@@ -1454,12 +1446,9 @@ class ImgStack(object):
     def to_pyrlevel(self, final_state = 0):
         """Down / upscale image to a given pyramide level"""
         steps = final_state - self.img_prep["pyrlevel"]
-        print "STEPS: %s" %steps
         if steps > 0:
-            print "HEEERE"
             return self.pyr_down(steps)
         elif steps < 0:
-            print "THEEERE"
             return self.pyr_up(-steps)
     
     def duplicate(self):
@@ -1491,19 +1480,19 @@ class ImgStack(object):
             self.start_acq = [datetime.strptime(x, "%Y%m%d%H%M%S%f") for x in\
                                                     hdu[1].data["start_acq"]]
         except:
-            print "Failed to import acquisition times"
+            warn("Failed to import acquisition times")
         try:
             self.texps = hdu[1].data["texps"]
         except:
-            print "Failed to import exposure times"
+            warn("Failed to import exposure times")
         try:
             self._access_mask = hdu[1].data["_access_mask"]
         except:
-            print "Failed to import data access mask"    
+            warn("Failed to import data access mask")    
         try:
             self.add_data = hdu[1].data["add_data"]
         except:
-            print "Failed to import data additional data"
+            warn("Failed to import data additional data")
         self.roi_abs = hdu[2].data["roi_abs"]
         self._format_check()
         
