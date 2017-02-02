@@ -221,7 +221,13 @@ class DilutionCorr(object):
                                       darkcorr=True, line_ids=[],
                                       **fit_settings):
                                             
-        """Retrieve extinction coefficients for all imags in list"""
+        """Retrieve extinction coefficients for all imags in list
+        
+        .. note::
+        
+            Alpha version: not yet tested
+            
+        """
         imglist.aa_mode = False
         imglist.tau_mode = False
         imglist.auto_reload = False
@@ -252,9 +258,9 @@ class DilutionCorr(object):
         
         return Series(exts, acq_times), Series(i0s, acq_times)
         
-    def plot_distances_3d(self, draw_cam = 1, draw_source = 1, draw_plume = 0,
-                          draw_fov = 0, cmap_topo = "gray", axis_off = True,
-                          line_ids =[], **kwargs):
+    def plot_distances_3d(self, draw_cam=1, draw_source=1, draw_plume=0,
+                          draw_fov=0, cmap_topo="Oranges", axis_off=True,
+                          line_ids=[], **kwargs):
         """Draw 3D map of scene including geopoints of distance retrievals
         
         :param bool draw_cam: insert camera position into map

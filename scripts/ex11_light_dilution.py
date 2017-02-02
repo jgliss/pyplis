@@ -12,19 +12,42 @@ from os.path import join, exists
 from piscope.dilutioncorr import DilutionCorr
 from piscope.doascalib import DoasCalibData
 
-from ex1_measurement_setup_plume_data import img_dir, save_path
+### IMPORTS FROM OTHER EXAMPLE SCRIPTS
 from ex10_bg_image_lists import get_bg_image_lists
 
-calib_file = join(save_path, "piscope_doascalib_id_aa_avg_20150916_0706_0721.fts")
+### SCRIPT OPTONS  
+SAVEFIGS = 1 # save plots from this script in SAVE_DIR
+I0_MIN = 0.0 # lower boundary for I0 value in dilution fit
+# Retrieval lines for dilution correction (along these lines, topographic
+# distances and image radiances are determined for fitting the atmospheric
+# extinction coefficients)
 
-if not exists(calib_file):
-    raise IOError("Calibration file could not be found at specified location:\n"
-        "%s\nYou might need to run example 6 first")
+PCS1 = piscope.processing.LineOnImage(1100, 650, 1000, 900, line_id="far")
+PCS2 = piscope.processing.LineOnImage(1000, 990, 1100, 990, line_id= "close")
 
-plt.close("all")
+# all lines in this array are used for the analysis
+USE_LINES = [PCS1, PCS2]
+# specify pixel resolution of topographic distance retrieval (every nth pixel 
+# is used)
+SKIP_PIX_LINES = 10
+    # Specify region of interest used to extract the ambient intensity (required
+# for dilution correction)
+AMBIENT_ROI = [1240, 10, 1300, 70]
+# Specify plume velocity (for a rough emission rate estimate)
+PLUME_VELO = 4.14 #m/s (result from ex8)
+SO2_MMOL = piscope.fluxcalc.MOL_MASS_SO2
 
-skip_pix_line = 10
+### RELEVANT DIRECTORIES AND PATHS
 
+# Image directory
+IMG_DIR = join(piscope.inout.find_test_data(), "images")
+
+# Directory where results are stored
+SAVE_DIR = join(".", "scripts_out")
+
+CALIB_FILE = join(SAVE_DIR, "piscope_doascalib_id_aa_avg_20150916_0706_0721.fts")
+
+### SCRIPT FUNCTION DEFINITIONS        
 def create_dataset_dilution():
     """Create a :class:`piscope.dataset.Dataset` object for dilution analysis
     
@@ -55,11 +78,11 @@ def create_dataset_dilution():
                 "alt_offset"    :   7} #meters above topography
 
     #create camera setup
-    cam = piscope.setup.Camera(cam_id = cam_id, filter_list = filters,\
-                                                                **geom_cam)
+    cam = piscope.setupclasses.Camera(cam_id=cam_id, filter_list=filters,
+                                      **geom_cam)
     
     ### Load default information for Etna
-    source = piscope.setup.Source("etna") 
+    source = piscope.setupclasses.Source("etna") 
     
     #### Provide wind direction
     wind_info= {"dir"      : 0.0,
@@ -67,33 +90,25 @@ def create_dataset_dilution():
 
 
     ### Create BaseSetup object (which creates the MeasGeometry object)
-    stp = piscope.setup.MeasSetup(img_dir, start, stop, camera=cam,\
-                        source = source, wind_info = wind_info)
+    stp = piscope.setupclasses.MeasSetup(IMG_DIR, start, stop, camera=cam,
+                                         source = source,
+                                         wind_info = wind_info)
     return piscope.dataset.Dataset(stp)                  
 
-def correct_view_dir(geom, which_crater = "ne"):
+def correct_view_dir(geom):
     """Performs a correction of the viewing direction using crater in img
     
     :param MeasGeometry geom: measurement geometry
     :param str which_crater: use either "ne" (northeast) or "se" (south east)
     :return: - MeasGeometry, corrected geometry
     """
-    se_crater_img_pos = [735, 575] #x,y
-    se_crater = GeoPoint(37.747757, 15.002643, 3267, name = "SE crater")
-    geom.geo_setup.add_geo_point(se_crater)
-    
-    ne_crater_img_pos = [1051, 605] #x,y
+    # Use position of NE crater in image
+    posx, posy = 1051, 605 #pixel position of NE crate in image
+    # Geo location of NE crater (info from Google Earth)
     ne_crater = GeoPoint(37.754788,  14.996673, 3287, name = "NE crater")
-    geom.geo_setup.add_geo_point(ne_crater)
     
-    if which_crater == "se":
-        obj_id = "SE crater"
-        c = se_crater_img_pos
-    else:
-        obj_id = "NE crater"
-        c = ne_crater_img_pos        
-    elev_new, az_new, _, map = geom.correct_viewing_direction(\
-                        c[0], c[1], obj_id = obj_id, draw_result =  True)
+    geom.correct_viewing_direction(pix_x=posx, pix_y=posy, pix_pos_err=100,
+                                   geo_point=ne_crater, draw_result=True)
     return geom
 
 def prepare_lists(dataset):
@@ -189,37 +204,29 @@ def prepare_images(onlist, offlist):
     
     return on_vigncorr, off_vigncorr, bg_on, bg_off, tau_mask, tau_on, tau_off
 
+def plot_lines_into_image(img):
+    ax = img.show()
+    ax.set_title("Retrieval lines")
+    for line in USE_LINES:
+        line.plot_line_on_grid(ax=ax, marker="", color="lime")
+    
+    ax.legend(loc="best", framealpha=0.5, fancybox= True, fontsize = 10)    
+    return ax
 
+### SCRIPT MAIN FUNCTION       
 if __name__ == "__main__":
-    from scipy.constants import Avogadro
-    SO2_MMOL = 64 #g/mol
-    NA = Avogadro #n/mol
+    if not exists(CALIB_FILE):
+        raise IOError("Calibration file could not be found at specified "
+            "location:\n %s\nYou might need to run example 6 first")
 
-    #Script options
-    # lower boundary for I0 value in dilution fit
-    I0_MIN = 0.0 
-    #specify the lines to be used for distance retrieval (defined in the next
-    #step)
-    USE_LINES = ["far", "close"] 
-    AMBIENT_ROIS = [[1240, 10, 1300, 70],
-                    [1240, 260, 1300, 320],
-                    [1240, 460, 1300, 520],]
-    PLUME_VEL = 4.14 #m/s (result from ex8)
+    plt.close("all")
     
     calib = DoasCalibData()    
-    calib.load_from_fits(calib_file)
-    
-    #create lines specifying topographic features used to perform dilution
-    #correction                                                 
-    lines = [piscope.processing.LineOnImage(1196, 650, 1196, 850,\
-                                                            line_id= "far")]
-    
-    lines.append(piscope.processing.LineOnImage(1090, 990, 1100, 990,\
-                                                        line_id= "close"))
+    calib.load_from_fits(CALIB_FILE)
     
     # create dataset and correct viewing direction
     ds = create_dataset_dilution()
-    geom = correct_view_dir(ds.meas_geometry, which_crater = "ne")
+    geom = correct_view_dir(ds.meas_geometry)
     
     #get plume distance image    
     pix_dists, _, plume_dist_img = geom.get_all_pix_to_pix_dists()  
@@ -231,102 +238,113 @@ if __name__ == "__main__":
     on_vigncorr, off_vigncorr, bg_on, bg_off, tau_mask, tau_on, tau_off =\
                                                 prepare_images(onlist, offlist)
     
-    ax = on_vigncorr.show()
-    ax.set_title("Vignetting corrected onband image")
-    lines[0].plot_line_on_grid(ax = ax, marker="", color="r")
-    lines[1].plot_line_on_grid(ax = ax, marker="")
-    ax.legend(loc="best", framealpha=0.5, fancybox= True, fontsize = 10)
-        
-    #Create dilution correction class
-    dil = DilutionCorr(lines, geom, skip_pix=6)
-    #Retrieved distances to the two lines defined above (every 6th pixel)
-    dil.det_topo_dists_line("close")
-    dil.det_topo_dists_line("far")
+    # Plot the retrieval lines into on band image
+    ax0 = plot_lines_into_image(on_vigncorr)
     
-    go_on = True
-    if not go_on:
-        onlist.tau_mode= True
-        onlist.vigncorr_mode = False
-        s1, s2 = dil.get_extinction_coeffs_imglist(onlist, AMBIENT_ROIS[0])
-        fig, ax = plt.subplots(1,2)
-        s1.plot(ax=ax[0])
-        s2.plot(ax=ax[1])
-        
-    else:
-        #Plot the results in a 3D map
-        basemap = dil.plot_distances_3d(alt_offset_m = 10, axis_off = False)
-        
-        #exemplary plume cross section line
-        pcs_line = piscope.processing.LineOnImage(*[530, 586,910,200],
-                                                          line_id = "pcs")                                                          
-        
-        ax.figure.savefig(join(save_path, "ex11_out_1.png"))
-        basemap.ax.figure.savefig(join(save_path, "ex11_out_2.png"))
-        k=3
-        for AMBIENT_ROI in AMBIENT_ROIS:
-            aa_uncorr = tau_on - tau_off
-            
-            aa_noise = aa_uncorr.crop(AMBIENT_ROI, True)
-            aa_noise_amp = aa_noise.max() - aa_noise.min()
-            
-            aa_profile_uncorr = pcs_line.get_line_profile(aa_uncorr)
-            cond = aa_profile_uncorr > aa_noise_amp
-            so2_cds = calib(aa_profile_uncorr[cond])*100**2 #per sqm
-            pix_dists_line = pcs_line.get_line_profile(pix_dists)[cond]
-            ica = sum(so2_cds * pix_dists_line)
-            
-            flux_uncorr = ica * PLUME_VEL * SO2_MMOL / NA / 1000.0 #kg/s
-            
-            fig, ax = plt.subplots(2, 2, figsize = (12,8))
-            
-            ia_on = on_vigncorr.crop(AMBIENT_ROI, True).mean()
-            ia_off = off_vigncorr.crop(AMBIENT_ROI, True).mean()
-            
-            ext_on, i0_on, _, _ = dil.apply_dilution_fit(on_vigncorr, ia_on, 
-                                                         i0_min=I0_MIN, 
-                                                         line_ids=USE_LINES,
-                                                         ax=ax[0, 0])
-                                                         
-            ax[0, 0].set_title(r"On: $I_A$ = %.1f DN" %(ia_on))        
-            
-            ext_off, i0_off, _, _ = dil.apply_dilution_fit(off_vigncorr, ia_off,
-                                                           i0_min=I0_MIN, 
-                                                           line_ids=USE_LINES,
-                                                           ax=ax[0, 1])
-            ax[0, 1].set_title(r"Off: $I_A$ = %.1f DN" %(ia_off), fontsize = 12)        
-            
-            on_corr = dil.correct_img(on_vigncorr, ext_on, bg_on,
-                                      plume_dist_img, tau_mask)
-                                      
-            tau_on_corr = piscope.Img(np.log(bg_on.img / on_corr.img))
-            
-            off_corr = dil.correct_img(off_vigncorr, ext_off, bg_off,
-                                      plume_dist_img, tau_mask)
-                                      
-            tau_off_corr = piscope.Img(np.log(bg_off.img / off_corr.img))
-            
-            aa_corr = tau_on_corr - tau_off_corr
-            aa_corr.edit_log["is_tau"] = True #for plotting
-            aa_profile_corr = pcs_line.get_line_profile(aa_corr)
-            aa_corr.show(ax = ax[1, 0])
-            ax[1, 0].set_title("Dilution corrected AA image", fontsize = 12)
-            pcs_line.plot_line_on_grid(ax = ax[1, 0], ls="-", color = "g")
-            x0, y0, w, h = piscope.helpers.roi2rect(AMBIENT_ROI)
-            ax[1, 0].add_patch(plt.Rectangle((x0, y0), w, h, fc = "none", ec = "c"))
-            
-            
-            so2_cds = calib(aa_profile_corr[cond])*100**2 #per sqm
-            ica = sum(so2_cds * pix_dists_line)
-            flux_corr = ica * PLUME_VEL * SO2_MMOL / NA / 1000.0 #kg/s
-            ax[1,1].plot(aa_profile_uncorr, "--b", label = r"Flux (uncorr): $\phi=%.2f$ kg/s" 
-                                                                    %(flux_uncorr))
-            ax[1,1].plot(aa_profile_corr, "-g", label = r"Flux (corr): $\phi=%.2f$ kg/s" 
-                                                                    %(flux_corr))
-            ax[1,1].set_title("Cross section profile", fontsize = 12)
-            ax[1,1].legend(loc="best", framealpha=0.5, fancybox= True, fontsize = 10)
-            
-            fig.savefig(join(save_path, ("ex11_out_%d.png" %k)))
-            k+=1
-                
+    # Create dilution correction class
+    dil = DilutionCorr(USE_LINES, geom, skip_pix=SKIP_PIX_LINES)
+    
+    # Determine distances to the two lines defined above (every 6th pixel)
+    for line_id in dil.line_ids:
+        dil.det_topo_dists_line(line_id)
+    
+    # Plot the results in a 3D map
+    basemap = dil.plot_distances_3d(alt_offset_m = 10, axis_off = False)
+    
+    # exemplary plume cross section line for emission rate retrieval
+    pcs_line = piscope.processing.LineOnImage(x0=530,y0=586,x1=910,y1=200,
+                                              line_id="pcs")                                                          
+    
+    # retrieve pixel distances for pixels on the line 
+    # (for emission rate estimate)
+    pix_dists_line = pcs_line.get_line_profile(pix_dists)
+    
+    #get pixel coordinates of PCS center position ...
+    col, row = pcs_line.center_pix
+    
+    # ... and get uncertainty in plume distance estimate for the column
+    pix_dist_err = geom.pix_dist_err(col)
+    
+    fig, ax = plt.subplots(2, 2, figsize = (12,8))
+    
+    ia_on = on_vigncorr.crop(AMBIENT_ROI, True).mean()
+    ia_off = off_vigncorr.crop(AMBIENT_ROI, True).mean()
+    
+    ext_on, i0_on, _, _ = dil.apply_dilution_fit(img=on_vigncorr,
+                                                 rad_ambient=ia_on, 
+                                                 i0_min=I0_MIN,
+                                                 plot=True,
+                                                 ax=ax[0, 0])
+                                                 
+    ax[0, 0].set_title(r"On: $I_A$ = %.1f DN" %(ia_on))        
+    
+    ext_off, i0_off, _, _ = dil.apply_dilution_fit(img=off_vigncorr,
+                                                   rad_ambient=ia_off,
+                                                   i0_min=I0_MIN,
+                                                   plot=True,
+                                                   ax=ax[0, 1])
+                                                   
+    ax[0, 1].set_title(r"Off: $I_A$ = %.1f DN" %(ia_off), fontsize = 12)        
+    
+    
+    #determine uncorrected so2-CD image by calibrating the AA image 
+    so2_img_uncorr = calib(tau_on - tau_off)
+    
+    so2_cds_uncorr = pcs_line.get_line_profile(so2_img_uncorr)
+    
+    # Calculate flux and uncertainty
+    phi_uncorr, phi_uncorr_err =\
+        piscope.fluxcalc.det_emission_rate(cds=so2_cds_uncorr,
+                                           velo=PLUME_VELO,
+                                           pix_dists=pix_dists_line,
+                                           cds_err=calib.slope_err,
+                                           pix_dists_err=pix_dist_err)
+                                           
+    on_corr = dil.correct_img(on_vigncorr, ext_on, bg_on,
+                              plume_dist_img, tau_mask)
+                              
+    tau_on_corr = piscope.Img(np.log(bg_on.img / on_corr.img))
+    
+    off_corr = dil.correct_img(off_vigncorr, ext_off, bg_off,
+                              plume_dist_img, tau_mask)
+                              
+    tau_off_corr = piscope.Img(np.log(bg_off.img / off_corr.img))
+    
+    so2_img_corr = calib(tau_on_corr - tau_off_corr)
+    so2_img_corr.edit_log["is_tau"] = True #for plotting
+    so2_cds_corr = pcs_line.get_line_profile(so2_img_corr)
+    
+    phi_corr, phi_corr_err =\
+        piscope.fluxcalc.det_emission_rate(cds=so2_cds_corr,
+                                           velo=PLUME_VELO,
+                                           pix_dists=pix_dists_line,
+                                           cds_err=calib.slope_err,
+                                           pix_dists_err=pix_dist_err)
+                                           
+    so2_img_corr.show(ax = ax[1, 0])
+    
+    ax[1, 0].set_title("Dilution corrected AA image", fontsize = 12)
+    pcs_line.plot_line_on_grid(ax = ax[1, 0], ls="-", color = "g")
+    x0, y0, w, h = piscope.helpers.roi2rect(AMBIENT_ROI)
+    ax[1, 0].add_patch(plt.Rectangle((x0, y0), w, h, fc = "none", ec = "c"))
+    
+    # Calculate flux and uncertainty                                    
+    ax[1,1].plot(so2_cds_uncorr, "--b", label=r"Uncorr: $\Phi_{SO2}=$"
+        "%.2f (+/- %.2f) kg/s" %(phi_uncorr/1000.0, phi_uncorr_err/1000.0))
+    ax[1,1].plot(so2_cds_corr, "-g", label=r"Corr: $\Phi_{SO2}=$"
+        "%.2f (+/- %.2f) kg/s" %(phi_corr/1000.0, phi_corr_err/1000.0))
+    
+    ax[1,1].set_title("Cross section profile", fontsize = 12)
+    ax[1,1].legend(loc="best", framealpha=0.5, fancybox= True, fontsize = 10)
+    ax[1,1].set_xlim([0, len(pix_dists_line)])
+    ax[1,1].set_ylim([0, 5e18])
+    
+    if SAVEFIGS:    
+        ax0.figure.savefig(join(SAVE_DIR, "ex11_out_1.png"))
+        basemap.ax.set_axis_off()
+        basemap.ax.figure.savefig(join(SAVE_DIR, "ex11_out_2.png"))
+        fig.savefig(join(SAVE_DIR, ("ex11_out_3.png")))
 
-    
+        
+
+

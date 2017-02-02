@@ -7,11 +7,25 @@ features of the MeasGeometry class
 """
 from geonum.base import GeoPoint
 from matplotlib.pyplot import subplots, close, show
-
 from os.path import join
 
-from ex1_measurement_setup_plume_data import create_dataset, save_path
+import piscope
 
+### IMPORTS FROM OTHER EXAMPLE SCRIPTS
+from ex1_measurement_setup_plume_data import create_dataset
+
+### SCRIPT OPTONS  
+SAVEFIGS = 1 # save plots from this script in SAVE_DIR
+
+### RELEVANT DIRECTORIES AND PATHS
+
+# Image directory
+IMG_DIR = join(piscope.inout.find_test_data(), "images")
+
+# Directory where results are stored
+SAVE_DIR = join(".", "scripts_out")
+
+### SCRIPT FUNCTION DEFINITIONS        
 def correct_viewing_direction(meas_geometry, draw_result = True):
     """Correct viewing direction using location of Etna SE crater
     
@@ -22,20 +36,23 @@ def correct_viewing_direction(meas_geometry, draw_result = True):
     :param meas_geometry: :class:`MeasGeometry` object
     
     """
-    se_crater_img_pos = [806, 736] #x,y
+    se_crater_img_pos = [806, 736] #x,y pos in image
+    
+    # Create geo point with coordinates (extracted from Google Earth)
     se_crater = GeoPoint(37.747757, 15.002643, name = "SE crater")
     
     print "Retrieved altitude (SRTM): %s" %se_crater.altitude
     
     meas_geometry.geo_setup.add_geo_point(se_crater)
     
-    elev_new, az_new, _, map =\
-    meas_geometry.correct_viewing_direction(se_crater_img_pos[0], 
-                                            se_crater_img_pos[1],
+    _, _, _, basemap =\
+    meas_geometry.correct_viewing_direction(pix_x=se_crater_img_pos[0], 
+                                            pix_y=se_crater_img_pos[1],
                                             pix_pos_err=100, #for uncertainty estimate
                                             obj_id="SE crater",
-                                            draw_result=draw_result)
-    return meas_geometry, map
+                                            draw_result=draw_result,
+                                            update=True)
+    return meas_geometry, basemap
     
 def plot_plume_distance_image(meas_geometry):
     """Determines and plots image where each pixel corresponds to the plume 
@@ -51,15 +68,18 @@ def plot_plume_distance_image(meas_geometry):
     cb1.set_label("Plume distance [km]")
     ax[1].set_title("Retrieved plume distances")
     return fig
-    
+
+### SCRIPT MAIN FUNCTION
 if __name__ == "__main__":
     close("all")
     ds = create_dataset()
     geom_corr, map = correct_viewing_direction(ds.meas_geometry)
 
     fig =  plot_plume_distance_image(ds.meas_geometry)
-    map.ax.figure.savefig(join(save_path, "ex2_out_1.png"))
-    fig.savefig(join(save_path, "ex2_out_2.png"))
+    
+    if SAVEFIGS:
+        map.ax.figure.savefig(join(SAVE_DIR, "ex2_out_1.png"))
+        fig.savefig(join(SAVE_DIR, "ex2_out_2.png"))
     show()
     
     

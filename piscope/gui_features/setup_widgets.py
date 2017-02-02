@@ -27,7 +27,7 @@ class MeasSetupEdit(QDialog):
         """
         
         super(MeasSetupEdit, self).__init__(parent)
-        self.setWindowTitle("piSCOPE: Measurement setup dialog")
+        self.setWindowTitle("piscope: Measurement setup dialog")
         
         if isinstance(setup, MeasSetup):
             self.setup = setup
@@ -60,47 +60,47 @@ class MeasSetupEdit(QDialog):
         self.tabs.addTab(tab_cam,"Camera")
         self.tab_cam = tab_cam
         
-        buttonCancel = QPushButton("Cancel")
-        buttonCancel.clicked.connect(self.close)
+        btn_cancel = QPushButton("Cancel")
+        btn_cancel.clicked.connect(self.close)
         
-        buttonApply = QPushButton('Apply and close')
-        buttonApply.clicked.connect(self.handle_apply_button)        
-        buttonApply.setDefault(True)
+        btn_apply = QPushButton('Apply and close')
+        btn_apply.clicked.connect(self.handle_apply_btn)        
+        btn_apply.setDefault(True)
         
-        hBoxButtons = QHBoxLayout()
-        hBoxButtons.addStretch(1)
-        hBoxButtons.addWidget(buttonApply)
-        hBoxButtons.addWidget(buttonCancel)
+        hbox_btns = QHBoxLayout()
+        hbox_btns.addStretch(1)
+        hbox_btns.addWidget(btn_apply)
+        hbox_btns.addWidget(btn_cancel)
                 
         layout.addWidget(self.tabs)
-        layout.addLayout(hBoxButtons)
+        layout.addLayout(hbox_btns)
         self.setLayout(layout)
     
     
     def init_base_tab(self):
         """Initiation of first tab for base information"""
         tab = QWidget()
-        loupIconFile = get_icon("myLoupe", "k")
+        loup_icon = get_icon("myLoupe", "k")
         
         layout = QVBoxLayout()
         
-        baseGroup = QGroupBox("Basic information")
+        base_group = QGroupBox("Basic information")
         base_form = QFormLayout()
         #All the import IO widgets
         self.base_path_edit = QLineEdit(self.setup.base_path)
-        button1 = QPushButton("Browse")
-        button1.clicked.connect(self.browse_base_path)
+        btn1 = QPushButton("Browse")
+        btn1.clicked.connect(self.browse_base_path)
         
         self.save_path_edit = QLineEdit(self.setup.save_path)
-        button2 = QPushButton("Browse")
-        button2.clicked.connect(self.browse_save_path)
+        btn2 = QPushButton("Browse")
+        btn2.clicked.connect(self.browse_save_path)
         
-        for button in (button1, button2):
+        for btn in (btn1, btn2):
             try:
-                button.setFlat(True)
-                button.setIcon(QIcon(loupIconFile))
-                button.setIconSize(self.icon_size)
-                button.setText("")
+                btn.setFlat(True)
+                btn.setIcon(QIcon(loup_icon))
+                btn.setIconSize(self.icon_size)
+                btn.setText("")
             except:
                 pass
                 
@@ -111,12 +111,12 @@ class MeasSetupEdit(QDialog):
         self.stop_edit.setCalendarPopup(1)
         self.stop_edit.setMaximumWidth(350)
         
-        self.option_buttons = {}        
+        self.option_btns = {}        
         for key, val in self.setup.options.iteritems():
-            self.option_buttons[key] = bt = QRadioButton()
+            self.option_btns[key] = bt = QRadioButton()
             bt.setChecked(val)
         
-        self.option_buttons["USE_ALL_FILES"].toggled.connect(\
+        self.option_btns["USE_ALL_FILES"].toggled.connect(\
                                         self.handle_all_files_toggle)
         
         #Descriptive labels for For
@@ -126,20 +126,20 @@ class MeasSetupEdit(QDialog):
         
         hBoxSelectBasePath = QHBoxLayout()
         hBoxSelectBasePath.addWidget(self.base_path_edit)
-        hBoxSelectBasePath.addWidget(button1)
+        hBoxSelectBasePath.addWidget(btn1)
         
         hBoxSelectSavePath = QHBoxLayout()
         hBoxSelectSavePath.addWidget(self.save_path_edit)
-        hBoxSelectSavePath.addWidget(button2)
+        hBoxSelectSavePath.addWidget(btn2)
         
         base_form.addRow(QLabel("Base path"), hBoxSelectBasePath)
         base_form.addRow(QLabel("Save path"), hBoxSelectSavePath)
     
-        base_form.addRow(allFilesLabel, self.option_buttons["USE_ALL_FILES"])
+        base_form.addRow(allFilesLabel, self.option_btns["USE_ALL_FILES"])
         base_form.addRow(QLabel("Start (UTC)"), self.start_edit)
         base_form.addRow(QLabel("Stop (UTC)"), self.stop_edit)
         
-        baseGroup.setLayout(base_form)
+        base_group.setLayout(base_form)
         
         meteoGroup = QGroupBox("Meteorology info")
         meteoForm = QFormLayout()
@@ -155,21 +155,21 @@ class MeasSetupEdit(QDialog):
             
         meteoGroup.setLayout(meteoForm)
         
-        hBoxButtons = QHBoxLayout()
-        hBoxButtons.addStretch(1)
-        confirm_button = QPushButton("Confirm")
-        confirm_button.clicked.connect(self.update_base_setup)
-        confirm_button.setEnabled(True)
-        hBoxButtons.addWidget(confirm_button)
+        hbox_btns = QHBoxLayout()
+        hbox_btns.addStretch(1)
+        confirm_btn = QPushButton("Confirm")
+        confirm_btn.clicked.connect(self.update_base_setup)
+        confirm_btn.setEnabled(True)
+        hbox_btns.addWidget(confirm_btn)
         
         
-        layout.addWidget(baseGroup)
+        layout.addWidget(base_group)
         layout.addSpacing(10)
         layout.addWidget(meteoGroup)
         layout.addSpacing(10)
-        layout.addLayout(hBoxButtons)
+        layout.addLayout(hbox_btns)
         
-        if self.option_buttons["USE_ALL_FILES"].isChecked():
+        if self.option_btns["USE_ALL_FILES"].isChecked():
             self.enable_time_edit(1)
         tab.setLayout(layout)
         self.base_form = base_form
@@ -193,7 +193,7 @@ class MeasSetupEdit(QDialog):
             QMessageBox.warning(self, "Warning",
                     "The entered SavePath location does not exist, retry...",
                     QMessageBox.Ok)
-        self.setup.options["USE_ALL_FILES"] = self.option_buttons[\
+        self.setup.options["USE_ALL_FILES"] = self.option_btns[\
                                                 "USE_ALL_FILES"].isChecked()
         self.setup.start = self.start_edit.dateTime().toPyDateTime()
         self.setup.stop = self.stop_edit.dateTime().toPyDateTime()
@@ -213,7 +213,7 @@ class MeasSetupEdit(QDialog):
             self.setup = self.last_setup
         event.accept()
     
-    def handle_apply_button(self):
+    def handle_apply_btn(self):
         """Apply changes and check if all necessary info is available"""
         ok,s = self.setup.base_info_check()
         if not ok:
@@ -275,8 +275,8 @@ class MeasSetupEdit(QDialog):
         sender.setStyleSheet('QLineEdit { background-color: %s }' % color)
         
     def handle_all_files_toggle(self):
-        """What to do if ``self.option_buttons["USE_ALL_FILES"]`` is clicked"""
-        self.enable_time_edit(self.option_buttons["USE_ALL_FILES"].isChecked())
+        """What to do if ``self.option_btns["USE_ALL_FILES"]`` is clicked"""
+        self.enable_time_edit(self.option_btns["USE_ALL_FILES"].isChecked())
 
     def enable_time_edit(self, bool):
         """Enable / disable start / stop time edit fields"""
@@ -345,7 +345,7 @@ class CameraEdit(QDialog):
     """
     def __init__(self, cam_setup):
         super(CameraEdit, self).__init__()
-        self.setWindowTitle("piSCOPE: Edit camera setup")
+        self.setWindowTitle("piscope: Edit camera setup")
         if isinstance(cam_setup, Camera):
             self.cam_setup = cam_setup
         else:
@@ -389,7 +389,7 @@ class CameraEdit(QDialog):
         base_form.addRow(QLabel("Serial no. "), edit)
         
         for k in self._cam_setup_temp._type_dict:
-            if not k in ["filterAcronyms","default_filters", "dark_info"]:
+            if not k in ["default_filters", "dark_info"]:
                 self.user_io[k] = edit = QLineEdit()
                 lbl = QLabel(k)
                 try:
@@ -411,16 +411,16 @@ class CameraEdit(QDialog):
         darkEditButton.clicked.connect(self.edit_dark_offset)
         base_form.addRow(QLabel("Dark & offset"), darkEditButton)
         
-        hBoxButtons = QHBoxLayout()
-        hBoxButtons.addStretch(1)
-        confirm_button = QPushButton("Confirm")
-        confirm_button.clicked.connect(self.update_setup)
-        confirm_button.setEnabled(True)
-        hBoxButtons.addWidget(confirm_button)
+        hbox_btns = QHBoxLayout()
+        hbox_btns.addStretch(1)
+        confirm_btn = QPushButton("Confirm")
+        confirm_btn.clicked.connect(self.update_setup)
+        confirm_btn.setEnabled(True)
+        hbox_btns.addWidget(confirm_btn)
         
         baseLayout.addLayout(base_form)
         baseLayout.addSpacing(10)
-        baseLayout.addLayout(hBoxButtons)
+        baseLayout.addLayout(hbox_btns)
         
         groupBase.setLayout(baseLayout)
         layout.addWidget(groupBase)
@@ -432,15 +432,15 @@ class CameraEdit(QDialog):
             self.user_io[key] = edit = QLineEdit()
             edit.setFixedWidth(self.width_edit_lbl)
             geomForm.addRow(QLabel(key), edit)
-        hBoxButtons2=QHBoxLayout()
-        hBoxButtons2.addStretch(1)
-        confirm_button2=QPushButton("Confirm")
-        confirm_button2.clicked.connect(self.update_setup)
-        confirm_button2.setEnabled(True)
-        hBoxButtons2.addWidget(confirm_button2)
+        hbox_btns2=QHBoxLayout()
+        hbox_btns2.addStretch(1)
+        confirm_btn2=QPushButton("Confirm")
+        confirm_btn2.clicked.connect(self.update_setup)
+        confirm_btn2.setEnabled(True)
+        hbox_btns2.addWidget(confirm_btn2)
         geomLayout.addLayout(geomForm)
         geomLayout.addSpacing(15)
-        geomLayout.addLayout(hBoxButtons2)
+        geomLayout.addLayout(hbox_btns2)
         groupGeom.setLayout(geomLayout)
         layout.addSpacing(15)
         layout.addWidget(groupGeom)
@@ -564,15 +564,15 @@ class SourceEdit(QDialog):
             edit.setFixedWidth(self.width_edit_lbl)
             ioForm.addRow(QLabel(key), edit) 
         
-        hBoxButtons = QHBoxLayout()
-        hBoxButtons.addStretch(1)
-        confirm_button = QPushButton("Confirm")
-        confirm_button.clicked.connect(self.update_setup)
-        confirm_button.setEnabled(True)
-        hBoxButtons.addWidget(confirm_button)
+        hbox_btns = QHBoxLayout()
+        hbox_btns.addStretch(1)
+        confirm_btn = QPushButton("Confirm")
+        confirm_btn.clicked.connect(self.update_setup)
+        confirm_btn.setEnabled(True)
+        hbox_btns.addWidget(confirm_btn)
         
         ioLayout.addLayout(ioForm)
-        ioLayout.addLayout(hBoxButtons)
+        ioLayout.addLayout(hbox_btns)
         
         groupSetup=QGroupBox("Setup Source")
         groupSetup.setLayout(ioLayout)
@@ -651,21 +651,21 @@ class SourceSearchOnline(QDialog):
         self.input_edit = QLineEdit("")
         self.input_edit.setFixedWidth(160)
         
-        self.search_button = QPushButton("Search")
-        self.search_button.setFixedWidth(60)
-        self.search_button.clicked.connect(self.search_sources)
+        self.search_btn = QPushButton("Search")
+        self.search_btn.setFixedWidth(60)
+        self.search_btn.clicked.connect(self.search_sources)
         
         self.source_combo = QComboBox()
         self.source_combo.addItem("No results available")
         self.source_combo.currentIndexChanged[str].connect(self.check_current)
         
-        self.show_info_button = QPushButton("?")
-        self.show_info_button.setMaximumWidth(25)
-        self.show_info_button.setEnabled(False)
-        self.show_info_button.setToolTip("Display current source")
-        self.show_info_button.clicked.connect(self.disp_source_details)
-        self.confirm_button = QPushButton("Confirm and close")
-        self.confirm_button.clicked.connect(self.confirm_and_close)
+        self.show_info_btn = QPushButton("?")
+        self.show_info_btn.setMaximumWidth(25)
+        self.show_info_btn.setEnabled(False)
+        self.show_info_btn.setToolTip("Display current source")
+        self.show_info_btn.clicked.connect(self.disp_source_details)
+        self.confirm_btn = QPushButton("Confirm and close")
+        self.confirm_btn.clicked.connect(self.confirm_and_close)
         
         self.init_layout()
         
@@ -679,10 +679,10 @@ class SourceSearchOnline(QDialog):
             layout.addWidget(l,k,1)
         
         layout.addWidget(self.input_edit, 0, 2)
-        layout.addWidget(self.search_button,0,3)
+        layout.addWidget(self.search_btn,0,3)
         layout.addWidget(self.source_combo,1,2)
-        layout.addWidget(self.show_info_button,1,3)
-        layout.addWidget(self.confirm_button, 2,3)
+        layout.addWidget(self.show_info_btn,1,3)
+        layout.addWidget(self.confirm_btn, 2,3)
         self.setLayout(layout)
         
     def search_sources(self):
@@ -705,7 +705,7 @@ class SourceSearchOnline(QDialog):
         val=False
         if self.search_results.has_key(text):
             val=True
-        self.show_info_button.setEnabled(val)
+        self.show_info_btn.setEnabled(val)
         
     def disp_source_details(self):
         """Display infos about current item in source Combo box"""
@@ -734,7 +734,7 @@ class CellEdit(QDialog):
         #variables for interactive management
         self.cell_info_dict=cellSpecs
         self.stringFormat="{0:.2e}".format
-        self.checkBoxes={}
+        self.check_boxes={}
         
         self.cellCounter=0
         
@@ -750,37 +750,37 @@ class CellEdit(QDialog):
         self.groupCells.setTitle("Edit calibration cells")
         
         self.vBoxCells=QVBoxLayout()
-        self.gridCells = QGridLayout()
-        self.gridCells.setHorizontalSpacing(10)
+        self.grid_cells = QGridLayout()
+        self.grid_cells.setHorizontalSpacing(10)
 
-        self.gridCells.addWidget(QLabel("Cell ID"),0,0)
-        self.gridCells.addWidget(QLabel("SO2-SCD [cm-2]"),0,1)
-        self.gridCells.addWidget(QLabel("SO2-SCD Err [cm-2]"),0,2)
-        self.gridCells.addWidget(QLabel("Add"),0,3)
+        self.grid_cells.addWidget(QLabel("Cell ID"),0,0)
+        self.grid_cells.addWidget(QLabel("SO2-SCD [cm-2]"),0,1)
+        self.grid_cells.addWidget(QLabel("SO2-SCD Err [cm-2]"),0,2)
+        self.grid_cells.addWidget(QLabel("Add"),0,3)
         
         self.addCellButton=QPushButton("+")
         self.addCellButton.setToolTip("Add one cell")
         self.addCellButton.clicked.connect(self.add_cell)
         
-        self.hBoxAddCell=QHBoxLayout()
-        self.hBoxAddCell.addWidget(self.addCellButton)
-        self.hBoxAddCell.addStretch(1)
+        self.hbox_addCell=QHBoxLayout()
+        self.hbox_addCell.addWidget(self.addCellButton)
+        self.hbox_addCell.addStretch(1)
         
         self.confirmCellButton=QPushButton("Confirm and close")
         self.confirmCellButton.setToolTip("Confirm the current setup")
         self.confirmCellButton.clicked.connect(self.confirm_cell_setup)
         
-        self.cancelButton=QPushButton("Cancel")
-        self.cancelButton.clicked.connect(self.close)
+        self.btn_cancel=QPushButton("Cancel")
+        self.btn_cancel.clicked.connect(self.close)
         
-        self.hBoxConfirm=QHBoxLayout()
-        self.hBoxConfirm.addStretch(1)
-        self.hBoxConfirm.addWidget(self.confirmCellButton)
-        self.hBoxConfirm.addWidget(self.cancelButton)
+        self.hbox_confirm=QHBoxLayout()
+        self.hbox_confirm.addStretch(1)
+        self.hbox_confirm.addWidget(self.confirmCellButton)
+        self.hbox_confirm.addWidget(self.btn_cancel)
         
-        self.vBoxCells.addLayout(self.gridCells)
-        self.vBoxCells.addLayout(self.hBoxAddCell)
-        self.vBoxCells.addLayout(self.hBoxConfirm)
+        self.vBoxCells.addLayout(self.grid_cells)
+        self.vBoxCells.addLayout(self.hbox_addCell)
+        self.vBoxCells.addLayout(self.hbox_confirm)
         self.vBoxCells.addStretch(1)
         
         #self.layout.addWidget(self.rectsWidget) 
@@ -792,25 +792,25 @@ class CellEdit(QDialog):
         for key, cell in self.cell_info_dict.iteritems():
             self.cellCounter+=1
             row=self.cellCounter
-            self.gridCells.addWidget(QLineEdit(key),row,0)
-            self.gridCells.addWidget(QLineEdit(f(cell[0])),row,1)
-            self.gridCells.addWidget(QLineEdit(f(cell[1])),row,2)
+            self.grid_cells.addWidget(QLineEdit(key),row,0)
+            self.grid_cells.addWidget(QLineEdit(f(cell[0])),row,1)
+            self.grid_cells.addWidget(QLineEdit(f(cell[1])),row,2)
             
-            self.checkBoxes[row]=QCheckBox()
-            self.checkBoxes[row].setCheckState(1)
-            self.checkBoxes[row].setTristate(False)
-            self.gridCells.addWidget(self.checkBoxes[row],row,3)
+            self.check_boxes[row]=QCheckBox()
+            self.check_boxes[row].setCheckState(1)
+            self.check_boxes[row].setTristate(False)
+            self.grid_cells.addWidget(self.check_boxes[row],row,3)
                 
     def remove_all(self):
-        for k in range(self.gridCells.rowCount()-1):
-            for i in range(self.gridCells.columnCount()):
-                item=self.gridCells.itemAtPosition(k+1,i)
+        for k in range(self.grid_cells.rowCount()-1):
+            for i in range(self.grid_cells.columnCount()):
+                item=self.grid_cells.itemAtPosition(k+1,i)
                 if item is not None:
                     widget=item.widget()
-                    self.gridCells.removeWidget(widget)
+                    self.grid_cells.removeWidget(widget)
                     widget.deleteLater()
                     del widget
-                self.gridCells.removeItem(item)
+                self.grid_cells.removeItem(item)
             #self.grid.removeItem(item)
             
 #==============================================================================
@@ -818,12 +818,12 @@ class CellEdit(QDialog):
 #         print "Delete row"
 #         print "i: " + str(self.cells)
 #         sender=self.sender()
-#         for k in range(self.gridCells.rowCount()):
-#             item=self.gridCells.itemAtPosition(k,3)
+#         for k in range(self.grid_cells.rowCount()):
+#             item=self.grid_cells.itemAtPosition(k,3)
 #             if item is not None:
 #                 if item.widget() is sender:
 #                     print item.widget()
-#                     cellID=self.gridCells.itemAtPosition(k,0).widget().text()
+#                     cellID=self.grid_cells.itemAtPosition(k,0).widget().text()
 #                     del self.cells[str(cellID)]
 #                     del self.deleteButtons[str(cellID)]
 #                     
@@ -837,14 +837,14 @@ class CellEdit(QDialog):
             QMessageBox.Cancel, QMessageBox.Ok,QMessageBox.NoButton)
         if reply==QMessageBox.Ok:
             self.empty_cell_dict()
-            for row in range(1,self.gridCells.rowCount()):
-                print "Num of rows: " + str(self.gridCells.rowCount())
+            for row in range(1,self.grid_cells.rowCount()):
+                print "Num of rows: " + str(self.grid_cells.rowCount())
                 print "Current row: " + str(row)
                 ok=self.check_input_row(row)
-                if ok and self.gridCells.itemAtPosition(row,3).widget().checkState() != 0:
-                    id=self.gridCells.itemAtPosition(row,0).widget().text()
-                    scd=self.gridCells.itemAtPosition(row,1).widget().text()
-                    scdErr=self.gridCells.itemAtPosition(row,2).widget().text()
+                if ok and self.grid_cells.itemAtPosition(row,3).widget().checkState() != 0:
+                    id=self.grid_cells.itemAtPosition(row,0).widget().text()
+                    scd=self.grid_cells.itemAtPosition(row,1).widget().text()
+                    scdErr=self.grid_cells.itemAtPosition(row,2).widget().text()
                     self.cell_info_dict[id]=[float(scd),float(scdErr)]
                 else:
                     print "Entry in row " + str(row) + " invalid or inactive"
@@ -862,20 +862,20 @@ class CellEdit(QDialog):
         ok=1
         
         for k in range(3):
-            item=self.gridCells.itemAtPosition(rowNum,k)
+            item=self.grid_cells.itemAtPosition(rowNum,k)
             print str(item)
             if item is None:
                 ok=0
         return ok
         
     def add_cell(self):
-        row=self.gridCells.rowCount()+1
+        row=self.grid_cells.rowCount()+1
         for k in range(3):
-            self.gridCells.addWidget(QLineEdit(),row,k)
-        self.checkBoxes[row]=QCheckBox()
-        self.checkBoxes[row].setCheckState(1)
-        self.checkBoxes[row].setTristate(False)
-        self.gridCells.addWidget(self.checkBoxes[row],row,3)
+            self.grid_cells.addWidget(QLineEdit(),row,k)
+        self.check_boxes[row]=QCheckBox()
+        self.check_boxes[row].setCheckState(1)
+        self.check_boxes[row].setTristate(False)
+        self.grid_cells.addWidget(self.check_boxes[row],row,3)
                 
 class FilterEdit(QDialog):
     """Widget used to setup the camera filters"""   
@@ -891,7 +891,7 @@ class FilterEdit(QDialog):
             self.collection = filterCollection
         
         
-        self.checkBoxes = {}
+        self.check_boxes = {}
         self.defaultRadioButtons = {}
         
         self.filterCounter = 0
@@ -926,25 +926,25 @@ class FilterEdit(QDialog):
         self.addFilterButton.setToolTip("Add one filter")
         self.addFilterButton.clicked.connect(self.add_filter)
         
-        self.hBoxAddFilter = QHBoxLayout()
-        self.hBoxAddFilter.addWidget(self.addFilterButton)
-        self.hBoxAddFilter.addStretch(1)
+        self.hbox_addFilter = QHBoxLayout()
+        self.hbox_addFilter.addWidget(self.addFilterButton)
+        self.hbox_addFilter.addStretch(1)
         
         self.confirmFilterButton = QPushButton("Confirm and close")
         self.confirmFilterButton.setToolTip("Confirm the current setup")
         self.confirmFilterButton.clicked.connect(self.confirm_filter_setup)
         
-        self.cancelButton = QPushButton("Cancel")
-        self.cancelButton.clicked.connect(self.close)
+        self.btn_cancel = QPushButton("Cancel")
+        self.btn_cancel.clicked.connect(self.close)
         
-        self.hBoxConfirm=QHBoxLayout()
-        self.hBoxConfirm.addStretch(1)
-        self.hBoxConfirm.addWidget(self.confirmFilterButton)
-        self.hBoxConfirm.addWidget(self.cancelButton)
+        self.hbox_confirm=QHBoxLayout()
+        self.hbox_confirm.addStretch(1)
+        self.hbox_confirm.addWidget(self.confirmFilterButton)
+        self.hbox_confirm.addWidget(self.btn_cancel)
         
         self.vBoxFilters.addLayout(self.gridFilters)
-        self.vBoxFilters.addLayout(self.hBoxAddFilter)
-        self.vBoxFilters.addLayout(self.hBoxConfirm)
+        self.vBoxFilters.addLayout(self.hbox_addFilter)
+        self.vBoxFilters.addLayout(self.hbox_confirm)
         self.vBoxFilters.addStretch(1)
         
         #self.layout.addWidget(self.rectsWidget) 
@@ -980,10 +980,10 @@ class FilterEdit(QDialog):
 #             self.gridFilters.addWidget(QLineEdit(\
 #                 str(filter.maxTransmission)), row,4)
 #==============================================================================
-            self.checkBoxes[row] = QCheckBox()
-            self.checkBoxes[row].setCheckState(1)
-            self.checkBoxes[row].setTristate(False)
-            self.gridFilters.addWidget(self.checkBoxes[row], row, 5)
+            self.check_boxes[row] = QCheckBox()
+            self.check_boxes[row].setCheckState(1)
+            self.check_boxes[row].setTristate(False)
+            self.gridFilters.addWidget(self.check_boxes[row], row, 5)
             self.defaultRadioButtons[row] = QRadioButton()
             self.gridFilters.addWidget(self.defaultRadioButtons[row], row, 6)
             if key == self.collection.defaultKey:
@@ -1107,27 +1107,27 @@ class FilterEdit(QDialog):
         self.gridFilters.addWidget(QLineEdit(),row, 3)
         self.gridFilters.addWidget(QLineEdit(),row, 4)
         
-        self.checkBoxes[row] = QCheckBox()
-        self.checkBoxes[row].setCheckState(1)
-        self.checkBoxes[row].setTristate(False)
-        self.gridFilters.addWidget(self.checkBoxes[row], row, 5)
+        self.check_boxes[row] = QCheckBox()
+        self.check_boxes[row].setCheckState(1)
+        self.check_boxes[row].setTristate(False)
+        self.gridFilters.addWidget(self.check_boxes[row], row, 5)
         self.defaultRadioButtons[row] = QRadioButton()
         self.gridFilters.addWidget(self.defaultRadioButtons[row], row, 6)
 
 class DarkOffsetEdit(QDialog):
     """Widget used to setup the camera filters"""   
-    def __init__(self, darkOffsetInfo = [], parent = None):
+    def __init__(self, dark_info = [], parent = None):
         super(DarkOffsetEdit, self).__init__(parent)     
-        self.setWindowTitle('piSCOPE: Define dark / offset input information')
+        self.setWindowTitle('piscope: Define dark / offset input information')
         
         self.accepted = 0
         #variables for interactive management
-        if not isinstance(darkOffsetInfo, list):
-            darkOffsetInfo = []
+        if not isinstance(dark_info, list):
+            dark_info = []
         
-        self.dark_info = darkOffsetInfo
+        self.dark_info = dark_info
                 
-        self.checkBoxes = {}
+        self.check_boxes = {}
         
         self.counter = 0
         
@@ -1150,33 +1150,33 @@ class DarkOffsetEdit(QDialog):
         self.grid.addWidget(QLabel("ID"), 0, 0)
         self.grid.addWidget(QLabel("Type"), 0, 1)
         self.grid.addWidget(QLabel("Acronym"), 0, 2)
-        self.grid.addWidget(QLabel("Acronym (measType)"), 0, 3)
+        self.grid.addWidget(QLabel("Acronym (meas type)"), 0, 3)
         self.grid.addWidget(QLabel("Read gain"), 0, 4)
         self.grid.addWidget(QLabel("Add"), 0, 5)
         
-        self.addButton = QPushButton("+")
-        self.addButton.setToolTip("Add one DarkOffsetInfo object")
-        self.addButton.clicked.connect(self.add)
+        self.btn_add = QPushButton("+")
+        self.btn_add.setToolTip("Add one DarkOffsetInfo object")
+        self.btn_add.clicked.connect(self.add)
         
-        self.hBoxAdd = QHBoxLayout()
-        self.hBoxAdd.addWidget(self.addButton)
-        self.hBoxAdd.addStretch(1)
+        self.hbox_add = QHBoxLayout()
+        self.hbox_add.addWidget(self.btn_add)
+        self.hbox_add.addStretch(1)
         
-        self.confirm_button = QPushButton("Confirm and close")
-        self.confirm_button.setToolTip("Confirm the current setup")
-        self.confirm_button.clicked.connect(self.confirm_setup)
+        self.confirm_btn = QPushButton("Confirm and close")
+        self.confirm_btn.setToolTip("Confirm the current setup")
+        self.confirm_btn.clicked.connect(self.confirm_setup)
         
-        self.cancelButton = QPushButton("Cancel")
-        self.cancelButton.clicked.connect(self.close)
+        self.btn_cancel = QPushButton("Cancel")
+        self.btn_cancel.clicked.connect(self.close)
         
-        self.hBoxConfirm = QHBoxLayout()
-        self.hBoxConfirm.addStretch(1)
-        self.hBoxConfirm.addWidget(self.confirm_button)
-        self.hBoxConfirm.addWidget(self.cancelButton)
+        self.hbox_confirm = QHBoxLayout()
+        self.hbox_confirm.addStretch(1)
+        self.hbox_confirm.addWidget(self.confirm_btn)
+        self.hbox_confirm.addWidget(self.btn_cancel)
         
         self.vBox.addLayout(self.grid)
-        self.vBox.addLayout(self.hBoxAdd)
-        self.vBox.addLayout(self.hBoxConfirm)
+        self.vBox.addLayout(self.hbox_add)
+        self.vBox.addLayout(self.hbox_confirm)
         self.vBox.addStretch(1)
         
         #self.layout.addWidget(self.rectsWidget) 
@@ -1218,10 +1218,10 @@ class DarkOffsetEdit(QDialog):
             cb = self._new_gain_combo(info.gain)
             self.grid.addWidget(cb, row, 4)
 
-            self.checkBoxes[row] = QCheckBox()
-            self.checkBoxes[row].setCheckState(1)
-            self.checkBoxes[row].setTristate(False)
-            self.grid.addWidget(self.checkBoxes[row], row, 5)
+            self.check_boxes[row] = QCheckBox()
+            self.check_boxes[row].setCheckState(1)
+            self.check_boxes[row].setTristate(False)
+            self.grid.addWidget(self.check_boxes[row], row, 5)
         
     def confirm_setup(self):
         """Update the current filter setup based on current dialog settings"""
@@ -1276,277 +1276,9 @@ class DarkOffsetEdit(QDialog):
         cb = self._new_gain_combo()
         self.grid.addWidget(cb, row, 4)
 
-        self.checkBoxes[row] = QCheckBox()
-        self.checkBoxes[row].setCheckState(1)
-        self.checkBoxes[row].setTristate(False)
-        self.grid.addWidget(self.checkBoxes[row], row, 5)
-        
-#==============================================================================
-# class BgModelEdit(QDialog):
-#     """
-#     Dialog to edit an :class:`BackGroundModelSetup` object
-#     """
-#     def __init__(self, bgModelSetup, parent=None):
-#         super(BgModelEdit, self).__init__(parent)
-#         self.setWindowTitle("piSCOPE: Background model settings")
-#         self.setup=bgModelSetup
-#         self.width_edit_lbl=150
-#         self._type_info={}
-#         self.changes_accepted=0
-#         self.user_io=None
-# 
-#         self.init_ui()
-# 
-#         self.write_current()
-#         
-#         
-#     def init_ui(self):
-#         self.user_io={}
-#         outerLayout=QVBoxLayout()
-#         layout=QHBoxLayout()
-#         ioLayout=QVBoxLayout()
-#         
-#         settingsForm=QFormLayout()
-#         for key, val in self.setup.settings.iteritems():
-#             self.user_io[key]=cBox=QCheckBox()
-#             cBox.setTristate(0)
-#             settingsForm.addRow(QLabel(key), cBox)
-#         
-#         
-#         choosePolysButton=QPushButton("Select")
-#         choosePolysButton.clicked.connect(self.get_poly_files)
-#         resetPolysButton=QPushButton("Reset")
-#         resetPolysButton.clicked.connect(self.reset_poly_files)
-#         hBoxPolyButtons=QHBoxLayout()
-#         hBoxPolyButtons.addWidget(choosePolysButton)
-#         hBoxPolyButtons.addWidget(resetPolysButton)
-#         settingsForm.addRow(QLabel("Background poly files [.bgp]"), hBoxPolyButtons)
-#         
-#         setTimeIvalsButton=QPushButton("Setup")
-#         setTimeIvalsButton.clicked.connect(self.show_tival_edit)
-#         settingsForm.addRow(QLabel("Set poly time windows"), setTimeIvalsButton)
-#         
-#         hBoxConfirm=QHBoxLayout()
-#         hBoxConfirm.addStretch(1)
-#         confirm_button=QPushButton("Confirm")
-#         confirm_button.clicked.connect(self.update_setup)
-#         confirm_button.setEnabled(True)
-#         hBoxConfirm.addWidget(confirm_button)
-#         
-#         ioLayout.addLayout(settingsForm)
-#         ioLayout.addLayout(hBoxConfirm)
-#         
-#         groupIO=QGroupBox("Settings")
-#         groupIO.setLayout(ioLayout)
-#         
-#         self.current_setup_label=QLabel(str(self.setup))
-#         self.current_setup_label.setMinimumWidth(200)
-#         vBoxInfo=QVBoxLayout()
-#         vBoxInfo.addWidget(self.current_setup_label)
-#         vBoxInfo.addStretch(1)
-#         
-#         groupInfo=QGroupBox("Current setup")
-#         groupInfo.setLayout(vBoxInfo)
-#         
-#         layout.addWidget(groupIO)
-#         layout.addSpacing(15)
-#         layout.addWidget(groupInfo)
-#         layout.addStretch(1)
-#         
-#         outerLayout.addLayout(layout)
-#         
-#         buttonCancel=QPushButton("Cancel")
-#         buttonCancel.clicked.connect(self.close)
-#         
-#         buttonApply = QPushButton('Apply and close')
-#         buttonApply.clicked.connect(self.handle_apply_button)        
-#         buttonApply.setDefault(True)
-#         
-#         hBoxButtons=QHBoxLayout()
-#         hBoxButtons.addStretch(1)
-#         hBoxButtons.addWidget(buttonApply)
-#         hBoxButtons.addWidget(buttonCancel)
-#         
-#         outerLayout.addLayout(hBoxButtons)
-#         self.setLayout(outerLayout)
-#         
-#     
-#     def reset_poly_files(self):
-#         self.setup.bgPolyFiles=[]
-#         self.current_setup_label.setText(self.setup.__str__())
-#         
-#     def get_poly_files(self):
-#         qStrList=QFileDialog.getOpenFileNames(self)
-#         for s in qStrList:
-#             self.setup.add_bg_poly_file(str(s))
-#         self.current_setup_label.setText(self.setup.__str__())
-#         
-#     def write_current(self):
-#         for key, cBox in self.user_io.iteritems():
-#             cBox.setChecked(self.setup.settings[key])
-#             
-#     def update_setup(self):
-#         for key, cBox in self.user_io.iteritems():
-#             self.setup.settings[key]=bool(cBox.checkState())
-#         self.current_setup_label.setText(self.setup.__str__())
-#         
-#     def show_tival_edit(self):
-#         dial=BgPolyTimeWindowsEdit("test", [])
-#         dial.exec_()
-#         
-#     def handle_apply_button(self):
-#         """
-#         Apply changes and check if all necessary info is available
-#         """
-#         msg = QMessageBox(self)
-#         msg.setIcon(QMessageBox.Information)
-#         msg.setText("Apply changes (please confirm)?")
-#         msg.setWindowTitle("piSCOPE information")
-#         msg.setDetailedText(str(self.setup))
-#         msg.setStandardButtons(QMessageBox.Cancel | QMessageBox.Abort | QMessageBox.Apply)
-#         msg.setDefaultButton(QMessageBox.Apply)
-#         reply=msg.exec_()
-#         if reply == QMessageBox.Apply:
-#             self.changes_accepted=1
-#         if reply == QMessageBox.Abort:
-#             reply1=QMessageBox.question(self, "Confirm", "No changes will be applied",QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
-#             if reply1==QMessageBox.Cancel:
-#                 reply=QMessageBox.Cancel
-#         if reply != QMessageBox.Cancel:        
-#             self.close()
-# #==============================================================================
-# #             except:
-# #                 val.setStyleSheet("color: rgb(255, 0, 50);")
-# #                 msg="Oaans nachm annern! Geduld, Geduld mein Bester"
-# #                 QMessageBox.warning(self,"Error",msg, QMessageBox.Ok)
-# #==============================================================================
-# class BgPolyTimeWindowsEdit(QDialog):
-#     """
-#     Dialog to open and edit time windows used to fit a background polynomial
-#     """
-#     def __init__(self, rectId, timeWindows=[], parent=None):
-#         super(BgPolyTimeWindowsEdit, self).__init__(parent)     
-#         self.rectId=rectId
-#         self.setWindowTitle('piSCOPE: BG poly time windows (Rect: ' +\
-#                                                             str(rectId) + ")")
-#         self.accepted=0
-#         #variables for interactive management
-#         self.timeWindows=timeWindows
-#         self.checkBoxes={}
-#         
-#         self.ivalCounter=0
-#         
-#         self.init_ui()
-#         self.disp_current_setup()
-#         
-#         self.setLayout(self.layout)
-#         
-#     def init_ui(self):
-#         self.layout=QVBoxLayout()
-#         
-#         self.groupIvals=QGroupBox()
-#         self.groupIvals.setTitle("Edit time intervals and weighting factors"\
-#             "(Rect: " + str(self.rectId) + ")")
-#         
-#         self.vBoxIvals=QVBoxLayout()
-#         self.gridIvals = QGridLayout()
-#         self.gridIvals.setHorizontalSpacing(10)
-# 
-#         self.gridIvals.addWidget(QLabel("Start"),0,0)
-#         self.gridIvals.addWidget(QLabel("Stop"),0,1)
-#         self.gridIvals.addWidget(QLabel("Weight"),0,2)
-#         self.gridIvals.addWidget(QLabel("Add"),0,3)
-#         
-#         self.addIvalButton=QPushButton("+")
-#         self.addIvalButton.setToolTip("Add one iVal")
-#         self.addIvalButton.clicked.connect(self.add_ival)
-#         
-#         self.hBoxAddIval=QHBoxLayout()
-#         self.hBoxAddIval.addWidget(self.addIvalButton)
-#         self.hBoxAddIval.addStretch(1)
-#         
-#         self.confirmIvalButton=QPushButton("Confirm and close")
-#         self.confirmIvalButton.setToolTip("Confirm the current setup")
-#         self.confirmIvalButton.clicked.connect(self.confirm_ival_setup)
-#         
-#         self.cancelButton=QPushButton("Cancel")
-#         self.cancelButton.clicked.connect(self.close)
-#         
-#         self.hBoxConfirm=QHBoxLayout()
-#         self.hBoxConfirm.addStretch(1)
-#         self.hBoxConfirm.addWidget(self.confirmIvalButton)
-#         self.hBoxConfirm.addWidget(self.cancelButton)
-#         
-#         self.vBoxIvals.addLayout(self.gridIvals)
-#         self.vBoxIvals.addLayout(self.hBoxAddIval)
-#         self.vBoxIvals.addLayout(self.hBoxConfirm)
-#         self.vBoxIvals.addStretch(1)
-#         
-#         #self.layout.addWidget(self.rectsWidget) 
-#         self.groupIvals.setLayout(self.vBoxIvals)
-#         self.layout.addWidget(self.groupIvals)
-#     
-#     def disp_current_setup(self):
-#         for ival in self.timeWindows:
-#             self.ivalCounter+=1
-#             row=self.ivalCounter
-#             self.gridIvals.addWidget(QTimeEdit(ival[0].time()),row,0)
-#             self.gridIvals.addWidget(QTimeEdit(ival[1].time()),row,1)
-#             self.gridIvals.addWidget(QLineEdit(ival[2]),row,2)
-#             self.checkBoxes[row]=QCheckBox()
-#             self.checkBoxes[row].setCheckState(1)
-#             self.checkBoxes[row].setTristate(False)
-#             self.gridIvals.addWidget(self.checkBoxes[row],row,3)
-#                 
-#     def remove_all(self):
-#         for k in range(self.gridIvals.rowCount()-1):
-#             for i in range(self.gridIvals.columnCount()):
-#                 item=self.gridIvals.itemAtPosition(k+1,i)
-#                 if item is not None:
-#                     widget=item.widget()
-#                     self.gridIvals.removeWidget(widget)
-#                     widget.deleteLater()
-#                     del widget
-#                 self.gridIvals.removeItem(item)
-# 
-#     def confirm_ival_setup(self):
-#         msg="The old setup will be overwritten. Please confirm"
-#         reply=QMessageBox.information(self, "piSCOPE Information", msg,\
-#             QMessageBox.Cancel, QMessageBox.Ok,QMessageBox.NoButton)
-#         if reply==QMessageBox.Ok:
-#             self.timeWindows=[]
-#             for row in range(1,self.gridIvals.rowCount()):
-#                 print "Num of rows: " + str(self.gridIvals.rowCount())
-#                 print "Current row: " + str(row)
-#                 ok = self.check_input_row(row)
-#                 if ok and self.gridIvals.itemAtPosition(row,3).widget().checkState() != 0:
-#                     start=self.gridIvals.itemAtPosition(row,0).widget().dateTime().toPyDateTime()
-#                     stop=self.gridIvals.itemAtPosition(row,1).widget().dateTime().toPyDateTime()
-#                     weight=int(self.gridIvals.itemAtPosition(row,2).widget().text())
-#                     self.timeWindows.append([start, stop, weight])
-#                 else:
-#                     print "Entry in row " + str(row) + " invalid or inactive"
-#         self.accepted = 1 
-#         self.close()
-#             
-#     def check_input_row(self,rowNum):
-#         ok=1
-#         for k in range(3):
-#             item=self.gridIvals.itemAtPosition(rowNum,k)
-#             print str(item)
-#             if item is None:
-#                 ok=0
-#         return ok
-#         
-#     def add_ival(self):
-#         row=self.gridIvals.rowCount()+1
-#         for k in range(2):
-#             self.gridIvals.addWidget(QTimeEdit(datetime.now().time()),row,k)
-#         self.gridIvals.addWidget(QLineEdit("1"),row, 2)
-#         self.checkBoxes[row]=QCheckBox()
-#         self.checkBoxes[row].setCheckState(1)
-#         self.checkBoxes[row].setTristate(False)
-#         self.gridIvals.addWidget(self.checkBoxes[row],row,3)
-#==============================================================================
+        self.check_boxes[row] = QCheckBox()
+        self.check_boxes[row].setCheckState(1)
+        self.check_boxes[row].setTristate(False)
+        self.grid.addWidget(self.check_boxes[row], row, 5)
         
 

@@ -5,13 +5,15 @@ piscope helper methods
 
 import matplotlib.cm as colormaps
 import matplotlib.colors as colors
-from traceback import format_exc
-from warnings import warn
+
 from matplotlib.pyplot import draw
 from numpy import mod, linspace, hstack, vectorize, uint8, cast, asarray,\
-    unravel_index, nanargmax, meshgrid
+    unravel_index, nanargmax, meshgrid, int, floor, log10
 from scipy.ndimage.filters import gaussian_filter
 from cv2 import pyrUp
+
+
+exponent = lambda num: int(floor(log10(abs(num))))
 
 def mesh_from_img(img_arr):
     if not img_arr.ndim == 2:

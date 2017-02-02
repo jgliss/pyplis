@@ -101,6 +101,7 @@ def find_signal_correlation(first_data_vec, next_data_vec,\
     coeffs = []
     max_coeff = -10
     max_coeff_signal = None
+    print "Signal correlation analysis running..."
     for k in range(len(s1_vec)):
         shift_s1 = roll(s1_vec, k)
         coeffs.append(pearsonr(shift_s1, s2_vec)[0])

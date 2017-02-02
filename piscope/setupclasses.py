@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """
-piSCOPE setup classes
+piscope setup classes
+---------------------
 
 This module contains several setup classes related to measurement data and 
 analysis, these are:
@@ -12,7 +13,7 @@ analysis, these are:
     #. :class:`AutoCellCalibSetup`: Setup for cell calibration data   
 """
 from dill import dump
-from os import path, mkdir, getcwd
+from os import path, getcwd
 from datetime import datetime, timedelta
 from collections import OrderedDict as od
 from os.path import exists
@@ -22,14 +23,11 @@ from copy import deepcopy
 from PyQt4.QtGui import QApplication
 from sys import argv
 
-from piscope import PYDOASAVAILABLE
 from piscope import _LIBDIR
-if PYDOASAVAILABLE:
-    from pydoas.dataimport import ResultImportSetup
 
 from .forms import LineCollection, RectCollection  
 from .exceptions import MetaAccessError
-from .inout import get_source_info#, get_all_valid_cam_ids
+from .inout import get_source_info
 from .utils import Filter, CameraBaseInfo
 from .geometry import MeasGeometry
 
@@ -77,10 +75,6 @@ class Source(object):
             info = self.get_info(name)
             if bool(info):
                 info_dict = info
-#==============================================================================
-#         if not bool(info_dict):
-#             info_dict = self.get_info("Etna")
-#==============================================================================
                 
         self.load_source_info(info_dict)
         
@@ -193,41 +187,6 @@ class Source(object):
     def __call__(self, key):
         """Make object callable (access item)"""
         return self.__getitem__(key)
-
-#==============================================================================
-# class DarkOffsetSetup(object):
-#     """Collection of :class:`DarkOffsetInfo` objects for a camera"""
-#     def __init__(self, infoList = []):
-#         """Initialisation"""
-#         self.init_objects(infoList)
-#     
-#     def init_objects(self, infoList):
-#         self.objects = od()
-#         try:
-#             for obj in infoList:
-#                 if isinstance(obj, DarkOffsetInfo):
-#                     self.objects[obj.acronym] = obj
-#         except:
-#             pass
-#         
-#     def get_acros_low_gain(self):
-#         """Get acronyms of all :class:`DarkOffsetInfo` objects which correspond
-#         to low gain measurements"""
-#         acros = []
-#         for acro, obj in self.objects:
-#             if obj.gain == 'LOW':
-#                 acros.append(acro)
-#         return acros
-# 
-#     def get_acros_high_gain(self):
-#         """Get acronyms of all :class:`DarkOffsetInfo` objects which correspond
-#         to high gain measurements"""
-#         acros = []
-#         for acro, obj in self.objects:
-#             if obj.gain == 'HIGH':
-#                 acros.append(acro)
-#         return acros
-#==============================================================================
         
 class FilterSetup(object):
     """A collection of :mod:`Filter` objects 
@@ -306,9 +265,6 @@ class FilterSetup(object):
                 self.default_key_off = ids_off[0]
             else:
                 self.default_key_off = default_key_off
-        else:
-            print ("Offband default key could not be specified, no offband "
-                "filter available in FilterSetup")
     
     def check_default_filters(self):
         """Checks if default filter keys are set"""
@@ -801,9 +757,9 @@ class MeasSetup(BaseSetup):
     :class:`piscope.Datasets.PlumeData` objects or 
     :class:`piscope.Datasets.BackgroundData` objects.
     """
-    def __init__(self, base_path = None, start = None, stop = None,\
-            camera = None, source = None, wind_info = None, rects = {},\
-                                                        lines = {}, **opts):
+    def __init__(self, base_path=None, start=None, stop=None, camera=None,
+                 source=None, wind_info=None, cell_info_dict = {}, rects={},
+                 lines={}, **opts):
         """
         :param str base_path: Path were e.g. imagery data lies
         :param datetime start: start time of Dataset
@@ -825,6 +781,7 @@ class MeasSetup(BaseSetup):
         self._cam_source_dict = {"camera"   :   camera,
                                  "source"   :   source}
         
+        self.cell_info_dict = cell_info_dict
         self.forms = FormSetup(lines, rects)
 
         self.wind_info = od([("dir"     ,   None),
@@ -991,7 +948,7 @@ class MeasSetup(BaseSetup):
     def edit_in_gui(self):
         """Edit the current dataSet object"""
         from piscope.gui_features.setup_widgets import MeasSetupEdit
-        QApplication(argv)
+        app=QApplication(argv)
         dial = MeasSetupEdit(deepcopy(self))
         dial.exec_()
         return dial
@@ -1026,240 +983,223 @@ class MeasSetup(BaseSetup):
     def __str__(self):
         """Detailed information string"""
         s = super(BaseSetup, self).__str__() + "\n\n"
-        s = s + "Meteorology info\n-----------------------\n"
+        s += "Meteorology info\n-----------------------\n"
         for key, val in self.wind_info.iteritems():
-            s = s + "%s: %s\n" %(key, val)
-        s = s +"\n" + str(self.camera) +"\n"
-        s = s + str(self.source)
+            s += "%s: %s\n" %(key, val)
+        s += "\n" + str(self.camera) +"\n"
+        s += str(self.source)
+        if self.cell_info_dict.keys():
+            s += "\nCell specifications:\n"
+            for key, val in self.cell_info_dict.iteritems():
+                s += "%s: %s +/- %s\n" %(key, val[0], val[1]) 
         return s
 
-    
-class AutoCellCalibSetup(MeasSetup):
-    """Setup class for cell calibration (i.e. input for DataSetCalib objects)
-    
-    A measurement setup for cell calibration data. Inherits from and is
-    initiated as :class:`MeasSetup` (i.e. includes image path, start / stop 
-    time stamps and camera specs) and was extended by parameter cell_info_dict, 
-    a dictionary containing information about the gas columns of the 
-    calibration cells used. 
-    :class:`AutoCellCalibSetup` objects are supposed to be used as input for 
-    :class:`piscope.Calibration.CellCalib` objects.
-    """
-    def __init__(self, cell_info_dict = {}, *args, **kwargs):
-        """Class initialisation
-        
-        Initates :class:`BaseSetup` (see specs there) and extends the 
-        initialisation by setting 
-        
-        :param dict cell_info_dict: dictionary containing cell information
-            where keys are cell string abbreveations and values are lists with
-            gas columns (first entry) and gas column uncertainties (second 
-            entry) in units of cm-2
-        
-        An exemplary cell info dictionary could look like::
-        
-            cell_info_dict = {"cell1" : [3.2e18, 1.0e17],
-                              "cell2" : [9.2e17, 1.1e17],
-                              "cell3" : [3.1e17, 5.8e16]}
-                              
-        """
-        super(AutoCellCalibSetup, self).__init__(*args,**kwargs)
-        self.id = "cellcalib"
-        self.cell_info_dict = cell_info_dict
-    
-    def short_str(self):
-        """Short string representation"""
-        s = "Cell specifications:\n"
-        for key, val in self.cell_info_dict.iteritems():
-            s += "%s: %s +/- %s\n" %(key, val[0], val[1]) 
-        return super(AutoCellCalibSetup, self).short_str() + s
-        
-    def __str__(self):
-        s="\nCell specifications\n---------------------------------\n"
-        for key, val in self.cell_info_dict.iteritems():
-            s=s+ str(key) + ": " + str(val[0]) + " +/- " + str(val[1]) + "\n" 
-        return super(AutoCellCalibSetup, self).__str__() + s
-        
+"""SORTED OUT STUFF"""    
+
 #==============================================================================
-# class EvalSettings(object):
-#     """High level class to specify settings for emission rate analysis
+# class DarkOffsetSetup(object):
+#     """Collection of :class:`DarkOffsetInfo` objects for a camera"""
+#     def __init__(self, infoList = []):
+#         """Initialisation"""
+#         self.init_objects(infoList)
 #     
-#     This class includes all relevant settings to perform emission rate analysis
-#     of plume imagery data. These are mainly:
+#     def init_objects(self, infoList):
+#         self.objects = od()
+#         try:
+#             for obj in infoList:
+#                 if isinstance(obj, DarkOffsetInfo):
+#                     self.objects[obj.acronym] = obj
+#         except:
+#             pass
+#         
+#     def get_acros_low_gain(self):
+#         """Get acronyms of all :class:`DarkOffsetInfo` objects which correspond
+#         to low gain measurements"""
+#         acros = []
+#         for acro, obj in self.objects:
+#             if obj.gain == 'LOW':
+#                 acros.append(acro)
+#         return acros
+# 
+#     def get_acros_high_gain(self):
+#         """Get acronyms of all :class:`DarkOffsetInfo` objects which correspond
+#         to high gain measurements"""
+#         acros = []
+#         for acro, obj in self.objects:
+#             if obj.gain == 'HIGH':
+#                 acros.append(acro)
+#         return acros
+#==============================================================================
+#==============================================================================
+# class AutoCellCalibSetup(MeasSetup):
+#     """Setup class for cell calibration (i.e. input for DataSetCalib objects)
 #     
-#         1. Image pre edit and preparation settings (e.g. dark correction...)
-#         #. Calibration settings (e.g. cell or spectral calibration, or both)
-#         #. Wind speed retrieval settings (e.g. optical flow)
-#         #. The plume cross sections used to retrieve emission rates
+#     A measurement setup for cell calibration data. Inherits from and is
+#     initiated as :class:`MeasSetup` (i.e. includes image path, start / stop 
+#     time stamps and camera specs) and was extended by parameter cell_info_dict, 
+#     a dictionary containing information about the gas columns of the 
+#     calibration cells used. 
+#     :class:`AutoCellCalibSetup` objects are supposed to be used as input for 
+#     :class:`piscope.Calibration.CellCalib` objects.
 #     """
-#     def __init__(self, settings_dict = {}):
+#     def __init__(self, cell_info_dict = {}, *args, **kwargs):
+#         """Class initialisation
 #         
-#         self.imgPrep = {"darkcorr"        :   1,
-#                         "blurring"        :   0,
-#                         "pyrlevel"        :   0,
-#                         "roi"             :   [0, 0, 9999, 9999]}
+#         Initates :class:`BaseSetup` (see specs there) and extends the 
+#         initialisation by setting 
 #         
-#         self._CALIBTYPES = ["spectral", "cell", "hybrid"]
+#         :param dict cell_info_dict: dictionary containing cell information
+#             where keys are cell string abbreveations and values are lists with
+#             gas columns (first entry) and gas column uncertainties (second 
+#             entry) in units of cm-2
 #         
-#         self.doas_calib_dev_id = None
+#         An exemplary cell info dictionary could look like::
 #         
-#         self.pcs_ids = []
+#             cell_info_dict = {"cell1" : [3.2e18, 1.0e17],
+#                               "cell2" : [9.2e17, 1.1e17],
+#                               "cell3" : [3.1e17, 5.8e16]}
+#                               
+#         """
+#         super(AutoCellCalibSetup, self).__init__(*args,**kwargs)
+#         self.id = "cellcalib"
 #         
-#         #self.optFlowSettings=OpticalFlowFarnebackSettings()
-#         self.update_settings(settings_dict)
 #     
+#     def short_str(self):
+#         """Short string representation"""
+#         
+#         return super(AutoCellCalibSetup, self).short_str() + s
+#         
+#     def __str__(self):
+#         s="\nCell specifications\n---------------------------------\n"
+#         for key, val in self.cell_info_dict.iteritems():
+#             s=s+ str(key) + ": " + str(val[0]) + " +/- " + str(val[1]) + "\n" 
+#         return super(AutoCellCalibSetup, self).__str__() + s
+#==============================================================================
+#==============================================================================
+# class EmissionRateAnalysisSetup(object):
+#     """High level setup class for emission rate analysis
 #     
-#     def update_settings(self, settingsDict):
-#         """Update evaluation settings"""
-#         if isinstance(settingsDict, dict):
-#             for key, val in settingsDict.iteritems():
-#                 self.__setitem__(key,val)
+#     Basically a "putting it all together" class to determine emission rates
+#     from a set of plume images. :class:`EmissionRateAnalysisSetup` objects can 
+#     be used as input for :class:`piscope.Evaluation.EmissionRateAnalysis` 
+#     objects
+#     """
+#     def __init__(self, plume_data_setup = None, auto_cell_calib_setup = None,\
+#             bg_img_access_setup = None, doas_result_import_setup = None):
+#         """Class initialisation
+#         
+#         :param MeasSetup plume_data_setup: the setup specifying plume data
+#         :param AutoCellCalibSetup auto_cell_calib_setup: setup specifying 
+#             automatic cell calibration (optional)
+#         :param MeasSetup bg_img_access_setup: setup specifying time information
+#             about background imagery data (optional)
+#             
+#         .. todo::
+#         
+#             This needs some review, need more flexibility with bg images, 
+#             calibration coeffs, etc. Best case would be a minimum input 
+#             solution, at least the possibility to provide a path to a single
+#             background image
+#         
+#         """
+#         #The base setup objects
+#         self.id = "analysis"
+#         
+#         #self.evalSettings = EvalSettings()
+#         
+#         self.save_path = None
+#         self.plume_data_setup = None #:class:`BaseSetup`
+#         self.auto_cell_calib_setup = None #:class:`CellCalibSetup`
+#         self.bg_img_access_setup = None
+#         
+#         self.doas_result_setups = {} #:class:`SpectralResultsSetup`
+#         
+#         #self.bgModelSetup = BackgroundAnalysisSetup()
+#         
+#         self.set_plume_data_setup(plume_data_setup)
+#         self.set_cellcalib_setup(auto_cell_calib_setup)
 #     
-#     def __setitem__(self, key, value):
-#         if self.__dict__.has_key(key):
-#             self.__dict__[key]=value
+#     @property
+#     def saveBase(self):
+#         """Returns the save path of ``self.plume_data_setup``"""
+#         return self.plume_data_setup.save_path
+#     
+#     def _check_path(self, p):
+#         """Check if input is valid path"""
+#         if not (isinstance(p, str) and exists(p)):
+#             return False
+#         return True
+#         
+#     def create_folder_structure(self):
+#         """Create the folder structure for saving / reloading"""
+#         if not self._check_path(self.saveBase):
+#             raise IOError("Invalid path for saveBase variable...")
+#         name = self.__str__() + "/"
+#         self.save_path = self.saveBase + name
+#         if not path.exists(self.save_path):
+#             mkdir(self.save_path)
+#     
+# #==============================================================================
+# #     def set_eval_settings(self, evalSettings):
+# #         """Change the evaluation settings object"""
+# #         if isinstance(evalSettings, EvalSettings):
+# #             self.evalSettings = evalSettings
+# #         raise TypeError("Invalid input while attempt to set :class:`EvalSettings`")
+# #==============================================================================
+#         
+#     def set_plume_data_setup(self, plume_data_setup = None):
+#         """Set the current :class:`BaseSetup` object"""
+#         if not isinstance(plume_data_setup, MeasSetup):
+#             print ("Creating new BaseSetup in EvalSetup...\n")
+#             plume_data_setup = MeasSetup()
+#         self.plume_data_setup = plume_data_setup
+#     
+#     def set_cellcalib_setup(self, auto_cell_calib_setup = None):
+#         """Set the current :class:`CellCalibSetup` object"""
+#         if not isinstance(auto_cell_calib_setup, AutoCellCalibSetup):
+#             print ("Creating new CellCalibSetup in EvalSetup...\n")
+#             auto_cell_calib_setup = AutoCellCalibSetup()
+#         self.auto_cell_calib_setup = auto_cell_calib_setup
+#     
+#             
+#     def add_doas_results_setup(self, doas_result_setup):
+#         """Add one current :class:`SpectralResultsSetup` object"""
+#         if not isinstance(doas_result_setup, ResultImportSetup):
+#             raise TypeError("Could not add ResultImportSetup to EvalSetup: "
+#                 "wrong input type %s" %type(doas_result_setup))
+#         dev_id = doas_result_setup.dev_id
+#         self.doas_result_setups[dev_id] = doas_result_setup
+#         
+#     def __str__(self):
+#         """String representation of this class"""
+#         stp = self.plume_data_setup
+#         d = stp.start.strftime('%Y%m%d')
+#         i, f = stp.start.strftime('%H%M'), stp.stop.strftime('%H%M')
+#         name = "stp_%s_%s_%s_%s" %(self.id, d, i, f)
+#         try:
+#             name += "_%s" %stp.source.name
+#         except:
+#             name += "_noSource"
+#         try:
+#             name += "_%s_%s" %(stp.camera.cam_id, stp.camera.ser_no)
+#         except:
+#             name += "_noCamID_noCamSerNo"
+#         return name
+#     
+#     def save(self):
+#         """save this object at self.save_path"""
+#         if self.save_path is None or not path.exists(self.save_path):
+#             print ("Could not save " + self.__str__() + ": save path does not exists")
 #             return
-#         for v in self.__dict__.values():
-#             if isinstance(v,dict) and v.has_key():
-#                 v[key]=value
-#             else:
-#                 try:
-#                     v[key]=value
-#                 except:
-#                     pass
-#                 
-#     def __call__(self, key):
-#         if self.__dict__.has_key(key):
-#             return self.__dict__[key]
-#         for val in self.__dict__.values():
-#             if isinstance(val, dict) and val.has_key(key):
-#                 return val[key]
-#         raise KeyError("Unkown input parameter")
-#==============================================================================
-            
-class EmissionRateAnalysisSetup(object):
-    """High level setup class for emission rate analysis
-    
-    Basically a "putting it all together" class to determine emission rates
-    from a set of plume images. :class:`EmissionRateAnalysisSetup` objects can 
-    be used as input for :class:`piscope.Evaluation.EmissionRateAnalysis` 
-    objects
-    """
-    def __init__(self, plume_data_setup = None, auto_cell_calib_setup = None,\
-            bg_img_access_setup = None, doas_result_import_setup = None):
-        """Class initialisation
-        
-        :param MeasSetup plume_data_setup: the setup specifying plume data
-        :param AutoCellCalibSetup auto_cell_calib_setup: setup specifying 
-            automatic cell calibration (optional)
-        :param MeasSetup bg_img_access_setup: setup specifying time information
-            about background imagery data (optional)
-            
-        .. todo::
-        
-            This needs some review, need more flexibility with bg images, 
-            calibration coeffs, etc. Best case would be a minimum input 
-            solution, at least the possibility to provide a path to a single
-            background image
-        
-        """
-        #The base setup objects
-        self.id = "analysis"
-        
-        #self.evalSettings = EvalSettings()
-        
-        self.save_path = None
-        self.plume_data_setup = None #:class:`BaseSetup`
-        self.auto_cell_calib_setup = None #:class:`CellCalibSetup`
-        self.bg_img_access_setup = None
-        
-        self.doas_result_setups = {} #:class:`SpectralResultsSetup`
-        
-        #self.bgModelSetup = BackgroundAnalysisSetup()
-        
-        self.set_plume_data_setup(plume_data_setup)
-        self.set_cellcalib_setup(auto_cell_calib_setup)
-    
-    @property
-    def saveBase(self):
-        """Returns the save path of ``self.plume_data_setup``"""
-        return self.plume_data_setup.save_path
-    
-    def _check_path(self, p):
-        """Check if input is valid path"""
-        if not (isinstance(p, str) and exists(p)):
-            return False
-        return True
-        
-    def create_folder_structure(self):
-        """Create the folder structure for saving / reloading"""
-        if not self._check_path(self.saveBase):
-            raise IOError("Invalid path for saveBase variable...")
-        name = self.__str__() + "/"
-        self.save_path = self.saveBase + name
-        if not path.exists(self.save_path):
-            mkdir(self.save_path)
-    
-#==============================================================================
-#     def set_eval_settings(self, evalSettings):
-#         """Change the evaluation settings object"""
-#         if isinstance(evalSettings, EvalSettings):
-#             self.evalSettings = evalSettings
-#         raise TypeError("Invalid input while attempt to set :class:`EvalSettings`")
+#         print ("Saving " + self.__str__() + "at " + str(self.save_path))
+#         name = self.__str__() + ".stp"
+#         print ("FileName: " + name)
+#         file_path=self.save_path + name
+#         dump(self, open(file_path, "wb"))
+#         return file_path 
 #==============================================================================
         
-    def set_plume_data_setup(self, plume_data_setup = None):
-        """Set the current :class:`BaseSetup` object"""
-        if not isinstance(plume_data_setup, MeasSetup):
-            print ("Creating new BaseSetup in EvalSetup...\n")
-            plume_data_setup = MeasSetup()
-        self.plume_data_setup = plume_data_setup
-    
-    def set_cellcalib_setup(self, auto_cell_calib_setup = None):
-        """Set the current :class:`CellCalibSetup` object"""
-        if not isinstance(auto_cell_calib_setup, AutoCellCalibSetup):
-            print ("Creating new CellCalibSetup in EvalSetup...\n")
-            auto_cell_calib_setup = AutoCellCalibSetup()
-        self.auto_cell_calib_setup = auto_cell_calib_setup
-    
-            
-    def add_doas_results_setup(self, doas_result_setup):
-        """Add one current :class:`SpectralResultsSetup` object"""
-        if not isinstance(doas_result_setup, ResultImportSetup):
-            raise TypeError("Could not add ResultImportSetup to EvalSetup: "
-                "wrong input type %s" %type(doas_result_setup))
-        dev_id = doas_result_setup.dev_id
-        self.doas_result_setups[dev_id] = doas_result_setup
-        
-    def __str__(self):
-        """String representation of this class"""
-        stp = self.plume_data_setup
-        d = stp.start.strftime('%Y%m%d')
-        i, f = stp.start.strftime('%H%M'), stp.stop.strftime('%H%M')
-        name = "stp_%s_%s_%s_%s" %(self.id, d, i, f)
-        try:
-            name += "_%s" %stp.source.name
-        except:
-            name += "_noSource"
-        try:
-            name += "_%s_%s" %(stp.camera.cam_id, stp.camera.ser_no)
-        except:
-            name += "_noCamID_noCamSerNo"
-        return name
-    
-    def save(self):
-        """save this object at self.save_path"""
-        if self.save_path is None or not path.exists(self.save_path):
-            print ("Could not save " + self.__str__() + ": save path does not exists")
-            return
-        print ("Saving " + self.__str__() + "at " + str(self.save_path))
-        name = self.__str__() + ".stp"
-        print ("FileName: " + name)
-        file_path=self.save_path + name
-        dump(self, open(file_path, "wb"))
-        return file_path 
-        
-"""SORTED OUT STUFF"""
+
 #==============================================================================
 # 
 # class DoasCalibSetup(object):

@@ -209,37 +209,6 @@ class PixelMeanTimeSeries(Series):
     @property
     def stop(self):
         return self.index[-1]
-            
-#==============================================================================
-#     def plot(self, yerr = 1, normalised = False, ax = None, **kwargs):
-#         """Plot the time series"""
-#         if ax is None:
-#             fig=figure()
-#             ax = fig.add_subplot(1,1,1)        
-#         #ecolor='#858585'
-# #==============================================================================
-# #         
-# #         hfmt = DateFormatter(dateFormat)
-# #==============================================================================
-#         dat = self(normalised)[0]
-#         series = Series(dat, self.times)
-#         if yerr:
-#             series.plot(style = "--x", yerr = self.std, ax = ax, **kwargs)
-#             #series.plot(style="--*",color=ecolor,yerr=self.std, ax=ax, **kwargs)
-#         else:
-#             series.plot(style = "--x", ax = ax, **kwargs)
-#        
-#         tStr = self.times[0].strftime('%d/%m/%Y')
-#         titleStr=("Mean value (%s), %s\n roi: %s"%(self.name, tStr, self.roi))
-#         ax.set_title(titleStr)
-#         ax.grid()
-#==============================================================================
-#==============================================================================
-#         
-#         labels = ax.xaxis.get_ticklabels()
-#         print labels[0].get_text()
-#==============================================================================
-        
 
     def __setitem__(self, key, value):
         """Update class item"""
@@ -403,8 +372,9 @@ class LineOnImage(object):
         dx, dy = self.normal_vector * pixel_num
         x0, x1 = self.x0 + int(dx), self.x1 + int(dx)
         y0, y1 = self.y0 + int(dy), self.y1 + int(dy)
-        return LineOnImage(x0, y0, x1, y1, normal_orientation =\
-                        self.normal_orientation, line_id= line_id)
+        return LineOnImage(x0, y0, x1, y1,
+                           normal_orientation=self.normal_orientation,
+                           line_id=line_id)
         
         
     def convert(self, pyrlevel = 0, roi_abs = [0, 0, 9999, 9999]):
@@ -412,20 +382,21 @@ class LineOnImage(object):
         if pyrlevel == self.pyrlevel and same_roi(self.roi_abs, roi_abs):
             print "Same shape settings, returning current line object"""
             return self
-        print ("THIS Line (x0, y0, x1, y1):\n(%s, %s, %s, %s)" 
-                                %(self.x0, self.y0, self.x1, self.y1))
-        (x0, x1), (y0, y1) = map_coordinates_sub_img([self.x0, self.x1],\
-            [self.y0, self.y1], roi= self._roi_abs, pyrlevel = self._pyrlevel,\
-                                                                inverse = True)
-        print ("Mapped to absolute coords (x0, y0, x1, y1):\n(%s, %s, %s, %s)" 
-                                %(x0, y0, x1, y1))
-        (x0, x1), (y0, y1) = map_coordinates_sub_img([x0, x1],\
-                [y0, y1], roi=roi_abs, pyrlevel = pyrlevel, inverse = False)
-        print ("Mapped to input coords (x0, y0, x1, y1):\n(%s, %s, %s, %s)" 
-                                %(x0, y0, x1, y1))
-        return LineOnImage(x0, y0, x1, y1, roi_abs = roi_abs, pyrlevel =\
-            pyrlevel, normal_orientation = self.normal_orientation,\
-            line_id=self.line_id)
+
+        (x0, x1), (y0, y1) = map_coordinates_sub_img([self.x0, self.x1],
+                                                     [self.y0, self.y1],
+                                                     roi=self._roi_abs, 
+                                                     pyrlevel=self._pyrlevel,
+                                                     inverse=True)
+                                                     
+        (x0, x1), (y0, y1) = map_coordinates_sub_img([x0, x1], [y0, y1],
+                                                     roi=roi_abs,
+                                                     pyrlevel=pyrlevel,
+                                                     inverse=False)
+        
+        return LineOnImage(x0, y0, x1, y1, roi_abs=roi_abs, pyrlevel=pyrlevel,
+                           normal_orientation=self.normal_orientation,
+                           line_id=self.line_id)
             
     def check_coordinates(self):
         """Check if coordinates are in the right order and exchange start/stop
@@ -1591,8 +1562,10 @@ def model_dark_image(img, dark, offset):
         raise ImgModifiedError("Could not model dark image at least one of the "
             "input dark / offset images was already modified")
     if img.modified:
-        print ("Input image is modified, try reloading raw data for dark model"
-            " retrieval")
+#==============================================================================
+#         print ("Input image is modified, try reloading raw data for dark model"
+#             " retrieval")
+#==============================================================================
         img = Img(img.meta["path"])
             
     dark_img = offset.img + (dark.img - offset.img) * img.meta["texp"]/\
@@ -1621,370 +1594,4 @@ def model_dark_image(img, dark, offset):
 #     animation.FuncAnimation(fig, updatefig, frames=range(20), 
 #                                   interval=50, blit=True)
 #     plt.show()
-#==============================================================================
-
- 
-#==============================================================================
-# class TimeSeriesPolyModel(object):
-#     """Polynomial fitting routine for time series data
-#     
-#     This object can for instance be used to fit a polynomial to an intensity 
-#     time series (e.g. of the background radiance in the sky) and get a 
-#     continuous model of the radiances. 
-#     """
-#     #def __new__(cls, data, times, degree = 2):
-#     def __init__(self, data, times, degree = 2):
-#         self.times = None 
-#         self.data = None
-#         self.poly=None
-#         self.weights=None
-#         self.degree=degree
-#         self.indices=None
-#         self.timeIntervals=[]
-#         self.init_poly(data, times)
-#     
-#     def init_poly(self, data, times, degree = None):
-#         if isinstance(degree, int):
-#             self.degree = degree
-#         
-#         self.poly=None
-#         self.weights=None
-#         
-#     def set_mean_series(self,mean):
-#         """Set the pixel mean series object used for determination of the 
-#         polynomial (:class:`PixelMeanTimeSeries`).
-#         """
-#         if not isinstance(mean, PixelMeanTimeSeries):
-#             print ("Error in " + self.__str__() + ".set_mean_series(): wrong"
-#                 " input type: " + type(mean))
-#             return
-#         self.mean=mean
-#     
-#     def reset_time_intervals(self):
-#         """Reset the list of considered time intervals
-#         
-#         .. note::
-#         
-#             This also resets the polynomial
-#             
-#         """
-#         self.timeIntervals=[]
-#         self.init_poly()
-#     
-#     def print_info(self):
-#         """
-#         Print information about this object
-#         """
-#         s=("Background polynomial info\n---------------------------------\n"
-#             "Filter ID: " + str(self.fId) + "\n"
-#             "Rect ID: " + str(self.rectId) + "\n\n")
-#         if self.mean is not None:
-#             ts=self.mean.times
-#             s=s + ( "Start data: " + str(ts[0]) + "\n"
-#                     "Stop data: " + str(ts[len(ts)-1]) + "\n\n"
-#                     "Image preparation info:\n-------------------\n" +
-#                     str(self.mean.img_prep) + "\n\n")
-#         s=s+ ("Poly order: " + str(self.degree) + "\n\n" 
-#                 "Time intervals and weights used for fit:\n------------------------------------\n")
-#         for ival in self.timeIntervals:
-#             s=s+ str(ival[0]) + "-" + str(ival[1]) + ", weight: " + str(ival[2]) + "\n"
-#         print s
-#     
-#     def set_time_intervals(self,timeList):
-#         """
-#         Set the list of time intervals with weighting factors for each, the 
-#         list needs to be of the following format (times, denoted with i->start
-#         and f->stop need to be datetime objects), weighting factors (w) for each 
-#         time interval are given relative to 1 (which means no weighting)::
-#         
-#             ts  =   [[i1,f1,w1],
-#                      [i2,f2,w2],
-#                      [i3,f3,w3]]
-#                     
-#         """
-#         if not isinstance(timeList, list):
-#             raise TypeError("Could not set time intervals, wrong input type "
-#                 " (need list): " + str(type(timeList)))
-#         for l in timeList:
-#             if not (len(l)==3 and isinstance(l[0], datetime) and\
-#                 isinstance(l[1], datetime) and isinstance(l[2],int)):
-#                 raise TypeError("Could not set time list, somethings's wrong")
-#         self.timeIntervals=timeList
-#         self.init_poly()
-#     
-#     def add_sub_time_interval(self, start, stop, weight):
-#         """
-#         Add one time interval specifying data which is supposed to be considered
-#         for the polynomial.
-#         
-#         .. Note:: when this function is called, a previously determined polynomial
-#             and the corresponding indices will be deleted
-#         """
-#         for ival in self.timeIntervals:
-#             if any([ival[0] < t < ival[1] for t in [start, stop]]):
-#                 print ("Error in " + self.__str__() + ".add_sub_time_interval()"
-#                     ": found overlap with other time interval, time interval "
-#                     " can not be added")
-#                 return
-#         self.timeIntervals.append([start, stop, weight])
-#         self.init_poly()
-#     
-#     def exclude_sub_time_interval(self, start, stop):
-#         raise NotImplementedError
-#         
-#     def det_poly(self, polyOrder = 2):
-#         """Fit the polynomial to the mean data.
-#         
-#         .. Note:: if the fit is only supposed to be applied to the data of 
-#             certain sub time intervals, use the function add_sub_time_interval()
-#             If these function was not called before, then the fit will be applied
-#             taking into account all data points of the mean value series with
-#             the same weight
-#         """
-#         if any(diff(self.mean.texps))>0:
-#             print ("Error in " + self.__str__() + ": could not determine "
-#                 "polynomial. Change in exposure time detected in considered "
-#                 "time interval")
-#             return
-#             
-#         ts=self.mean.times
-#         vals=self.mean.values
-#         if not self.timeIntervals:
-#             print ("No time intervals specified in " + self.__str__() + "using "
-#                 "all data points available in mean series with weight==1")
-#             self.timeIntervals.append([ts[0], ts[len(ts)-1],1])
-#         idxArray=[]
-#         weightsArray=[]
-#         for inter in self.timeIntervals:
-#             w=inter[2]
-#             idx=where(logical_and(ts>=inter[0],ts<=inter[1]))[0]
-#             idxArray.append(idx)
-#             weightsArray.append(ones(len(idx))*w)
-#             
-#         indices=concatenate(idxArray)
-#         weights=concatenate(weightsArray)
-#         x=date2num(ts[indices])
-#         x=indices
-#         y=vals[indices]
-#         self.poly=poly1d(polyfit(x,y,deg=polyOrder,w=weights))
-#         self.weights=weights
-#         self.degree=polyOrder
-#         self.indices=indices
-#         
-#     def poly_available(self):
-#         if self.poly is None:
-#             return 0
-#         return 1
-#     
-#     def get_poly_val(self, val):
-#         if isinstance(val, datetime):
-#             val = abs(self.times - val).argmin()
-#         try:
-#             return self.poly(val)
-#         except:
-#             print ("Could not evaluate poly, wrong input: " + str(val))
-#==============================================================================
-    
-#==============================================================================
-#     def save_as(self, path):
-#         """
-#         Save this object at a given location
-#         """
-#         d=self.mean.times.min().strftime("%Y%m%d")
-#         i=self.mean.times.min().strftime("%H%M%S")
-#         f=self.mean.times.max().strftime("%H%M%S")
-#         dStr=d+ "_" + i + "_" + f
-#         name=path + "bgPoly_" + dStr + "_"  + str(self.fId) + "_" + str(self.rectId) + ".bgp"
-#         self.file=name
-#         dump(self, open(name, 'wb'))
-#     
-#==============================================================================
-#==============================================================================
-#     """
-#     Magic methods
-#     """
-#     def __call__(self, val):
-#         """Returns the polynomial value at specific time
-#         :param val: datetime or list index corresponding to datetime of interest
-#         """
-#         return self.get_poly_val(val)
-#==============================================================================
-        
-    
-#==============================================================================
-# class ImgListStack(ImgStack):
-#     """Basic functionality for image stacking of file list objects and camera
-#     images
-#     """
-#     def __init__(self, imgList, rect = None, id = None, startNum=None,\
-#                                                                 stopNum=None):
-#         super(ImgListStack, self).__init__(id = id)
-#         """Initiation of object"""
-#         
-#         self.imgList = imgList
-#         self.tauMode = 0
-#         self.avgNumInfo = None
-#         #start and stop num of considered images in imglist
-#         self.startNum = startNum
-#         self.stopNum = stopNum
-#         self.totalNum = None
-#         
-#         self.img_prep = ImagePreparation(self.imgList.img_prep.\
-#                                                         make_settings_dict())
-#         self.set_roi(rect)
-#         
-#     def init_settings_list(self):
-#         """Initialise or update the settings for the ImgStack calculations and
-#         initiate the stack object
-#         
-#         Central steps:
-#         
-#             1. Check availability of Start/Stop number for indexing of imgList,
-#                 if None, set default (i.e use all images in imgList object)
-#             #. Check, if self.img_prep (:class:`ImagePreparationInfo`) is 
-#                 available, if not, set default 
-#             #. check if ROI info is available, if not, set default ROI (whole
-#                 image area)
-#             #. Update the subimshape variable
-# 
-#         """
-#         if self.startNum is None:
-#             self.startNum = 0
-#         if self.stopNum is None:
-#             self.stopNum = self.imgList.numberOfFiles
-#         self.totalNum = self.stopNum - self.startNum
-#         img = self.imgList.loadedImages["this"]
-#         print "ROI: " + str(self.img_prep.shapeSettings.roi)
-#         if self.img_prep.shapeSettings.roi is None:
-#             self.img_prep.set_roi_whole_image(img.img)
-#         print "ROI: " + str(self.img_prep.shapeSettings.roi)
-#         h,w = self.get_stack_img_shape()
-#         self.init_stack(h,w,self.totalNum)
-#         
-#         print "Image stack settings initialised"
-#     
-#     def set_roi(self, rect = None):
-#         """Set the ROI for the stack image preparation
-#         
-#         :param list rect: rectangular area (``[[x0,y0],[x1,y1]]``)
-#         """
-#         self.img_prep.set_roi(rect)
-#         if self.img_prep["roi"] is None:
-#             self.img_prep.set_roi_whole_image(\
-#                             self.imgList.loadedImages.this.img)
-#         
-#     def activate_tau_mode(self, Bool = 1):
-#         """Activate / deactivate tau mode
-#         
-#         :param bool Bool: True/False
-#         
-#         If active, a tau-img stack will be determined. The corresponding 
-#         background images will be determined using the current settings in 
-#         the :class:`BackgroundModel` object of the image list used for building 
-#         the stack
-#         """
-#         self.tauMode = Bool
-# 
-#     def make_stack(self):
-#         """Determine the stack
-#         
-#         In this function, the imgList flag `fastMode` is activated and image 
-#         processing operations (dark correction, blurring) specified in the 
-#         lists .img_prep variable will be applied only to the ROI.
-#         This accelarates the whole thing a bit (hopefully..)
-#         """
-#         self.init_settings_list()
-#         lst = self.imgList
-#         if self.tauMode and not lst.bgModel.ready_2_go():
-#             print ("Tau stack determination failed, bgModel not "
-#                 "ready")
-#             return 0
-#         lst.currentFileNum = self.startNum
-#         #self.preEditInfo=deepcopy(lst.loadedImages.this.currentEdit)
-#         rm = 0
-#         if lst.editActive:
-#             rm = 1
-#             lst.activate_edit(0)
-#         else:
-#             lst.load()
-#         #lst.change_index(self.startNum)
-#         stack = self.stack
-#         times = [None]*self.totalNum
-#         texps = [None]*self.totalNum
-#         s=self.img_prep
-#         for k in range(self.totalNum):
-#             """load next image in list, apply current edit (darkcorr and blurring)
-#             load corresponding off image (since the lists are linked the off list
-#             images are automatically updated whenever a new onband is loaded
-#             """
-#             subImgObj = lst.apply_current_edit_roi("this", s.shapeSettings.roi)
-#             if s.contrastSettings["8bit"]:    
-#                 subImgObj._to_8bit_int()
-#             if s.shapeSettings.pyrlevel > 0:
-#                 subImgObj.pyr_down(s.shapeSettings.pyrlevel)
-#             im = subImgObj.img
-#             if self.tauMode:
-#                 bg = lst.bgModel.det_model()
-#                 bgImgObj = self.img_prep.apply_img_shape_settings(bg)
-#                 im=log(bgImgObj.img/im.astype(float))
-#             stack[:,:,k] = im
-#             img=lst.loadedImages["this"]
-#             print img.meta["start_acq")
-#             times[k]=img.meta["start_acq")
-#             texps[k]=img.meta["texp")
-#             self.imgList.next_im()
-# #==============================================================================
-# # 
-# #             if self.imgMode is "tau":
-# #                 stack[:,:,k]=log(bg/im)
-# #             else:
-# #==============================================================================
-#         if rm:
-#             lst.activate_edit(1)
-#             #raise IOError("Fast mode: " + str(lst.fastMode))
-#         self.stack = stack
-#         self.times = asarray(times)
-#         self.texps = asarray(texps)
-#         self.avgNumInfo = ones((self.totalNum))
-#         return 1
-#         
-# 
-#         
-#     def make_stack_time_average(self, start_arr, stop_arr):
-#         """Create an image stack with averaged images
-#         The averaging is based on the start / stop times specified by 
-#         acquisition times specified in the two input arrays
-#         
-#         :param iterable start_arr: Array containing start times (Datetime objects)
-#         :param iterable start_arr: Array containing stop times (Datetime objects)
-# 
-#         """
-#         if self.stack is None:
-#             self.make_stack()
-#         stack = self.stack
-#         h,w=stack.shape[:2]
-#         times = self.times
-#         self.totalNum = len(start_arr)
-#         #new_stack = empty((h, w, self.totalNum))
-#         newTimes = []     
-#         avgNumInfo = []
-#         bad_indices = []
-#         for k in range(self.totalNum):
-#             i = start_arr[k]
-#             f = stop_arr[k]
-#             cond = (times > i) & (times < f)
-#             if sum(cond) > 0:
-#                 im = stack[:,:,cond].mean(axis = 2)
-#                 try:
-#                     new_stack = dstack((new_stack,im))
-#                 except:
-#                     new_stack = im
-#                 newTimes.append(i + (f - i)/2)
-#                 avgNumInfo.append(sum(cond))
-#             else:
-#                 bad_indices.append(k)
-#         self.stack = new_stack   
-#         self.times = asarray(newTimes)
-#         self.avgNumInfo = asarray(avgNumInfo)
-#         return bad_indices
 #==============================================================================

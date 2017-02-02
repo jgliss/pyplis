@@ -9,16 +9,23 @@ import numpy as np
 from matplotlib.pyplot import close, subplots, show
 from matplotlib.patches import Circle
 
-from ex5_auto_cellcalib import perform_auto_cell_calib
-from ex4_prepare_aa_imglist import prepare_aa_image_list, save_path
+### IMPORTS FROM OTHER EXAMPLE SCRIPTS
+from ex5_2_cellcalib_auto import perform_auto_cell_calib
+from ex4_prepare_aa_imglist import prepare_aa_image_list
 
-close("all")
-calib_file = join(save_path, "piscope_doascalib_id_aa_avg_20150916_0706_0721.fts")
-    
-if not exists(calib_file):
-    raise IOError("Calibration file could not be found at specified location:\n"
-        "%s\nYou might need to run example 6 first")
+### SCRIPT OPTONS  
+SAVEFIGS = 1 # save plots from this script in SAVE_DIR
 
+### RELEVANT DIRECTORIES AND PATHS
+
+# Directory where results are stored
+SAVE_DIR = join(".", "scripts_out")
+
+#fits file containing DOAS calibration information (from ex6)
+CALIB_FILE = join(SAVE_DIR,
+                  "piscope_doascalib_id_aa_avg_20150916_0706_0721.fts")
+
+### SCRIPT FUNCTION DEFINITIONS    
 def draw_doas_fov(fov_x, fov_y, fov_extend, ax):
     # add FOV position to plot of examplary AA image
     c = Circle((fov_x, fov_y), fov_extend, ec = "k", fc = "lime", alpha = .5)
@@ -62,15 +69,22 @@ def plot_pcs_comparison(aa_init, aa_imgs_corr, pcs1, pcs2):
     axes[0].grid()
     axes[1].grid()
     return fig, axes
-    
+
+### SCRIPT MAIN FUNCTION    
 if __name__ == "__main__":
+    close("all")
+    
+    if not exists(CALIB_FILE):
+        raise IOError("Calibration file could not be found at specified "
+            "location:\n %s\nYou might need to run example 6 first")
+
     ### Load AA list
     aa_list = prepare_aa_image_list()
     aa_list.add_gaussian_blurring(2)
     
     ### Load DOAS calbration data and FOV information (see example 6)
     doas = piscope.doascalib.DoasCalibData()
-    doas.load_from_fits(file_path=calib_file)
+    doas.load_from_fits(file_path=CALIB_FILE)
     doas.fit_calib_polynomial()
     
     ### Get DOAS FOV parameters in absolute coordinates
@@ -85,6 +99,7 @@ if __name__ == "__main__":
                                                         line_id = "center")
     pcs2 = piscope.processing.LineOnImage(40, 40, 40, 600,\
                                                         line_id = "edge")
+
     ### Plot DOAS calibration polynomial
     ax0 = doas.plot()
     ax0 = cell.plot_calib_curve("aa", pos_x_abs= fov_x, pos_y_abs= fov_y, \
@@ -106,13 +121,16 @@ if __name__ == "__main__":
         aa_imgs_corr[cd] = piscope.Img(aa_init.img / mask)
     
     fig, _ = plot_pcs_comparison(aa_init, aa_imgs_corr, pcs1, pcs2) 
-        
-    ax0.figure.savefig(join(save_path, "ex7_out_1.png"))
-    ax.figure.savefig(join(save_path, "ex7_out_2.png"))
-    fig.savefig(join(save_path, "ex7_out_3.png"))
+      
+    if SAVEFIGS:
+        ax0.figure.savefig(join(SAVE_DIR, "ex7_out_1.png"))
+        ax.figure.savefig(join(SAVE_DIR, "ex7_out_2.png"))
+        fig.savefig(join(SAVE_DIR, "ex7_out_3.png"))
     
     #Save the sensitivity correction mask from the cell with the lowest SO2 CD
     so2min = np.min(masks.keys())
     mask = piscope.Img(masks[so2min])
-    mask.save_as_fits(save_path, "aa_corr_mask")
+    mask.save_as_fits(SAVE_DIR, "aa_corr_mask")
     show()
+
+

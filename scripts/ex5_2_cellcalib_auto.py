@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-piscope example script no. 5: Automatic cell calibration
+piscope example script no. 5_2: Automatic cell calibration
 
 Sript showing how to work with cell calibration data and automatic retrieval of
 plume background images.
@@ -10,15 +10,20 @@ plume background images.
 import piscope
 from datetime import datetime
 from os.path import join
-from os import getcwd
 import matplotlib.pyplot as plt
 
-### Set save directory for figures
-save_path = join(getcwd(), "scripts_out")
+### SCRIPT OPTONS  
+SAVEFIGS = 1 # save plots from this script in SAVE_DIR
 
-# Image base path
-img_dir = join(piscope.io.find_test_data(), "images")
+### RELEVANT DIRECTORIES AND PATHS
 
+# Image directory
+IMG_DIR = join(piscope.inout.find_test_data(), "images")
+
+# Directory where results are stored
+SAVE_DIR = join(".", "scripts_out")
+
+### SCRIPT FUNCTION DEFINITIONS
 def perform_auto_cell_calib():
     ### Calibration time stamps
     start = datetime(2015, 9, 16, 6, 59, 00)
@@ -39,11 +44,12 @@ def perform_auto_cell_calib():
               piscope.utils.Filter(type = "off", acronym = "F02")]
     
     ### create camera setup, this includes the filename convention for image separation
-    cam = piscope.setup.Camera(cam_id = cam_id, filter_list = filters)
+    cam = piscope.setupclasses.Camera(cam_id = cam_id, filter_list = filters)
     
     ### Create CellCalibSetup class for initiation of CellCalib object
-    setup = piscope.setup.AutoCellCalibSetup(\
-                                    calib_cells, img_dir, start, stop, cam) 
+    setup = piscope.setupclasses.MeasSetup(IMG_DIR, start, stop,
+                                           camera=cam,
+                                           cell_info_dict=calib_cells) 
     
     ### Create CellCalib object, read on...
     # This is a DataSet object and performs file separation, dark/offset list 
@@ -57,7 +63,7 @@ def perform_auto_cell_calib():
     c.prepare_aa_stack()
     return c
 
-
+### SCRIPT MAIN FUNCTION
 if __name__ == "__main__":
     plt.close("all")
     c = perform_auto_cell_calib()
@@ -71,5 +77,6 @@ if __name__ == "__main__":
     axes[1].set_title("B) Cell search result off band", fontsize = 18)
     axes[2].set_title("C) Calibration polynomials", fontsize = 18)
     fig.tight_layout()
-    fig.savefig(join(save_path, "ex5_out_1.png"))
+    if SAVEFIGS:
+        fig.savefig(join(SAVE_DIR, "ex5_out_1.png"))
     plt.show()

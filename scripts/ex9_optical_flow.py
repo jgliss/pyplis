@@ -5,30 +5,62 @@ piscope example script no. 8 - optical flow analysis
 from matplotlib.pyplot import close, show
 from os.path import join
 import piscope
-from ex4_prepare_aa_imglist import prepare_aa_image_list, save_path
 
-# Options    
+### IMPORTS FROM OTHER EXAMPLE SCRIPTS
+from ex4_prepare_aa_imglist import prepare_aa_image_list
+
+### SCRIPT OPTONS  
 SAVEFIGS = 1
 PYRLEVEL = 1
 BLUR = 0
 ROI_FLOW = [615, 350, 1230, 790]
 
-close("all")
+### RELEVANT DIRECTORIES AND PATHS
+
+# Directory where results are stored
+SAVE_DIR = join(".", "scripts_out")
+
+### SCRIPT MAIN FUNCTION
 if __name__ == "__main__":
+    close("all")
+    # Prepare aa image list (see example 4)
     aa_list = prepare_aa_image_list()
-    dist_img, _, plume_dist_img = aa_list.meas_geometry.get_all_pix_to_pix_dists(
+    
+    # the aa image list includes the measurement geometry, get pixel
+    # distance image where pixel values correspond to step widths in the plume, 
+    # obviously, the distance values depend on the downscaling factor, which
+    # is calculated from the analysis pyramid level (PYRLEVEL)
+    dist_img, _, _ = aa_list.meas_geometry.get_all_pix_to_pix_dists(
                                             pyrlevel=PYRLEVEL)
+    # set the pyramid level in the list
     aa_list.pyrlevel = PYRLEVEL
+    # add some blurring.. or not (if BLUR = 0)
     aa_list.add_gaussian_blurring(BLUR)
-    fl = aa_list.optflow
+    
+    # Access to the optical flow module in the image list. If optflow_mode is 
+    # active in the list, then, whenever the list index changes (e.g. using
+    # list.next_img(), or list.goto_img(100)), the optical flow field is 
+    # calculated between the current list image and the next one
+    fl = aa_list.optflow 
+    #(! note: fl is only a pointer, i.e. the "=" is not making a copy of the 
+    # object, meaning, that whenever something changes in "fl", it also does
+    # in "aa_list.optflow")
+    
+    # Set the region of interest in the optical flow module. The ROI only 
+    # applies to the region used for post analysis of the flow field, the flow
+    # field itself is calculated for the whole image (should become clear from
+    # the plots)
     fl.roi_abs = ROI_FLOW
     
+    # Now activate optical flow calculation in list (this slows down the 
+    # speed of the analysis, since the optical flow calculation is 
+    # comparatively slow
     aa_list.optflow_mode = 1
     
+    # Plots the flow field
     ax0 = fl.draw_flow(1)[0]
     
-    
-    mask = fl.prepare_intensity_condition_mask(lower_val = 0.05)
+    mask = fl.prepare_intensity_condition_mask(lower_val=0.05)
     count, bins, angles, fit3 = fl.flow_orientation_histo(cond_mask_flat=mask)
     count, bins, angles, fit4 = fl.flow_length_histo(cond_mask_flat = mask)
     
@@ -51,10 +83,10 @@ if __name__ == "__main__":
     fig.suptitle("v = %.2f m/s" %(v))
     
     if SAVEFIGS:
-        ax0.figure.savefig(join(save_path, "ex9_out_1.png"))
-        ax1.figure.savefig(join(save_path, "ex9_out_2.png"))
-        ax2.figure.savefig(join(save_path, "ex9_out_3.png"))
-        fig.savefig(join(save_path, "ex9_out_5.png"))
+        ax0.figure.savefig(join(SAVE_DIR, "ex9_out_1.png"))
+        ax1.figure.savefig(join(SAVE_DIR, "ex9_out_2.png"))
+        ax2.figure.savefig(join(SAVE_DIR, "ex9_out_3.png"))
+        fig.savefig(join(SAVE_DIR, "ex9_out_5.png"))
     
     show() 
         
