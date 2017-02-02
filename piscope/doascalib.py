@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from numpy import min, arange, asarray, zeros, linspace, column_stack,\
-    ones, nan, float32, polyfit, poly1d, sqrt, isnan
+    ones, nan, float32, polyfit, poly1d, sqrt, isnan, round
 from scipy.stats.stats import pearsonr 
 from datetime import datetime 
 from scipy.sparse.linalg import lsmr
@@ -12,13 +12,14 @@ from os.path import join, exists
 from traceback import format_exc
 from warnings import warn
 
+
 from matplotlib.pyplot import subplots
 from matplotlib.patches import Circle, Ellipse
 from matplotlib.cm import RdBu
 
 from .processing import ImgStack
 from .helpers import shifted_color_map, mesh_from_img, get_img_maximum,\
-        sub_img_to_detector_coords, map_coordinates_sub_img
+        sub_img_to_detector_coords, map_coordinates_sub_img, exponent
 from .optimisation import gauss_fit_2d, GAUSS_2D_PARAM_INFO
 from .image import Img
 from .inout import get_camera_info
@@ -254,20 +255,37 @@ class DoasCalibData(object):
             print "Failed to import calibration doas data vector"
             
         self.fov.roi_abs = hdu[3].data["roi"]
+    
+    @property
+    def poly_str(self):
+        """Return custom string representation of polynomial"""
+        exp = exponent(self.poly.coeffs[0])
+        p = poly1d(round(self.poly / 10**(exp - 2))/10**2)
+        return "%s E%+d" %(p, exp)
         
-    def plot(self, ax = None):
-        """Plots current calibration"""
+    def plot(self, add_label_str="", ax=None, **kwargs):
+        """Plot calibration data and fit result
+        
+        :param str add_label_str: additional string added to label of plots
+            for legend
+        :param ax: axes object, if None, a new one is created
+        """
+        if not "color" in kwargs:
+            kwargs["color"] = "b"
+            
         if ax is None:
             fig, ax = subplots(1,1, figsize=(16,6))
-        ax.plot(self.tau_vec, self.doas_vec, " x", label = "Data")
+        ax.plot(self.tau_vec, self.doas_vec, ls="", marker=".",
+                label="Data %s" %add_label_str, **kwargs)
         taumin, taumax = self.tau_range
         x = linspace(taumin, taumax, 100)
+        
         try:
-            ax.plot(x, self.poly(x), "--r", label = "Fit %s"\
-                                                %self.poly)
+            ax.plot(x, self.poly(x), ls="--", marker="",
+                    label = "Fit %s" %self.poly_str)
         except TypeError:
             print "Calibration poly probably not fitted"
-        ax.legend(loc='best', fancybox=True, framealpha=0.5)
+        ax.legend(loc='best', fancybox=True, framealpha=0.5, fontsize=10)
         ax.set_title("DOAS calibration data, ID: %s" %self.calib_id)
         ax.set_ylabel(r"S$_{SO2}$ [cm$^{-2}$]", fontsize=18)
         ax.set_xlabel(r"$\tau_{%s}$" %self.calib_id.split("_")[0], fontsize = 18)
@@ -304,7 +322,7 @@ class DoasCalibData(object):
             self.fit_calib_polynomial()
         if isinstance(value, Img):
             calib_im = value.duplicate()
-            calib_im.img = self.poly(calib_im.img)
+            calib_im.img = self.poly(calib_im.img) - self.y_offset
             calib_im.edit_log["gascalib"] = True
             return calib_im
         elif isinstance(value, ImgStack):
@@ -313,7 +331,7 @@ class DoasCalibData(object):
             except MemoryError:
                 warn("Stack cannot be duplicated, applying calibration to "
                 "input stack")
-            value.stack = self.poly(value.stack)
+            value.stack = self.poly(value.stack) - self.y_offset
             value.img_prep["gascalib"] = True
             return value
         return self.poly(value) - self.y_offset
@@ -915,368 +933,11 @@ class DoasFOVEngine(object):
         :returns: - stack time series vector within FOV
         """
         # normalize fov_mask
-        print fov_mask.shape
         normsum = fov_mask.sum()
-        print "Normsum %s" %normsum
         fov_mask_norm = fov_mask / normsum
-        print "Sum FOV mask norm: %s" %fov_mask_norm.sum()
         # convolve with image stack
         #stack_data_conv = transpose(self.stac, (2,0,1)) * fov_fitted_norm
         stack_data_conv = self.img_stack.stack * fov_mask_norm
         return stack_data_conv.sum((1,2))
         
             
-#==============================================================================
-# class SearchFOVSpectrometer(object):
-#     """Correlation based engine for FOV search
-#     The base class for identifying the FOV of a spectrometer within the FOV
-#     of a camera in order to determine the calibration curve of the camera using
-#     spectral fitting results (slant column densities) of a tracer (e.g. SO2) in
-#     the FOV of the camera which is sensitive to this tracer (e.g. SO2 camera).
-#     
-#     Input:
-#         
-#     :param SpectralResults specResults: piscope class containing spectral \
-#         results (column densities) including start and stop times of the \
-#         measurements performed        
-#     :param ImgList imgList: :class:`ImgList` object containing the imagery \
-#         file information, pre-processing information and handling features    
-#     :param Img bgImgObj (None): background image used for :math:`\tau` image calculation
-#     :param list subImRect (None): Rectangle defining ROI [[x0,y0],[x1,y1]], \
-#         default => use whole image
-#     
-#     """
-#     def __new__(cls, specData, imgList):
-#         if not isinstance(imgList, BaseImgList) or not isinstance(specData, Series):
-#             raise IOError("SearchCorrelation object could not be created:"
-#                 "wrong input")
-#         return super(SearchFOVSpectrometer, cls).__new__(cls, specData,\
-#                                                 imgList)
-#             
-#     def __init__(self, specData, imgList):
-#         #spectrometer results should be in pandas time series format
-#         self.specData = specData
-#         self.imgList = imgList
-#         
-#         self.mergeTypes = ["binning", "interpolation"]            
-#         self.stack = None
-#         
-#         self.res_i = None
-#         self.res_f = None
-#         
-#         self.fov = Bunch([("pos",   None),
-#                           ("radius",None)])
-#                           
-#     @property
-#     def maxCorr(self):
-#         raise NotImplementedError
-#         
-#     def perform_fov_search(self, tauMode = 1, pyrLevel_i = 4, pyrLevel_f = 0,\
-#                                                         mergeType = "binning"):
-#         """High level implementation for automatic FOV search
-#         
-#         :param bool tauMode: determines tau image stack (bg data must be 
-#             available in ``self.imgList``)
-#         :param int pyrLevel_i (4): gaussian pyramide downscaling factor for
-#             first step of search (which takes place in low pix res to get a 
-#             rough idea of where the fov is located and how large it is)
-#         :param int pyrLevel_f (0): gaussian pyramide downscaling factor for
-#             second step of search (detailed search of fov position and radius).
-#             It is recommended to leave this value at 0 (which means in full res)
-#         :param str mergeType ("binning"): sets merge type for stack and 
-#             spectrometer data, valid input: binning or interpolation (expl see
-#             below)
-#         
-#         This algorithm performes an automatic search of the FOV of the 
-#         soectrometer data within the camera FOV by determining pearson 
-#         correlation between camera data time series (per pixel) and the 
-#         spectrometer data vector. In order to do this, an image stack ``(x,y,t)`` 
-#         (:class:`ImgListStack`) is determined from all images in 
-#         ``self.imgList`` (if input param tauMode is active, a stack of tau 
-#         images is determined). 
-#         The next step is to pixelwise (i,j) determine pearson correlation coefficients 
-#         between the pixel time series (ts_ij) in the stack ``ts_ij = stack[i,j,:]``
-#         and the spectrometer data time series. 
-#         In order to do this, the time series have to be merged to the same 
-#         array length. The way to do this can be specified via input param 
-#         mergeType using either:
-#         
-#             1. Binning
-#             It is assumed that spectrum exposure times are longer than image
-#             exposure times, i.e. that for most of the spectrometer data points
-#             (each defined by their start and stop time) one or more images 
-#             exist. All images corresponding to on spectrum are then averaged 
-#             and a new image stack is determined which only includes the averaged
-#             images. Spectra for which no images are available are then removed
-#             from the sectrometer time series, such that the number of images in
-#             the new stack matches the number of datapoints in the spectrometer
-#             time series
-#             
-#             2. Interpolation (bit slower)
-#             In this method, spectrometer time series are concatenated with the 
-#             time series in each pixel of the initial stack. The concatenated
-#             dataframe consists of an index grid merged from all time stamps of
-#             the two input series and the datapoints are (linearly) interpolated
-#             to fill the gaps. The concatenation and interplation happens while
-#             looping over the pixels over the stack.
-#         
-#             
-#         
-#         """
-#         itp = 0
-#         if mergeType == "interpolation":
-#             itp =1
-#         self.make_img_stack(tauMode, pyrLevel_i)
-#         xPos_i, yPos_i, corrIm_i, specData_i = self.find_viewing_direction(mergeType)
-#         radius_i, corrCurve_i, imData_i, specData_i= self.find_fov_radius(\
-#                             self.stack, xPos_i, yPos_i, specData_i, itp)
-#         
-#         
-#         r0 = (radius_i + 3) * 2**(pyrLevel_i)
-#         xAbs0, yAbs0 = self.stack.imgPrep.map_coordinates(xPos_i, yPos_i,\
-#                                                                 inverse = 1)
-#                                                                 
-#         roi = [xAbs0 - int(r0), xAbs0 + int(r0), yAbs0 - int(r0), yAbs0 + int(r0)]
-#         stack_i = self.stack
-#         
-#         #write the results of the "rough" search into dictionary
-#         res_i = Bunch({"xAbs"        :   xAbs0,
-#                        "yAbs"        :   yAbs0,
-#                        "xRel"        :   xPos_i,
-#                        "yRel"        :   yPos_i,
-#                        "radius"      :   radius_i,
-#                        "corrIm"      :   corrIm_i,
-#                        "corrCurve"   :   corrCurve_i,
-#                        "specData"    :   specData_i,
-#                        "imData"      :   imData_i,
-#                        "stack"       :   stack_i})
-#                       
-#         self.make_img_stack(tauMode, pyrLevel_f, roi)
-#         xPos_f, yPos_f, corrIm_f, specData_f = self.find_viewing_direction(mergeType)
-#         radius_f, corrCurve_f, imData_f, specData_f= self.find_fov_radius(\
-#                             self.stack, xPos_f, yPos_f, specData_f, itp)
-#         dx, dy = self.stack.imgPrep.get_subimg_offset_xy()
-#         xAbs, yAbs = dx + xPos_f, dy + yPos_f
-#         
-#         #write the results of the "detailed" search into dictionary
-#         res_f = Bunch({"xAbs"        :   xAbs,
-#                        "yAbs"        :   yAbs,
-#                        "xRel"        :   xPos_f,
-#                        "yRel"        :   yPos_f,
-#                        "radius"      :   radius_f,
-#                        "corrIm"      :   corrIm_f,
-#                        "corrCurve"   :   corrCurve_f,
-#                        "specData"    :   specData_f,
-#                        "imData"      :   imData_f,
-#                        "stack"       :   self.stack})
-#                        
-#         return res_i, res_f
-#         
-#     def check_fov_search_results(self):
-#         """Base check if all steps of the FOV search were succesful
-#         """
-#         ok=1
-#         info=self.searchInfo
-#         print "Checking results from automatic FOV search algorithm\n-----------------------------------------------\n"
-#         for id, result in info.results.iteritems():        
-#             if not result.ok:
-#                 print (str(id) +" search failed")
-#                 ok = 0
-#         return ok
-#      
-#     def make_img_stack(self, tauMode = 1, pyrLevel = 0, roi = None):
-#         """Make the image stack for one of the settings"""
-#         if tauMode and not self.imgList.activate_tau_mode():
-#             raise Exception("Failed to create image stack in FOV search engine")
-#         
-#         stack = ImgListStack(self.imgList)
-#         #prepInfo = ImagePreparation({"pyrlevel": pyrLevel})
-#         stack.imgPrep.update_settings(pyrlevel = pyrLevel, roi = roi)
-#         stack.activate_tau_mode(tauMode)
-#         if stack.make_stack():
-#             self.stack = stack
-#             return True
-#     
-#     def check_start_stop_times_spectrometer(self):
-#         """Checks if start and stop time arrays in doas data are valid
-#         
-#         ``self.specData`` is supposed to be a 
-#         :class:`pydoas.Analysis.DoasResults` object which IS a pandas.Series 
-#         object with a bit more functionality, i.a. two arrays specifying 
-#         start and stop times of spectra acquisition. Knowledge of these is 
-#         important here if image and DOAS data is merged using the method binning
-#         where all images within spectrum start/stop times are averaged.
-#         
-#         :returns: boolean stating whether start / stop time arrays of 
-#             ``self.specData`` are valid
-#         
-#         """
-#         try:
-#             i,f = self.specData.startTimes, self.specData.stopTimes
-#             diff = f - i
-#             for td in diff:
-#                 if not isinstance(td, timedelta) or td.total_seconds() < 0:
-#                     print "Invalid value encountered for timedelta %s" %td
-#                     return False
-#             return True        
-#         except Exception as e:
-#             print ("Failed to read start / stop acq. time info in spectrometer"
-#                 " data object %s: %s" %(type(self.specData), repr(e)))
-#             return False
-#             
-#     def auto_set_mergetype(self, threshNum = 100):
-#         """Checks the number of spectrum data points and updates the merge type
-#         
-#         :param int threshNum (100): integer specifying the threshold for 
-#             number of spectrum datapoints (num). 
-#             If num < threshNum => use interpolation, else use binning
-#         :returns: mergetype
-#         """
-#         if len(self.specData) > threshNum and\
-#                         self.check_start_stop_times_spectrometer():
-#             return "binning"
-#         return "interpolation"
-#         
-#     def find_viewing_direction(self, mergeType = "interpolation"):
-#         """Find the pixel coordinates with highest correlation between image
-#         stack data and spectral data time series.
-#         
-#         :param str id: id of search step (rough, fine)
-#         
-#         .. todo::
-#         
-#             include base check (i.e. if the detected maximum is clearly defined
-#             and that there are no other areas with high correlation)
-#             
-#         """
-#         if not isinstance(self.stack, ImgListStack):
-#             raise Exception("Could not search viewing direction, image stack "
-#                 " is not available, call :func:``make_img_stack`` first")
-#         elif not mergeType in self.mergeTypes:
-#             print ("Invalid input for mergeType %s, setting merge type  " 
-#                 "automatically" %mergeType)
-#             mergeType = self.auto_set_mergetype()
-#             print ("New merge type: %s " %mergeType)
-#         
-#         h, w = self.stack.shape[:2]
-#         corrIm = empty((h,w))
-#         exp = int(floor(log10(abs(self.specData.mean()))))
-#         specData = self.specData*10**(-exp)
-#         if mergeType == "binning":
-#             if not self.check_start_stop_times_spectrometer():
-#                 print ("Error retrieving spectrometer start / stop times, "
-#                 "changing merge type from binning to interpolation")
-#                 mergeType = "interpolation"
-#             else:
-#                 #averages images in stack considering start and stop times
-#                 #of spectra, returns list of spectrum indices for which no 
-#                 #images were found
-#                 badIndices = self.stack.make_stack_time_average(\
-#                     self.specData.startTimes, self.specData.stopTimes)
-#                 #throws out invalid spec indices, after this operation
-#                 #both stack and specData
-#                 specData = specData.drop(specData.index[badIndices])
-#         stack = self.stack
-#         
-#         for i in range(h):
-#             print "FOV search: current img row (y): " + str(i)
-#             for j in range(w):
-#                 #get series from stack at current pixel
-#                 tauSeries = Series(stack.stack[i,j,:], stack.times)
-#                 #create a dataframe
-#                 if mergeType == "interpolation":
-#                     df = concat([tauSeries, specData], axis = 1)
-#                     df = df.interpolate()#"cubic")
-#                     #throw all N/A values
-#                     df = df.dropna()
-#                     tauSeries, specData = df[0], df[1]
-#                     #determine correlation coefficient
-#                 corrIm[i,j] = tauSeries.corr(specData)
-#         
-#         #find position of maximum correlation and convert into absolute coordinates
-#         yPos, xPos = self.find_local_maximum_img(corrIm)
-#         
-#         return xPos, yPos, corrIm, specData
-#     
-#     def find_fov_radius(self, stack, cx, cy, specData, interpolate = 0):
-#         """Search the radius with highest correlation
-#         """
-#         h, w =  stack.shape[:2]
-#         #find maximum radius (around CFOV pos) which still fits into the image
-#         #shape of the stack used to find the best radius
-#         max_rad = min([cx, cy, w - cx, h - cy])
-#         #radius array
-#         radii = arange(1, max_rad, 1)
-#         s = stack.stack
-#         print "Maximum radius: " + str(max_rad-1)
-#         y ,x = ogrid[:h, :w]
-#         coeffs = []
-#     
-#         #some variable initialisations
-#         maxCorr = 0
-#         tauData = None
-#         radius = None
-#         #loop over all radii, get tauSeries at each, (merge) and determine 
-#         #correlation coefficient
-#         for r in radii:
-#             print "current radius:" + str(r)
-#             #create mask to cut out ROI in stack
-#             mask = (x - cx)**2 + (y - cy)**2 < r**2
-#             means = []
-#             #now get mean values of all images in stack in circular ROI around
-#             #CFOV
-#             for i in range(s.shape[2]):
-#                 subim = s[:,:,i]
-#                 means.append(subim[mask].mean())
-#             #create pandas series
-#             tauSeries = Series(means, stack.times)
-#             #merge data (if applicable)
-#             if interpolate:
-#                 df = concat([tauSeries, specData], axis = 1)
-#                 df = df.interpolate()#"cubic")
-#                 #throw all N/A values
-#                 df = df.dropna()
-#                 tauSeries, specData = df[0], df[1]
-#             #determine correlation coefficient at current radius
-#             coeff = tauSeries.corr(specData)
-#             coeffs.append(coeff)
-#             #and append correlation coefficient to results
-#             if coeff > maxCorr:
-#                 radius = r
-#                 maxCorr = coeff
-#                 tauData = tauSeries
-#         corrCurve = Series(asarray(coeffs, dtype = float),radii)
-#         return radius, corrCurve, tauData, specData
-# 
-#     """Post processing / Helpers..."""
-#     def find_local_maximum_img(self, imgArr, blur = 1):
-#         """Get coordinates of maximum in image
-#         
-#         :param array imgArr: numpy array containing imagery data
-#         :param int blur: apply gaussian filter (width==blur) before max search
-#         """
-#         #replace nans with zeros
-#         imgArr[where(isnan(imgArr))]=0
-#         imgArr=gaussian_filter(imgArr, blur)
-#         return unravel_index(nanargmax(imgArr), imgArr.shape)
-#     
-#     def check_pixel_position(self, x, y, imgArr, minDistBorder = 20):
-#         """Check if a pixel position is far enough away from image borders
-#         :param int x: x position of pixel
-#         :param int y: y position of pixel
-#         :param array imgArr: the actual 2D numpy image array 
-#         :param int minDistBorder (20): minimum distance from image border
-#         :returns bool: True or false
-#         """
-#         if logical_or(x < minDistBorder,y < minDistBorder):
-#             return 0
-#         yf,xf=imgArr.shape
-#         if x>xf-minDistBorder:
-#             return 0
-#         if y>yf-minDistBorder:
-#             return 0
-#         return 1
-#         
-#==============================================================================
-
-        

@@ -641,10 +641,6 @@ class BaseImgList(object):
     def load_prev(self):  
         """Load previous image in list"""
         if self.nof < 2:
-#==============================================================================
-#             print ("Could not load previous image, number of files in list: " +
-#                 str(self.nof))
-#==============================================================================
             return
         self.index = self.prev_index
         self.load()
@@ -737,7 +733,7 @@ class BaseImgList(object):
         :param int num: file number index of the desired image
         
         """
-        print "Go to img number %s in img list %s" %(num, self.list_id)
+        #print "Go to img number %s in img list %s" %(num, self.list_id)
         self.index = num
         self.load()
         return self.loaded_images["this"]
@@ -748,10 +744,6 @@ class BaseImgList(object):
         Calls :func:`load_next` 
         """
         self.load_next()
-#==============================================================================
-#         print ("Current acq time: %s" 
-#                 %self.loaded_images["this"].meta["start_acq"])
-#==============================================================================
         return self.loaded_images["this"]
             
     def prev_img(self):
@@ -760,10 +752,6 @@ class BaseImgList(object):
         Calls :func:`load_prev`
         """
         self.load_prev()
-#==============================================================================
-#         print ("Current acq time: %s" 
-#                 %self.loaded_images["this"].meta["start_acq"])
-#==============================================================================
         return self.loaded_images["this"]
         
     def _first_file(self):
@@ -1174,12 +1162,8 @@ class ImgList(BaseImgList):
     def link_imglist(self, other_list):
         """Link another image list to this list
         
-        :param imglist: link :mod:`piscope.ImageLists` object to this object. 
+        :param other_list: another image list object
         
-        The loadedImages variable and currentEdit in input list will be 
-        synchronised with this object. The current image in input list 
-        will be the one closest in time to the currently loaded images in this 
-        list.
         """
         self.current_img(), other_list.current_img()
         list_id = other_list.list_id            
@@ -1397,15 +1381,15 @@ class ImgList(BaseImgList):
         """Check and update current dark image (if possible / applicable)"""
         if self.DARK_CORR_OPT == 0:
             return
-        tLast = self.time_last_dark_check
+        t_last = self.time_last_dark_check
 
         ctime = self.current_time()
 
-        if not (tLast - timedelta(minutes = self.update_dark_ival)) < ctime <\
-                        (tLast + timedelta(minutes = self.update_dark_ival)):
-            print ("Check dark in img_list %s, current Image: %s, Image last "
-                            "darksearch: %s" %(self.list_id, ctime, tLast))
+        if not (t_last - timedelta(minutes = self.update_dark_ival)) < ctime <\
+                        (t_last + timedelta(minutes = self.update_dark_ival)):
             if self.set_closest_dark_offset():
+                print ("Updated dark / offset in img_list %s at %s"
+                        %(self.list_id, ctime))
                 self.time_last_dark_check = ctime
     
     def set_closest_dark_offset(self):

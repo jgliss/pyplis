@@ -4,28 +4,40 @@ Example script 12 - Emission rate retrieval from AA image list
 """
 
 import piscope
-from ex4_prepare_aa_imglist import prepare_aa_image_list, save_path
 from os.path import join, exists
 from matplotlib.pyplot import close, subplots, tight_layout
 
-# OPTIONS
+### IMPORTS FROM OTHER EXAMPLE SCRIPTS
+from ex4_prepare_aa_imglist import prepare_aa_image_list
+
+### SCRIPT OPTONS  
+SAVEFIGS = 1 # save plots from this script in SAVE_DIR
 PYRLEVEL = 1
 PLUME_VEL_GLOB = 4.14 #m/s
 MMOL = 64.0638 #g/mol
 CD_MIN = 2.5e17
-DO_EVAL = 1
+DO_EVAL = 1 
+
 #the following ROI is in the upper right image corner, where no gas occurs in
 #the time series. It is used to log mean, min and max for each analysed image
 #this information can be used to check, whether the plume background retrieval
 #worked well
 LOG_ROI_SKY = [530, 30, 600, 100] #correspond to pyrlevel 1
 
-calib_file = join(save_path, "piscope_doascalib_id_aa_avg_20150916_0706_0721.fts")
-corr_mask_path = join(save_path, "aa_corr_mask.fts")
-if not exists(calib_file):
-    raise IOError("Calibration file could not be found at specified location:\n"
-        "%s\nYou might need to run example 6 first")
+### RELEVANT DIRECTORIES AND PATHS
 
+# Image directory
+IMG_DIR = join(piscope.inout.find_test_data(), "images")
+
+# Directory where results are stored
+SAVE_DIR = join(".", "scripts_out")
+
+CALIB_FILE = join(SAVE_DIR,
+                  "piscope_doascalib_id_aa_avg_20150916_0706_0721.fts")
+
+CORR_MASK_FILE = join(SAVE_DIR, "aa_corr_mask.fts")
+
+### SCRIPT FUNCTION DEFINITIONS        
 def plot_results(ana, line_id = "img_center"):
     fig, ax = subplots(3, 1, figsize = (8, 10), sharex = True)
     
@@ -60,20 +72,25 @@ def plot_results(ana, line_id = "img_center"):
     ax2.set_title("SO2 CD time series in scale_rect")
     return ax, ax2
     
-    
+### SCRIPT MAIN FUNCTION    
 if __name__ == "__main__":
     close("all")
+    
+    if not exists(CALIB_FILE):
+        raise IOError("Calibration file could not be found at specified location:\n"
+            "%s\nYou might need to run example 6 first")
+        
     ### Load AA list
     aa_list = prepare_aa_image_list() #includes viewing direction corrected geometry
     aa_list.pyrlevel = PYRLEVEL
     
     ### Load DOAS calbration data and FOV information (see example 6)
     doascalib = piscope.doascalib.DoasCalibData()
-    doascalib.load_from_fits(file_path=calib_file)
+    doascalib.load_from_fits(file_path=CALIB_FILE)
     doascalib.fit_calib_polynomial()
     
     #Load AA corr mask and set in image list(is normalised to DOAS FOV see ex7)
-    aa_corr_mask = piscope.Img(corr_mask_path)
+    aa_corr_mask = piscope.Img(CORR_MASK_FILE)
     aa_list.aa_corr_mask = aa_corr_mask
     
     #set DOAS calibration data in image list
@@ -105,5 +122,5 @@ if __name__ == "__main__":
         
         ax0, ax1 = plot_results(ana)
         
-        ax0[0].figure.savefig(join(save_path, "ex12_out_1.png"))
-        ax1.figure.savefig(join(save_path, "ex12_out_2.png"))
+        ax0[0].figure.savefig(join(SAVE_DIR, "ex12_out_1.png"))
+        ax1.figure.savefig(join(SAVE_DIR, "ex12_out_2.png"))

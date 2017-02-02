@@ -2,19 +2,19 @@
 from matplotlib.pyplot import subplots
 from warnings import warn
 from numpy import float, log, arange, polyfit, poly1d, linspace, isnan,\
-                                            diff, mean, argmin, ceil
+    diff, mean, argmin, ceil, round
 from matplotlib.pyplot import Figure
 from datetime import timedelta
 from os.path import exists
 from collections import OrderedDict as od
 
 from .dataset import Dataset
-from .setupclasses import AutoCellCalibSetup
+from .setupclasses import MeasSetup
 from .processing import ImgStack, PixelMeanTimeSeries#, ImgListStack, ImagePreparation
 from .imagelists import ImgList, CellImgList
 from .exceptions import CellSearchError, ImgMetaError
 from .image import Img
-from .helpers import subimg_shape, map_coordinates_sub_img
+from .helpers import subimg_shape, map_coordinates_sub_img, exponent
 from .doascalib import DoasFOV
 from .optimisation import PolySurfaceFit
       
@@ -181,7 +181,7 @@ class CellCalibEngine(Dataset):
         self.cell_search_performed = 0
         self._cell_info_auto_search = {}
         
-        if isinstance(self.setup, AutoCellCalibSetup):
+        if isinstance(self.setup, MeasSetup):
             self.set_cell_info_dict_autosearch(self.setup.cell_info_dict)
         
         self.cell_lists = {}
@@ -764,7 +764,6 @@ class CellCalibEngine(Dataset):
         stack = self.tau_stacks[filter_id]
         #convert stack to pyramid level 0
         stack = stack.to_pyrlevel(0)
-        print stack.shape
         try:
             if stack.img_prep["crop"]:
                 raise ValueError("Stack is cropped: sensitivity mask can only"
@@ -782,7 +781,6 @@ class CellCalibEngine(Dataset):
             h, w = stack.shape[1:]
             fov_x, fov_y = int(w / 2.0), int(h / 2.0)
             fov_extend = 3
-        print fov_x, fov_y, fov_extend
         fov_mask = stack.make_circular_access_mask(fov_x, fov_y, fov_extend)
         cell_img = PolySurfaceFit(cell_img, 
                                   pyrlevel=surface_fit_pyrlevel).model
@@ -901,7 +899,7 @@ class CellCalibEngine(Dataset):
             bg_info = res.bg_info[filter_id]
             ax.plot(bg_info.start_acq, bg_info.mean_vals,' o', ms = 10,\
                 markerfacecolor = "None", markeredgecolor = 'c',\
-                mew = 2,label = 'BG image canditates')
+                mew = 2,label = 'BG image candidates')
             ts = PixelMeanTimeSeries(bg_info.mean_vals, bg_info.start_acq)
             ts.fit_polynomial(2)
             bg_poly_vals = ts.get_poly_vals(bg_info.start_acq,
@@ -954,8 +952,8 @@ class CellCalibEngine(Dataset):
                                                         fontsize = 14)
         return ax
         
-    def plot_all_calib_curves(self, pos_x_abs = None, pos_y_abs = None,\
-                                    radius_abs = 1, mask = None, ax = None):
+    def plot_all_calib_curves(self, pos_x_abs=None, pos_y_abs=None,
+                              radius_abs=1, mask=None, ax=None):
         """Plot all available calibration curves in a certain pixel region
         
         :param str filter_id: image type ID (e.g. "on", "off")
@@ -981,8 +979,8 @@ class CellCalibEngine(Dataset):
             
             taus = linspace(0, tau.max() * 1.2, 100)
             pl = ax.plot(tau, so2, " ^", label = "Data %s" %filter_id)
-            ax.plot(taus, poly(taus),"-", color = pl[0].get_color(), label =\
-                                                    "Poly %s" %poly)
+            ax.plot(taus, poly(taus),"-", color=pl[0].get_color(),
+                    label = "Poly %s" %self.poly_str(poly))
             tm = tau.max()
             if tm > tau_max:
                 tau_max = tm
@@ -997,6 +995,13 @@ class CellCalibEngine(Dataset):
         ax.legend(loc = "best", fancybox = True,\
                             framealpha = 0.5, fontsize = 10)
         return ax
+     
+    def poly_str(self, poly):
+        """Return custom string representation of polynomial"""
+        exp = exponent(poly.coeffs[0])
+        p = poly1d(round(poly / 10**(exp - 2))/10**2)
+        return "%s E%+d" %(p, exp)
+        
         
     def __call__(self, value, filter_id="aa", **kwargs):
         """Define call function to apply calibration

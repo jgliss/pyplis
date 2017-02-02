@@ -502,21 +502,15 @@ class MeasGeometry(object):
         #get the angular differnce of the object position to CFOV of camera
         del_az, del_elev = self.get_angular_displacement_pix_to_cfov(\
                                                             pix_x, pix_y)
-        print "Angular x displacement of obj on detector: " + str(del_az)
-        print "Angular y displacement of obj on detector: " + str(del_elev)
         cam_pos = self.geo_setup.points["cam"]
         v = obj_pos - cam_pos
-        print "Cam / Object vector info:"
-        print v
+        
         az_obj = (v.azimuth + 360)%360
         elev_obj = v.elevation#rad2deg(arctan(delH/v.magnitude/1000))#the true elevation of the object
-        print "Elev object: ", elev_obj
         elev_cam = elev_obj + del_elev
         az_cam = az_obj - del_az
-        print ("Current Elev / Azim cam CFOV: " + 
-            str(self.cam["elev"]) + " / " + str(self.cam["azim"]))
-        print ("New Elev / Azim cam CFOV: " + str(elev_cam) + " / " + 
-                                                            str(az_cam))
+        
+        
         return elev_cam, az_cam
         
     def correct_viewing_direction(self, pix_x, pix_y, pix_pos_err=10,
@@ -560,11 +554,11 @@ class MeasGeometry(object):
             obj_pos = self.geo_setup.points[obj_id]
         elif isinstance(geo_point, GeoPoint):
             obj_pos = geo_point
-            self.geo_setup.add_geopoint(obj_pos)
+            self.geo_setup.add_geo_point(obj_pos)
         else:
             try:
                 obj_pos = GeoPoint(lat_pt, lon_pt, alt_pt, name = obj_id)
-                self.geo_setup.add_geopoint(obj_pos)
+                self.geo_setup.add_geo_point(obj_pos)
             except:
                 raise IOError("Invalid input, characteristic point for "
                     "retrieval of viewing direction could not be extracted"
@@ -587,6 +581,8 @@ class MeasGeometry(object):
         azim_err = max(abs(az_cam - asarray(azims)))
                 
         if update:
+            print ("New Elev / Azim cam CFOV: " + str(elev_cam) + " / " + 
+                                                            str(az_cam))
             self.cam["elev"] = elev_cam
             self.cam["azim"] = az_cam
             self.cam["elev_err"] = elev_err
