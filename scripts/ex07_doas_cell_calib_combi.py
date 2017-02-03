@@ -9,22 +9,19 @@ import numpy as np
 from matplotlib.pyplot import close, subplots, show
 from matplotlib.patches import Circle
 
-### IMPORTS FROM OTHER EXAMPLE SCRIPTS
-from ex5_2_cellcalib_auto import perform_auto_cell_calib
-from ex4_prepare_aa_imglist import prepare_aa_image_list
+### IMPORT GLOBAL SETTINGS
+from SETTINGS import SAVEFIGS, SAVE_DIR, FORMAT, DPI
 
-### SCRIPT OPTONS  
-SAVEFIGS = 1 # save plots from this script in SAVE_DIR
+### IMPORTS FROM OTHER EXAMPLE SCRIPTS
+from ex05_2_cellcalib_auto import perform_auto_cell_calib
+from ex04_prepare_aa_imglist import prepare_aa_image_list
 
 ### RELEVANT DIRECTORIES AND PATHS
-
-# Directory where results are stored
-SAVE_DIR = join(".", "scripts_out")
 
 #fits file containing DOAS calibration information (from ex6)
 CALIB_FILE = join(SAVE_DIR,
                   "piscope_doascalib_id_aa_avg_20150916_0706_0721.fts")
-
+                  
 ### SCRIPT FUNCTION DEFINITIONS    
 def draw_doas_fov(fov_x, fov_y, fov_extend, ax):
     # add FOV position to plot of examplary AA image
@@ -123,9 +120,12 @@ if __name__ == "__main__":
     fig, _ = plot_pcs_comparison(aa_init, aa_imgs_corr, pcs1, pcs2) 
       
     if SAVEFIGS:
-        ax0.figure.savefig(join(SAVE_DIR, "ex7_out_1.png"))
-        ax.figure.savefig(join(SAVE_DIR, "ex7_out_2.png"))
-        fig.savefig(join(SAVE_DIR, "ex7_out_3.png"))
+        ax0.figure.savefig(join(SAVE_DIR, "ex07_out_1.%s" %FORMAT),
+                           format=FORMAT, dpi=DPI)
+        ax.figure.savefig(join(SAVE_DIR, "ex07_out_2.%s" %FORMAT),
+                          format=FORMAT, dpi=DPI)
+        fig.savefig(join(SAVE_DIR, "ex07_out_3.%s" %FORMAT), format=FORMAT,
+                    dpi=DPI)
     
     #Save the sensitivity correction mask from the cell with the lowest SO2 CD
     so2min = np.min(masks.keys())

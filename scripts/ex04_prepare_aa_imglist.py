@@ -9,20 +9,13 @@ import piscope
 from matplotlib.pyplot import close
 from os.path import join
 
+### IMPORT GLOBAL SETTINGS
+from SETTINGS import SAVEFIGS, SAVE_DIR, FORMAT, DPI, IMG_DIR
+
 ### IMPORTS FROM OTHER EXAMPLE SCRIPTS
-from ex1_measurement_setup_plume_data import create_dataset
-from ex2_measurement_geometry import correct_viewing_direction
+from ex01_measurement_setup_plume_data import create_dataset
+from ex02_measurement_geometry import correct_viewing_direction
 
-### SCRIPT OPTONS  
-SAVEFIGS = 1 # save plots from this script in SAVE_DIR
-
-### RELEVANT DIRECTORIES AND PATHS
-
-# Image directory
-IMG_DIR = join(piscope.inout.find_test_data(), "images")
-
-# Directory where results are stored
-SAVE_DIR = join(".", "scripts_out")
 
 ### SCRIPT FUNCTION DEFINITIONS        
 def prepare_aa_image_list(bg_corr_mode = 6):
@@ -112,6 +105,7 @@ if __name__ == "__main__":
     fig = aa_list.bg_model.plot_tau_result(aa_list.current_img())
     
     if SAVEFIGS:
-        ax.figure.savefig(join(SAVE_DIR, "ex4_out_1.png"))
+        ax.figure.savefig(join(SAVE_DIR, "ex04_out_1.%s" %FORMAT), format=FORMAT,
+                    dpi=DPI)
 
     show()

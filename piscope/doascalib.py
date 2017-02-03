@@ -531,13 +531,14 @@ class DoasFOV(object):
         """Draw the current FOV position into the current correlation img"""
         if ax is None:        
             fig, ax = subplots(1, 1, figsize = (12, 8))
-        
+        else:
+            fig = ax.figure
         img = self.corr_img.img
         vmin, vmax = img.min(), img.max()
-        cmap = shifted_color_map(vmin, vmax, cmap = RdBu)
+        cmap = shifted_color_map(vmin, vmax, cmap=RdBu)
         h, w = img.shape
-        disp = ax.imshow(img, vmin = vmin, vmax = vmax, cmap = cmap)
-        cb = fig.colorbar(disp, ax = ax)
+        disp = ax.imshow(img, vmin=vmin, vmax=vmax, cmap=cmap)
+        cb = fig.colorbar(disp, ax=ax, shrink=0.9)
         cx, cy = self.pixel_position_center(1)
         if self.method == "ifr":
             popt = self.popt
@@ -553,10 +554,7 @@ class DoasFOV(object):
                 ell = Ellipse(xy = (popt[1], popt[2]), width = popt[3],\
                     height = popt[3] / popt[4], angle = popt[7], color="k",\
                     lw=2, fc="lime", alpha =.5)
-#==============================================================================
-#             ax.contour(xgrid, ygrid, self.fov_mask,\
-#                 (popt[0] / e, popt[0] / 10), colors = 'k')
-#==============================================================================
+                    
             ax.add_artist(ell)
             ax.axhline(self.cy_rel, ls="--", color = "k")
             ax.axvline(self.cx_rel, ls="--", color = "k")
@@ -782,7 +780,7 @@ class DoasFOVEngine(object):
         c = a[0]
         # separate offset and image
         lsmr_offset = c[0]
-        lsmr_image = c[1:].reshape(ny, nx)
+        lsmr_image = c[1:].reshape(ny, nx) / max(c[1:])
         #THIS NORMALISATION IS NEW
         #lsmr_image = lsmr_image / abs(lsmr_image).max()
         self._settings["method"] = "ifr"

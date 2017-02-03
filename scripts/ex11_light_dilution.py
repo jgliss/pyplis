@@ -12,38 +12,38 @@ from os.path import join, exists
 from piscope.dilutioncorr import DilutionCorr
 from piscope.doascalib import DoasCalibData
 
+### IMPORT GLOBAL SETTINGS
+from SETTINGS import IMG_DIR, SAVEFIGS, SAVE_DIR, FORMAT, DPI
+
 ### IMPORTS FROM OTHER EXAMPLE SCRIPTS
 from ex10_bg_image_lists import get_bg_image_lists
 
 ### SCRIPT OPTONS  
-SAVEFIGS = 1 # save plots from this script in SAVE_DIR
-I0_MIN = 0.0 # lower boundary for I0 value in dilution fit
+# lower boundary for I0 value in dilution fit
+I0_MIN = 0.0 
+
 # Retrieval lines for dilution correction (along these lines, topographic
 # distances and image radiances are determined for fitting the atmospheric
 # extinction coefficients)
-
 PCS1 = piscope.processing.LineOnImage(1100, 650, 1000, 900, line_id="far")
 PCS2 = piscope.processing.LineOnImage(1000, 990, 1100, 990, line_id= "close")
 
 # all lines in this array are used for the analysis
 USE_LINES = [PCS1, PCS2]
+
 # specify pixel resolution of topographic distance retrieval (every nth pixel 
 # is used)
 SKIP_PIX_LINES = 10
-    # Specify region of interest used to extract the ambient intensity (required
+
+# Specify region of interest used to extract the ambient intensity (required
 # for dilution correction)
 AMBIENT_ROI = [1240, 10, 1300, 70]
-# Specify plume velocity (for a rough emission rate estimate)
+
+# Specify plume velocity (for emission rate estimate)
 PLUME_VELO = 4.14 #m/s (result from ex8)
 SO2_MMOL = piscope.fluxcalc.MOL_MASS_SO2
 
 ### RELEVANT DIRECTORIES AND PATHS
-
-# Image directory
-IMG_DIR = join(piscope.inout.find_test_data(), "images")
-
-# Directory where results are stored
-SAVE_DIR = join(".", "scripts_out")
 
 CALIB_FILE = join(SAVE_DIR, "piscope_doascalib_id_aa_avg_20150916_0706_0721.fts")
 
@@ -340,10 +340,13 @@ if __name__ == "__main__":
     ax[1,1].set_ylim([0, 5e18])
     
     if SAVEFIGS:    
-        ax0.figure.savefig(join(SAVE_DIR, "ex11_out_1.png"))
+        ax0.figure.savefig(join(SAVE_DIR, "ex11_out_1.%s" %FORMAT),
+                           format=FORMAT, dpi=DPI)
         basemap.ax.set_axis_off()
-        basemap.ax.figure.savefig(join(SAVE_DIR, "ex11_out_2.png"))
-        fig.savefig(join(SAVE_DIR, ("ex11_out_3.png")))
+        basemap.ax.figure.savefig(join(SAVE_DIR, "ex11_out_2.%s" %FORMAT),
+                           format=FORMAT, dpi=DPI)
+        fig.savefig(join(SAVE_DIR, "ex11_out_3.%s" %FORMAT),
+                           format=FORMAT, dpi=DPI)
 
         
 

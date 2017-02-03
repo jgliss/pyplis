@@ -8,15 +8,17 @@ Sript showing how to work with cell calibration data
 import piscope 
 import pydoas
 from datetime import timedelta
-from matplotlib.pyplot import close, show, subplots
+from matplotlib.pyplot import close, show, subplots, tight_layout
 from os.path import join, exists
 from os import remove
 
+### IMPORT GLOBAL SETTINGS
+from SETTINGS import SAVEFIGS, SAVE_DIR, FORMAT, DPI, IMG_DIR
+
 ### IMPORTS FROM OTHER EXAMPLE SCRIPTS
-from ex4_prepare_aa_imglist import prepare_aa_image_list
+from ex04_prepare_aa_imglist import prepare_aa_image_list
 
 ### SCRIPT OPTONS  
-SAVEFIGS = 1 # save plots from this script in SAVE_DIR
 
 #reload and save stack in folder SAVE_DIR, results in increased
 #running time due to stack calculation (is automatically switched on if
@@ -31,12 +33,6 @@ RELOAD_STACK = 0
 DO_FINE_SEARCH = 0
 
 ### RELEVANT DIRECTORIES AND PATHS
-
-# Image directory
-IMG_DIR = join(piscope.inout.find_test_data(), "images")
-
-# Directory where results are stored
-SAVE_DIR = join(".", "scripts_out")
 
 # Directory containing DOAS result files
 DOAS_DATA_DIR = join(IMG_DIR, "..", "spectra", "plume_prep", "min10Scans",
@@ -111,22 +107,24 @@ if __name__ == "__main__":
     calib_pears = s.perform_fov_search(method = "pearson")
     calib_ifr= s.perform_fov_search(method = "ifr", ifrlbda = 2e-3)
     
-    axes = [] #used to store axes objects from plots (for saving)
-    
-    fig, ax = subplots(1,1)
+    #plot the FOV search results
+    ax0 = calib_pears.fov.plot()
+    ax1 = calib_ifr.fov.plot()
+        
     calib_pears.fit_calib_polynomial()
-    axes.append(calib_pears.plot(add_label_str="Pearson", color="b", ax=ax))
-    axes.append(calib_pears.fov.plot())
+    
+    fig, ax2 = subplots(1,1)
+    calib_pears.plot(add_label_str="Pearson", color="b", ax=ax2)
     
     calib_ifr.fit_calib_polynomial()
     
-    calib_ifr.plot(add_label_str="ifr", color="g", ax=ax)
-    ax.set_title("Calibration curves Pearson vs. IFR method")
-    ax.grid()
-    ax.set_ylim([0, 1.8e18])
-    ax.set_xlim([0, 0.20])
-    axes.append(calib_ifr.fov.plot())
-
+    calib_ifr.plot(add_label_str="ifr", color="g", ax=ax2)
+    ax2.set_title("Calibration curves Pearson vs. IFR method")
+    ax2.grid()
+    ax2.set_ylim([0, 1.8e18])
+    ax2.set_xlim([0, 0.20])
+    
+    axes = [ax0, ax1, ax2]
     if DO_FINE_SEARCH:    
         """Get position in absolute coordinates and perform a fov search within
         ROI around result from pearson fov search at full resolution 
@@ -150,15 +148,17 @@ if __name__ == "__main__":
         calib_pears_fine.fit_calib_polynomial()
         axes.append(calib_pears_fine.plot())
         axes.append(calib_pears_fine.fov.plot())
-
-    if SAVEFIGS:
-        for k in range(len(axes)):
-            axes[k].figure.savefig(join(SAVE_DIR, "ex6_out_%d.png" %k))
-            
+        
     try:
         remove(join(SAVE_DIR, 
                     "piscope_doascalib_id_aa_avg_20150916_0706_0721.fts"))
     except:
         pass
     calib_pears.save_as_fits(save_dir = SAVE_DIR)
+    if SAVEFIGS:
+        for k in range(len(axes)):
+            ax = axes[k]
+            ax.set_title("")
+            ax.figure.savefig(join(SAVE_DIR, "ex06_out_%d.%s" %((k+1), FORMAT)),
+                                   format=FORMAT, dpi=DPI)
     show()

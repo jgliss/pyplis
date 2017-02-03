@@ -10,8 +10,10 @@ from os.path import join
 import piscope
 import matplotlib.pyplot as plt
 
-### SCRIPT OPTONS  
-SAVEFIGS = 1 # save plots from this script in SAVE_DIR
+### IMPORT GLOBAL SETTINGS
+from SETTINGS import SAVEFIGS, SAVE_DIR, FORMAT, DPI, IMG_DIR
+
+### SCRIPT OPTIONS
 
 # If this is True, then sky reference areas are set in auto mode
 USE_AUTO_SETTINGS = False 
@@ -26,13 +28,6 @@ BG_CORR_MODES = [0, #2D poly surface fit (without sky radiance image)
                  4, #Scaling + linear gradient correction in x and y direction
                  6] #Scaling + quadr. gradient correction in x and y direction
 
-### RELEVANT DIRECTORIES AND PATHS
-
-# Image directory
-IMG_DIR = join(piscope.inout.find_test_data(), "images")
-
-# Directory where results are stored
-SAVE_DIR = join(".", "scripts_out")
 
 # Relevant file paths
 PLUME_FILE = join(IMG_DIR, 'EC2_1106307_1R02_2015091607065477_F01_Etna.fts')
@@ -152,7 +147,7 @@ if __name__=="__main__":
                                               y0=655, 
                                               x1=860,
                                               y1=200,
-                                              line_id = "pcs")
+                                              line_id = "example PCS")
     
     plume, plume_vigncorr, bg = load_and_prepare_images()
 
@@ -179,29 +174,33 @@ if __name__=="__main__":
                                   surface_fit_polyorder = 1)
     
     #Plot the result and append the figure to _tau_figs                                 
-    _tau_figs.append(bg_model.plot_tau_result(tau0, pcs = pcs_line.to_list()))
+    _tau_figs.append(bg_model.plot_tau_result(tau0, PCS = pcs_line.to_list()))
     
     ### Second method: scale background image to plume image in "scale" rect
     tau1 = bg_model.get_tau_image(plume, bg, CORR_MODE = BG_CORR_MODES[1])
-    _tau_figs.append(bg_model.plot_tau_result(tau1, pcs = pcs_line.to_list()))
+    _tau_figs.append(bg_model.plot_tau_result(tau1, PCS = pcs_line.to_list()))
     
     ### Third method: Linear correction for radiance differences based on two 
     ### rectangles (scale, ygrad)
     tau2 = bg_model.get_tau_image(plume, bg, CORR_MODE = BG_CORR_MODES[2])
-    _tau_figs.append(bg_model.plot_tau_result(tau2, pcs = pcs_line.to_list()))
+    _tau_figs.append(bg_model.plot_tau_result(tau2, PCS = pcs_line.to_list()))
     
     ### 4th method: 2nd order polynomial fit along vertical profile line
     ### For this method, determine tau on tau off and AA image
     tau3 = bg_model.get_tau_image(plume, bg, CORR_MODE = BG_CORR_MODES[3])
-    _tau_figs.append(bg_model.plot_tau_result(tau3, pcs = pcs_line.to_list()))
+    _tau_figs.append(bg_model.plot_tau_result(tau3, PCS = pcs_line.to_list()))
     
     fig6 = plot_pcs_profiles_4_tau_images(tau0, tau1, tau2, tau3, pcs_line)
     
     if SAVEFIGS:
-        fig0.savefig(join(SAVE_DIR, "ex3_out_1.png"))
+        fig0.savefig(join(SAVE_DIR, "ex03_out_1.%s" %FORMAT), format=FORMAT,
+                    dpi=DPI)
         for k in range(len(_tau_figs)):
-            _tau_figs[k].savefig(join(SAVE_DIR, "ex3_out_%d.png" %(k+2)))
+            _tau_figs[k].suptitle("")
+            _tau_figs[k].savefig(join(SAVE_DIR, "ex03_out_%d.%s" 
+                                 %((k+2), FORMAT)), format=FORMAT, dpi=DPI)
         
-        fig6.savefig(join(SAVE_DIR, "ex3_out_6.png"))
+        fig6.savefig(join(SAVE_DIR, "ex03_out_6.%s" %FORMAT), format=FORMAT,
+                    dpi=DPI)
     
     plt.show()
