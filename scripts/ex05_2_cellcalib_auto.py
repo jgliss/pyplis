@@ -12,16 +12,8 @@ from datetime import datetime
 from os.path import join
 import matplotlib.pyplot as plt
 
-### SCRIPT OPTONS  
-SAVEFIGS = 1 # save plots from this script in SAVE_DIR
-
-### RELEVANT DIRECTORIES AND PATHS
-
-# Image directory
-IMG_DIR = join(piscope.inout.find_test_data(), "images")
-
-# Directory where results are stored
-SAVE_DIR = join(".", "scripts_out")
+### IMPORT GLOBAL SETTINGS
+from SETTINGS import SAVEFIGS, SAVE_DIR, FORMAT, DPI, IMG_DIR
 
 ### SCRIPT FUNCTION DEFINITIONS
 def perform_auto_cell_calib():
@@ -73,10 +65,11 @@ if __name__ == "__main__":
     c.plot_cell_search_result("on", include_tit = False, ax = axes[0])
     c.plot_cell_search_result("off", include_tit = False, ax = axes[1])
     c.plot_all_calib_curves(1344/2, 512, 20, ax = axes[2])
+    fig.tight_layout()
+    if SAVEFIGS:
+        fig.savefig(join(SAVE_DIR, "ex05_2_out_1.%s" %FORMAT), format=FORMAT,
+                    dpi=DPI)
     axes[0].set_title("A) Cell search result on band", fontsize = 18)
     axes[1].set_title("B) Cell search result off band", fontsize = 18)
     axes[2].set_title("C) Calibration polynomials", fontsize = 18)
-    fig.tight_layout()
-    if SAVEFIGS:
-        fig.savefig(join(SAVE_DIR, "ex5_out_1.png"))
     plt.show()

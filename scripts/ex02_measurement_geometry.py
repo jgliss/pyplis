@@ -9,21 +9,11 @@ from geonum.base import GeoPoint
 from matplotlib.pyplot import subplots, close, show
 from os.path import join
 
-import piscope
+### IMPORT GLOBAL SETTINGS
+from SETTINGS import SAVEFIGS, SAVE_DIR, FORMAT, DPI
 
 ### IMPORTS FROM OTHER EXAMPLE SCRIPTS
-from ex1_measurement_setup_plume_data import create_dataset
-
-### SCRIPT OPTONS  
-SAVEFIGS = 1 # save plots from this script in SAVE_DIR
-
-### RELEVANT DIRECTORIES AND PATHS
-
-# Image directory
-IMG_DIR = join(piscope.inout.find_test_data(), "images")
-
-# Directory where results are stored
-SAVE_DIR = join(".", "scripts_out")
+from ex01_measurement_setup_plume_data import create_dataset
 
 ### SCRIPT FUNCTION DEFINITIONS        
 def correct_viewing_direction(meas_geometry, draw_result = True):
@@ -78,9 +68,12 @@ if __name__ == "__main__":
     fig =  plot_plume_distance_image(ds.meas_geometry)
     
     if SAVEFIGS:
-        map.ax.figure.savefig(join(SAVE_DIR, "ex2_out_1.png"))
-        fig.savefig(join(SAVE_DIR, "ex2_out_2.png"))
+        map.ax.figure.savefig(join(SAVE_DIR, "ex02_out_1.%s" %FORMAT), format=FORMAT,
+                              dpi=DPI)
+        fig.savefig(join(SAVE_DIR, "ex02_out_2.%s" %FORMAT), format=FORMAT,
+                    dpi=DPI)
     show()
+    
     
     
     

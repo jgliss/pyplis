@@ -6,19 +6,16 @@ from matplotlib.pyplot import close, show
 from os.path import join
 import piscope
 
+### IMPORT GLOBAL SETTINGS
+from SETTINGS import SAVEFIGS, SAVE_DIR, FORMAT, DPI
+
 ### IMPORTS FROM OTHER EXAMPLE SCRIPTS
-from ex4_prepare_aa_imglist import prepare_aa_image_list
+from ex04_prepare_aa_imglist import prepare_aa_image_list
 
 ### SCRIPT OPTONS  
-SAVEFIGS = 1
 PYRLEVEL = 1
 BLUR = 0
 ROI_FLOW = [615, 350, 1230, 790]
-
-### RELEVANT DIRECTORIES AND PATHS
-
-# Directory where results are stored
-SAVE_DIR = join(".", "scripts_out")
 
 ### SCRIPT MAIN FUNCTION
 if __name__ == "__main__":
@@ -83,10 +80,13 @@ if __name__ == "__main__":
     fig.suptitle("v = %.2f m/s" %(v))
     
     if SAVEFIGS:
-        ax0.figure.savefig(join(SAVE_DIR, "ex9_out_1.png"))
-        ax1.figure.savefig(join(SAVE_DIR, "ex9_out_2.png"))
-        ax2.figure.savefig(join(SAVE_DIR, "ex9_out_3.png"))
-        fig.savefig(join(SAVE_DIR, "ex9_out_5.png"))
+        ax0.figure.savefig(join(SAVE_DIR, "ex09_out_1.%s" %FORMAT),
+                           format=FORMAT, dpi=DPI)
+        ax1.figure.savefig(join(SAVE_DIR, "ex09_out_2.%s" %FORMAT),
+                           format=FORMAT, dpi=DPI)
+        ax2.figure.savefig(join(SAVE_DIR, "ex09_out_3.%s" %FORMAT),
+                           format=FORMAT, dpi=DPI)
+        fig.savefig(join(SAVE_DIR, "ex09_out_4.png"))
     
     show() 
         

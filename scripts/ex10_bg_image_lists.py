@@ -4,13 +4,10 @@ piscope example script no. 10 - background image dataset
 """
 
 import piscope
-from os.path import join
 from datetime import datetime
 
-### RELEVANT DIRECTORIES AND PATHS
-
-# Image directory
-IMG_DIR = join(piscope.inout.find_test_data(), "images")
+### IMPORT GLOBAL SETTINGS
+from SETTINGS import IMG_DIR
 
 ### SCRIPT FUNCTION DEFINITIONS
 def get_bg_image_lists():

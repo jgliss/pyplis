@@ -10,12 +10,8 @@ from datetime import datetime
 from matplotlib.pyplot import show
 from  optparse import OptionParser
 
-from os.path import join
-
-### RELEVANT DIRECTORIES AND PATHS
-
-# Image directory
-IMG_DIR = join(piscope.inout.find_test_data(), "images")
+### IMPORT GLOBAL SETTINGS
+from SETTINGS import IMG_DIR
 
 ### SCRIPT FUNCTION DEFINITIONS
 def create_dataset():

@@ -9,17 +9,16 @@ import numpy as np
 from piscope.processing import LineOnImage, ProfileTimeSeriesImg
 from piscope.plumespeed import find_signal_correlation
 
+### IMPORT GLOBAL SETTINGS
+from SETTINGS import SAVEFIGS, SAVE_DIR, FORMAT, DPI
+
 ### IMPORTS FROM OTHER EXAMPLE SCRIPTS
-from ex4_prepare_aa_imglist import prepare_aa_image_list
+from ex04_prepare_aa_imglist import prepare_aa_image_list
 
 ### SCRIPT OPTONS  
-SAVEFIGS = 1 # save plots from this script in SAVE_DIR
-RELOAD = 0
+RELOAD = 0 #reload AA profile images for PCS lines 
 
 ### RELEVANT DIRECTORIES AND PATHS
-
-# Directory where results are stored
-SAVE_DIR = join(".", "scripts_out")
 
 FIRST_ICA_TSERIES = join(SAVE_DIR, "first_ica_tseries.fts")
 SECOND_ICA_TSERIES = join(SAVE_DIR, "second_ica_tseries.fts")
@@ -67,7 +66,7 @@ def reload_profile_tseries_from_aa_list(aa_list, pcs1, pcs2, dist_img):
     # loop over all images in list, extract profiles and write in the 
     # corresponding column of the profile picture
     for k in range(aa_list.nof):
-        print "Reloading AA profiles: %d (%d)" %(k, aa_list.nof)
+        print "Loading AA profiles from list: %d (%d)" %(k, aa_list.nof)
         aa = aa_list.current_img().img
         profiles1[:, k] = pcs1.get_line_profile(aa)
         profiles2[:, k] = pcs2.get_line_profile(aa)
@@ -189,7 +188,10 @@ if __name__ == "__main__":
     print tit
     
     if SAVEFIGS:
-        ax0.figure.savefig(join(SAVE_DIR, "ex8_out_1.png"))
-        ax1.figure.savefig(join(SAVE_DIR, "ex8_out_2.png"))
+        ax0.figure.savefig(join(SAVE_DIR, "ex08_out_1.%s" %FORMAT),
+                           format=FORMAT, dpi=DPI)
+        ax1.figure.savefig(join(SAVE_DIR, "ex08_out_2.%s" %FORMAT),
+                           format=FORMAT, dpi=DPI)
+                           
     show()
     

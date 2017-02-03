@@ -7,11 +7,13 @@ import piscope
 from os.path import join, exists
 from matplotlib.pyplot import close, subplots, tight_layout
 
+### IMPORT GLOBAL SETTINGS
+from SETTINGS import SAVEFIGS, SAVE_DIR, FORMAT, DPI
+
 ### IMPORTS FROM OTHER EXAMPLE SCRIPTS
-from ex4_prepare_aa_imglist import prepare_aa_image_list
+from ex04_prepare_aa_imglist import prepare_aa_image_list
 
 ### SCRIPT OPTONS  
-SAVEFIGS = 1 # save plots from this script in SAVE_DIR
 PYRLEVEL = 1
 PLUME_VEL_GLOB = 4.14 #m/s
 MMOL = 64.0638 #g/mol
@@ -25,12 +27,6 @@ DO_EVAL = 1
 LOG_ROI_SKY = [530, 30, 600, 100] #correspond to pyrlevel 1
 
 ### RELEVANT DIRECTORIES AND PATHS
-
-# Image directory
-IMG_DIR = join(piscope.inout.find_test_data(), "images")
-
-# Directory where results are stored
-SAVE_DIR = join(".", "scripts_out")
 
 CALIB_FILE = join(SAVE_DIR,
                   "piscope_doascalib_id_aa_avg_20150916_0706_0721.fts")
@@ -122,5 +118,8 @@ if __name__ == "__main__":
         
         ax0, ax1 = plot_results(ana)
         
-        ax0[0].figure.savefig(join(SAVE_DIR, "ex12_out_1.png"))
-        ax1.figure.savefig(join(SAVE_DIR, "ex12_out_2.png"))
+        if SAVEFIGS:
+            ax0[0].figure.savefig(join(SAVE_DIR, "ex12_out_1.%s" %FORMAT),
+                               format=FORMAT, dpi=DPI)
+            ax1.figure.savefig(join(SAVE_DIR, "ex12_out_2.%s" %FORMAT),
+                               format=FORMAT, dpi=DPI)
