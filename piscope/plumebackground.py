@@ -453,36 +453,36 @@ class PlumeBackgroundModel(object):
             palette = colors.ListedColormap(['white', 'lime'])
             norm = colors.BoundaryNorm([0, .5, 1], palette.N)
     
-            ax[3].imshow(self.surface_fit_mask, cmap = palette, norm = norm,\
-                                                                    alpha = .7)
+            ax[3].imshow(self.surface_fit_mask, cmap=palette, norm=norm,
+                         alpha=.7)
             ax[3].set_title("Mask", fontsize = 10)
             ax[3].set_xticklabels([])
             ax[3].set_yticklabels([])
         
-        ax[0].imshow(tau.img, cmap = cmap, vmin = tau_min, vmax = tau_max)
+        ax[0].imshow(tau.img, cmap=cmap, vmin=tau_min, vmax=tau_max)
         
-        ax[0].plot([self.ygrad_line_colnum,self.ygrad_line_colnum], [0, h0],\
-                                            "-b", label = "vert profile")
-        ax[0].plot([0, w0],[self.xgrad_line_rownum,self.xgrad_line_rownum],\
-                                            "-c", label = "hor profile")
+        ax[0].plot([self.ygrad_line_colnum, self.ygrad_line_colnum],
+                   [0, h0],"-b", label="vert profile")
+        ax[0].plot([0, w0],[self.xgrad_line_rownum, self.xgrad_line_rownum],
+                    "-c", label="hor profile")
         for k, l in add_lines.iteritems():
-            ax[0].plot([l[0],l[2]],[l[1],l[3]], "--",c = "g", label = k)
+            ax[0].plot([l[0],l[2]],[l[1],l[3]], "--",c = "g", label=k)
     
         ax[0].set_xlim([0, w0 - 1])
         ax[0].set_ylim([h0 - 1, 0])
         
         
         xs, ys, ws, hs = _roi_coordinates(self.scale_rect)
-        ax[0].add_patch(Rectangle((xs, ys), ws, hs, ec="g",fc="none",\
-                                                label = "scale_rect"))
+        ax[0].add_patch(Rectangle((xs, ys), ws, hs, ec="lime",fc="lime",
+                        label="scale_rect", alpha=0.3))
         
         xs, ys, ws, hs = _roi_coordinates(self.ygrad_rect)
-        ax[0].add_patch(Rectangle((xs, ys), ws, hs, ec="g",fc="none",\
-                                                label = "ygrad_rect"))
+        ax[0].add_patch(Rectangle((xs, ys), ws, hs, ec="b",fc="b",
+                        label="ygrad_rect", alpha=0.3))
         
         xs, ys, ws, hs = _roi_coordinates(self.xgrad_rect)
-        ax[0].add_patch(Rectangle((xs, ys), ws, hs, ec="g",fc="none",\
-                                                label = "xgrad_rect"))
+        ax[0].add_patch(Rectangle((xs, ys), ws, hs, ec="c",fc="c",
+                        label="xgrad_rect", alpha=0.3))
                                                 
         ax[2].set_xticklabels([])
         ax[1].set_yticklabels([])
@@ -490,22 +490,23 @@ class PlumeBackgroundModel(object):
         
         
         #plot vertical profile
-        lvert = LineOnImage(self.ygrad_line_colnum, 0,\
-                        self.ygrad_line_colnum, h0 - 1, line_id = "vert")
+        lvert = LineOnImage(self.ygrad_line_colnum, 0, self.ygrad_line_colnum,
+                            h0 - 1, line_id="vert")
         p_vert = lvert.get_line_profile(tau.img) 
             
-        ax[1].plot(p_vert, arange(0, len(p_vert), 1), "-b" ,\
-                                            label = "vert profile")
+        ax[1].plot(p_vert, arange(0, len(p_vert), 1), "-b",
+                   label="vert profile")
         ax[1].yaxis.tick_right()   
         ax[1].set_ylim([h0 - 1, 0])
         setp( ax[1].xaxis.get_majorticklabels(), rotation = 15)
         ax[1].yaxis.tick_right()   
         
         #plot horizontal profile
-        line_hor = LineOnImage(0, self.xgrad_line_rownum, w0 - 1,\
-                                    self.xgrad_line_rownum, line_id = "hor")
+        line_hor = LineOnImage(0, self.xgrad_line_rownum, w0 - 1,
+                               self.xgrad_line_rownum, line_id="hor")
         p_hor = line_hor.get_line_profile(tau.img)
-        ax[2].plot(arange(0, len(p_hor), 1), p_hor, "-c" , label = "hor profile")
+        ax[2].plot(arange(0, len(p_hor), 1), p_hor, "-c",
+                   label="hor profile")
         #ax[2].get_yaxis().set_ticks(horYLabels)
         #ax[2].set_ylim([-.05,.25])
         ax[2].set_xlim([0, w0 - 1])
@@ -537,6 +538,7 @@ class PlumeBackgroundModel(object):
         ax[0].legend(loc = "best", fancybox = True, framealpha = 0.5,\
                                                             fontsize = 10)
         return fig
+        
     """Helpers"""
     def sky_ref_areas_to_dict(self):
         """Create a dictionary with the current sky reference area settings"""
@@ -840,15 +842,15 @@ def plot_sky_reference_areas(plume_img, settings_dict, ax = None):
     
     
     xs, ys, ws, hs = _roi_coordinates(r["scale_rect"])
-    ax.add_patch(Rectangle((xs, ys), ws, hs, ec="c",fc="c", alpha = 0.7,
+    ax.add_patch(Rectangle((xs, ys), ws, hs, ec="lime",fc="lime", alpha = 0.3,
                            label = "scale_rect"))
     
     xs, ys, ws, hs = _roi_coordinates(r["ygrad_rect"])
-    ax.add_patch(Rectangle((xs, ys), ws, hs, ec="r",fc="r", alpha = 0.7,
+    ax.add_patch(Rectangle((xs, ys), ws, hs, ec="b",fc="b", alpha = 0.3,
                            label = "ygrad_rect"))
     
     xs, ys, ws, hs = _roi_coordinates(r["xgrad_rect"])
-    ax.add_patch(Rectangle((xs, ys), ws, hs, ec="g",fc="g", alpha = 0.7,
+    ax.add_patch(Rectangle((xs, ys), ws, hs, ec="c",fc="c", alpha = 0.3,
                            label = "xgrad_rect"))
     ax.legend(loc="best", fancybox=True, framealpha=0.5, fontsize=10)
         
