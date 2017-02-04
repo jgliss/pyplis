@@ -10,7 +10,7 @@ from matplotlib.pyplot import close, subplots, show
 from matplotlib.patches import Circle
 
 ### IMPORT GLOBAL SETTINGS
-from SETTINGS import SAVEFIGS, SAVE_DIR, FORMAT, DPI
+from SETTINGS import SAVEFIGS, SAVE_DIR, FORMAT, DPI, OPTPARSE
 
 ### IMPORTS FROM OTHER EXAMPLE SCRIPTS
 from ex05_2_cellcalib_auto import perform_auto_cell_calib
@@ -32,10 +32,12 @@ def draw_doas_fov(fov_x, fov_y, fov_extend, ax):
     return ax
 
 def prepare_sensitivity_corr_masks_cells(cellcalib, doasfov):
-    so2_cds = cellcalib.tau_stacks["aa"].add_data
+    so2_cds = cellcalib.cell_so2_cds
     masks = {}
     for cd in so2_cds:
-        mask, _ = cellcalib.get_sensitivity_corr_mask(doasfov, cell_cd = cd)
+        mask, _ = cellcalib.get_sensitivity_corr_mask(doas_fov=doasfov,
+                                                      cell_cd=cd,
+                                                      surface_fit_pyrlevel=2)
         masks[cd] = mask
     return masks
    
@@ -80,16 +82,16 @@ if __name__ == "__main__":
     aa_list.add_gaussian_blurring(2)
     
     ### Load DOAS calbration data and FOV information (see example 6)
-    doas = piscope.doascalib.DoasCalibData()
-    doas.load_from_fits(file_path=CALIB_FILE)
-    doas.fit_calib_polynomial()
+    doascalib = piscope.doascalib.DoasCalibData()
+    doascalib.load_from_fits(file_path=CALIB_FILE)
+    doascalib.fit_calib_polynomial()
     
     ### Get DOAS FOV parameters in absolute coordinates
-    fov_x, fov_y = doas.fov.pixel_position_center(abs_coords=True)
-    fov_extend = doas.fov.pixel_extend(abs_coords=True)
+    fov_x, fov_y = doascalib.fov.pixel_position_center(abs_coords=True)
+    fov_extend = doascalib.fov.pixel_extend(abs_coords=True)
     
     ### Load cell calibration (see example 5)
-    cell = perform_auto_cell_calib()
+    cellcalib = perform_auto_cell_calib().calib_data["aa"]
     
     ### Define lines on image for plume profiles
     pcs1 = piscope.processing.LineOnImage(620, 700, 940, 280,\
@@ -98,9 +100,9 @@ if __name__ == "__main__":
                                                         line_id = "edge")
 
     ### Plot DOAS calibration polynomial
-    ax0 = doas.plot()
-    ax0 = cell.plot_calib_curve("aa", pos_x_abs= fov_x, pos_y_abs= fov_y, \
-                                            radius_abs=fov_extend, ax = ax0)
+    ax0 = doascalib.plot()
+    ax0 = cellcalib.plot(pos_x_abs=fov_x, pos_y_abs=fov_y,
+                         radius_abs=fov_extend, ax=ax0)
                                                             
     ### Show current AA image from image list
     aa_init = aa_list.current_img()
@@ -112,13 +114,15 @@ if __name__ == "__main__":
     ax.legend(loc='best', fancybox=True, framealpha=0.5, fontsize=10)
     ax = draw_doas_fov(fov_x, fov_y, fov_extend, ax=ax)
 
-    masks = prepare_sensitivity_corr_masks_cells(cell, doas.fov)        
+    masks = prepare_sensitivity_corr_masks_cells(cellcalib, doascalib.fov)        
     aa_imgs_corr = {}    
     for cd, mask in masks.iteritems():        
         aa_imgs_corr[cd] = piscope.Img(aa_init.img / mask)
     
     fig, _ = plot_pcs_comparison(aa_init, aa_imgs_corr, pcs1, pcs2) 
-      
+    
+    ### IMPORTANT STUFF FINISHED    
+    
     if SAVEFIGS:
         ax0.figure.savefig(join(SAVE_DIR, "ex07_out_1.%s" %FORMAT),
                            format=FORMAT, dpi=DPI)
@@ -131,6 +135,13 @@ if __name__ == "__main__":
     so2min = np.min(masks.keys())
     mask = piscope.Img(masks[so2min])
     mask.save_as_fits(SAVE_DIR, "aa_corr_mask")
-    show()
+    
+    # Display images or not    
+    (options, args)   =  OPTPARSE.parse_args()
+    try:
+        if int(options.show) == 1:
+            show()
+    except:
+        print "Use option --show 1 if you want the plots to be displayed"
 
 

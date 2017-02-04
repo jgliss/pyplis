@@ -160,15 +160,269 @@ class CellAutoSearchResults(object):
             self.bg_info[filter_id] = bg_info
         if isinstance(restInfo, CellSearchInfo):
             self.restInfo[filter_id] = restInfo
+
+class CellCalibData(object):
+    """Object representing cell calibration data
+    
+    The object mainly consists of a stack containing tau images (e.g. on band
+    off band or AA images)
+    """
+    _calib_id=""
+    def __init__(self, tau_stack=None, calib_id="", so2_cds=None):
+        
+        self.tau_stack = tau_stack
+        self.calib_id = calib_id        
+                
+        try:
+            if len(so2_cds) == self.tau_stack.shape[0]:
+                self.tau_stack.add_data = so2_cds
+        except:
+            pass
+    
+    @property
+    def calib_id(self):
+        """Get / set calibration ID"""
+        return self._calib_id
+    
+    @calib_id.setter
+    def calib_id(self, val):
+        if not isinstance(val, str):
+            raise TypeError("Invalid input for calib_id, need str")
+        self._calib_id = val
+        try:
+            self.tau_stack.stack_id = val
+        except:
+            pass
+        
+    def add_tau_image(self, tau_img, cell_cd):
+        """Add one cell image to the data
+        
+        :param Img tau_img: the actual tau image (must not be cropped, is 
+            converted to pyramid level of stack, must be dark corrected, flag
+            "is_tau" must be set).
+        :param float cell_cd: corresponding gas coloumn density in cell
+        
+        .. note::
+        
+            Alpha version: not tested
+            
+        """
+        raise NotImplementedError
+                
+    @property
+    def cell_so2_cds(self):
+        """return vector containing cell SO2 CDs"""
+        return self.tau_stack.add_data
+     
+    def poly(self, pos_x_abs=None, pos_y_abs=None, radius_abs=1, mask=None, 
+             polyorder=1):
+        """Retrieve calibration polynomial within a certain pixel neighbourhood
+        
+        :param str filter_id: image type ID (e.g. "on", "off")
+        :param int pos_x_abs: detector x position (col) in absolute detector 
+                                                                    coords
+        :param int pos_y_abs: detector y position (row) in absolute detector 
+                                                                    coords
+        :param float radius_abs: radius of pixel disk on detector (centered
+            around pos_x_abs, pos_y_abs, default: 1)
+        :param ndarray mask: boolean mask for image pixel access, 
+            default is None, if the mask is specified and valid (i.e. same
+            shape than images in stack) then the other three input parameters
+            are ignored (None)
+        :param int polyorder: order of polynomial for fit (1)
+        :returns: tuple containing 
+            - poly1d, fitted polynomial
+            - ndarray, array with tau values 
+            - ndarray, array with corresponding gas CDs
+        
+        """
+        stack = self.tau_stack
+        try:
+            x_rel, y_rel = map_coordinates_sub_img(pos_x_abs, pos_y_abs,
+                                                   stack.roi_abs,
+                                                   stack.img_prep["pyrlevel"])
+        except:
+            print "Using image center coordinates"
+            h, w = stack.shape[1:]
+            x_rel, y_rel = int(w / 2.0), int(h / 2.0)
+        try:
+            rad_rel = int(ceil(float(radius_abs) /\
+                            2**stack.img_prep["pyrlevel"]))
+        except:
+            print "Using radius of 3"
+            rad_rel = 3
+        tau_arr = stack.get_time_series(x_rel, y_rel, rad_rel, mask)[0].values
+        so2_arr = stack.add_data
+        return poly1d(polyfit(tau_arr, so2_arr, polyorder)), tau_arr, so2_arr
+    
+    def get_sensitivity_corr_mask(self, doas_fov=None, cell_cd=1e16,
+                                  surface_fit_pyrlevel=2):
+        """Get sensitivity correction mask 
+        
+        Prepares a sensitivity correction mask to corrector for filter 
+        transmission shifts. These shifts result in increaing optical densities
+        towards the image edges for a given gas column density.
+        
+        The mask is determined for original image resolution, i.e. pyramid 
+        level 0.
+        
+        The mask is determined from a specified cell optical density image 
+        (aa, tau_on, tau_off) which is normalised either
+        with respect to the pixel position of a DOAS field of view within the
+        images, or, alternatively with respect to the image center coordinate.
+        
+        Plume AA (or tau_on, tau_off) images can then be corrected for these
+        sensitivity variations by division with the mask. If DOAS calibration 
+        is used, the calibration polynomial can then be used for all image 
+        pixels. If only cell calibration is used, the mask is normalised with
+        respect to the image center, the corresponding cell calibration 
+        polynomial should then be retrieved in the center coordinate which
+        is the default polynomial when using :func:`get_calibration_polynomial` 
+        or func:`__call__`) if not explicitely specified. You may then 
+        calibrate a given aa image (``aa_img``) as follows with using a 
+        :class:`CellCalibData` object (denoted with ``cellcalib``)::
+        
+            mask, cell_cd = cellcalib.get_sensitivity_corr_mask()
+            aa_corr = aa_img.duplicate()
+            aa_corr.img = aa_img.img / mask
+            #this is retrieved in the image center if not other specified
+            so2img = cellcalib(aa_corr)
+            so2img.show()
+            
+        :param DoasFov doas_fov: DOAS field of view class, if unspecified, the
+            correction mask is determined with respect to the image center
+        :param str filter_id: mask is determined from the corresponding calib
+            data (e.g. "on", "off", "aa")
+        :param float cell_cd: use the cell which is closest to this column
+        :param int surface_fit_pyrlevel: additional downscaling factor for 
+            2D polynomial surface fit
+        :return: 
+            - ndarray, correction mask
+            - float, column density of corresponding cell image
+        
+        .. note::
+        
+            This function was only tested for AA images and not for on / off
+            cell tau images
+            
+        """
+        stack = self.tau_stack
+        #convert stack to pyramid level 0
+        stack = stack.to_pyrlevel(0)
+        try:
+            if stack.img_prep["crop"]:
+                raise ValueError("Stack is cropped: sensitivity mask can only"
+                    "be determined for uncropped images")
+        except:
+            pass
+        idx = argmin(abs(stack.add_data - cell_cd))
+        cell_img, cd = stack.stack[idx], stack.add_data[idx]
+        if isinstance(doas_fov, DoasFOV):
+            fov_x, fov_y = doas_fov.pixel_position_center(abs_coords=True)
+            fov_extend = doas_fov.pixel_extend(abs_coords=True)
+            
+        else:
+            print "Using image center coordinates and radius 3"
+            h, w = stack.shape[1:]
+            fov_x, fov_y = int(w / 2.0), int(h / 2.0)
+            fov_extend = 3
+        fov_mask = stack.make_circular_access_mask(fov_x, fov_y, fov_extend)
+        try:
+            cell_img = PolySurfaceFit(cell_img, 
+                                      pyrlevel=surface_fit_pyrlevel).model
+        except:
+            warn("2D polyfit failed while determine sensitivity correction "
+                "mask, using original cell tau image for mask determination")
+        mean = (cell_img * fov_mask).sum() / fov_mask.sum()
+        mask = cell_img / mean
+        return mask, cd
+        
+    def plot(self, pos_x_abs, pos_y_abs, radius_abs=1, mask=None,
+             ax=None):
+        """Plot all available calibration curves in a certain pixel region
+        
+        :param int pos_x_abs (None): x position of center pixel on detector
+        :param int pos_y_abs (None): y position of center pixel on detector
+        :param float radius_abs (1): radius of pixel disk on detector (centered
+            around pos_x_abs, pos_y_abs)
+        :param ndarray mask (None): boolean mask for image pixel access, 
+            default is None, if the mask is specified and valid (i.e. same
+            shape than images in stack) then the other three input parameters
+            are ignored
+        :param ax (None): matplotlib axes (if None, a new figure with axes
+            will be created)
+            
+        """
+        add_to = True
+        if ax is None:
+            fig, ax = subplots(1, 1)
+            add_to = False
+        poly, tau, so2 = self.poly(pos_x_abs, pos_y_abs, radius_abs, mask)
+        
+        taus = linspace(0, tau.max() * 1.05, 100)
+        ax.plot(tau, so2, " ^", label = "Cell data %s" %self.calib_id)
+        ax.plot(taus, poly(taus),"--", label = "Fit: %s" %poly)
+        
+        if not add_to:
+            ax.set_ylabel(r"S$_{SO2}$ [cm$^{-2}$]", fontsize=18)
+            ax.set_xlabel(r"$\tau$", fontsize = 18)    
+            ax.grid()
+        ax.legend(loc = "best", fancybox = True, framealpha = 0.5,\
+                                                        fontsize = 14)
+        return ax
+        
+    def __sub__(self, other):
+        """Subtraction (e.g. for AA calib determination)"""
+        if not isinstance(other, CellCalibData):
+            raise TypeError("Need CellCalibData object for subtraction")
+        st = self.tau_stack - other.tau_stack
+        return CellCalibData(tau_stack=st)
+
+    def __call__(self, value, **kwargs):
+        """Define call function to apply calibration
+        
+        :param float value: tau or AA value
+        :return: corresponding column density
+        """
+        try:
+            poly = self.get_calibration_polynomial(**kwargs)[0]
+        except:
+            raise ValueError("Calibration data not available")
+        if isinstance(value, Img):
+            calib_im = value.duplicate()
+            calib_im.img = poly(calib_im.img)
+            calib_im.edit_log["gascalib"] = True
+            return calib_im
+        elif isinstance(value, ImgStack):
+            try:
+                value = value.duplicate()
+            except MemoryError:
+                warn("Stack cannot be duplicated, applying calibration to "
+                "input stack")
+            value.stack=poly(value.stack)
+            value.img_prep["gascalib"] = True
+            return value
+        return poly(value) - poly.coeffs[-1]
         
 class CellCalibEngine(Dataset):
-    """Class representing cell calibration functionality
+    """Class for performing automatic cell calibration 
     
-    This class id designed to define datasets related to time windows, where 
-    calibration cells were put in front of lense. It provides functionality to
-    define the cells used (i.e. SO2-SCDs in each cell) and to identify sub time
-    windows corresponding to the individual cells. Inherits from 
-    :class:`piscope.Datasets.Dataset`
+    This class is designed to define datasets related to time windows, where 
+    cell calibration was performed, i.e. the camera pointing into a gas (and
+    cloud) free area of the sky with a number of calibration cells are put
+    in front of the lense consecutively (ideally, the cells should cover the
+    whole FOV of the camera in order to be able to retrieve calibration 
+    polynomials for each image pixel individually).
+    Individual time windows for each cell are extracted by analysing the time
+    series of pixel mean intensities for all images that fall into the start
+    / stop interval. Cells can be identified by dips of decreased intensities
+    in the time series. The individual cells are then assigned automatically
+    based on the depth of each dip (in the on band) and the column densities
+    of the cells used (the latter need to be provided).
+    
+    Is initialised as :class:`piscope.Datasets.Dataset` object, i.e. normal
+    setup is like plume data using a :class:`MeasSetup` object (make sure 
+    that ``cell_info_dict`` is set in the setup class).
     """
     def __init__(self, setup = None, init = 1):
         print 
@@ -179,20 +433,20 @@ class CellCalibEngine(Dataset):
         self.type = "cell_calib"
         
         self.cell_search_performed = 0
-        self._cell_info_auto_search = {}
+        self._cell_info_auto_search = od()
         
         if isinstance(self.setup, MeasSetup):
             self.set_cell_info_dict_autosearch(self.setup.cell_info_dict)
         
-        self.cell_lists = {}
-        self.bg_lists = {}
+        self.cell_lists = od()
+        self.bg_lists = od()
         
         self.search_results = CellAutoSearchResults()
         
-        self.pix_mean_tseries = {}
-        self.bg_tseries = {}
+        self.pix_mean_tseries = od()
+        self.bg_tseries = od()
         
-        self.tau_stacks = {}
+        self.calib_data = od()
         print 
         print "FILELISTS IN CALIB DATASET OBJECT INITIALISED"
         print
@@ -472,13 +726,6 @@ class CellCalibEngine(Dataset):
             for filter_id in filter_ids:
                 res[filter_id][s0[k]].img_list.update_cell_info(cell_id, gas_cd,\
                                                                 gas_cd_err)
-#==============================================================================
-#                 if not self.cell_lists.has_key(filter_id):
-#                     self.cell_lists[filter_id] = {}
-#==============================================================================
-                
-                #self.add_cell_img_list(res[filter_id][s0[k]].img_list)
-        
     
     def add_search_results(self):
         """Add results from automatic cell detection to calibration
@@ -550,10 +797,10 @@ class CellCalibEngine(Dataset):
         filter_ids = self.cell_lists.keys()
         cell_ids = self.cell_lists[filter_ids[0]].keys()
         #get number of cells for first filter ID
-        cellNum0 = len(self.cell_lists[filter_ids[0]])
+        first_cell_num = len(self.cell_lists[filter_ids[0]])
         
         for filter_id in filter_ids:
-            if not len(self.cell_lists[filter_id]) == cellNum0:
+            if not len(self.cell_lists[filter_id]) == first_cell_num:
                 raise Exception("Mismatch in number of cells in "
                     "self.cell_lists between filter list %s and %s" 
                     %(filter_ids[0], filter_id))
@@ -604,30 +851,34 @@ class CellCalibEngine(Dataset):
         """Checks if all current cell lists contain images and gas CD info"""
         return self.check_all_lists()
     
-    def prepare_calibration_stacks(self, on_id, off_id, darkcorr = True,
-                                               blurring = 1, pyrlevel = 0):
+    def prepare_calib_data(self, on_id, off_id, darkcorr=True, blurring=1,
+                           pyrlevel=0):
         """High level function to prepare all calibration stacks (on, off, aa)
         
         :param str on_id: ID of onband filter used to determine calib curve
         :param str off_id: ID of offband filter
+        :param bool darkcorr: perform dark correction before determining tau
+            images
+        :param int blurring: width of gaussian filter applied to tau images
+        :param int pyrlevel: downscale factor
         :returns bool: success
         """
         ids = [on_id, off_id]
         self.check_all_lists()
         for filter_id in ids:
-            if not self.prepare_tau_stack(filter_id, darkcorr, blurring,
+            if not self.prepare_tau_calib(filter_id, darkcorr, blurring,
                                           pyrlevel):
                 print ("Failed to prepare cell calibration, check tau stack "
                     "determination for filter ID: %s" %filter_id)
                 return 0
-        if not self.prepare_aa_stack(on_id, off_id):
+        if not self.prepare_aa_calib(on_id, off_id):
             print ("Failed to prepare cell AA calibration, check tau stack "
                     "determination for filter ID: %s" %filter_id)
             return 0
         return 1
     
-    def prepare_tau_stack(self, filter_id, darkcorr = True, blurring = 1,\
-                                                            pyrlevel = 0):
+    def prepare_tau_calib(self, filter_id, darkcorr=True, blurring=1,
+                          pyrlevel=0):
         """Prepare a stack of tau images for input filter images
         
         Prepares a stack of tau images with each layer corresponding to one
@@ -640,8 +891,7 @@ class CellCalibEngine(Dataset):
             supposed to be applied to data (True)
         :param int blurring: specify amount of gaussian blurring (1)
         :param int pyrlevel: Specify size reduction factor using gaussian 
-            pyramide (2)
-        
+            pyramide
         """
 
         bg_list = self.bg_lists[filter_id]
@@ -686,149 +936,66 @@ class CellCalibEngine(Dataset):
                     cell_img.meta["start_acq"], texp = cell_img.meta["texp"],\
                                     add_data = lst.gas_cd)
         tau_stack.img_prep.update(tau_img.edit_log)
-        self.tau_stacks[filter_id] = tau_stack
+        self.calib_data[filter_id] = CellCalibData(tau_stack=tau_stack,
+                                                   calib_id=filter_id)
         return tau_stack
     
-    def prepare_aa_stack(self, on_id = "on", off_id = "off", stack_name = "aa"):
+    def prepare_aa_calib(self, on_id="on", off_id="off", calib_id="aa"):
         """Prepare stack containing AA images
         
         :param str on_id ("on"): ID of on band filter
         :param str off_id ("off"): ID of offband filter
-        :param str stack_name ("aa"): ID of AA image stack
+        :param str calib_id ("aa"): ID of AA image stack
         
-        The imagery data is retrieved from ``self.tau_stacks`` so, before calling
+        The imagery data is retrieved from ``self.calib_data`` so, before calling
         this function, make sure, the corresponding on and offband stacks were
-        created using :func:`prepare_tau_stack`
+        created using :func:`prepare_tau_calib`
         
-        The new AA stack is added to ``self.tau_stacks`` dictionary
+        The new AA stack is added to ``self.calib_data`` dictionary
         
         """
         try:
-            aa = self.tau_stacks[on_id] - self.tau_stacks[off_id]
+            aa_calib = self.calib_data[on_id] - self.calib_data[off_id]
         except:
-            warn("Tau on and / or tau off stacks are not available for AA "
+            warn("Tau on and / or tau off calib data is not available for AA "
                 "stack calculation, trying to determine these ... ")
-            self.prepare_tau_stack(on_id, darkcorr = True)
-            self.prepare_tau_stack(off_id, darkcorr = True)
-            aa = self.tau_stacks[on_id] - self.tau_stacks[off_id]
-        aa.stack_id  = "aa"
-        self.tau_stacks[stack_name] = aa
-        return aa
+            self.prepare_tau_calib(on_id, darkcorr=True)
+            self.prepare_tau_calib(off_id, darkcorr=True)
+            aa_calib = self.calib_data[on_id] - self.calib_data[off_id]
+        aa_calib.calib_id  = "aa"
+        self.calib_data[calib_id] = aa_calib
+        return aa_calib
     
-    def get_sensitivity_corr_mask(self, doas_fov=None, filter_id="aa",
-                                  cell_cd = 1e16, surface_fit_pyrlevel=2):
+    def get_sensitivity_corr_mask(self, calib_id="aa", **kwargs):
         """Get sensitivity correction mask 
         
-        Prepares a sensitivity correction mask to corrector for filter 
-        transmission shifts. These shifts result in increaing optical densities
-        towards the image edges for a given gas column density.
-        
-        The mask is determined from a specified cell optical density image (aa, tau_on, tau_off) which is normalised either
-        with respect to the pixel position of a DOAS field of view within the
-        images, or, alternatively with respect to the image center coordinate.
-        
-        Plume AA (or tau_on, tau_off) images can then be corrected for these
-        sensitivity variations by division with the mask. If DOAS calibration 
-        is used, the calibration polynomial can then be used for all image 
-        pixels. If only cell calibration is used, the mask is normalised with
-        respect to the image center, the corresponding cell calibration 
-        polynomial should then be retrieved in the center coordinate which
-        is the default polynomial when using :func:`get_calibration_polynomial` 
-        or func:`__call__`) if not explicitely specified. You may then 
-        calibrate a given aa image (``aa_img``) as follows with using a 
-        :class:`CellCalibEngine` object (denoted with ``cellcalib``)::
-        
-            mask, cell_cd = cellcalib.get_sensitivity_corr_mask()
-            aa_corr = aa_img.duplicate()
-            aa_corr.img = aa_img.img / mask
-            #this is retrieved in the image center if not other specified
-            so2img = cellcalib(aa_corr)
-            so2img.show()
+        For a detailed description see corresponding method in 
+        :class:`CellCalibData`.
             
-        :param DoasFov doas_fov: DOAS field of view class, if unspecified, the
-            correction mask is determined with respect to the image center
-        :param str filter_id: mask is determined from the corresponding calib
+        :param str calib_id: mask is determined from the corresponding calib
             data (e.g. "on", "off", "aa")
-        :param float cell_cd: use the cell which is closest to this column
-        :param int surface_fit_pyrlevel: additional downscaling factor for 
-            2D polynomial surface fit
-        
-        .. note::
-        
-            This function was only tested for AA images and not for on / off
-            cell tau images
+        :param **kwargs: keyword args (see corresponding method in 
+            :class:`CellCalibData`)
             
+    
         """
-        if not filter_id in self.tau_stacks.keys():
-            raise ValueError("Stack with ID %s not available")
-        stack = self.tau_stacks[filter_id]
-        #convert stack to pyramid level 0
-        stack = stack.to_pyrlevel(0)
-        try:
-            if stack.img_prep["crop"]:
-                raise ValueError("Stack is cropped: sensitivity mask can only"
-                    "be determined for uncropped images")
-        except:
-            pass
-        idx = argmin(abs(stack.add_data - cell_cd))
-        cell_img, cd = stack.stack[idx], stack.add_data[idx]
-        if isinstance(doas_fov, DoasFOV):
-            fov_x, fov_y = doas_fov.pixel_position_center(abs_coords=True)
-            fov_extend = doas_fov.pixel_extend(abs_coords=True)
-            
-        else:
-            print "Using image center coordinates and radius 3"
-            h, w = stack.shape[1:]
-            fov_x, fov_y = int(w / 2.0), int(h / 2.0)
-            fov_extend = 3
-        fov_mask = stack.make_circular_access_mask(fov_x, fov_y, fov_extend)
-        cell_img = PolySurfaceFit(cell_img, 
-                                  pyrlevel=surface_fit_pyrlevel).model
-        mean = (cell_img * fov_mask).sum() / fov_mask.sum()
-        mask = cell_img / mean
-        return mask, cd 
+        if not calib_id in self.calib_data.keys():
+            raise ValueError("%s calibration data is not available" %calib_id)
+        return self.calib_data[calib_id].get_senitivity_corr_mask(**kwargs)
           
-    def get_calibration_polynomial(self, filter_id="aa", pos_x_abs=None,
-                                   pos_y_abs=None, radius_abs=1,
-                                   mask=None, polyorder=1):
+    def get_calibration_polynomial(self, calib_id="aa", **kwargs):
         """Retrieve calibration polynomial within a certain pixel neighbourhood
         
-        :param str filter_id: image type ID (e.g. "on", "off")
-        :param int pos_x_abs: detector x position (col) in absolute detector 
-                                                                    coords
-        :param int pos_y_abs: detector y position (row) in absolute detector 
-                                                                    coords
-        :param float radius_abs: radius of pixel disk on detector (centered
-            around pos_x_abs, pos_y_abs, default: 1)
-        :param ndarray mask: boolean mask for image pixel access, 
-            default is None, if the mask is specified and valid (i.e. same
-            shape than images in stack) then the other three input parameters
-            are ignored (None)
-        :param int polyorder: order of polynomial for fit (1)
+        :param str calib_id: image type ID (e.g. "on", "off")
+        :param **kwargs: additional keyword arguments passed to :func:`poly`
+            of :class:`CellCalibData` object corresponding to ``calib_id``.
         :returns: tuple containing 
             - poly1d, fitted polynomial
             - ndarray, array with tau values 
             - ndarray, array with corresponding gas CDs
         
         """
-        stack = self.tau_stacks[filter_id]
-        try:
-            x_rel, y_rel = map_coordinates_sub_img(pos_x_abs, pos_y_abs,
-                                                   stack.roi_abs,
-                                                   stack.img_prep["pyrlevel"])
-        except:
-            print "Using image center coordinates"
-            h, w = stack.shape[1:]
-            x_rel, y_rel = int(w / 2.0), int(h / 2.0)
-        try:
-            rad_rel = int(ceil(float(radius_abs) /\
-                            2**stack.img_prep["pyrlevel"]))
-        except:
-            print "Using radius of 3"
-            rad_rel = 3
-        tau_arr = stack.get_time_series(x_rel, y_rel, rad_rel, mask)[0].values
-        so2_arr = stack.add_data
-        return poly1d(polyfit(tau_arr, so2_arr, polyorder)), tau_arr, so2_arr
+        return self.calib_data[calib_id].poly(**kwargs)
     
     """
     Redefinitions
@@ -914,73 +1081,38 @@ class CellCalibEngine(Dataset):
             
         ax.legend(loc = 4, fancybox = True, framealpha = 0.5, fontsize=10)
         ax.set_ylabel("Avg. pixel intensity", fontsize = 16)
-        return ax.figure, ax
+        return ax
     
-    def plot_calib_curve(self, filter_id, pos_x_abs, pos_y_abs,\
-                                radius_abs = 1, mask = None, ax = None):
-        """Plot all available calibration curves in a certain pixel region
+    def plot_calib_curve(self, calib_id, **kwargs):
+        """Plot calibration curve 
         
-        :param str filter_id: image type ID (e.g. "on", "off")
-        :param int pos_x_abs (None): x position of center pixel on detector
-        :param int pos_y_abs (None): y position of center pixel on detector
-        :param float radius_abs (1): radius of pixel disk on detector (centered
-            around pos_x_abs, pos_y_abs)
-        :param ndarray mask (None): boolean mask for image pixel access, 
-            default is None, if the mask is specified and valid (i.e. same
-            shape than images in stack) then the other three input parameters
-            are ignored
-        :param ax (None): matplotlib axes (if None, a new figure with axes
-            will be created)
+        :param str filter_id: image type ID (e.g. "aa")
+        :param **kwargs: plotting keyword arguments passed to :func:`plot` of
+            corresponding :class:`CellCalibData` object
             
         """
-        add_to = True
-        if ax is None:
-            fig, ax = subplots(1, 1)
-            add_to = False
-        poly, tau, so2 = self.get_calibration_polynomial(filter_id, pos_x_abs,\
-                                                pos_y_abs, radius_abs, mask)
+        return self.calib_data[calib_id].plot(**kwargs)
         
-        taus = linspace(0, tau.max() * 1.05, 100)
-        ax.plot(tau, so2, " ^", label = "Cell data %s" %filter_id)
-        ax.plot(taus, poly(taus),"--", label = "Fit: %s" %poly)
-        
-        if not add_to:
-            ax.set_ylabel(r"S$_{SO2}$ [cm$^{-2}$]", fontsize=18)
-            ax.set_xlabel(r"$\tau$", fontsize = 18)    
-            ax.grid()
-        ax.legend(loc = "best", fancybox = True, framealpha = 0.5,\
-                                                        fontsize = 14)
-        return ax
-        
-    def plot_all_calib_curves(self, pos_x_abs=None, pos_y_abs=None,
-                              radius_abs=1, mask=None, ax=None):
+    
+    def plot_all_calib_curves(self, ax=None, **kwargs):
         """Plot all available calibration curves in a certain pixel region
         
-        :param str filter_id: image type ID (e.g. "on", "off")
-        :param int pos_x_abs (None): x position of center pixel on detector
-        :param int pos_y_abs (None): y position of center pixel on detector
-        :param float radius_abs (1): radius of pixel disk on detector (centered
-            around pos_x_abs, pos_y_abs)
-        :param ndarray mask (None): boolean mask for image pixel access, 
-            default is None, if the mask is specified and valid (i.e. same
-            shape than images in stack) then the other three input parameters
-            are ignored
-        :param ax (None): matplotlib axes (if None, a new figure with axes
-            will be created)
+        :param **kwargs: plotting keyword arguments passed to 
+            :func:`get_calibration_polynomial` of corresponding 
+            :class:`CellCalibData` objects
             
         """
         if ax is None:
             fig, ax = subplots(1,1)
         tau_max = -10
         y_min = 1e20
-        for filter_id, stack in self.tau_stacks.iteritems():
-            poly, tau, so2 = self.get_calibration_polynomial(filter_id,\
-                                    pos_x_abs, pos_y_abs, radius_abs, mask)
+        for calib_id, calib in self.calib_data.iteritems():
+            poly, tau, so2 = calib.poly(**kwargs)
             
             taus = linspace(0, tau.max() * 1.2, 100)
-            pl = ax.plot(tau, so2, " ^", label = "Data %s" %filter_id)
+            pl = ax.plot(tau, so2, " ^", label = "Data %s" %calib_id)
             ax.plot(taus, poly(taus),"-", color=pl[0].get_color(),
-                    label = "Poly %s" %self.poly_str(poly))
+                    label = "Poly %s" %poly_str(poly))
             tm = tau.max()
             if tm > tau_max:
                 tau_max = tm
@@ -995,41 +1127,23 @@ class CellCalibEngine(Dataset):
         ax.legend(loc = "best", fancybox = True,\
                             framealpha = 0.5, fontsize = 10)
         return ax
-     
-    def poly_str(self, poly):
-        """Return custom string representation of polynomial"""
-        exp = exponent(poly.coeffs[0])
-        p = poly1d(round(poly / 10**(exp - 2))/10**2)
-        return "%s E%+d" %(p, exp)
-        
-        
-    def __call__(self, value, filter_id="aa", **kwargs):
-        """Define call function to apply calibration
+    
+    def __call__(self, value, calib_id="aa", **kwargs):
+        """Apply calibration to input value (i.e. convert into gas CD)
         
         :param float value: tau or AA value
+        :param str calib_id: ID of calibration data supposed to be used
+        :param **kwargs: keyword arguments to extract calibration information
+            (e.g. pos_x_abs, pos_y_abs, radius_abs)
         :return: corresponding column density
         """
-        try:
-            poly = self.get_calibration_polynomial(filter_id, **kwargs)[0]
-        except:
-            raise ValueError("Calibration data not available")
-        if isinstance(value, Img):
-            calib_im = value.duplicate()
-            calib_im.img = poly(calib_im.img)
-            calib_im.edit_log["gascalib"] = True
-            return calib_im
-        elif isinstance(value, ImgStack):
-            try:
-                value = value.duplicate()
-            except MemoryError:
-                warn("Stack cannot be duplicated, applying calibration to "
-                "input stack")
-            value.stack=poly(value.stack)
-            value.img_prep["gascalib"] = True
-            return value
-        return poly(value) - poly.coeffs[-1]
+        return self.calib_data[calib_id](value, **kwargs)
         
-   
+def poly_str(poly):
+    """Return custom string representation of polynomial"""
+    exp = exponent(poly.coeffs[0])
+    p = poly1d(round(poly / 10**(exp - 2))/10**2)
+    return "%s E%+d" %(p, exp)
 
         
 

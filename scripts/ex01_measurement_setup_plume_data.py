@@ -8,10 +8,10 @@ dataset from that.
 import piscope as piscope
 from datetime import datetime
 from matplotlib.pyplot import show
-from  optparse import OptionParser
+
 
 ### IMPORT GLOBAL SETTINGS
-from SETTINGS import IMG_DIR
+from SETTINGS import IMG_DIR, OPTPARSE
 
 ### SCRIPT FUNCTION DEFINITIONS
 def create_dataset():
@@ -68,15 +68,20 @@ def create_dataset():
 
 ### SCRIPT MAIN FUNCTION    
 if __name__ == "__main__":
-    parser = OptionParser(usage='piscope example script no. 1')
-    parser.add_option('--test_data_path', dest='test_data_path', default=None,
-                      help="""Test data path .""")
-    (args,rest)   =  parser.parse_args()
-    
     ds = create_dataset()
     img = ds.get_list("on").current_img()
     print str(img) #the image object has an informative string representation
-    img.show()
-    show()
+    
+    
+    ### IMPORTANT STUFF FINISHED
+    
+    # Display images or not (nothing to understand here...)
+    (options, args)   =  OPTPARSE.parse_args()
+    try:
+        if int(options.show) == 1:
+            img.show()
+            show()
+    except:
+        print "Use option --show 1 if you want the plots to be displayed"
     
     
