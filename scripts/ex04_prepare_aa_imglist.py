@@ -10,7 +10,7 @@ from matplotlib.pyplot import close
 from os.path import join
 
 ### IMPORT GLOBAL SETTINGS
-from SETTINGS import SAVEFIGS, SAVE_DIR, FORMAT, DPI, IMG_DIR
+from SETTINGS import SAVEFIGS, SAVE_DIR, FORMAT, DPI, IMG_DIR, OPTPARSE
 
 ### IMPORTS FROM OTHER EXAMPLE SCRIPTS
 from ex01_measurement_setup_plume_data import create_dataset
@@ -104,8 +104,16 @@ if __name__ == "__main__":
     ax1 = aa_list.bg_model.plot_sky_reference_areas(aa_list.current_img())
     fig = aa_list.bg_model.plot_tau_result(aa_list.current_img())
     
+    ### IMPORTANT STUFF FINISHED    
+    
     if SAVEFIGS:
         ax.figure.savefig(join(SAVE_DIR, "ex04_out_1.%s" %FORMAT), format=FORMAT,
                     dpi=DPI)
 
-    show()
+    # Display images or not    
+    (options, args)   =  OPTPARSE.parse_args()
+    try:
+        if int(options.show) == 1:
+            show()
+    except:
+        print "Use option --show 1 if you want the plots to be displayed"

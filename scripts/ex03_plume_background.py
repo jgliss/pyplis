@@ -8,10 +8,10 @@ and tau image calculations.
 import numpy as np
 from os.path import join
 import piscope
-import matplotlib.pyplot as plt
+from matplotlib.pyplot import show, subplots, close
 
 ### IMPORT GLOBAL SETTINGS
-from SETTINGS import SAVEFIGS, SAVE_DIR, FORMAT, DPI, IMG_DIR
+from SETTINGS import SAVEFIGS, SAVE_DIR, FORMAT, DPI, IMG_DIR, OPTPARSE
 
 ### SCRIPT OPTIONS
 
@@ -106,7 +106,7 @@ def autosettings_vs_manual_settings(bg_model):
     auto_params = piscope.plumebackground.find_sky_reference_areas(plume)
     current_params = bg_model.sky_ref_areas_to_dict()
                                                                 
-    fig, axes = plt.subplots(1, 2, figsize = (16, 6))                                                                
+    fig, axes = subplots(1, 2, figsize = (16, 6))                                                                
     axes[0].set_title("Manually set parameters")
     piscope.plumebackground.plot_sky_reference_areas(plume, current_params,
                                                      ax=axes[0])
@@ -118,7 +118,7 @@ def autosettings_vs_manual_settings(bg_model):
 
 def plot_pcs_profiles_4_tau_images(tau0, tau1, tau2, tau3, pcs_line):
     ### Plot PCS profiles for all 4 methods
-    fig, ax = plt.subplots(1,1)
+    fig, ax = subplots(1,1)
     tau_imgs = [tau0, tau1, tau2, tau3]
     
     for k in range(4):
@@ -137,7 +137,7 @@ def plot_pcs_profiles_4_tau_images(tau0, tau1, tau2, tau3, pcs_line):
 
 ### SCRIPT MAIN FUNCTION   
 if __name__=="__main__":
-    plt.close("all")
+    close("all")
 
     ### Create a background model with relevant sky reference areas
     bg_model = init_background_model()
@@ -202,5 +202,10 @@ if __name__=="__main__":
         
         fig6.savefig(join(SAVE_DIR, "ex03_out_6.%s" %FORMAT), format=FORMAT,
                     dpi=DPI)
-    
-    plt.show()
+    # Display images or not    
+    (options, args)   =  OPTPARSE.parse_args()
+    try:
+        if int(options.show) == 1:
+            show()
+    except:
+        print "Use option --show 1 if you want the plots to be displayed"

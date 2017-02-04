@@ -6,11 +6,11 @@ Import plume image dataset from example script 1 and illustrate some important
 features of the MeasGeometry class
 """
 from geonum.base import GeoPoint
-from matplotlib.pyplot import subplots, close, show
+from matplotlib.pyplot import subplots, show, close
 from os.path import join
 
 ### IMPORT GLOBAL SETTINGS
-from SETTINGS import SAVEFIGS, SAVE_DIR, FORMAT, DPI
+from SETTINGS import SAVEFIGS, SAVE_DIR, FORMAT, DPI, OPTPARSE
 
 ### IMPORTS FROM OTHER EXAMPLE SCRIPTS
 from ex01_measurement_setup_plume_data import create_dataset
@@ -62,17 +62,31 @@ def plot_plume_distance_image(meas_geometry):
 ### SCRIPT MAIN FUNCTION
 if __name__ == "__main__":
     close("all")
+    
     ds = create_dataset()
     geom_corr, map = correct_viewing_direction(ds.meas_geometry)
 
     fig =  plot_plume_distance_image(ds.meas_geometry)
+    
+    ### IMPORTANT STUFF FINISHED    
     
     if SAVEFIGS:
         map.ax.figure.savefig(join(SAVE_DIR, "ex02_out_1.%s" %FORMAT), format=FORMAT,
                               dpi=DPI)
         fig.savefig(join(SAVE_DIR, "ex02_out_2.%s" %FORMAT), format=FORMAT,
                     dpi=DPI)
-    show()
+    
+    
+    
+    # Display images or not (nothing to understand here...)
+    (options, args)   =  OPTPARSE.parse_args()
+    
+    (options, args)   =  OPTPARSE.parse_args()
+    try:
+        if int(options.show) == 1:
+            show()
+    except:
+        print "Use option --show 1 if you want the plots to be displayed"
     
     
     

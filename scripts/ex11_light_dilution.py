@@ -4,7 +4,7 @@ piscope example script no. 10 - Image based light dilution correction
 """
 import piscope as piscope
 from geonum.base import GeoPoint
-import matplotlib.pyplot as plt
+from matplotlib.pyplot import show, close, subplots, Rectangle
 from datetime import datetime
 import numpy as np
 from os.path import join, exists
@@ -13,7 +13,7 @@ from piscope.dilutioncorr import DilutionCorr
 from piscope.doascalib import DoasCalibData
 
 ### IMPORT GLOBAL SETTINGS
-from SETTINGS import IMG_DIR, SAVEFIGS, SAVE_DIR, FORMAT, DPI
+from SETTINGS import IMG_DIR, SAVEFIGS, SAVE_DIR, FORMAT, DPI, OPTPARSE
 
 ### IMPORTS FROM OTHER EXAMPLE SCRIPTS
 from ex10_bg_image_lists import get_bg_image_lists
@@ -219,7 +219,7 @@ if __name__ == "__main__":
         raise IOError("Calibration file could not be found at specified "
             "location:\n %s\nYou might need to run example 6 first")
 
-    plt.close("all")
+    close("all")
     
     calib = DoasCalibData()    
     calib.load_from_fits(CALIB_FILE)
@@ -265,7 +265,7 @@ if __name__ == "__main__":
     # ... and get uncertainty in plume distance estimate for the column
     pix_dist_err = geom.pix_dist_err(col)
     
-    fig, ax = plt.subplots(2, 2, figsize = (12,8))
+    fig, ax = subplots(2, 2, figsize = (12,8))
     
     ia_on = on_vigncorr.crop(AMBIENT_ROI, True).mean()
     ia_off = off_vigncorr.crop(AMBIENT_ROI, True).mean()
@@ -326,7 +326,7 @@ if __name__ == "__main__":
     ax[1, 0].set_title("Dilution corrected AA image", fontsize = 12)
     pcs_line.plot_line_on_grid(ax = ax[1, 0], ls="-", color = "g")
     x0, y0, w, h = piscope.helpers.roi2rect(AMBIENT_ROI)
-    ax[1, 0].add_patch(plt.Rectangle((x0, y0), w, h, fc = "none", ec = "c"))
+    ax[1, 0].add_patch(Rectangle((x0, y0), w, h, fc = "none", ec = "c"))
     
     # Calculate flux and uncertainty                                    
     ax[1,1].plot(so2_cds_uncorr, "--b", label=r"Uncorr: $\Phi_{SO2}=$"
@@ -339,6 +339,8 @@ if __name__ == "__main__":
     ax[1,1].set_xlim([0, len(pix_dists_line)])
     ax[1,1].set_ylim([0, 5e18])
     
+    ### IMPORTANT STUFF FINISHED
+    
     if SAVEFIGS:    
         ax0.figure.savefig(join(SAVE_DIR, "ex11_out_1.%s" %FORMAT),
                            format=FORMAT, dpi=DPI)
@@ -348,6 +350,11 @@ if __name__ == "__main__":
         fig.savefig(join(SAVE_DIR, "ex11_out_3.%s" %FORMAT),
                            format=FORMAT, dpi=DPI)
 
-        
 
-
+    # Display images or not    
+    (options, args)   =  OPTPARSE.parse_args()
+    try:
+        if int(options.show) == 1:
+            show()
+    except:
+        print "Use option --show 1 if you want the plots to be displayed"

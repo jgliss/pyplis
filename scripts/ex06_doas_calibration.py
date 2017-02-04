@@ -8,12 +8,12 @@ Sript showing how to work with cell calibration data
 import piscope 
 import pydoas
 from datetime import timedelta
-from matplotlib.pyplot import close, show, subplots, tight_layout
+from matplotlib.pyplot import close, show, subplots
 from os.path import join, exists
 from os import remove
 
 ### IMPORT GLOBAL SETTINGS
-from SETTINGS import SAVEFIGS, SAVE_DIR, FORMAT, DPI, IMG_DIR
+from SETTINGS import SAVEFIGS, SAVE_DIR, FORMAT, DPI, IMG_DIR, OPTPARSE
 
 ### IMPORTS FROM OTHER EXAMPLE SCRIPTS
 from ex04_prepare_aa_imglist import prepare_aa_image_list
@@ -155,10 +155,23 @@ if __name__ == "__main__":
     except:
         pass
     calib_pears.save_as_fits(save_dir = SAVE_DIR)
+    
+    # Print the results of the FOV search
+    print calib_ifr.fov
+    print calib_pears.fov
+    
+    ### IMPORTANT STUFF FINISHED
     if SAVEFIGS:
         for k in range(len(axes)):
             ax = axes[k]
             ax.set_title("")
             ax.figure.savefig(join(SAVE_DIR, "ex06_out_%d.%s" %((k+1), FORMAT)),
                                    format=FORMAT, dpi=DPI)
-    show()
+    
+    # Display images or not    
+    (options, args)   =  OPTPARSE.parse_args()
+    try:
+        if int(options.show) == 1:
+            show()
+    except:
+        print "Use option --show 1 if you want the plots to be displayed"

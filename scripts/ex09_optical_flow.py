@@ -7,7 +7,7 @@ from os.path import join
 import piscope
 
 ### IMPORT GLOBAL SETTINGS
-from SETTINGS import SAVEFIGS, SAVE_DIR, FORMAT, DPI
+from SETTINGS import SAVEFIGS, SAVE_DIR, FORMAT, DPI, OPTPARSE
 
 ### IMPORTS FROM OTHER EXAMPLE SCRIPTS
 from ex04_prepare_aa_imglist import prepare_aa_image_list
@@ -79,6 +79,8 @@ if __name__ == "__main__":
     fig = fl.plot_flow_histograms()
     fig.suptitle("v = %.2f m/s" %(v))
     
+    ### IMPORTANT STUFF FINISHED
+    
     if SAVEFIGS:
         ax0.figure.savefig(join(SAVE_DIR, "ex09_out_1.%s" %FORMAT),
                            format=FORMAT, dpi=DPI)
@@ -88,7 +90,13 @@ if __name__ == "__main__":
                            format=FORMAT, dpi=DPI)
         fig.savefig(join(SAVE_DIR, "ex09_out_4.png"))
     
-    show() 
+    # Display images or not    
+    (options, args)   =  OPTPARSE.parse_args()
+    try:
+        if int(options.show) == 1:
+            show()
+    except:
+        print "Use option --show 1 if you want the plots to be displayed"
         
         
         

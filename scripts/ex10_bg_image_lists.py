@@ -5,9 +5,10 @@ piscope example script no. 10 - background image dataset
 
 import piscope
 from datetime import datetime
+from matplotlib.pyplot import show
 
 ### IMPORT GLOBAL SETTINGS
-from SETTINGS import IMG_DIR
+from SETTINGS import IMG_DIR, OPTPARSE
 
 ### SCRIPT FUNCTION DEFINITIONS
 def get_bg_image_lists():
@@ -38,4 +39,14 @@ if __name__ == "__main__":
     on, off = get_bg_image_lists()
     on.show_current()
     off.show_current()
+    
+    ### IMPORTANT STUFF FINISHED 
+    
+    # Display images or not    
+    (options, args)   =  OPTPARSE.parse_args()
+    try:
+        if int(options.show) == 1:
+            show()
+    except:
+        print "Use option --show 1 if you want the plots to be displayed"
     

@@ -10,10 +10,10 @@ plume background images.
 import piscope
 from datetime import datetime
 from os.path import join
-import matplotlib.pyplot as plt
+from matplotlib.pyplot import show, close
 
 ### IMPORT GLOBAL SETTINGS
-from SETTINGS import SAVEFIGS, SAVE_DIR, FORMAT, DPI, IMG_DIR
+from SETTINGS import SAVEFIGS, SAVE_DIR, FORMAT, DPI, IMG_DIR, OPTPARSE
 
 ### SCRIPT FUNCTION DEFINITIONS
 def perform_auto_cell_calib():
@@ -43,33 +43,63 @@ def perform_auto_cell_calib():
                                            camera=cam,
                                            cell_info_dict=calib_cells) 
     
-    ### Create CellCalib object, read on...
-    # This is a DataSet object and performs file separation, dark/offset list 
-    # assignment, etc. for all images in the specified time window (corresponding
-    # to the cell calibration data set, so after initiation)
+    ### Create CellCalibEngine object, read on...
+    # This is a DataSet object and performs file separation and creation of 
+    # on / off, dark / offset lists for all images in the specified time window 
     c = piscope.cellcalib.CellCalibEngine(setup)
+    
+    # the following high level method calls several funcitons in the 
+    # CellCalibEngine class, most importantly the method find_cells for on and
+    # off band image time series, which detects sub time windows for each cell
+    # and background images. After the individual time windows are detected for
+    # each cell and filter, the method _assign_calib_specs is called, which
+    # assigns the SO2 CD amount (specified above in dictionary calib_cells) 
+    # to the detected sub time windows (both for on and off) based on the depth 
+    # of the intensity dip (in the onband) for each sub time window (should 
+    # become clear from the plot produced in this script). Then it creates 
+    # CellImgList objects for each of the cells and for the detected background
+    # images (i.e. resulting in (M + 1) x 2 lists, with M being the number of 
+    # detected intensity dips, the + 1 is the corresponding background list and
+    # times 2 for on / off)
     c.find_and_assign_cells_all_filter_lists()
     
-    c.prepare_tau_stack("on", pyrlevel = 2)
-    c.prepare_tau_stack("off", pyrlevel = 2)
-    c.prepare_aa_stack()
+    # prepares CellCalibData object for tau on band (at pyramid level 2)
+    c.prepare_tau_calib("on", pyrlevel=2)
+    # prepares CellCalibData object for tau off band (at pyramid level 2)
+    c.prepare_tau_calib("off", pyrlevel=2)
+    # from the previous 2, prepare CellCalibData object for tau_aa
+    c.prepare_aa_calib()
     return c
 
 ### SCRIPT MAIN FUNCTION
 if __name__ == "__main__":
-    plt.close("all")
+    close("all")
     c = perform_auto_cell_calib()
-    ### Determine exemplary tau time series from on band stack at pixel 100, 100, radius=10
-    fig, axes = plt.subplots(1,3, figsize=(20,6))
+    
     ### Plot search result of on
-    c.plot_cell_search_result("on", include_tit = False, ax = axes[0])
-    c.plot_cell_search_result("off", include_tit = False, ax = axes[1])
-    c.plot_all_calib_curves(1344/2, 512, 20, ax = axes[2])
-    fig.tight_layout()
+    ax0 = c.plot_cell_search_result("on", include_tit = False)
+    ax1 = c.plot_cell_search_result("off", include_tit = False)
+    # Plot all calibration curves for center pixel and in a radial 
+    # neighbourhood of 20 pixels
+    ax2 = c.plot_all_calib_curves(pos_x_abs=672, pos_y_abs=512, radius_abs=20)
+    
+    ### IMPORTANT STUFF FINISHED    
     if SAVEFIGS:
-        fig.savefig(join(SAVE_DIR, "ex05_2_out_1.%s" %FORMAT), format=FORMAT,
-                    dpi=DPI)
-    axes[0].set_title("A) Cell search result on band", fontsize = 18)
-    axes[1].set_title("B) Cell search result off band", fontsize = 18)
-    axes[2].set_title("C) Calibration polynomials", fontsize = 18)
-    plt.show()
+        ax0.figure.savefig(join(SAVE_DIR, "ex05_2_out_1.%s" %FORMAT),
+                           format=FORMAT, dpi=DPI)
+        ax1.figure.savefig(join(SAVE_DIR, "ex05_2_out_2.%s" %FORMAT),
+                           format=FORMAT, dpi=DPI)
+        ax2.figure.savefig(join(SAVE_DIR, "ex05_2_out_3.%s" %FORMAT),
+                           format=FORMAT, dpi=DPI)     
+                    
+    ax0.set_title("Cell search result on band", fontsize = 18)
+    ax1.set_title("Cell search result off band", fontsize = 18)
+    ax2.set_title("Calibration polynomials", fontsize = 18)
+    
+    # Display images or not    
+    (options, args)   =  OPTPARSE.parse_args()
+    try:
+        if int(options.show) == 1:
+            show()
+    except:
+        print "Use option --show 1 if you want the plots to be displayed"
