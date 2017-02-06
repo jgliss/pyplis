@@ -453,7 +453,7 @@ class EmissionRateAnalysis(object):
             lst.optflow_mode = True
         else:
             lst.optflow_mode = False #should be much faster
-        v, verr = self.velo_glob, self.velo_glob_err
+        vglob, vglob_err = self.velo_glob, self.velo_glob_err
         ts, bg_min, bg_mean, bg_max = [], [], [], []
         roi_bg = self.bg_roi
         for k in range(start_index, stop_index):
@@ -477,13 +477,17 @@ class EmissionRateAnalysis(object):
                 disterr = dist_errs[pcs_id]
     
                 if self.settings.velo_modes["glob"]:
-                    phi, phi_err = det_emission_rate(cds, v, distarr, cd_err,
-                                                     verr, disterr, mmol)
+                    phi, phi_err = det_emission_rate(cds, vglob, distarr,
+                                                     cd_err, vglob_err, 
+                                                     disterr, mmol)
+                    if isnan(phi):
+                        print cds
+                        raise ValueError
                     res["glob"]._start_acq.append(t)
                     res["glob"]._phi.append(phi)
                     res["glob"]._phi_err.append(phi_err)
-                    res["glob"]._velo_eff.append(v)
-                    res["glob"]._velo_eff_err.append(verr)
+                    res["glob"]._velo_eff.append(vglob)
+                    res["glob"]._velo_eff_err.append(vglob_err)
                     
                     
                 if lst.optflow_mode:

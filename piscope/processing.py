@@ -229,8 +229,9 @@ class LineOnImage(object):
     Main purpose is data extraction along the line, which is done using 
     spline interpolation.    
     """
-    def __init__(self, x0 = 0, y0 = 0, x1 = 1, y1 = 1,  normal_orientation =\
-            "right", roi_abs = [0, 0, 9999, 9999], pyrlevel = 0, line_id = ""):
+    def __init__(self, x0=0, y0=0, x1=1, y1=1,  normal_orientation="right",
+                 roi_abs=[0, 0, 9999, 9999], pyrlevel=0, line_id = "",
+                 color="lime", linestyle="-"):
         """Initiation of line
         
         :param int x0: start x coordinate
@@ -255,7 +256,8 @@ class LineOnImage(object):
             
         """
         self.line_id = line_id # string ID of line
-        
+        self.color = color
+        self.linestyle = linestyle
         if x0 > x1:
             x0, y0, x1, y1 = x1, y1, x0, y0
             
@@ -545,9 +547,9 @@ class LineOnImage(object):
         if not "mec" in keys:
             kwargs["mec"] = "none"
         if not "color" in keys:
-            kwargs["color"] = "lime"
+            kwargs["color"] = self.color
         if not "ls" in keys:
-            kwargs["ls"] = "-"
+            kwargs["ls"] = self.linestyle
         if not "marker" in keys:
             kwargs["marker"] = "o"
         if not "label" in keys:

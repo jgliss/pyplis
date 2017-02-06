@@ -83,7 +83,7 @@ def supergauss_2d((x, y), amplitude, xm, ym, sigma, asym, shape, offset):
     :param float ym: y position of maximum
     :param float asym: assymetry in y direction (1 is circle, smaller 
             means dillated in y direction)
-    :param float shape: super gaussian shape parameter (2 is gaussian)
+    :param float shape: super gaussian shape parameter (1 is gaussian)
     :param float offset: base level of gaussian 
     """
     u = ((x - xm) / sigma) ** 2 + ((y - ym) * asym / sigma)**2

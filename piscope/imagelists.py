@@ -1571,7 +1571,7 @@ class ImgList(BaseImgList):
             roi = map_roi(self.bg_model.scale_rect, self.pyrlevel)
             len_im = self.optflow.get_flow_vector_length_img() #is at pyrlevel
             sub = len_im[roi[1]:roi[3], roi[0]:roi[2]]
-            min_len = ceil(sub.mean() + 3 * sub.std())
+            min_len = ceil(sub.mean() + 3 * sub.std()) + 1
             self.optflow.settings.min_length = min_len
                 
         self._list_modes["optflow"] = val

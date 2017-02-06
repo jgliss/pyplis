@@ -22,14 +22,25 @@ from ex10_bg_image_lists import get_bg_image_lists
 # lower boundary for I0 value in dilution fit
 I0_MIN = 0.0 
 
+# exemplary plume cross section line for emission rate retrieval (is also used
+# for full analysis in ex12)
+PCS_LINE = piscope.processing.LineOnImage(x0=530,y0=586,x1=910,y1=200,
+                                          line_id="pcs")
 # Retrieval lines for dilution correction (along these lines, topographic
 # distances and image radiances are determined for fitting the atmospheric
 # extinction coefficients)
-PCS1 = piscope.processing.LineOnImage(1100, 650, 1000, 900, line_id="far")
-PCS2 = piscope.processing.LineOnImage(1000, 990, 1100, 990, line_id= "close")
+TOPO_LINE1 = piscope.processing.LineOnImage(1100, 650, 1000, 900,
+                                            line_id="flank far",
+                                            color="lime",
+                                            linestyle="-")
+                                      
+TOPO_LINE2 = piscope.processing.LineOnImage(1000, 990, 1100, 990,
+                                            line_id="flank close",
+                                            color="b",
+                                            linestyle="-")
 
 # all lines in this array are used for the analysis
-USE_LINES = [PCS1, PCS2]
+USE_LINES = [TOPO_LINE1, TOPO_LINE2]
 
 # specify pixel resolution of topographic distance retrieval (every nth pixel 
 # is used)
@@ -178,8 +189,8 @@ def prepare_images(onlist, offlist):
     tau_off = offlist.current_img().duplicate()
     
     # plot the tau images
-    onlist.bg_model.plot_tau_result(onlist.current_img()).suptitle(r"$\tau_{on}$")
-    offlist.bg_model.plot_tau_result(offlist.current_img()).suptitle(r"$\tau_{off}$")
+    onlist.bg_model.plot_tau_result(onlist.current_img())#.suptitle(r"$\tau_{on}$")
+    offlist.bg_model.plot_tau_result(offlist.current_img())#.suptitle(r"$\tau_{off}$")
     
     # now activate AA mode to determine a pixel mask for the dilution correction
     onlist.aa_mode = True
@@ -208,9 +219,8 @@ def plot_lines_into_image(img):
     ax = img.show()
     ax.set_title("Retrieval lines")
     for line in USE_LINES:
-        line.plot_line_on_grid(ax=ax, marker="", color="lime")
-    
-    ax.legend(loc="best", framealpha=0.5, fancybox= True, fontsize = 10)    
+        line.plot_line_on_grid(ax=ax, marker="", color=line.color,
+                               lw=2, ls=line.linestyle) 
     return ax
 
 ### SCRIPT MAIN FUNCTION       
@@ -220,7 +230,7 @@ if __name__ == "__main__":
             "location:\n %s\nYou might need to run example 6 first")
 
     close("all")
-    
+    pcs_line = PCS_LINE
     calib = DoasCalibData()    
     calib.load_from_fits(CALIB_FILE)
     
@@ -238,9 +248,6 @@ if __name__ == "__main__":
     on_vigncorr, off_vigncorr, bg_on, bg_off, tau_mask, tau_on, tau_off =\
                                                 prepare_images(onlist, offlist)
     
-    # Plot the retrieval lines into on band image
-    ax0 = plot_lines_into_image(on_vigncorr)
-    
     # Create dilution correction class
     dil = DilutionCorr(USE_LINES, geom, skip_pix=SKIP_PIX_LINES)
     
@@ -249,11 +256,7 @@ if __name__ == "__main__":
         dil.det_topo_dists_line(line_id)
     
     # Plot the results in a 3D map
-    basemap = dil.plot_distances_3d(alt_offset_m = 10, axis_off = False)
-    
-    # exemplary plume cross section line for emission rate retrieval
-    pcs_line = piscope.processing.LineOnImage(x0=530,y0=586,x1=910,y1=200,
-                                              line_id="pcs")                                                          
+    basemap = dil.plot_distances_3d(alt_offset_m=10, axis_off=False, color="b")                                                          
     
     # retrieve pixel distances for pixels on the line 
     # (for emission rate estimate)
@@ -265,26 +268,24 @@ if __name__ == "__main__":
     # ... and get uncertainty in plume distance estimate for the column
     pix_dist_err = geom.pix_dist_err(col)
     
-    fig, ax = subplots(2, 2, figsize = (12,8))
-    
     ia_on = on_vigncorr.crop(AMBIENT_ROI, True).mean()
     ia_off = off_vigncorr.crop(AMBIENT_ROI, True).mean()
     
-    ext_on, i0_on, _, _ = dil.apply_dilution_fit(img=on_vigncorr,
+    ext_on, i0_on, _, ax0 = dil.apply_dilution_fit(img=on_vigncorr,
                                                  rad_ambient=ia_on, 
                                                  i0_min=I0_MIN,
-                                                 plot=True,
-                                                 ax=ax[0, 0])
-                                                 
-    ax[0, 0].set_title(r"On: $I_A$ = %.1f DN" %(ia_on))        
+                                                 plot=True)
+    ax0.set_ylabel("Flank radiances (on band)")
+    ax0.set_ylim([0, 2500])                                             
+    #ax[0, 0].set_title(r"On: $I_A$ = %.1f DN" %(ia_on))        
     
-    ext_off, i0_off, _, _ = dil.apply_dilution_fit(img=off_vigncorr,
+    ext_off, i0_off, _, ax1 = dil.apply_dilution_fit(img=off_vigncorr,
                                                    rad_ambient=ia_off,
                                                    i0_min=I0_MIN,
-                                                   plot=True,
-                                                   ax=ax[0, 1])
-                                                   
-    ax[0, 1].set_title(r"Off: $I_A$ = %.1f DN" %(ia_off), fontsize = 12)        
+                                                   plot=True)
+    ax1.set_ylabel("Flank radiances (off band)")     
+    ax1.set_ylim([0, 2500])
+    #ax[0, 1].set_title(r"Off: $I_A$ = %.1f DN" %(ia_off), fontsize = 12)        
     
     
     #determine uncorrected so2-CD image by calibrating the AA image 
@@ -320,35 +321,42 @@ if __name__ == "__main__":
                                            pix_dists=pix_dists_line,
                                            cds_err=calib.slope_err,
                                            pix_dists_err=pix_dist_err)
+    
                                            
-    so2_img_corr.show(ax = ax[1, 0])
+    ax2 = plot_lines_into_image(so2_img_corr)
+    pcs_line.plot_line_on_grid(ax = ax2, ls="-", color = "g")
+    ax2.legend(loc="best", framealpha=0.5, fancybox= True, fontsize = 10)   
+    ax2.set_title("Dilution corrected AA image", fontsize = 12)
     
-    ax[1, 0].set_title("Dilution corrected AA image", fontsize = 12)
-    pcs_line.plot_line_on_grid(ax = ax[1, 0], ls="-", color = "g")
     x0, y0, w, h = piscope.helpers.roi2rect(AMBIENT_ROI)
-    ax[1, 0].add_patch(Rectangle((x0, y0), w, h, fc = "none", ec = "c"))
+    ax2.add_patch(Rectangle((x0, y0), w, h, fc = "none", ec = "c"))
     
-    # Calculate flux and uncertainty                                    
-    ax[1,1].plot(so2_cds_uncorr, "--b", label=r"Uncorr: $\Phi_{SO2}=$"
+    
+    # Calculate flux and uncertainty   
+    fig, ax3 = subplots(1,1)                                 
+    ax3.plot(so2_cds_uncorr, "--b", label=r"Uncorr: $\Phi_{SO2}=$"
         "%.2f (+/- %.2f) kg/s" %(phi_uncorr/1000.0, phi_uncorr_err/1000.0))
-    ax[1,1].plot(so2_cds_corr, "-g", label=r"Corr: $\Phi_{SO2}=$"
+    ax3.plot(so2_cds_corr, "-g", label=r"Corr: $\Phi_{SO2}=$"
         "%.2f (+/- %.2f) kg/s" %(phi_corr/1000.0, phi_corr_err/1000.0))
     
-    ax[1,1].set_title("Cross section profile", fontsize = 12)
-    ax[1,1].legend(loc="best", framealpha=0.5, fancybox= True, fontsize = 10)
-    ax[1,1].set_xlim([0, len(pix_dists_line)])
-    ax[1,1].set_ylim([0, 5e18])
+    ax3.set_title("Cross section profile", fontsize = 12)
+    ax3.legend(loc="best", framealpha=0.5, fancybox= True, fontsize = 10)
+    ax3.set_xlim([0, len(pix_dists_line)])
+    ax3.set_ylim([0, 5e18])
+    ax3.set_ylabel(r'SO2 CD [cm-2]')
     
     ### IMPORTANT STUFF FINISHED
     
-    if SAVEFIGS:    
-        ax0.figure.savefig(join(SAVE_DIR, "ex11_out_1.%s" %FORMAT),
-                           format=FORMAT, dpi=DPI)
+    if SAVEFIGS:
+        ax = [ax0, ax1, ax2, ax3]
+        for k in range(len(ax)):
+            ax[k].set_title("") #remove titles for saving
+            ax[k].figure.savefig(join(SAVE_DIR, "ex11_out_%d.%s" %(k, FORMAT)),
+                                 format=FORMAT, dpi=DPI)
         basemap.ax.set_axis_off()
-        basemap.ax.figure.savefig(join(SAVE_DIR, "ex11_out_2.%s" %FORMAT),
-                           format=FORMAT, dpi=DPI)
-        fig.savefig(join(SAVE_DIR, "ex11_out_3.%s" %FORMAT),
-                           format=FORMAT, dpi=DPI)
+        basemap.ax.view_init(15, 345)
+        basemap.ax.figure.savefig(join(SAVE_DIR, "ex11_out_5.%s" %FORMAT),
+                                  format=FORMAT, dpi=DPI)
 
 
     # Display images or not    
