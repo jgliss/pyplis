@@ -15,8 +15,9 @@ from ex04_prepare_aa_imglist import prepare_aa_image_list
 ### SCRIPT OPTONS  
 PYRLEVEL = 1
 BLUR = 0
+IN_ROI = False
 ROI_FLOW = [615, 350, 1230, 790]
-
+    
 ### SCRIPT MAIN FUNCTION
 if __name__ == "__main__":
     close("all")
@@ -47,7 +48,8 @@ if __name__ == "__main__":
     # applies to the region used for post analysis of the flow field, the flow
     # field itself is calculated for the whole image (should become clear from
     # the plots)
-    fl.roi_abs = ROI_FLOW
+    if IN_ROI:
+        fl.roi_abs = ROI_FLOW
     
     # Now activate optical flow calculation in list (this slows down the 
     # speed of the analysis, since the optical flow calculation is 
@@ -55,7 +57,7 @@ if __name__ == "__main__":
     aa_list.optflow_mode = 1
     
     # Plots the flow field
-    ax0 = fl.draw_flow(1)[0]
+    ax0 = fl.draw_flow(0)
     
     mask = fl.prepare_intensity_condition_mask(lower_val=0.05)
     count, bins, angles, fit3 = fl.flow_orientation_histo(cond_mask_flat=mask)
@@ -75,13 +77,15 @@ if __name__ == "__main__":
     #mask = fl.prepare_intensity_condition_mask(lower_val = 0.10)
     plume_params.get_and_append_from_farneback(fl, cond_mask_flat = mask)  
     
-    v = plume_params.len_mu[-1] * dist_img.mean() / fl.del_t
+    v, verr = plume_params.get_velocity(-1, dist_img.mean())
+    #v = plume_params.len_mu[-1] * dist_img.mean() / fl.del_t
     fig = fl.plot_flow_histograms()
-    fig.suptitle("v = %.2f m/s" %(v))
+    fig.suptitle("v = %.2f (+/- %.2f) m/s" %(v, verr))
     
     ### IMPORTANT STUFF FINISHED
     
     if SAVEFIGS:
+        ax0.set_title("")
         ax0.figure.savefig(join(SAVE_DIR, "ex09_out_1.%s" %FORMAT),
                            format=FORMAT, dpi=DPI)
         ax1.figure.savefig(join(SAVE_DIR, "ex09_out_2.%s" %FORMAT),

@@ -13,12 +13,16 @@ from SETTINGS import SAVEFIGS, SAVE_DIR, FORMAT, DPI, OPTPARSE
 ### IMPORTS FROM OTHER EXAMPLE SCRIPTS
 from ex04_prepare_aa_imglist import prepare_aa_image_list
 
+# use PCS line defined for cross correlation analysis for the exemplary
+# emission rate retrieval
+from ex08_plumevelo_crosscorr import PCS
+
 ### SCRIPT OPTONS  
 PYRLEVEL = 1
 PLUME_VEL_GLOB = 4.14 #m/s
 MMOL = 64.0638 #g/mol
 CD_MIN = 2.5e17
-DO_EVAL = 1 
+DO_EVAL = 1
 
 #the following ROI is in the upper right image corner, where no gas occurs in
 #the time series. It is used to log mean, min and max for each analysed image
@@ -34,8 +38,8 @@ CALIB_FILE = join(SAVE_DIR,
 CORR_MASK_FILE = join(SAVE_DIR, "aa_corr_mask.fts")
 
 ### SCRIPT FUNCTION DEFINITIONS        
-def plot_results(ana, line_id = "img_center"):
-    fig, ax = subplots(3, 1, figsize = (8, 10), sharex = True)
+def plot_results(ana, line_id = "pcs1"):
+    fig, ax = subplots(2, 1, figsize = (7, 9), sharex = True)
     
     #Get emission rate results for the PCS line 
     res0 = ana.get_results(line_id=line_id, velo_mode="glob")
@@ -43,24 +47,27 @@ def plot_results(ana, line_id = "img_center"):
     res2 = ana.get_results(line_id=line_id, velo_mode="farneback_histo")
     
     #Plot emission rates for the different plume speed retrievals
-    res0.plot(yerr=True, ax=ax[0], color="r")
-    res1.plot(yerr=True, ax=ax[0], color="b")
+    res0.plot(yerr=False, ax=ax[0], color="r")
+    res1.plot(yerr=False, ax=ax[0], color="b")
     res2.plot(yerr=True, ax=ax[0], color="g")
-    ax[0].set_title("Retrieved emission rates")
+    #ax[0].set_title("Retrieved emission rates")
     ax[0].legend(loc='best', fancybox=True, framealpha=0.5, fontsize=10)
     
     #Plot effective velocity retrieved from optical flow histogram analysis    
     res2.plot_velo_eff(ax=ax[1], color="g")
-    ax[1].set_title("Effective plume speed (from optflow histogram analysis)")
+    #ax[1].set_title("Effective plume speed (from optflow histogram analysis)")
     ax[1].set_ylim([0, ax[1].get_ylim()[1]])
+    ax2 = ax[1].twinx()
     #Plot time series of predominant plume direction (retrieved from optical
     #flow histogram analysis and stored in object of type LocalPlumeProperties
     #which is part of plumespeed.py module
-    ana.plume_properties[line_id].plot_directions(ax=ax[2], color="g")
-    ax[2].set_title("Predominant movement direction (from optflow histo "
-                        "analysis)")
-    ax[2].set_ylim([-180, 180])
-    piscope.helpers.rotate_xtick_labels(ax=ax[2])
+    ana.plume_properties[line_id].plot_directions(ax=ax2, color="#ff9900")
+#==============================================================================
+#     ax[2].set_title("Predominant movement direction (from optflow histo "
+#                         "analysis)")
+#==============================================================================
+    ax2.set_ylim([-180, 180])
+    piscope.helpers.rotate_xtick_labels(ax=ax[1])
     tight_layout()
     
     fig2, ax2 = subplots(1,1)
@@ -92,10 +99,13 @@ if __name__ == "__main__":
     #set DOAS calibration data in image list
     aa_list.calib_data = doascalib
     
-    pcs = piscope.processing.LineOnImage(250, 365, 420, 105,
-                                             normal_orientation="left", 
-                                             pyrlevel=PYRLEVEL,
-                                             line_id="img_center")
+    pcs = PCS.convert(pyrlevel=PYRLEVEL)
+#==============================================================================
+#     pcs = piscope.processing.LineOnImage(250, 365, 420, 105,
+#                                              normal_orientation="left", 
+#                                              pyrlevel=PYRLEVEL,
+#                                              line_id="img_center")
+#==============================================================================
                                              
     ana = piscope.fluxcalc.EmissionRateAnalysis(aa_list, pcs,
                                                 velo_glob=PLUME_VEL_GLOB,
@@ -114,7 +124,7 @@ if __name__ == "__main__":
         ana.imglist.optflow_mode = True
         ana.imglist.optflow.plot_flow_histograms()
     else:
-        ana.calc_emission_rate()
+        ana.calc_emission_rate(start_index=1)
         
         ax0, ax1 = plot_results(ana)
         

@@ -8,18 +8,11 @@ from numpy import mgrid,vstack,int32,sqrt,arctan2,rad2deg, asarray, sin, cos,\
     logical_and, histogram, ceil, ones, roll, argmax, arange, ndarray,\
     deg2rad, nan, inf, dot
 from numpy.linalg import norm
-#==============================================================================
-# try:
-#     import matplotlib
-#     matplotlib.style.use("ggplot")
-# except:
-#     pass
-#==============================================================================
 from traceback import format_exc
 from warnings import warn
 from datetime import datetime
 from collections import OrderedDict as od
-from matplotlib.pyplot import subplots, figure, Figure
+from matplotlib.pyplot import subplots, figure, Figure, Circle, Line2D
 
 from matplotlib.patches import Rectangle
 from scipy.ndimage.filters import median_filter, gaussian_filter
@@ -229,6 +222,7 @@ class LocalPlumeProperties(object):
         :param pix_dist_m_err: uncertainty in pixel distance (if None, then
             a default uncertainty of 10% is assumed)
         """
+        
         if pix_dist_m_err is None:
             pix_dist_m_err = pix_dist_m * 0.05
         vec = self.displacement_vector(idx)
@@ -284,7 +278,7 @@ class LocalPlumeProperties(object):
         ax.fill_between(angle.index, angle_lower, angle_upper, alpha=0.1,
                         **kwargs)
         ax.set_ylabel(r"$\Theta$ [$^\circ$]")
-        ax.grid()
+        #ax.grid()
         return ax
     
 class OpticalFlowFarnebackSettings(object):
@@ -754,7 +748,9 @@ class OpticalFlowFarneback(object):
                 x = asarray([0.5 * (bins[i] + bins[i + 1]) for\
                                                 i in xrange(len(bins) - 1)])
                 fit = MultiGaussFit(count, x, noise_amp = noise_amp,
-                                    max_num_gaussians=max_num_gaussians)
+                                    max_num_gaussians=max_num_gaussians,
+                                    do_fit=False)
+                fit.auto_fit()
             except:
                 warn("MultiGaussFit failed in orientation histogram of optical"
                     "flow field at %s" %self.current_time)
@@ -795,7 +791,9 @@ class OpticalFlowFarneback(object):
                 x = asarray([0.5 * (bins[i] + bins[i + 1]) for\
                                                 i in xrange(len(bins) - 1)])
                 fit = MultiGaussFit(count, x, noise_amp=noise_amp,
-                                    max_num_gaussians=max_num_gaussians)
+                                    max_num_gaussians=max_num_gaussians,
+                                    do_fit=False) #make sure the object is initiated
+                fit.auto_fit()
             except:
                 warn("MultiGaussFit failed in displacement length histogram "
                     "of optical flow field at %s" %self.current_time)
@@ -855,7 +853,7 @@ class OpticalFlowFarneback(object):
             if sign > 20: #other peak exceeds 20% of main peak
                 warn("Optical flow hisogram analysis:\n"
                      "Detected additional gaussian in orientation histogram:\n"
-                     "%sSignificany: %s %%\n" %(self.gauss_str(g), sign))
+                     "%sSignificany: %s %%\n" %(fit.gauss_str(g), sign))
         
         #limit range of reasonable orientation angles...
         dir_low = dir_mu - dir_sigma * self.settings.sigma_tol_mean_dir
@@ -887,20 +885,18 @@ class OpticalFlowFarneback(object):
             warn("Could not retrieve main flow field parameters..probably "
             "due to failure of multi gaussian fit to vector length "
             "histogram")
-            return res     
-        
+            return res
+
         len_mu, len_sigma, tot_num, add_gaussians = fit2.analyse_fit_result()
-        res["_len_mu"] = len_mu
-        res["_len_sigma"] = len_sigma
-        res["_add_gauss_len"] = add_gaussians
-            
         for g in add_gaussians:
             sign = int(fit.integrate_gauss(*g) * 100 / tot_num)
             if sign > 20: #other peak exceeds 20% of main peak
                 warn("Optical flow hisogram analysis:\n"
                      "Detected additional gaussian in length histogram:\n"
-                     "%sSignificany: %s %%\n" %(self.gauss_str(g), sign))
-        
+                     "%sSignificany: %s %%\n" %(fit2.gauss_str(g), sign))
+        res["_len_mu"] = len_mu
+        res["_len_sigma"] = len_sigma
+        res["_add_gauss_len"] = add_gaussians
         return res
         
     def apply_median_filter(self, shape = (3,3)):
@@ -1083,7 +1079,7 @@ class OpticalFlowFarneback(object):
         """
         return self.draw_flow(**kwargs)
     
-    def draw_flow(self, in_roi = False, add_cbar = False, ax = None):
+    def draw_flow_old(self, in_roi=False, add_cbar=False, ax=None):
         """Draw the current optical flow field
         
         :param bool in_roi: if True, the flow field is plotted in a
@@ -1101,19 +1097,17 @@ class OpticalFlowFarneback(object):
         i_min, i_max = self.current_contrast_range()
     
         img = self.images_input["this"]#.bytescale(i_min, i_max)
-#==============================================================================
-#         img2 = self.images_input["this"].bytescale(i_min, i_max)
-#         img = img1.blend_other(img2)
-#==============================================================================
         if in_roi:
             img = img.crop(roi_abs = self.roi_abs, new_img = True)
         
         #ugly (fast solution)
+
         img = bytescale(img.img, cmin = i_min, cmax = i_max)
-        if add_cbar:
-            dsp = ax.imshow(img, cmap = "gray")
+        dsp = ax.imshow(img, cmap = "gray_r")
+        if add_cbar:    
             fig.colorbar(dsp, ax = ax)
             
+
         disp = cvtColor(img, COLOR_GRAY2BGR) 
         
         if self.flow is None:
@@ -1130,7 +1124,7 @@ class OpticalFlowFarneback(object):
             line(disp, (x0+ x1, y0 + y1),\
                         (x0 + x2,y0 + y2),(0, 255, 255), 1)
             circle(disp, (x0 + x2, y0 + y2), 1, (255, 0, 0), -1)
-        ax.imshow(disp)
+        #ax.imshow(disp)
         
         try:
             tit += (r": %s \n $\Delta$t (next) = %.2f s" %(\
@@ -1141,6 +1135,61 @@ class OpticalFlowFarneback(object):
         
         ax.set_title(tit, fontsize = 10)
         return ax, disp
+    
+    def draw_flow(self, in_roi=False, add_cbar=False, ax=None):
+        """Draw the current optical flow field
+        
+        :param bool in_roi: if True, the flow field is plotted in a
+            cropped image area (using current ROI), else, the whole image is 
+            drawn and the flow field is plotted within the ROI which is 
+            indicated with a rectangle
+        :param ax (None): matplotlib axes object
+        """
+        if ax is None:
+            fig, ax = subplots(1,1)
+        else:
+            fig = ax.figure
+        
+        x0, y0 = 0, 0
+        i_min, i_max = self.current_contrast_range()
+    
+        img = self.images_input["this"]#.bytescale(i_min, i_max)
+        if in_roi:
+            img = img.crop(roi_abs = self.roi_abs, new_img = True)
+        
+        #ugly (fast solution)
+
+        img = bytescale(img.img, cmin = i_min, cmax = i_max)
+        dsp = ax.imshow(img, cmap = "gray_r")
+        if add_cbar:    
+            fig.colorbar(dsp, ax = ax)
+        
+        if self.flow is None:
+            print "Could not draw flow, no flow available"
+            return
+        lines = self.calc_flow_lines()
+        tit = r"1. img"
+        if not in_roi:
+            x0, y0, w, h = roi2rect(self.roi)
+            ax.add_patch(Rectangle((x0, y0), w, h, fc = "none", ec = "c"))
+        else:
+            tit += " (in ROI)"
+        print "Drawing optical flow field into plot..."
+        for (x1, y1), (x2, y2) in lines:
+            ax.add_artist(Line2D([x0+ x1, x0 + x2], [y0 + y1, y0 + y2],
+                                color="c"))
+            ax.add_patch(Circle((x0 + x2, y0 + y2), 1, ec="r", fc="r"))
+        #ax.imshow(disp)
+        
+        try:
+            tit += (r": %s \n $\Delta$t (next) = %.2f s" %(\
+                self.get_img_acq_times()[0].strftime("%H:%M:%S"), self.del_t))
+            tit = tit.decode("string_escape")
+        except:
+            pass
+        
+        ax.set_title(tit, fontsize = 10)
+        return ax    
         
     def live_example(self):
         """Show live example using webcam"""

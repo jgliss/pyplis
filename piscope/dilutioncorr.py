@@ -276,15 +276,14 @@ class DilutionCorr(object):
         map3d = self.meas_geometry.draw_map_3d(draw_cam, draw_source, 
                                                draw_plume, draw_fov, 
                                                cmap_topo)
-        if not "color" in kwargs.keys():
-            kwargs["color"] = "lime"
         if len(line_ids) == 0:
             line_ids = self.line_ids
         for line_id in self.line_ids:
             if self._dists.has_key(line_id):
+                line = self.lines[line_id]
                 mask = self._masks[line_id]
                 pts = self._geopoints[line_id][mask]
-                map3d.add_geo_points_3d(pts, **kwargs)
+                map3d.add_geo_points_3d(pts, color=line.color)
         if axis_off:
             map3d.ax.set_axis_off()
         return map3d

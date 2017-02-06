@@ -5,7 +5,7 @@ C:\Python27\python.exe ex04_prepare_aa_imglist.py
 C:\Python27\python.exe ex05_2_cellcalib_auto.py
 C:\Python27\python.exe ex06_doas_calibration.py
 C:\Python27\python.exe ex07_doas_cell_calib_combi.py
-C:\Python27\python.exe ex08_plume_speed_crosscorr.py
+C:\Python27\python.exe ex08_plumevelo_crosscorr.py
 C:\Python27\python.exe ex09_optical_flow.py
 C:\Python27\python.exe ex10_bg_image_lists.py
 C:\Python27\python.exe ex11_light_dilution.py

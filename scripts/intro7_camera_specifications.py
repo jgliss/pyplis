@@ -12,4 +12,7 @@ order to illustrate all relevant parameters
 """
 
 from piscope.utils import Filter, DarkOffsetInfo
-from piscope.setupclasses import 
+from piscope.setupclasses import Camera
+
+if __name__ == "__main__":
+    raise NotImplementedError("Coming soon...")

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from numpy import abs, linspace, random, asarray, ndarray, where, diff,\
     insert, argmax, average, gradient, arange,argmin, full, inf, sqrt, pi,\
-    nan, mod, mgrid, ndim, ones_like,ogrid, finfo, remainder, e
+    nan, mod, mgrid, ndim, ones_like,ogrid, finfo, remainder, e, sum
     
 from warnings import catch_warnings, simplefilter, warn
 from matplotlib.pyplot import subplots
@@ -31,7 +31,7 @@ except:
     from piscope.helpers import mesh_from_img
 
 GAUSS_2D_PARAM_INFO = ["amplitude", "mu_x", "mu_y", "sigma", "asymmetry",\
-    "exp_super_gauss", "offset", "tilt_theta"]
+    "shape", "offset", "tilt_theta"]
  
 
 def dilution_corr_fit(rads, dists, rad_ambient, i0_guess=None,
@@ -213,7 +213,7 @@ class MultiGaussFit(object):
         #Fitting related stuff
         self._fit_result = None #the actual output from the minimisation
         
-        self.params = [0, 0, inf] #this is where the fit parameters are stored in
+        self.params = [0, 0, 0] #this is where the fit parameters are stored in
         
         #function to be minimised
         self.err_fun = lambda p, x, y:\
@@ -237,7 +237,7 @@ class MultiGaussFit(object):
     def init_results(self):
         """Initiate all result parameters"""
         self._peak_indices = []
-        self.params = [0, 0, inf]
+        self.params = [0, 0, 0]
         self.offset = 0.0
     
     def set_data(self, data, index = None, amp_range = [0, nan],\
@@ -618,10 +618,13 @@ class MultiGaussFit(object):
         
         .. todo::
         
-            This method needs some review
+            This method needs some review (i.e. what to do if no overlaps
+            can be found)
             
         """
-        amp0, mu0, sigma0 = self.estimate_main_peak_params() #fits a single gauss
+        #get index of peak position
+        mu0 = self.index[argmax(self.data)]
+        
         info, ints = self.find_overlaps()
         #the peak index with largest integral value for integrated superposition
         #of all gaussians which are within 3sigma of this peak
@@ -647,6 +650,9 @@ class MultiGaussFit(object):
         mean_sigma = average(asarray(sigmas), weights = weights) + mean_del_mu
         add_gaussians = self.get_all_gaussians_out_of_3sigma(mean_mu,
                                                              mean_sigma)
+                                                             
+        
+        
         return mean_mu, mean_sigma, max_int, add_gaussians
         
     """
@@ -1039,18 +1045,20 @@ class MultiGaussFit(object):
             print "No data available..."
             return 0 
         fig, ax = subplots(2,1)
-        ax[0].plot(self.index, self.data, "--g", label="Signal " + self.id)
-        ax[0].plot(self.index, self.apply_binomial_filter(sigma=3), "-r",\
-                                                label="Smoothed (width 3)")
-        ax[0].legend(loc='best', fancybox=True, framealpha=0.5,\
-                            fontsize = self.plot_font_sizes["legend"])
+        ax[0].plot(self.index, self.data, "--g", label="Signal ")
+        ax[0].plot(self.index, self.apply_binomial_filter(sigma=3), "-r",
+                   label="Smoothed (width 3)")
+        ax[0].legend(loc='best', fancybox=True, framealpha=0.5,
+                     fontsize=self.plot_font_sizes["legends"])
         ax[0].set_title("Signal", fontsize = self.plot_font_sizes["titles"])
         ax[0].grid()
-        ax[1].plot(self.index, self.first_derivative(), "--g", label="Grad signal")
-        ax[1].plot(self.index, self.apply_binomial_filter(self.first_derivative(),\
-                                    sigma=3), "-r", label="Smoothed (width 3)")
+        ax[1].plot(self.index, self.first_derivative(), "--g",
+                   label="Grad signal")
+        ax[1].plot(self.index, self.apply_binomial_filter(
+                   self.first_derivative(), sigma=3), "-r",
+                   label="Smoothed (width 3)")
         ax[1].legend(loc='best', fancybox=True, framealpha=0.5,\
-                                fontsize=self.plot_font_sizes.legend)
+                                fontsize=self.plot_font_sizes["legends"])
         ax[1].set_title("Derivative")
         ax[1].grid()
         
@@ -1195,7 +1203,7 @@ class MultiGaussFit(object):
     
     def has_results(self):
         """Check if fit results are available"""
-        if self._fit_result is not None and len(self.params) >= 3:
+        if self._fit_result is not None and sum(self.params) > 0:
             return 1
         #print "No multi gauss fit results available"
         return 0    
