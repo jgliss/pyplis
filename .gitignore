@@ -102,3 +102,15 @@ scripts/_private
 
 # scripts_out backup folder
 scripts/scripts_out/bu
+
+# GUI stuff
+piscope/_gui_features
+
+# Sorted out stuff
+piscope/_sorted_out
+
+# Icons for GUI stuff
+piscope/data/icons
+
+# Docs GUI stuff
+docs/code_gui.rst

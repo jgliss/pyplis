@@ -13,8 +13,8 @@ from matplotlib.patches import Circle
 from SETTINGS import SAVEFIGS, SAVE_DIR, FORMAT, DPI, OPTPARSE
 
 ### IMPORTS FROM OTHER EXAMPLE SCRIPTS
-from ex05_2_cellcalib_auto import perform_auto_cell_calib
-from ex04_prepare_aa_imglist import prepare_aa_image_list
+from ex05_cell_calib_auto import perform_auto_cell_calib
+from ex04_prep_aa_imglist import prepare_aa_image_list
 
 ### RELEVANT DIRECTORIES AND PATHS
 

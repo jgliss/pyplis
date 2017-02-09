@@ -4,6 +4,11 @@ piscope example script no. 2
 
 Import plume image dataset from example script 1 and illustrate some important
 features of the MeasGeometry class
+
+.. todo::
+
+    Actually create the class here (import via Dataset is confusing)
+    
 """
 from geonum.base import GeoPoint
 from matplotlib.pyplot import subplots, show, close
@@ -13,7 +18,7 @@ from os.path import join
 from SETTINGS import SAVEFIGS, SAVE_DIR, FORMAT, DPI, OPTPARSE
 
 ### IMPORTS FROM OTHER EXAMPLE SCRIPTS
-from ex01_measurement_setup_plume_data import create_dataset
+from ex01_analysis_setup import create_dataset
 
 ### SCRIPT FUNCTION DEFINITIONS        
 def correct_viewing_direction(meas_geometry, draw_result = True):

@@ -10,7 +10,11 @@ from os import listdir, remove
 from matplotlib.pyplot import imread
 from urllib2 import urlopen
 from collections import OrderedDict as od
-from traceback import format_exc
+from progressbar import ProgressBar, Percentage, Bar, RotatingMarker,\
+    ETA, FileTransferSpeed
+from zipfile import ZipFile
+from urllib import urlretrieve
+from tempfile import mktemp
 
 def download_test_data(save_path = None):
     """Download piscope test data from
@@ -23,30 +27,21 @@ def download_test_data(save_path = None):
     -progress-bar-in-python
     
     """
-    from piscope import _LIBDIR
-    from zipfile import ZipFile
-    from urllib import urlretrieve
-    from tempfile import mktemp
-    try:
-        from progressbar import ProgressBar, Percentage, Bar, RotatingMarker,\
-                                        ETA, FileTransferSpeed
+    from piscope import _LIBDIR, URL_TESTDATA
+    url = URL_TESTDATA
+    widgets = ['Downloading piscope test data: ', Percentage(), ' ',\
+                   Bar(marker=RotatingMarker()), ' ',\
+                    ETA(), ' ', FileTransferSpeed()]
     
-        widgets = ['Downloading piscope test data: ', Percentage(), ' ',\
-                       Bar(marker=RotatingMarker()), ' ',\
-                        ETA(), ' ', FileTransferSpeed()]
-        pbar = ProgressBar(widgets = widgets)
-        def dl_progress(count, block_size, total_size):
-            if pbar.maxval is None:
-                pbar.maxval = total_size
-                pbar.start()
-            pbar.update(min(count*block_size, total_size))
-            
-        prog_ok = True
+    pbar = ProgressBar(widgets = widgets)
+    def dl_progress(count, block_size, total_size):
+        if pbar.maxval is None:
+            pbar.maxval = total_size
+            pbar.start()
+        pbar.update(min(count*block_size, total_size))
         
-    except:
-        print ("Failed to initiate progress bar for test data download, error "
-        " msg: %s " %format_exc())
-        prog_ok = False
+        
+        
     
     if save_path is None or not exists(save_path):
         save_path = join(_LIBDIR, "data")
@@ -60,15 +55,9 @@ def download_test_data(save_path = None):
         
     print "installing test data at %s" %save_path
     
-    url = 'https://folk.nilu.no/~gliss/piscope_testdata/piscope_etna_testdata.zip'
-    
     filename = mktemp('.zip')
-    if prog_ok:
-        name, hdrs = urlretrieve(url, filename, reporthook = dl_progress)
-        pbar.finish()
-    else:
-        print "Downloading piscope test data... (please wait)"
-        name, hdrs = urlretrieve(url, filename)
+    name, hdrs = urlretrieve(url, filename, reporthook = dl_progress)
+    pbar.finish()
     thefile = ZipFile(filename)
     print "Extracting data at: %s (this may take a while)" %save_path
     thefile.extractall(save_path)
@@ -99,7 +88,9 @@ def find_test_data():
                 f.close()
                 return join(p, folder_name)
     raise IOError("piscope test data could not be found, please download"
-        "testdata first, using method piscope.inout.download_test_data")
+        "testdata first, using method piscope.inout.download_test_data or"
+        "specify the local path where the test data is stored using"
+        "piscope.inout.set_test_data_path")
 
 def all_test_data_paths():
     """Return list of all search paths for test data"""

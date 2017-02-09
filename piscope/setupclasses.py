@@ -19,9 +19,6 @@ from collections import OrderedDict as od
 from os.path import exists
 from numpy import isnan, nan, rad2deg, arctan
 from abc import ABCMeta
-from copy import deepcopy
-from PyQt4.QtGui import QApplication
-from sys import argv
 
 from piscope import _LIBDIR
 
@@ -945,13 +942,15 @@ class MeasSetup(BaseSetup):
         dump(self, open(f_path, "wb"))
         return f_path
     
-    def edit_in_gui(self):
-        """Edit the current dataSet object"""
-        from piscope.gui_features.setup_widgets import MeasSetupEdit
-        app=QApplication(argv)
-        dial = MeasSetupEdit(deepcopy(self))
-        dial.exec_()
-        return dial
+#==============================================================================
+#     def edit_in_gui(self):
+#         """Edit the current dataSet object"""
+#         from piscope.gui_features.setup_widgets import MeasSetupEdit
+#         app=QApplication(argv)
+#         dial = MeasSetupEdit(deepcopy(self))
+#         dial.exec_()
+#         return dial
+#==============================================================================
 #==============================================================================
 #         if dial.changesAccepted:
 #             #self.dataSet.update_base_info(self.dataSet.setup)

@@ -16,7 +16,7 @@ from piscope.doascalib import DoasCalibData
 from SETTINGS import IMG_DIR, SAVEFIGS, SAVE_DIR, FORMAT, DPI, OPTPARSE
 
 ### IMPORTS FROM OTHER EXAMPLE SCRIPTS
-from ex10_bg_image_lists import get_bg_image_lists
+from ex10_bg_imglists import get_bg_image_lists
 
 ### SCRIPT OPTONS  
 # lower boundary for I0 value in dilution fit

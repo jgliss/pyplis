@@ -13,7 +13,6 @@ Welcome to piSCOPE's documentation!
    
    intro
    code_lib
-   code_gui
 
 Indices and tables
 ==================
