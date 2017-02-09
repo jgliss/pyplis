@@ -58,14 +58,16 @@ After installation try running and understanding the example scripts (can be fou
 Example and test data
 ---------------------
 
-The example data can be downloaded `here <https://folk.nilu.no/~gliss/piscope_testdata/piscope_etna_testdata.zip>`_
+The piscope example data (required to run example scripts) is not part of the installation. It can be downloaded `here <https://folk.nilu.no/~gliss/piscope_testdata/piscope_etna_testdata.zip>`_
 
 or automatically after installation using::
 
   import piscope
   piscope.inout.download_test_data(<local_path>)
   
-which downloads the data to the installation *data* directory if *<local_path>* is unspecified. 
+which downloads the data to the installation *data* directory if *<local_path>* is unspecified. If <local_path> is a valid location it will be downloaded to the specified folder and <local_path> will be added to the supplementary file "./data/_paths.txt", i.e. it will be added as default search path to the test data search method::
 
- 
+  piscope.inout.find_test_data()
+  
+which searches all valid test data folders and raises Exception, if the data cannot be found.
 
