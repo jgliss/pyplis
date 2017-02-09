@@ -4,6 +4,9 @@ from pkg_resources import get_distribution
 
 __version__ = get_distribution('piscope').version
 
+URL_TESTDATA = ("https://folk.nilu.no/~gliss/piscope_testdata/"
+                "piscope_etna_testdata.zip")
+
 try:
     import pydoas
     PYDOASAVAILABLE =True
@@ -37,4 +40,4 @@ import setupclasses
 import helpers
 import exceptions
 
-import gui_features as gui_features
+#import gui_features as gui_features

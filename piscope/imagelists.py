@@ -32,8 +32,6 @@ from copy import deepcopy
 from scipy.ndimage.filters import gaussian_filter
 from warnings import warn
 
-from PyQt4.QtGui import QApplication
-from sys import argv, exit
 from traceback import format_exc
 
 from .image import Img
@@ -536,13 +534,7 @@ class BaseImgList(object):
         return d
         
     def _make_header(self):
-        """Make header string for current image (using image meta information)
-        
-        .. note:: 
-        
-            the header is e.g. displayed in image viewers of 
-            :class:`piscope.gui.ImgViewer.ImgViewer`
-            
+        """Make header string for current image (using image meta information)            
         """
         try:
             im = self.current_img()
@@ -772,14 +764,16 @@ class BaseImgList(object):
         except:
             raise 
     
-    """GUI features
-    """
-    def open_in_imageviewer(self):
-        from .gui.ImgViewer import ImgViewer
-        app = QApplication(argv)
-        widget = ImgViewer(self.list_id, self)
-        widget.show()
-        exit(app.exec_())        
+#==============================================================================
+#     """GUI features
+#     """
+#     def open_in_imageviewer(self):
+#         from .gui.ImgViewer import ImgViewer
+#         app = QApplication(argv)
+#         widget = ImgViewer(self.list_id, self)
+#         widget.show()
+#         exit(app.exec_())        
+#==============================================================================
         
     """
     Plotting etc
@@ -907,11 +901,11 @@ class BaseImgList(object):
 
 class DarkImgList(BaseImgList):
     """A :class:`BaseImgList`object only extended by read_gain value"""
-    def __init__(self, files = [], list_id = None, list_type = None, read_gain = 0,\
-                                            camera = None, init = True):
+    def __init__(self, files=[], list_id=None, list_type=None, read_gain=0,
+                 camera=None, init=True):
         
-        super(DarkImgList, self).__init__(files, list_id, list_type, camera,\
-                                                                init = False)
+        super(DarkImgList, self).__init__(files, list_id, list_type, camera,
+                                          init=False)
         self.read_gain = read_gain
         if init:
             self.add_files(files)
@@ -1840,7 +1834,7 @@ class ImgList(BaseImgList):
         if val == self._list_modes["senscorr"]:
             return
         if val:    
-            mask = self.aa_corr_mask #raises AttributeError if mask is not available
+            self.aa_corr_mask #raises AttributeError if mask is not available
             if not self.aa_mode:
                 raise AttributeError("AA sensitivity correction mode can only "
                     "be activated in list aa_mode, please activate aa_mode "

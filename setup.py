@@ -46,9 +46,9 @@ setup(
     # What does your project relate to?
     keywords='sample setuptools development',
     #packages    =   ['piscope'],
-    package_dir =   {'piscope'     :    'piscope',
-                     'piscope.gui_features' :    'piscope/gui_features'},
-    packages =  ['piscope', 'piscope.gui_features'],
+    package_dir =   {'piscope'     :    'piscope'},
+                     #'piscope.gui_features' :    'piscope/gui_features'},
+    packages =  ['piscope'], #'piscope.gui_features'],
                  
     package_data=   {'piscope'     :   ['data/*.txt',
                                         'data/*.rst'
@@ -60,13 +60,8 @@ setup(
                                         'data/icons/myIcons/k/*.png',
                                         'data/icons/myIcons/r/*.png',
                                         'data/icons/myIcons/g/*.png']},
-#==============================================================================
-#     install_requires    =   ["scipy>=0.17.0",
-#                              "dill",
-#                              "PyQt4",
-#                              "peakutils"],
-#==============================================================================
-    install_requires    =   [],
+
+    install_requires    =   ["progressbar"],
     dependency_links    =   [],   
     entry_points = {},#'console_scripts': ['sample=sample:main',],},
 )

@@ -13,8 +13,8 @@ from os.path import join
 from SETTINGS import SAVEFIGS, SAVE_DIR, FORMAT, DPI, IMG_DIR, OPTPARSE
 
 ### IMPORTS FROM OTHER EXAMPLE SCRIPTS
-from ex01_measurement_setup_plume_data import create_dataset
-from ex02_measurement_geometry import correct_viewing_direction
+from ex01_analysis_setup import create_dataset
+from ex02_meas_geometry import correct_viewing_direction
 
 
 ### SCRIPT FUNCTION DEFINITIONS        

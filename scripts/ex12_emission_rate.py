@@ -11,11 +11,11 @@ from matplotlib.pyplot import close, subplots, tight_layout, show
 from SETTINGS import SAVEFIGS, SAVE_DIR, FORMAT, DPI, OPTPARSE
 
 ### IMPORTS FROM OTHER EXAMPLE SCRIPTS
-from ex04_prepare_aa_imglist import prepare_aa_image_list
+from ex04_prep_aa_imglist import prepare_aa_image_list
 
 # use PCS line defined for cross correlation analysis for the exemplary
 # emission rate retrieval
-from ex08_plumevelo_crosscorr import PCS
+from ex08_velo_crosscorr import PCS
 
 ### SCRIPT OPTONS  
 PYRLEVEL = 1

@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-piscope example script 2
-
-Introduction into ImgList objects and illustration of some features
+piscope introduction script 3 - manual creation of image lists    
 """
 
 import piscope
@@ -50,7 +48,7 @@ img_0 = on_list.current_img().img
 on_list.roi_abs = [100, 100, 1300, 900]
 on_list.crop = 1
 on_list.pyrlevel = 2
-on_list.set_dark_corr_mode(1)
+on_list.set_darkcorr_mode(1)
 on_list.add_gaussian_blurring(1)
 
 img = on_list.current_img()

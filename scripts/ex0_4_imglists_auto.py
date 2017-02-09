@@ -1,12 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-piscope example script 3 - Automatic creation of image lists
-    
-Steps:
-    
-    1. Sets image base path and initiate working environment
-    #. Open GUI
-    
+piscope introduction script 3 - Automatic creation of image lists    
 """
 import piscope
 from os.path import join

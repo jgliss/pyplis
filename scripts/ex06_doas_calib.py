@@ -16,7 +16,7 @@ from os import remove
 from SETTINGS import SAVEFIGS, SAVE_DIR, FORMAT, DPI, IMG_DIR, OPTPARSE
 
 ### IMPORTS FROM OTHER EXAMPLE SCRIPTS
-from ex04_prepare_aa_imglist import prepare_aa_image_list
+from ex04_prep_aa_imglist import prepare_aa_image_list
 
 ### SCRIPT OPTONS  
 
