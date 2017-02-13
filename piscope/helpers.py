@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-piscope helper methods
+Helper methods
 """
 
 import matplotlib.cm as colormaps
@@ -8,14 +8,29 @@ import matplotlib.colors as colors
 
 from matplotlib.pyplot import draw
 from numpy import mod, linspace, hstack, vectorize, uint8, cast, asarray,\
-    unravel_index, nanargmax, meshgrid, int, floor, log10
+    unravel_index, nanargmax, meshgrid, int, floor, log10, isnan
 from scipy.ndimage.filters import gaussian_filter
 from cv2 import pyrUp
 
-
 exponent = lambda num: int(floor(log10(abs(num))))
 
+time_delta_to_seconds = vectorize(lambda x: x.total_seconds())
+
+def isnum(val):
+    """Checks if input is number (int or float) and not nan
+    
+    :returns: bool, True or False    
+    """
+    if isinstance(val, (int, float)) and not isnan(val):
+        return True
+    return False
+    
 def mesh_from_img(img_arr):
+    """Create a mesh from an 2D numpy array (e.g. image)
+    
+    :param ndarray img_arr: 2D numpy array
+    :return: mesh
+    """
     if not img_arr.ndim == 2:
         raise ValueError("Invalid dimension for image: %s" %img_arr.ndim)
     (ny, nx) = img_arr.shape
@@ -30,19 +45,24 @@ def get_img_maximum(img_arr, gaussian_blur = 4):
     :param int gaussian_blur: apply gaussian filter before max search
     
     """
-    #replace nans with zeros
-    #img_arr[where(isnan(img_arr))] = 0
-    #print img_arr.shape
     img_arr = gaussian_filter(img_arr, gaussian_blur)
     return unravel_index(nanargmax(img_arr), img_arr.shape)   
 
-def sub_img_to_detector_coords(img_arr, shape_orig, pyrlevel,\
-                                    roi_abs = [0, 0, 9999, 9999]):
+def sub_img_to_detector_coords(img_arr, shape_orig, pyrlevel,
+                               roi_abs=[0, 0, 9999, 9999]):
     """Converts a shape manipulated image to original detecor coords
     
-    Regions outside the ROI are set to 0
+    :param ndarray img_arr: the sub image array (e.g. corresponding to a 
+        certain ROI and / or pyrlevel)
+    :param tuple shape_orig: original image shape (detector dimension)
+    :param int pyrlevel: the pyramid level of the sub image
+    :param list roi_abs: region of interest (in absolute image coords) of the
+        sub image
     
-    :
+    .. note::
+    
+        Regions outside the ROI are set to 0
+        
     """
     from numpy import zeros, float32
     new_arr = zeros(shape_orig).astype(float32)
@@ -52,7 +72,12 @@ def sub_img_to_detector_coords(img_arr, shape_orig, pyrlevel,\
     return new_arr
     
 def check_roi(roi, shape=None):
-    """Checks if input is valid ROI"""
+    """Checks if input fulfills all criteria for a valid ROI
+    
+    :param roi: the ROI candidate to be checked
+    :param tuple shape: dimension of image for which the ROI is supposed to be
+        checked (optional)
+    """
     try:
         if not len(roi) == 4:
             raise ValueError("Invalid number of entries for ROI")
@@ -69,7 +94,7 @@ def check_roi(roi, shape=None):
     except:
         return False
 
-def subimg_shape(img_shape = None, roi = None, pyrlevel = 0):
+def subimg_shape(img_shape=None, roi=None, pyrlevel=0):
     """Get shape of subimg after cropping and size reduction
     
     :param tuple img_shape: original image shape
@@ -78,7 +103,8 @@ def subimg_shape(img_shape = None, roi = None, pyrlevel = 0):
         is determined based on a cropped image within the roi
     :param int pyrlevel: scale space parameter (Gauss pyramide) for size 
         reduction
-    :returns: (height, width) of (cropped and) size reduced image
+    :returns: 
+        - tuple, (height, width) of (cropped and) size reduced image
     """
     if roi is None:
         if not isinstance(img_shape, tuple):
@@ -104,7 +130,7 @@ def subimg_shape(img_shape = None, roi = None, pyrlevel = 0):
     return tuple(shape)
 
 def same_roi(roi1, roi2):
-    """Compares if two ROIs are the same
+    """Checks if two ROIs are the same
     
     :param list roi1: list with ROI coords ``[x0, y0, x1, y1]``
     :param list roi2: list with ROI coords ``[x0, y0, x1, y1]``
@@ -129,69 +155,67 @@ def roi2rect(roi, inverse = False):
         return (x0, y0, x1 - x0, y1 - y0)
     return (x0, y0, x0 + x1, y0 + y1)
     
-def map_coordinates_sub_img(pos_x_abs, pos_y_abs, roi=[0,0,9999,9999],\
-                                            pyrlevel=0, inverse=False):
+def map_coordinates_sub_img(pos_x_abs, pos_y_abs, roi_abs=[0,0,9999,9999],
+                            pyrlevel=0, inverse=False):
     """Maps original input coordinates onto sub image
     
-    :param (int, ndarray) pos_x_abs: x coordinate(s) (in original image coords)
-    :param (int, ndarray) pos_x_abs: y coordinate(s) (in original image coords)
-    :param list roi: list specifying rectangular ROI: ``[x0, y0, x1, y1]``
-    :param list pyrlevel: scale space level of gauss pyramide (0)
+    :param int pos_x_abs: x coordinate in absolute image coords (can also be
+        an array of coordinates)
+    :param int pos_y_abs: y coordinate in absolute image coords (can also be
+        an array of coordinates)
+    :param list roi_abs: list specifying rectangular ROI in absolute image
+        coordinates (i.e. ``[x0, y0, x1, y1]``)
+    :param list pyrlevel: level of gauss pyramid 
     :param bool inverse: if True, do inverse transformation (False)
-    
-    .. todo::
-    
-        Check whether there needs to be a one added in case of odd numbers
-        
     """
     op = 2 ** pyrlevel
     x, y = asarray(pos_x_abs), asarray(pos_y_abs)
-    x_offs, y_offs = roi[0], roi[1]
+    x_offs, y_offs = roi_abs[0], roi_abs[1]
     if inverse:
         return x_offs + x * op, y_offs + y * op
     return (x - x_offs) / op, (y - y_offs) / op
 
-def map_roi(roi, pyrlevel_rel=0, inverse=False):
+def map_roi(roi_abs, pyrlevel_rel=0, inverse=False):
     """Maps a list containing start / stop coords onto size reduced image
     
-    :param list roi: ``[x0, y0, x1, y1]``
-    :param int pyrlevel_rel: relative pyramid level (use negative numbers to 
-        go up)
+    :param list roi_abs: list specifying rectangular ROI in absolute image
+        coordinates (i.e. ``[x0, y0, x1, y1]``)
+    :param int pyrlevel_rel: gauss pyramid level (relative, use negative 
+        numbers to go up)
     :param bool inverse: inverse mapping
     :returns: - roi coordinates for size reduced image
     
     """
-    (x0, x1), (y0, y1) = map_coordinates_sub_img([roi[0], roi[2]],
-                                                 [roi[1], roi[3]], 
+    (x0, x1), (y0, y1) = map_coordinates_sub_img([roi_abs[0], roi_abs[2]],
+                                                 [roi_abs[1], roi_abs[3]], 
                                                  pyrlevel=pyrlevel_rel, 
                                                  inverse=inverse)
             
     return [int(num) for num in [x0, y0, x1, y1]]
-    
-time_delta_to_seconds = vectorize(lambda x: x.total_seconds())
 
 def shifted_color_map(vmin, vmax, cmap = None):
-    '''Thanks to Paul H (http://stackoverflow.com/users/1552748/paul-h) 
-    who wrote this function, found `here <http://stackoverflow.com/questions/
-    7404116/defining-the-midpoint-of-a-colormap-in-matplotlib>`_ (last access:
-    17/01/2017)
+    """Shift center of a diverging colormap to value 0
+    
+    .. note::
+    
+        This method was found `here <http://stackoverflow.com/questions/
+        7404116/defining-the-midpoint-of-a-colormap-in-matplotlib>`_ 
+        (last access: 17/01/2017). Thanks to `Paul H <http://stackoverflow.com/
+        users/1552748/paul-h>`_ who provided it.
     
     Function to offset the "center" of a colormap. Useful for
-    data with a negative min and positive max and you want the
-    middle of the colormap's dynamic range to be at zero
+    data with a negative min and positive max and if you want the
+    middle of the colormap's dynamic range to be at zero level
+    
+    :param vmin: lower end of data value range
+    :param vmax: upper end of data value range
+    :param cmap: colormap (if None, use default cmap: seismic)
+    
+    :return: 
+        - shifted colormap
+        
+    """
 
-    Input
-    -----
-      cmap : The matplotlib colormap to be altered
-
-      midpoint : The new center of the colormap. Defaults to 
-          0.5 (no shift). Should be between 0.0 and 1.0. In
-          general, this should be  1 - vmax/(vmax + abs(vmin))
-          For example if your data range from -15.0 to +5.0 and
-          you want the center of the colormap at 0.0, `midpoint`
-          should be set to  1 - 5/(5 + 15)) or 0.75
-    '''
-    #midpoint = 1 - abs(im.max())/(abs(im.max()) + abs(im.min()))
     if cmap is None:
         cmap = colormaps.seismic
         
@@ -221,9 +245,6 @@ def shifted_color_map(vmin, vmax, cmap = None):
         cdict['blue'].append((si, b, b))
         cdict['alpha'].append((si, a, a))
 
-    #newcmap = colors.LinearSegmentedColormap('shiftedcmap', cdict)
-    #register_cmap(cmap=newcmap)
-
     return colors.LinearSegmentedColormap('shiftedcmap', cdict)
     
 def _print_list(lst):
@@ -232,7 +253,7 @@ def _print_list(lst):
         print item
 
 def rotate_xtick_labels(ax, deg=30, ha="right"):
-    """Rotate existing xtick labels in matplotlib axes"""
+    """Rotate xtick labels in matplotlib axes object"""
     draw()
     lbls = ax.get_xticklabels()
     lbls = [lbl.get_text() for lbl in lbls]
@@ -240,8 +261,9 @@ def rotate_xtick_labels(ax, deg=30, ha="right"):
     draw()
     return ax
     
-def bytescale(data, cmin = None, cmax = None, high = 255, low = 0):
-    """
+def bytescale(data, cmin=None, cmax=None, high=255, low=0):
+    """Bytescale an image array
+    
     Byte scales an array (image).
     
     .. note:: 
@@ -254,28 +276,21 @@ def bytescale(data, cmin = None, cmax = None, high = 255, low = 0):
     Byte scaling means converting the input image to uint8 dtype and scaling
     the range to ``(low, high)`` (default 0-255).
     If the input image already has dtype uint8, no scaling is done.
+    
+    :param ndarray data: image data array
+    :param cmin: optional, bias scaling of small values. Default is 
+        ``data.min()``
+    :param cmin: optional, bias scaling of large values. Default is 
+        ``data.max()``
+    :param high: optional, scale max value to `high`.  Default is 255
+    :param low: optional, scale min value to `low`.  Default is 0
 
-    Parameters
-    ----------
-    data : ndarray
-        PIL image data array.
-    cmin : scalar, optional
-        Bias scaling of small values. Default is ``data.min()``.
-    cmax : scalar, optional
-        Bias scaling of large values. Default is ``data.max()``.
-    high : scalar, optional
-        Scale max value to `high`.  Default is 255.
-    low : scalar, optional
-        Scale min value to `low`.  Default is 0.
-
-    Returns
-    -------
-    img_array : uint8 ndarray
-        The byte-scaled array.
+    :return: 
+        - uint8, byte-scaled 2D numpy array
 
     Examples
     --------
-    >>> from scipy.misc import bytescale
+    >>> from piscope.helpers import bytescale
     >>> img = np.array([[ 91.06794177,   3.39058326,  84.4221549 ],
     ...                 [ 73.88003259,  80.91433048,   4.88878881],
     ...                 [ 51.53875334,  34.45808177,  27.5873488 ]])

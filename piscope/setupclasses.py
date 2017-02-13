@@ -1,75 +1,57 @@
 # -*- coding: utf-8 -*-
 """
-piscope setup classes
----------------------
-
 This module contains several setup classes related to measurement data and 
-analysis, these are:
+analysis, the most important ones are:
 
     1. :class:`Source`: emission source specifications
-    #. :class:`FilterSetup`: Collection of interference filters used
-    #. :class:`Camera`: Camera specifications
-    #. :class:`MeasSetup`: Basic measurement setup 
-    #. :class:`AutoCellCalibSetup`: Setup for cell calibration data   
+    #. :class:`FilterSetup`: collection of interference filters used
+    #. :class:`Camera`: camera specifications
+    #. :class:`MeasSetup`: full measurement setup  
 """
-from dill import dump
-from os import path, getcwd
 from datetime import datetime, timedelta
 from collections import OrderedDict as od
+from copy import deepcopy
 from os.path import exists
-from numpy import isnan, nan, rad2deg, arctan
+from numpy import nan, rad2deg, arctan
 from abc import ABCMeta
 
-from piscope import _LIBDIR
-
 from .forms import LineCollection, RectCollection  
+from .helpers import isnum
 from .exceptions import MetaAccessError
 from .inout import get_source_info
 from .utils import Filter, CameraBaseInfo
 from .geometry import MeasGeometry
 
 class Source(object):
-    """  Object for source information"""
-    def __init__(self, name = None, info_dict = {}):
-        """Initiation of object
+    """Object containing information about emission source"""
+    def __init__(self, name="", info_dict={}):
+        """Class initialisation
         
-        :param str name (None): string ID of source
-        :param dict info_dict (None): dictrinary contatining source info (only
-            loaded if all necessary parameters are available and in the right
-            format)
+        :param str name: string ID of source (default is "")
+        :param dict info_dict: dictionary contatining source information (is 
+            only loaded if all necessary parameters are available and in the 
+            right format)
         
         .. note:: 
         
-            if input name is valid (info can be found in database) then any 
-            additional input using ``info_dict`` is ignored
+            if input param ``name`` is a valid default ID (e.g. "Etna") then 
+            the source information is extracted from the database and the 
+            input param ``info_dict`` is ignored
             
-        .. todo::
-        
-            Allow to specify gases emitted by the source 
-            (e.g. "so2", "no2", "ch4") and also (if available) to assign 
-            average emission amounts of these gases in order to access xs 
-            of these species and make a prediction of relative optical 
-            densities for a given camera in combination with a camera setup, 
-            (i.e. filter wavelength specs). One example could be a power plant
-            which emits so2 and no2 to correct for interferences in the optical
-            densities in a certain wavelength range.
-        
         """
         self.name = name
         self.lon = nan
         self.lat = nan
         self.altitude = nan
         
-        self.gases = "Coming soon...."
-        
         self.suppl_info = od([("status"        ,   ""),
-                             ("country"       ,   ""),
-                             ("region"        ,   ""),
-                             ("type"          ,   ""),
-                             ("last_eruption" ,   "")])
+                              ("country"       ,   ""),
+                              ("region"        ,   ""),
+                              ("type"          ,   ""),
+                              ("last_eruption" ,   "")])
                            
         if isinstance(name, str):
-            info = self.get_info(name)
+            info = self.get_info(name, try_online=False)
             if bool(info):
                 info_dict = info
                 
@@ -77,6 +59,7 @@ class Source(object):
         
     @property
     def source_id(self):
+        """Returns ``self.name``"""
         return self.name
         
     @property
@@ -86,6 +69,7 @@ class Source(object):
     
     @property
     def geo_data(self):
+        """Return dictionary containing lon, lat and altitude"""
         return od([("lon"          ,   self.lon),
                    ("lat"          ,   self.lat),
                    ("altitude"     ,   self.altitude)])
@@ -111,7 +95,12 @@ class Source(object):
         return d
         
     def load_source_info(self, info_dict):
-        """Try access default information of source"""
+        """Try access default information of source
+        
+        :param dict info_dict: dictonary containing source information (valid
+            keys are keys of dictionary ``self._type_dict``, e.g. ``lon``, 
+            ``lat``, ``altitude``)        
+        """
         types = self._type_dict
         if not isinstance(info_dict, dict):
             raise TypeError("need dictionary like object for source info update")
@@ -130,12 +119,12 @@ class Source(object):
         
         return self.info_available
     
-    def get_info(self, name):
-        """Load info dict form database
+    def get_info(self, name, **kwargs):
+        """Load info dict from database (includes online search)
         
-        :param str cam_id: string ID of camera 
+        :param str name: source ID
         """
-        res = get_source_info(name)
+        res = get_source_info(name, **kwargs)
         num = len(res)
         if num == 0:
             return {}
@@ -186,19 +175,21 @@ class Source(object):
         return self.__getitem__(key)
         
 class FilterSetup(object):
-    """A collection of :mod:`Filter` objects 
+    """A collection of :class:`piscope.utils.Filter` objects 
     
-    This collection specifies a filter setup for a camera, normally it consists
-    of one on and one offband filter, but it can also include more filters 
+    This collection specifies a filter setup for a camera. A typical setup 
+    would be one on and one off band filter. 
     """
-    def __init__(self, filter_list = [], default_key_on = None,\
-                                                default_key_off = None):
+    def __init__(self, filter_list=[], default_key_on=None,
+                 default_key_off=None):
         """Class initialisation
         
-        :param list filters: list of :class:`Filter` objects specifying filters. 
-        :param str default_key_on: Key of central filter object (e.g. "on")
-        :param str default_key_off: Key of default offband filter object (e.g. 
-            "off")
+        :param list filters: list of :class:`piscope.utils.Filter` objects 
+            specifying camera filter setup
+        :param str default_key_on: string ID of default on band filter (only
+            relevant if collection contains more than one on band filter)
+        :param str default_key_off: string ID of default off band filter (only
+            relevant if collection contains more than one off band filter)
         
         """
         self.init_filters(filter_list)
@@ -207,14 +198,30 @@ class FilterSetup(object):
         self.default_key_off = None
  
         self.set_default_filter_keys(default_key_on, default_key_off)
+    
+    @property
+    def on_band(self):
+        """Returns default on band filter"""
+        return self.filters[self.default_key_on]
+    
+    @property
+    def off_band(self):
+        """Returns default on band filter"""
+        try:
+            return self.filters[self.default_key_off]    
+        except:
+            raise TypeError("Collection does not contain off band filter")
             
     def init_filters(self, filters):
-        """Initiate the filters (old settings will be deleted)
+        """Initiate the filter collection (old settings will be deleted)
         
-        :param listlike filters: list with :class:`Filter` objects
-        
-        The filters will be written in the ordered dictionary ``self.filters``
+        The filters will be written into the dictionary ``self.filters``
         in the list order, keys are the filter ids
+        
+        :param list filters: list of :class:`piscope.utils.Filter` objects 
+            specifying camera filter setup
+        
+        
         """
         self.filters = od()
         try:
@@ -226,39 +233,40 @@ class FilterSetup(object):
         if not bool(self.filters):
             self.filters["on"] = Filter("on")
             
-    def update_filters_from_dict(self, filterDict):
+    def update_filters_from_dict(self, filter_dict):
         """Add filter objects from a dictionary
         
-        :param dict filterDict: dictionary, containing filter information
+        :param dict filter_dict: dictionary, containing filter information
         """
-        for f in filterDict.values():
+        for f in filter_dict.values():
             if isinstance(f, Filter):
                 if self.filters.has_key(f.id):
                     print "Filter %s was overwritten" %f.id
                 self.filters[f.id] = f
     
-    def set_default_filter_keys(self, default_key_on = None,\
-                                                    default_key_off = None):
+    def set_default_filter_keys(self, default_key_on=None,
+                                default_key_off=None):
         """Set default filter IDs for on and offband
         
-        :param str default_key_on: Key of central filter object (e.g. "on")
-        :param str default_key_off: Key of default offband filter object 
-            (e.g. "off")
+        If input parameters are unspecified, the first entries from the current 
+        setup are used.
+        
+        :param str default_key_on: string ID of default on band filter (only
+            relevant if collection contains more than one on band filter)
+        :param str default_key_off: string ID of default off band filter (only
+            relevant if collection contains more than one off band filter)
             
-        If input parameters are unspecified, the first entries from the current setup are
-        used.
+        
         """
         ids_on, ids_off = self.get_ids_on_off()
         if not ids_on:
             raise ValueError("No onband filter specified in FilterSetup")
         if default_key_on is None or default_key_on not in ids_on:
-            #print "No onband default key specified, use 1st entry in FilterDict"
             self.default_key_on = ids_on[0]
         else:
             self.default_key_on = default_key_on
         if ids_off:
             if default_key_off is None or default_key_off not in ids_off:
-                #print "No offband default key specified, use 1st entry in FilterDict"
                 self.default_key_off = ids_off[0]
             else:
                 self.default_key_off = default_key_off
@@ -356,13 +364,40 @@ class Camera(CameraBaseInfo):
     Class representing a UV camera system including detector specifications, 
     optics, file naming convention and :class:`FilterSetup`
     """
-    def __init__(self, cam_id = None, filter_list = [], default_filter_key_on\
-            = None, default_filter_key_off = None, ser_no = 9999, **geom_info):
+    def __init__(self, cam_id=None, filter_list=[], default_filter_on=None,
+                 default_filter_off=None, ser_no=9999, **geom_info):
         """Initiation of object
         
-        :param str cam_id (""): camera ID (e.g "ecII")
-        :param int ser_no (9999): camera serial number
-        :param dict filterInfoDict (None)
+        :param str cam_id: camera ID (e.g "ecII"), if this ID corresponds to 
+            one of the default cameras, the information is automatically 
+            loaded from supplementary file *cam_info.txt* 
+        :param list filter_list: list containing :class:`piscope.utils.Filter`
+            objects specifying the camera filter setup. If unspecified (empty
+            list) and input param ``cam_id`` is a valid default ID, then the 
+            default filter setup of the camera will be loaded.
+        :param str default_filter_on: string ID of default on band filter (only
+            relevant if collection contains more than one on band filter)
+        :param str default_filter_off: string ID of default off band filter (only
+            relevant if collection contains more than one off band filter)
+        :param int ser_no (9999): optional, camera serial number
+        :param **geom_info: additional keyword args specifying geometrical 
+            information, e.g. lon, lat, altitude, elev, azim
+            
+        Example creating a new camera (using ECII default info with custom
+        filter setup)::
+        
+            import piscope
+    
+            #the custom filter setup
+            filters= [piscope.utils.Filter(type="on", acronym="F01"),
+                      piscope.utils.Filter(type="off", acronym="F02")]
+            
+            cam = piscope.setupclasses.Camera(cam_id=ecII", filter_list=filters,
+                                              lon=15.11, lat=37.73, elev=18.0,
+                                              elev_err=3, azim=270.0,
+                                              azim_err=10.0, focal_lengh=25e-3)
+            print cam
+            
         """
         super(Camera, self).__init__(cam_id)
     
@@ -382,8 +417,9 @@ class Camera(CameraBaseInfo):
                        
         self.filter_setup = None
   
-        self.prepare_filter_setup(filter_list, default_filter_key_on,\
-                                                    default_filter_key_off)
+        self.prepare_filter_setup(filter_list, default_filter_on,
+                                  default_filter_off)
+    
     
     @property
     def lon(self):
@@ -420,16 +456,17 @@ class Camera(CameraBaseInfo):
         for key, val in settings.iteritems():
             self[key] = val
            
-    def prepare_filter_setup(self, filter_list = None, default_key_on = None,\
-                                                    default_key_off = None):
+    def prepare_filter_setup(self, filter_list=None, default_key_on=None,
+                             default_key_off=None):
         """Create :class:`FilterSetup` object (collection of bandpass filters)
         
-        :param list filter_list: list containing :class:`Filter` objects
-        :param default_filter_key_on: string specifiying the string ID of the 
+        :param list filter_list: list containing :class:`piscope.utils.Filter`
+            objects
+        :param default_filter_on: string specifiying the string ID of the 
             main onband filter of the camera (usually "on"). If unspecified 
             (None), then the ID of the first available on bandfilter in the 
             filter input list will be used.
-        :param default_filter_key_off: string specifiying the string ID of the 
+        :param default_filter_off: string specifiying the string ID of the 
             main offband filter of the camera (usually "on"). If unspecified 
             (None), then the ID of the first available off band filter in the 
             filter input list will be used.
@@ -437,9 +474,14 @@ class Camera(CameraBaseInfo):
         if not isinstance(filter_list, list) or not bool(filter_list):
             filter_list = self.default_filters
             default_key_on = self.main_filter_id
-
-        self.filter_setup = FilterSetup(filter_list, default_key_on,\
-                                                        default_key_off)
+        
+        filter_list = deepcopy(filter_list)
+        self.filter_setup = FilterSetup(filter_list, default_key_on,
+                                        default_key_off)
+        #overwrite default filter information
+        self.default_filters = []
+        for f in filter_list:
+            self.default_filters.append(f)
                      
     """
     Helpers, Convenience stuff
@@ -563,19 +605,18 @@ class BaseSetup(object):
     """
     __metaclass__ = ABCMeta
 
-    def __init__(self, base_path, start, stop, **opts):
+    def __init__(self, base_dir, start, stop, **opts):
         """Class initialisation
         
-        :param str base_path: Path were e.g. imagery data lies
+        :param str base_dir: Path were e.g. imagery data lies
         :param datetime start: start time of Dataset
         :param datetime stop: stop time of Dataset
         :param **opts: setup options for file handling (currently only 
             INCLUDE_SUB_DIRS option)
             
         """
-        self.id = "base"
-        self.base_path = base_path
-        self.save_path = base_path
+        self.base_dir = base_dir
+        self.save_dir = base_dir
         self.start = start
         self.stop = stop
         self.options = od([("USE_ALL_FILES"      ,   False),
@@ -588,8 +629,6 @@ class BaseSetup(object):
         for k, v in opts.iteritems():
             if self.options.has_key(k):
                 self.options[k] = v
-        
-        #self.check_paths()
         
     def check_timestamps(self):
         """Check if timestamps are valid and set to current time if not"""
@@ -663,19 +702,7 @@ class BaseSetup(object):
         if not value in [0, 1]:
             raise ValueError("need boolean")
         self.options["INCLUDE_SUB_DIRS"] = value
-        
-    def check_paths(self):
-        """Check if current paths (base_path, save_path) are ok
-        
-        Sets library dir as base and / or save_path if current values are no
-        valid location on machine.
-        
-        """
-        if not isinstance(self.base_path, str) or not exists(self.base_path):
-            self.base_path = _LIBDIR
-        if not isinstance(self.save_path, str) or not exists(self.save_path):
-            self.save_path = self.base_path
-        
+                
     def base_info_check(self):
         """Checks if all necessary information if available 
         
@@ -688,7 +715,7 @@ class BaseSetup(object):
         """
         ok = 1
         s=("Base info check\n-----------------------------\n")
-        if not self.base_path or not exists(self.base_path):
+        if not self.base_dir or not exists(self.base_dir):
             ok = 0
             s += "BasePath does not exist\n"
         if not self.USE_ALL_FILES:
@@ -703,25 +730,25 @@ class BaseSetup(object):
     
     def _check_if_number(self, val):
         """Check if input is integer or float and not nan"""
-        if isinstance(val, (int, float)) and not isnan(val):
-            return 1
-        return 0
+        return isnum(val)
     
-    def set_save_path(self,p):
-        """set the base path for results to be stored"""
-        if not path.exists(p):
-            print ("Could not set save base path in\n\n" + self._save_name
-                + ":\nPath does not exist")
-            return
-        self.save_path = p
-        
-    @property
-    def _save_name(self):
-        """Name according to saving convention"""
-        d = self.start.strftime('%Y%m%d')
-        i, f = self.start.strftime('%H%M'),self.stop.strftime('%H%M')
-        return "piscope_setup_%s_%s_%s_%s" %(self.id, d, i, f)
-    
+#==============================================================================
+#     def set_save_dir(self,p):
+#         """set the base path for results to be stored"""
+#         if not path.exists(p):
+#             print ("Could not set save base path in\n\n" + self._save_name
+#                 + ":\nPath does not exist")
+#             return
+#         self.save_dir = p
+#         
+#     @property
+#     def _save_name(self):
+#         """Name according to saving convention"""
+#         d = self.start.strftime('%Y%m%d')
+#         i, f = self.start.strftime('%H%M'),self.stop.strftime('%H%M')
+#         return "piscope_setup_%s_%s_%s_%s" %(self.id, d, i, f)
+#     
+#==============================================================================
     def _dict_miss_info_str(self, key, val):
         """string notification for invalid value"""
         return "Missing / wrong information: %s, %s\n" %(key, val)
@@ -729,13 +756,12 @@ class BaseSetup(object):
     def __str__(self):
         """String representation of this class"""
         s=("\nSetup\n---------\n\n"
-            "ID: %s\n"
             "Base path: %s\n" 
             "Save path: %s\n"
             "Start: %s\n"
             "Stop: %s\n"
             "Options:\n"
-            %(self.id, self.base_path, self.save_path, self.start, self.stop))
+            %(self.base_dir, self.save_dir, self.start, self.stop))
 
         for key, val in self.options.iteritems():
             s = s + "%s: %s\n" %(key, val)
@@ -754,11 +780,11 @@ class MeasSetup(BaseSetup):
     :class:`piscope.Datasets.PlumeData` objects or 
     :class:`piscope.Datasets.BackgroundData` objects.
     """
-    def __init__(self, base_path=None, start=None, stop=None, camera=None,
-                 source=None, wind_info=None, cell_info_dict = {}, rects={},
+    def __init__(self, base_dir=None, start=None, stop=None, camera=None,
+                 source=None, wind_info=None, cell_info_dict={}, rects={},
                  lines={}, **opts):
         """
-        :param str base_path: Path were e.g. imagery data lies
+        :param str base_dir: Path were e.g. imagery data lies
         :param datetime start: start time of Dataset
         :param datetime stop: stop time of Dataset
         :param Camera camera: general information about the camera used
@@ -767,7 +793,7 @@ class MeasSetup(BaseSetup):
             INCLUDE_SUB_DIRS option)
             
         """
-        super(MeasSetup, self).__init__(base_path, start, stop, **opts)
+        super(MeasSetup, self).__init__(base_dir, start, stop, **opts)
         self.id = "meas"
         
         if not isinstance(camera, Camera):
@@ -822,15 +848,7 @@ class MeasSetup(BaseSetup):
         if not isinstance(value, Camera):
             raise TypeError("Invalid input type, need Camera object")
         self._cam_source_dict["camera"] = value
-        
-    def set_source(self, source):
-        """Set the current source object"""
-        self.source = source
-    
-    def set_camera(self, camera):
-        """Set the current camera setup"""
-        self.camera = camera
-    
+            
     def update_wind_info(self, info_dict):
         """Update current wind info dict using valid entries from input dict"""
         for key, val in info_dict.iteritems():
@@ -843,7 +861,7 @@ class MeasSetup(BaseSetup):
         """
         ok = 1
         s = ("Base info check\n-----------------------------\n")
-        if not self.base_path or not exists(self.base_path):
+        if not self.base_dir or not exists(self.base_dir):
             ok = 0
             s += "Image base path does not exist\n"
         if not self.USE_ALL_FILES:
@@ -917,31 +935,33 @@ class MeasSetup(BaseSetup):
         
     """I/O stuff and helpers
     """
-    @property
-    def _save_name(self):
-        """Returns the save name using piscope naming convention"""
-        name = super(BaseSetup, self)._save_name
-        try:
-            name += "_%s" %self.source.name
-        except:
-            name += "_noSource"
-        try:
-            name += "_%s_%s" %(self.camera.cam_id, self.camera.ser_no)
-        except:
-            name += "_NoCamID_NoCamSerNo"
-        return name
-        
-    def save(self, p = None):
-        """save this object at a given location"""
-        if p is None:
-            p = self.save_path
-        if not path.exists(p):
-            self.save_path = p = getcwd()
-        name = self._save_name + ".stp"
-        f_path = path.join(p, name)
-        dump(self, open(f_path, "wb"))
-        return f_path
-    
+#==============================================================================
+#     @property
+#     def _save_name(self):
+#         """Returns the save name using piscope naming convention"""
+#         name = super(BaseSetup, self)._save_name
+#         try:
+#             name += "_%s" %self.source.name
+#         except:
+#             name += "_noSource"
+#         try:
+#             name += "_%s_%s" %(self.camera.cam_id, self.camera.ser_no)
+#         except:
+#             name += "_NoCamID_NoCamSerNo"
+#         return name
+#         
+#     def save(self, p = None):
+#         """save this object at a given location"""
+#         if p is None:
+#             p = self.save_dir
+#         if not path.exists(p):
+#             self.save_dir = p = getcwd()
+#         name = self._save_name + ".stp"
+#         f_dir = path.join(p, name)
+#         dump(self, open(f_dir, "wb"))
+#         return f_dir
+#     
+#==============================================================================
 #==============================================================================
 #     def edit_in_gui(self):
 #         """Edit the current dataSet object"""
@@ -1106,7 +1126,7 @@ class MeasSetup(BaseSetup):
 #         
 #         #self.evalSettings = EvalSettings()
 #         
-#         self.save_path = None
+#         self.save_dir = None
 #         self.plume_data_setup = None #:class:`BaseSetup`
 #         self.auto_cell_calib_setup = None #:class:`CellCalibSetup`
 #         self.bg_img_access_setup = None
@@ -1121,9 +1141,9 @@ class MeasSetup(BaseSetup):
 #     @property
 #     def saveBase(self):
 #         """Returns the save path of ``self.plume_data_setup``"""
-#         return self.plume_data_setup.save_path
+#         return self.plume_data_setup.save_dir
 #     
-#     def _check_path(self, p):
+#     def _check_dir(self, p):
 #         """Check if input is valid path"""
 #         if not (isinstance(p, str) and exists(p)):
 #             return False
@@ -1131,12 +1151,12 @@ class MeasSetup(BaseSetup):
 #         
 #     def create_folder_structure(self):
 #         """Create the folder structure for saving / reloading"""
-#         if not self._check_path(self.saveBase):
+#         if not self._check_dir(self.saveBase):
 #             raise IOError("Invalid path for saveBase variable...")
 #         name = self.__str__() + "/"
-#         self.save_path = self.saveBase + name
-#         if not path.exists(self.save_path):
-#             mkdir(self.save_path)
+#         self.save_dir = self.saveBase + name
+#         if not path.exists(self.save_dir):
+#             mkdir(self.save_dir)
 #     
 # #==============================================================================
 # #     def set_eval_settings(self, evalSettings):
@@ -1186,16 +1206,16 @@ class MeasSetup(BaseSetup):
 #         return name
 #     
 #     def save(self):
-#         """save this object at self.save_path"""
-#         if self.save_path is None or not path.exists(self.save_path):
+#         """save this object at self.save_dir"""
+#         if self.save_dir is None or not path.exists(self.save_dir):
 #             print ("Could not save " + self.__str__() + ": save path does not exists")
 #             return
-#         print ("Saving " + self.__str__() + "at " + str(self.save_path))
+#         print ("Saving " + self.__str__() + "at " + str(self.save_dir))
 #         name = self.__str__() + ".stp"
 #         print ("FileName: " + name)
-#         file_path=self.save_path + name
-#         dump(self, open(file_path, "wb"))
-#         return file_path 
+#         file_dir=self.save_dir + name
+#         dump(self, open(file_dir, "wb"))
+#         return file_dir 
 #==============================================================================
         
 

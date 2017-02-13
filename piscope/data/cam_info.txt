@@ -1,3 +1,5 @@
+This file contains information about piscope default cameras
+
 When creating a new camera type please use 0er case filter names. The filter ID is the string by which all images acquired with this filter are represented within piSCOPE. Parameters which include the substring "Pos" (e.g. time_info_pos, meas_type_pos, filter_id_pos) refer to positions of specific information in the image filenames (after they are splitted using "delim"), for instance "time_info_pos"==1 means, that a datetime string can be found at pos (!) 2 in the filename after splitting. PLEASE leave these "Pos" fields empty if the specific information is not available in your filename. If you 
 want to use the basic functionality, i.e. automatic separation of images by type ("on", "off", "dark", "offset") and image selection (and sorting) by acquisition time, then the the fields "meas_type_pos", "filter_id_pos" and "time_info_pos" need to be filled. 
 
@@ -17,7 +19,8 @@ file_type:tiff 			#image file_type
 main_filter_id:on 		#ID of main filter 
 meas_type_pos:1 		#position of meastype info, e.g. dark offset (after split using delim)
 DARK_CORR_OPT:2		#0: no dark corr, 1: dark + offset, 2: one dark at same exposure time (NOTE: USE CAPITAL LETTERS FOR THIS FLAG)
-texp_pos:			#position of exposure time (in exposure times are assumed to be in ms)
+texp_pos:			#position of exposure time (exp. time must be in s or ms)
+texp_unit:    #choose from s or ms
 focal_length:32.0e-3 #in m
 pix_height:13.0e-6  #in m
 pix_width:13.0e-6   #in m
@@ -38,7 +41,6 @@ filter:off,off,B0,M,330
 #dark_info:<ID>,<type>,<type acronym>,<measType acronym>,<read_gain>
 dark_info:on,dark,A0,D,0
 dark_info:off,dark,B0,D,0
-
 ENDCAM
 
 NEWCAM
@@ -73,6 +75,7 @@ main_filter_id:on
 meas_type_pos:4
 DARK_CORR_OPT:1
 texp_pos:
+texp_unit:    #choose from s or ms
 focal_length:
 pix_height:4.65e-6
 pix_width:4.65e-6
@@ -109,6 +112,7 @@ main_filter_id:on
 meas_type_pos:0
 DARK_CORR_OPT:2               #DARK_CORR_OPT 1: dark and offset, 2: dark at same exposure time
 texp_pos:
+texp_unit:    #choose from s or ms
 focal_length:25.0e-3
 pix_height:4.65e-6
 pix_width:4.65e-6

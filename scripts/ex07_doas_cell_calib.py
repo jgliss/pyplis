@@ -2,7 +2,6 @@
 """
 piscope example script no. 7 - Combined DOAS and cell calibration
 """
-
 import piscope 
 from os.path import join, exists
 import numpy as np
@@ -32,7 +31,7 @@ def draw_doas_fov(fov_x, fov_y, fov_extend, ax):
     return ax
 
 def prepare_sensitivity_corr_masks_cells(cellcalib, doasfov):
-    so2_cds = cellcalib.cell_so2_cds
+    so2_cds = cellcalib.cell_gas_cds
     masks = {}
     for cd in so2_cds:
         mask, _ = cellcalib.get_sensitivity_corr_mask(doas_fov=doasfov,

@@ -6,9 +6,9 @@ from pandas import Series
 from os.path import basename, exists
 
 if not __name__ == "__main__":
-    from .inout import get_camera_info
+    from .inout import get_camera_info, save_new_default_camera
 else: 
-    from piscope.inout import get_camera_info
+    from piscope.inout import get_camera_info, save_new_default_camera
         
 class CameraBaseInfo(object):
     """Low level base class for camera specific information 
@@ -21,7 +21,7 @@ class CameraBaseInfo(object):
         1. Include binning
         
     """
-    def __init__(self, cam_id = None, **kwargs):
+    def __init__(self, cam_id=None, **kwargs):
         """Init object
         
         :param str cam_id: string ID of camera (e.g. "ecII")
@@ -43,6 +43,7 @@ class CameraBaseInfo(object):
         self.default_filters = []
         self.main_filter_id = None#"on"
         self.texp_pos = None
+        self.texp_unit = "ms"
         
         self.meas_type_pos = None#nan
         #:the next flag (self.DARK_CORR_OPT) is set for image lists created using this fileconvention
@@ -73,7 +74,10 @@ class CameraBaseInfo(object):
         for k,v in kwargs.iteritems():
             if type_conv.has_key(k):
                 self[k] = type_conv[k](v)
-
+                
+        if self.meas_type_pos is None:
+            self.meas_type_pos = self.filter_id_pos
+    
     def update_file_access_flags(self):
         """Check which info can (potentially) be extracted from filename
         
@@ -137,7 +141,9 @@ class CameraBaseInfo(object):
             warnings.append("Failed to extract meas_type from filename")
             flags["meas_type"] = False
         try:
-            texp = float(spl[self.texp_pos]) / 1000.0 #convert to s
+            texp = float(spl[self.texp_pos])
+            if self.texp_unit == "ms":
+                texp = texp / 1000.0 #convert to s
             flags["texp"] = True
         except:
             warnings.append("Failed to extract texp from filename")
@@ -157,23 +163,24 @@ class CameraBaseInfo(object):
     @property
     def _type_dict(self):
         """Dict of all attributes and corresponding string conversion funcs"""
-        return od([("cam_id"          ,   str),
-                   ("delim"           ,   str),
-                   ("time_info_pos"   ,   int),
-                   ("time_info_str"   ,   str),
-                   ("filter_id_pos"   ,   int),
-                   ("texp_pos"        ,   int),
-                   ("file_type"       ,   str),
-                   ("main_filter_id"  ,   str),
-                   ("meas_type_pos"   ,   int),
-                   ("DARK_CORR_OPT"   ,   int),
-                   ("focal_length"    ,   float),
-                   ("pix_height"      ,   float),
-                   ("pix_width"       ,   float),
-                   ("pixnum_x"        ,   int),
-                   ("pixnum_y"        ,   int),
-                   ("default_filters" ,   list),                   
-                   ("dark_info"       ,   list)])
+        return od([("cam_id"          ,     str),
+                   ("delim"           ,     str),
+                   ("time_info_pos"   ,     int),
+                   ("time_info_str"   ,     str),
+                   ("filter_id_pos"   ,     int),
+                   ("texp_pos"        ,     int),
+                   ("texp_unit"       ,     str),
+                   ("file_type"       ,     str),
+                   ("main_filter_id"  ,     str),
+                   ("meas_type_pos"   ,     int),
+                   ("DARK_CORR_OPT"   ,     int),
+                   ("focal_length"    ,     float),
+                   ("pix_height"      ,     float),
+                   ("pix_width"       ,     float),
+                   ("pixnum_x"        ,     int),
+                   ("pixnum_y"        ,     int),
+                   ("default_filters" ,     list),                   
+                   ("dark_info"       ,     list)])
     
     @property
     def _info_dict(self):
@@ -191,6 +198,8 @@ class CameraBaseInfo(object):
                    ("texp_pos"        ,   ("Position of acquisition time info "
                                            "filename after splitting using "
                                            "delim")),
+                   ("texp_unit"       ,   ("Unit of exposure time in filename"
+                                           "choose between s or ms")),                       
                    ("file_type"       ,   "Filetype information (e.g. tiff)"),
                    ("main_filter_id"  ,   "String ID of main filter (e.g. on)"),
                    ("meas_type_pos"   ,   ("Position of meastype specification "
@@ -226,14 +235,16 @@ class CameraBaseInfo(object):
                     val = func(info_dict[key])
                     if key == "default_filters":
                         for f in val:
-                            filters.append(Filter(id = f[0], type = f[1],\
-                                acronym = f[2], meas_type_acro = f[3],\
-                                                center_wavelength = f[4]))
+                            filters.append(Filter(id=f[0], type=f[1],
+                                                  acronym=f[2],
+                                                  meas_type_acro=f[3],
+                                                  center_wavelength=f[4]))
                     elif key == "dark_info":
                         for f in val:
-                            dark_info.append(DarkOffsetInfo(id = f[0], type = f[1],\
-                                acronym = f[2], meas_type_acro = f[3],\
-                                                                read_gain = f[4]))
+                            dark_info.append(DarkOffsetInfo(id=f[0], type=f[1],
+                                                            acronym=f[2],
+                                                            meas_type_acro=f[3],
+                                                            read_gain=int(f[4])))
                     else:
                         self[key] = val
                 except:
@@ -271,17 +282,34 @@ class CameraBaseInfo(object):
             elif info.type == "offset" and info.read_gain == read_gain:
                 offs = info.acronym
         return offs, dark
-    
-    def to_dict(self):
-        """Writes specs into dictionary which is returned"""
-        d = {}
-        for k in self._type_dict.keys():
-            d[k] = self[k]
-        return d
         
     """
     Helpers
     """
+    def to_dict(self):
+        """Writes specs into dictionary which is returned"""
+        d = od()
+        for k in self._type_dict.keys():
+            if k in ["default_filters", "dark_info"]:
+                d[k] = []
+                for f in self[k]:
+                    print f
+                    print k
+                    d[k].append(f.to_list())
+            else:
+                d[k] = self[k]
+        return d
+    
+    def save_as_default(self, *add_cam_ids):
+        """Saves this camera to default data base"""
+        cam_ids = [self.cam_id]
+        cam_ids.extend(add_cam_ids)
+        print cam_ids
+        d = od([("cam_ids"    ,   cam_ids)])
+        d.update(self.to_dict())
+        print d.keys()
+        save_new_default_camera(d)
+        
     def _all_params(self):
         """Return list of all relevant source attributes"""
         return self._type_dict.keys()
@@ -298,8 +326,9 @@ class CameraBaseInfo(object):
                 s = s + "%s: %s\n" %(key,val)
         s = s + "\nDark & offset info\n------------------------\n"
         for i in self.dark_info:
-            s = s + ("ID: %s, Type: %s, Acro: %s, MeasTypeAcro: %s Read gain: %s\n" 
-                    %(i.id, i.type, i.acronym, i.meas_type_acro, i.read_gain))
+            s = s + ("ID: %s, Type: %s, Acro: %s, MeasTypeAcro: %s," 
+                     "Read gain: %s\n" 
+                     %(i.id, i.type, i.acronym, i.meas_type_acro, i.read_gain))
         return s
     """
     Magic methods
@@ -312,9 +341,9 @@ class CameraBaseInfo(object):
             val = self(key)
             if key in ["default_filters", "dark_info"]:
                 for info in val:
-                    s=s + "%s\n" %info
+                    s += "%s\n" %info
             else:
-                s = s + "%s: %s\n" %(key,val)
+                s += "%s: %s\n" %(key,val)
         return s
         
     def __setitem__(self, key, value):
@@ -360,11 +389,12 @@ class Filter(object):
                 "please use on or off as type")
         if id is None:
             id = type
-        if meas_type_acro == None:
+        if meas_type_acro is None:
             meas_type_acro = acronym
-        #filter Type ("on")
+    
         self.id = id
         self.type = type
+        
         #filter acronym (e.g. F01, i.e. as used in filename)
         self.acronym = acronym      
         self.meas_type_acro = meas_type_acro
@@ -373,18 +403,15 @@ class Filter(object):
         self.center_wavelength = center_wavelength
         self.trans_curve = None
         #filter peak transmission
-        #self.transCurve = None
+
         if self.id is None:
             self.id = self.type
 
-        #self.id = self.type + "_" + str(self.center_wavelength) + " nm"
-    
-#==============================================================================
-#     @property
-#     def info(self):
-#         return "%s_%snm" %(self.name, self.center_wavelength)
-#==============================================================================
-        
+    def to_list(self):
+        """Return filter info as list"""
+        return [self.id, self.type, self.acronym, self.meas_type_acro,
+                self.center_wavelength]
+                
     def set_trans_curve(self, data, wavelengths = None):
         """Assign transmission curve to this filter
         
@@ -422,10 +449,7 @@ class Filter(object):
     def print_specs(self):
         """print __str__"""
         print self.__str__()
-#==============================================================================
-# for key,val in self.camBaseInfo.dark_img_info.iteritems():
-#             darkId=key+self.camBaseInfo.darkSubInfoStr
-#==============================================================================
+
 class DarkOffsetInfo(object):
     """Base class for storage of dark offset information 
     
@@ -437,8 +461,8 @@ class DarkOffsetInfo(object):
     low light conditions. However, it significantly increases the noise in the
     images and therefore also the dark image signal. 
     """
-    def __init__(self, id = "dark", type = "dark", acronym = "",\
-                                    meas_type_acro = "", read_gain = 0):
+    def __init__(self, id="dark", type="dark", acronym="", meas_type_acro=None,
+                 read_gain=0):
         """Initiation of object
         
         :param str id: string identification of this object for 
@@ -456,9 +480,16 @@ class DarkOffsetInfo(object):
         self.id = id
         self.type = type
         self.acronym = acronym
+        if meas_type_acro is None:
+            meas_type_acro = acronym
         self.meas_type_acro = meas_type_acro
         self.read_gain = read_gain
-        
+    
+    def to_list(self):
+        """Return parameters as list"""
+        return [self.id, self.type, self.acronym, self.meas_type_acro,
+                self.read_gain]
+                
     def __str__(self):
         """String representation"""
         s = ("\nDarkOffsetInfo\n---------------------------------\n"

@@ -109,6 +109,14 @@ class PixelMeanTimeSeries(Series):
             - poly1d, the fitted polynomial
         """
         s = self.dropna()
+        num = len(s)
+        if num == 1:
+            raise ValueError("Could not fit polynomial to PixelMeanTimeSeries"
+                " object: only one data point available")
+        elif num == 2:
+            warn("PixelMeanTimeSeries object only contains 2 data points, "
+                "setting polyfit order to one (default is 2)")
+            order = 1
         x = [date2num(idx) for idx in s.index] 
         y = s.values
         p = poly1d(polyfit(x, y, deg = order))
@@ -387,12 +395,12 @@ class LineOnImage(object):
 
         (x0, x1), (y0, y1) = map_coordinates_sub_img([self.x0, self.x1],
                                                      [self.y0, self.y1],
-                                                     roi=self._roi_abs, 
+                                                     roi_abs=self._roi_abs, 
                                                      pyrlevel=self._pyrlevel,
                                                      inverse=True)
                                                      
         (x0, x1), (y0, y1) = map_coordinates_sub_img([x0, x1], [y0, y1],
-                                                     roi=roi_abs,
+                                                     roi_abs=roi_abs,
                                                      pyrlevel=pyrlevel,
                                                      inverse=False)
         

@@ -4,7 +4,7 @@ from matplotlib import gridspec
 import matplotlib.cm as cmaps
 from matplotlib.pyplot import imread, figure, tight_layout
 from numpy import ndarray, argmax, histogram, float32, uint, nan, linspace,\
-            swapaxes, flipud, isnan, uint8
+            swapaxes, flipud, isnan, uint8, asarray
 from os.path import abspath, splitext, basename, exists, join
 from os import getcwd, remove
 from datetime import datetime
@@ -15,6 +15,10 @@ from scipy.ndimage.filters import gaussian_filter, median_filter
 from traceback import format_exc
 from collections import OrderedDict as od
 from copy import deepcopy
+try:
+    from PIL.Image import open
+except:
+    pass
 
 from .inout import get_all_valid_cam_ids
 from .helpers import shifted_color_map, bytescale, map_roi, check_roi
@@ -77,8 +81,7 @@ class Img(object):
     """
     _FITSEXT = [".fits", ".fit", ".fts"]
     
-    def __init__(self, input=None, cam_id="", dtype=float32,\
-                                                         **meta_info):
+    def __init__(self, input=None, cam_id="", dtype=float32, **meta_info):
         """Class initialisation
         
         :param input: if input is valid (e.g. file path to an image type which
@@ -173,6 +176,8 @@ class Img(object):
             
             elif isinstance(input, ndarray):
                 self.img = input.astype(self.dtype)
+            else:
+                raise Exception
         except:
             raise IOError("Image data could not be imported:\nError msg: %s"\
                                         %format_exc())
@@ -592,19 +597,22 @@ class Img(object):
         im = imread(file_path, 2)#[1::, 1::]
         self.img = flipud(swapaxes(resize(im, (512, 512)),0,1)).astype(\
                                                                 self.dtype)
-        try:
-            f = sub('.tiff', '.txt', file_path) #open the *.txt instead    
-            file = open(f)
-            spl = file.read().split('\n')
-            print spl[1].split("Exposure Time: ")[1]
-            self.meta["texp"] = float(spl[1].split("Exposure Time: ")[1])
-            spl2 = spl[0].split("_")
-            self.meta["start_acq"] = datetime.strptime(spl2[0] + spl2[1],\
-                                                            '%Y%m%d%H%M%S%f') 
+#        try:
+        f = sub('.tiff', '.txt', file_path) #open the *.txt instead    
+        file = open(f)
+        spl = file.read().split('\n')
+        print spl[1].split("Exposure Time: ")[1]
+        self.meta["texp"] = float(spl[1].split("Exposure Time: ")[1])
+        spl2 = spl[0].split("_")
+        self.meta["start_acq"] = datetime.strptime(spl2[0] + spl2[1],
+                                                    '%Y%m%d%H%M%S%f') 
+        
             #self.meta["read_gain"] = 0
-        except:
-            print "Error loading image meta info for HD custom cam"
-    
+#==============================================================================
+#         except:
+#             print "Error loading image meta info for HD custom cam"
+#     
+#==============================================================================
     def load_file(self, file_path):
         """Try to import file specified by input path"""
         ext = splitext(file_path)[-1]
@@ -612,12 +620,31 @@ class Img(object):
             self.load_fits(file_path)
         elif self.cam_id == "hdcam":
             self.load_hd_custom(file_path)
+        elif self.cam_id == "hd_new":
+            self.load_hd_new(file_path)
         else:
-            self.img = imread(file_path).astype(self.dtype)
+           self.img = imread(file_path).astype(self.dtype)
         self.meta["path"] = abspath(file_path)
         self.meta["file_name"] = basename(file_path)
         self.meta["file_type"] = ext
+    
+    def load_hd_new(self, file_path):
+        """Load new format from Heidelberg group
         
+        This format contains IPTC information
+        """
+        #try:
+        im = open(file_path)
+        self.img = asarray(im).astype(self.dtype)
+        self.meta["texp"] = float(im.tag_v2[270].split(" ")[0].split("s")[0])
+        self.meta["start_acq"] = datetime.strptime("_".join(basename(file_path)
+                                .split("_")[:2]), "%Y%m%d_%H%M%S")
+        
+#==============================================================================
+#         except:
+#             self.img = imread(file_path).astype(self.dtype)
+#==============================================================================
+            
     def load_fits(self, file_path):
         """Import a FITS file 
         
@@ -797,14 +824,15 @@ class Img(object):
     """MAGIC METHODS"""
     def __str__(self):
         """String representation"""
-        s = "piscope Img\n--------------\n\n"
-        s += "Shape: %s\n" %str(self.shape)
+        s = "\n-----------\npiscope Img\n-----------\n\n"
         s += "Min / Max intensity: %s - %s\n" %(self.min(), self.max())
         s += "Mean intensity: %s\n" %(self.img.mean())
-        s += "\nMeta information\n-----------------------------\n"
+        s += "Shape: %s\n" %str(self.shape)
+        s += "ROI (abs. coords): %s\n" %self.roi_abs
+        s += "\nMeta information\n-------------------\n"
         for k, v in self.meta.iteritems():
             s += "%s: %s\n" %(k, v)
-        s += "\nEdit log\n-----------------------------\n"
+        s += "\nEdit log\n-----------\n"
         for k, v in self.edit_log.iteritems():
             s += "%s: %s\n" %(k, v)
         return s

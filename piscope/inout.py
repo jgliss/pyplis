@@ -14,8 +14,15 @@ from progressbar import ProgressBar, Percentage, Bar, RotatingMarker,\
     ETA, FileTransferSpeed
 from zipfile import ZipFile
 from urllib import urlretrieve
-from tempfile import mktemp
+from tempfile import mktemp, gettempdir
+from shutil import copy2
 
+def create_temporary_copy(path):
+    temp_dir = gettempdir()
+    temp_path = join(temp_dir, basename(path))
+    copy2(path, temp_path)
+    return temp_path
+    
 def download_test_data(save_path = None):
     """Download piscope test data from
     
@@ -134,7 +141,7 @@ def get_camera_info(cam_id):
     :param str cam_id: string ID of camera (e.g. "ecII")
     
     """
-    dat = {}
+    dat = od()
     if cam_id is None:
         return dat
     from piscope import _LIBDIR
@@ -159,15 +166,81 @@ def get_camera_info(cam_id):
                         l = [x.strip() for x in spl[1].split("#")[0].split(',')]
                         filters.append(l)
                     else:
-                        dStr = spl[1].split("#")[0].strip()
-                        if any([dStr == x for x in ["''", '""']]):
-                            dStr = ""
-                        dat[k] = dStr
+                        data_str = spl[1].split("#")[0].strip()
+                        if any([data_str == x for x in ["''", '""']]):
+                            data_str = ""
+                        dat[k] = data_str
             if spl[0] == "cam_ids":
-                if cam_id in [x.strip() for x in spl[1].split("#")[0].split(',')]:
-                    found = 1    
+                l = [x.strip() for x in spl[1].split("#")[0].split(',')]
+                if cam_id in l:
+                    found = 1  
+                    dat["cam_ids"]=l
     print ("Camera info for cam_id %s could not be found" %cam_id)
     return dat
+
+def save_new_default_camera(info_dict):
+    """Saves new default camera to data file *cam_info.txt*
+    
+    :param dict info_dict: dictionary containing camera default information
+    
+    Only valid keys will be added to the
+    """
+    from piscope import _LIBDIR
+    cam_file = join(_LIBDIR, "data", "cam_info.txt")
+    keys = get_camera_info("ecII").keys()
+    print info_dict["cam_id"]
+    if not info_dict.has_key("cam_id"):
+        raise KeyError("Missing specification of cam_id")
+    try:
+        cam_ids = info_dict["cam_ids"]
+    except:
+        info_dict["cam_ids"] = [info_dict["cam_id"]]    
+        cam_ids = [info_dict["cam_id"]]    
+        
+    if not all([x in info_dict.keys() for x in keys]):
+        raise KeyError("Input dictionary does not include all required keys "
+                        "for creating a new default camera type")
+    ids = get_all_valid_cam_ids()  
+    if any([x in ids for x in info_dict["cam_ids"]]):
+        print ids
+        print info_dict["cam_ids"]
+        raise KeyError("Cam ID conflict: one of the provided IDs already "
+                        "exists in database...")
+                        
+    cam_file_temp = create_temporary_copy(cam_file)
+    with open(cam_file_temp, "a") as info_file:
+        info_file.write("\n\nNEWCAM\ncam_ids:")
+        cam_ids = [str(x) for x in cam_ids]
+        info_file.write(",".join(cam_ids))
+        info_file.write("\n")
+        for k, v in info_dict.iteritems():
+            if k in keys:
+                print "Writing to file:\t%s: %s" %(k,v)   
+                if k == "default_filters":
+                    for finfo in v:
+                        info_file.write("filter:")
+                        finfo = [str(x) for x in finfo]
+                        info_file.write(",".join(finfo))
+                        info_file.write("\n")
+                elif k == "dark_info":
+                    for finfo in v:
+                        info_file.write("dark_info:")
+                        finfo = [str(x) for x in finfo]
+                        info_file.write(",".join(finfo))
+                        info_file.write("\n")
+                elif k == "cam_ids":
+                    pass
+                else:
+                    info_file.write("%s:%s\n" %(k,v))
+        info_file.write("ENDCAM")
+    info_file.close()
+    #Writing ended without errors: replace data base file "cam_info.txt" with 
+    #the temporary file and delete the temporary file
+    copy2(cam_file_temp, cam_file)
+    remove(cam_file_temp)
+    
+    print ("Successfully added new default camera %s to database" 
+            %info_dict["cam_id"])
 
 def get_all_valid_cam_ids():
     """Load all valid camera string ids
@@ -222,6 +295,8 @@ def get_source_info(source_id, try_online = True):
     """
     from piscope import _LIBDIR
     dat = od()
+    if source_id == "":
+        return dat
     found = 0
     with open(join(_LIBDIR, "data", "my_sources.txt")) as f:        
         for line in f: 
@@ -232,8 +307,8 @@ def get_source_info(source_id, try_online = True):
                 if not any([line[0] == x for x in["#","\n"]]):
                     spl = line.split(":")
                     k = spl[0].strip()
-                    dStr = spl[1].split("#")[0].strip()
-                    dat[k] = dStr
+                    data_str = spl[1].split("#")[0].strip()
+                    dat[k] = data_str
             if spl[0] == "source_ids":
                 if source_id in [x.strip() for x in spl[1].split("#")[0].split(',')]:
                     found = 1 

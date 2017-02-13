@@ -1,9 +1,12 @@
 # -*- coding: utf-8 -*-
 """
-piscope example script no. 5_2: Automatic cell calibration
+piscope example script no. 5: Automatic cell calibration
 
-Sript showing how to work with cell calibration data and automatic retrieval of
-plume background images.
+Script showing how to use the automatic cell calibration engine which only 
+requires to specify start / stop time stamps of a calibration window. Based on 
+that sub time windows for each cell as well as suitable background images are
+detected and separated into individual image lists (for all filters, i.e. here
+on / off).
 
 """
 

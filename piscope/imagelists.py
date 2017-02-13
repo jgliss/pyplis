@@ -383,7 +383,8 @@ class BaseImgList(object):
         
         c = self.camera
         if not any([x == 1 for x in [time_access, texp_access]]):
-            print "No information could be extracted from filenames..."
+            warn("Failed to extract information from file names in image list"
+                " %s" %self.list_id)
             return False, False
         for fpath in self.files:
             spl = basename(fpath).split(c.delim)
@@ -406,13 +407,20 @@ class BaseImgList(object):
         idx_array = zeros(self.nof, dtype = int)
         times, _ = self.get_img_meta_all_filenames()
         times_lst, _ = lst.get_img_meta_all_filenames()
-        if any([x is False for x in (times, times_lst)]):
-            raise ImgMetaError("Image acquisition times could not be"
-                    " accessed from file names")
-        for k in range(self.nof):
-            idx = abs(times[k] - times_lst).argmin()
-            idx_array[k] = idx
-    
+        if lst.nof == 1:
+            warn("Other list contains only one file, assign all indices to "
+                 "this file")
+        elif any([x is False for x in (times, times_lst)]):
+            warn("Image acquisition times could not be accessed from file"
+                " names, assigning by indices")
+            lst_idx = arange(lst.nof)
+            for k in range(self.nof):
+                idx_array[k] = abs(k - lst_idx).argmin()
+        else:
+            for k in range(self.nof):
+                idx = abs(times[k] - times_lst).argmin()
+                idx_array[k] = idx
+        
         return idx_array
     
     def same_preedit_settings(self, settings_dict):
@@ -523,15 +531,20 @@ class BaseImgList(object):
                                                             img.edit_log)
         
     def current_edit(self):
-        """Print the current image edit settings 
+        """Returns the current image preparation settings
         
-        These are applied by default when images are loaded, only not, if 
-        `self.fastMode` is active
+        These are applied by default when images are loaded and if
+        ``self.edit_active == True`` (which is the default)
         """
+        return self.current_img().edit_log
+        
+    def edit_info(self):
+        """Print the current image preparation settings"""
         d = self.current_img().edit_log
+        print("\nImgList %s, image edit info\n----------------------------" 
+            %self.list_id)
         for key, val in d.iteritems():
             print "%s: %s" %(key, val)
-        return d
         
     def _make_header(self):
         """Make header string for current image (using image meta information)            
@@ -603,8 +616,10 @@ class BaseImgList(object):
      
         except IOError:
             print ("Invalid file encountered at list index %s, file will"
-                "be removed from list" %self.index)
+                " be removed from list" %self.index)
             self.pop()
+            if self.nof == 0:
+                raise IndexError("No filepaths left in image list...")
             self.load()
             
         except IndexError:
@@ -923,8 +938,8 @@ class ImgList(BaseImgList):
             other lists are the ones closest in time to this image
     
     """
-    def __init__(self, files = [], list_id = None, list_type = None,\
-                                            camera = None, init = True):
+    def __init__(self, files=[], list_id=None, list_type=None, camera=None,
+                 init=True):
         """
             
         Extended version of :class:`BaseImgList` object, additional
@@ -1180,7 +1195,7 @@ class ImgList(BaseImgList):
         del self.linked_indices[list_id]
     
     
-    def link_dark_offset_lists(self, listDict):
+    def link_dark_offset_lists(self, list_dict):
         """Assign dark and offset image lists to this object
         
         Set dark and offset image lists, get "closest-in-time" indices of dark 
@@ -1192,7 +1207,7 @@ class ImgList(BaseImgList):
         """
         warnings = []
         print "Linking dark / offset lists to list %s " %self.list_id
-        for lst in listDict.values():
+        for lst in list_dict.values():
             if isinstance(lst, DarkImgList):
                 if lst.list_type == "dark":
                     self.dark_lists[lst.read_gain] = {}
@@ -1337,7 +1352,7 @@ class ImgList(BaseImgList):
                 
         """
         img = self.current_img(key)
-        read_gain = str(img.meta["read_gain"])
+        read_gain = img.meta["read_gain"]
         self.update_index_dark_offset_lists()
         dark = None
         if self.DARK_CORR_OPT == 1:
@@ -1917,8 +1932,8 @@ class CellImgList(ImgList):
     the variable ``self.gas_cd`` specifying the amount of gas (column 
     density) in this cell.
     """
-    def __init__(self, files=[], list_id=None, list_type=None, camera=
-                None, cell_id="", gas_cd=None, gas_cd_err=None):
+    def __init__(self, files=[], list_id=None, list_type=None, camera=None,
+                 cell_id="", gas_cd=0.0, gas_cd_err=0.0):
         
         super(CellImgList, self).__init__(files, list_id, list_type, camera)
         self.cell_id = cell_id
