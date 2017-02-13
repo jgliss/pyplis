@@ -2,8 +2,32 @@
 """
 piscope example script no. 1
 
-This script illustrates how to specify a measurement setup and create a 
-dataset from that. 
+Setup of a example data set
+
+In this script an example data set, recorded on the 16/9/15 7:06-7:22 at 
+Mt. Etna is setup. Most of the following example scripts will work on this data 
+set. 
+
+A typical analysis setup for plume image data contains information about the
+camera (e.g. optics, file naming convention, see also ex0_2_camera_setup.py), 
+gas source, the measurement geometry and the wind conditions. These information 
+is needs to be generally provided by the user before the analysis. The 
+information is stored within a MeasSetup object which can be used as a basis
+for further analysis.  
+If not all neccessary information is entered, a MeasSetup object will be 
+created nonetheless but analysis options might be limited.
+
+Such a MeasSetup object can be used as input for Dataset objects which creates
+the analysis environment (i.e. separating files by image type). 
+
+This script shows how to setup a MeasSetup object and create a Dataset object
+from it. As example, the first image of the on-band image time series is 
+displayed.
+
+The Dataset object created here is also used in script 
+ex04_prep_aa_imglist.py which shows how to create an image list displaying
+AA images.
+
 """
 import piscope as piscope
 from datetime import datetime
@@ -22,8 +46,8 @@ def create_dataset():
     cam_id = "ecII"
     
     #the camera filter setup
-    filters= [piscope.utils.Filter(type = "on", acronym = "F01"),
-              piscope.utils.Filter(type = "off", acronym = "F02")]
+    filters= [piscope.utils.Filter(type="on", acronym="F01"),
+              piscope.utils.Filter(type="off", acronym="F02")]
     
     #camera location and viewing direction (altitude will be retrieved automatically)                    
     geom_cam = {"lon"           :   15.1129,

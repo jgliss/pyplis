@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Module containing the :class:`piscope.Dataset` object
+Module containing the :class:`Dataset` object
 """
 from os.path import exists, join, isfile
 from os import listdir, walk
@@ -18,7 +18,16 @@ from .helpers import _print_list, shifted_color_map
 from .setupclasses import MeasSetup
    
 class Dataset(object):
-    """Abstract base class for start/stop/file location based Setups"""
+    """Class for data import management
+    
+    Default input is a :class:`piscope.setupclasses.MeasSetup` object, which 
+    specifies the camera used (e.g. file naming convention, detector specifics)
+    the measurement geometry and information about the source and
+    meteorological wind direction, start / stop time stamps and the image 
+    base directory.
+    
+    This object finds all images in the 
+    """
     def __init__(self, input = None, init = 1):
         self.setup = None
     
@@ -42,9 +51,9 @@ class Dataset(object):
             return 1
         if isinstance(input, str) and exists(input):            
             msg = ("Input is filepath, assuming this to be image base path: "
-                "updating base_path variable in self.setup")
+                "updating base_dir variable in self.setup")
             print msg
-            self.change_img_basepath(input)
+            self.change_img_base_dir(input)
         else:
             msg=("Unkown input setup type: " + str(type(input)))
             raise TypeError(msg)   
@@ -77,8 +86,8 @@ class Dataset(object):
             return 0    
         
         for item in self.camera.dark_info:
-            l = DarkImgList(list_id = item.id, list_type = item.type, read_gain =\
-                                        item.read_gain, camera = self.camera)
+            l = DarkImgList(list_id=item.id, list_type=item.type,
+                            read_gain=item.read_gain, camera=self.camera)
             
             if not self._lists_intern.has_key(item.meas_type_acro):
                 self._lists_intern[item.meas_type_acro] = od()
@@ -93,7 +102,7 @@ class Dataset(object):
         print "+++++++++ Searching valid files ++++++++++++++" 
         print "++++++++++++++++++++++++++++++++++++++++++++++"
         print
-        p = self.base_path
+        p = self.base_dir
         if not isinstance(self.camera.file_type, str):
             print ("file_type not specified in Dataset..."
                 "Using all files and file_types")
@@ -268,18 +277,18 @@ class Dataset(object):
             print item
         return self.camera._fname_access_flags
         
-    def change_img_basepath(self, img_dir):
-        """Set or update the current basepath. 
+    def change_img_base_dir(self, img_dir):
+        """Set or update the current base_dir. 
         
         :param str p: new path
         """
         if not exists(img_dir):
-            msg = ("Could not update basepath, input path %s does not exist" 
+            msg = ("Could not update base_dir, input path %s does not exist" 
                                                                     %img_dir)
             print msg
             self.warnings.append(msg)
             return 0
-        self.setup.base_path = img_dir
+        self.setup.base_dir = img_dir
     
     def _check_file_type(self):
         """Check if filtype information is available 
@@ -601,26 +610,35 @@ class Dataset(object):
         """Wrapper for :func:`draw_map_3d` of ``self.meas_geometry`` object"""
         return self.meas_geometry.draw_map_3d(*args, **kwargs)    
     """
-    Dynamic attributes
+    Decorators
     """    
     @property 
     def camera(self):
         """Return camera base info object"""
         return self.setup.camera
         
+    @camera.setter
+    def camera(self, val):
+        self.setup.camera = val
+        
+    @property
+    def source(self):
+        """Get / set current Source"""
+        return self.setup.source
+        
+    @source.setter
+    def source(self, val):
+        self.setup.source = val
+        
     @property
     def cam_id(self):
         """Returns current camera ID"""
         return self.setup.camera.cam_id
+        
     @property
-    def base_path(self):
-        """Returns current image basepath"""
-        return self.setup.base_path
-    
-    @property
-    def INCLUDE_SUB_DIRS(self):
-        """Returns boolean sub directory inclusion option"""
-        return self.setup.INCLUDE_SUB_DIRS
+    def base_dir(self):
+        """Returns current image base_dir"""
+        return self.setup.base_dir
     
     @property
     def USE_ALL_FILES(self):
@@ -631,11 +649,12 @@ class Dataset(object):
     def USE_ALL_FILE_TYPES(self):
         """Return USE_ALL_FILE_TYPES option from setup"""
         return self.setup.USE_ALL_FILE_TYPES
-        
+    
     @property
-    def save_path(self):
-        """Returns current basepath for saving results"""
-        return self.setup.save_path
+    def INCLUDE_SUB_DIRS(self):
+        """Returns boolean sub directory inclusion option"""
+        return self.setup.INCLUDE_SUB_DIRS
+        
     @property
     def start(self):
         """Returns current start date and time"""
@@ -720,7 +739,7 @@ class Dataset(object):
         Searches in ``self.__dict__`` and ``self.setup`` and overwrites if 
         match found
         
-        :param str key: key of item (e.g. base_path)
+        :param str key: key of item (e.g. base_dir)
         :param val: the replacement
         """
         if self.setup.__dict__.has_key(key):
@@ -811,77 +830,3 @@ class Dataset(object):
         for k, v in tm.iteritems():
             lists[k].activate_tau_mode(v)
         return axes
-            
-#==============================================================================
-# class BackgroundData(Dataset):     
-#     """Dataset representing background imagery data access and management"""
-#     def __init__(self, input = None, init = 0):
-#         """Object initialisation
-#         
-#         For setup details please see :class:`Dataset` 
-#         """
-#         print "\nINIT BACKGROUND DATASET OBJECT\n"
-#         
-#         super(BackgroundData, self).__init__(input, init)
-#         
-#         
-#         #self.bg_model=BackgroundModel(self.forms["rects"], self.filters)              
-#         #self.type="Background"
-#         
-#         print
-#         print "BACKGROUND DATASET OBJECT INITIALISED"
-#         print
-#     
-#     def set_lowest_std_img(self, filter_id = None):
-#         """Set image with lowest std in pixel values as current image
-#         
-#         :param str filter_id: string ID of filter (e.g. "on")
-#         
-#         Determines mean and std of pixel intensities for all images stored
-#         in image list specified by input filter ID and the image with lowest
-#         std is set as current image
-#         """
-#         if filter_id is None:
-#             filter_id = self.filters.default_key_on
-#         l = self.get_list(filter_id)
-#         index = argmin(l.get_mean_value().std)
-#         self.lists[filter_id].change_index(index)
-#         
-#     def load_setup_from_calib_data_set(self, dsCalib):
-#         """Load and init setup from :class:`CellCalib` object
-#         
-#         :param CellCalib dsCalib: cell calibration dataset
-#         """
-#         self.load_input(dsCalib.setup)
-#         self.init_image_lists()
-#         
-#     def get_bgfiles_from_calib_data_set(self, dsCalib):
-#         """Import setup and background files from :class:`DatasetCalib` object.
-#         
-#         :param CellCalib dsCalib: cell calibration dataset
-#         
-#         .. note::
-#         
-#             :func:`DatasetCalib.find_cell_time_windows` needs to've been 
-#             performed in order for this to work
-#             
-#         """        
-# #==============================================================================
-# #         if not dsCalib.cellSearchPerformed:
-# #             raise CellSearchError("Background image information could not be "
-# #                 " imported: cell search was not performed")
-# #==============================================================================
-#         self.load_setup_from_calib_data_set(dsCalib)
-#         #self.bg_model.set_filter_collection(self.filters)
-#         #first copy the complet sorted list to get dark and offset lists
-#         self.sortedList = deepcopy(dsCalib.sortedList)
-#         for filter_id, lst in dsCalib.bgLists.iteritems():
-#             if not isinstance(lst, ImgList):
-#                 raise TypeError("Check bg lists in cell calib dataset")
-#             self.lists[filter_id] = lst
-#             print ("Background image list %s (containing %s image files) was "
-#                 "imported into BackgroundData object..." 
-#                 %(lst.id, lst.nof))
-#         self.load_images()
-#     
-#==============================================================================

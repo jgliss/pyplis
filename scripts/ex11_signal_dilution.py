@@ -48,7 +48,7 @@ SKIP_PIX_LINES = 10
 
 # Specify region of interest used to extract the ambient intensity (required
 # for dilution correction)
-AMBIENT_ROI = [1240, 10, 1300, 70]
+AMBIENT_ = [1240, 10, 1300, 70]
 
 # Specify plume velocity (for emission rate estimate)
 PLUME_VELO = 4.14 #m/s (result from ex8)
