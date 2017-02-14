@@ -31,6 +31,7 @@ from matplotlib.pyplot import figure, draw
 from copy import deepcopy
 from scipy.ndimage.filters import gaussian_filter
 from warnings import warn
+from os.path import exists
 
 from traceback import format_exc
 
@@ -294,7 +295,7 @@ class BaseImgList(object):
         :param int num (0): index of image which will be loaded (`self.index`)
         """
         print 
-        print "Init filelist %s" %self.list_id
+        print "Init ImgList %s" %self.list_id
         print "-------------------------"
         self.index = num
         
@@ -760,6 +761,16 @@ class BaseImgList(object):
         """
         self.load_prev()
         return self.loaded_images["this"]
+    
+    def append(self, file_path):
+        """Append image file to list
+        
+        :param str file_path: valid file path
+        """
+        if not exists(file_path):
+            raise IOError("Image file path does not exist %s" %file_path)
+        
+        self.files.append(file_path)
         
     def _first_file(self):
         """get first file path of image list"""

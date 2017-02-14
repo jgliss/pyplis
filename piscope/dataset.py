@@ -14,6 +14,7 @@ from traceback import format_exc
 from collections import OrderedDict as od
 
 from .imagelists import ImgList, DarkImgList
+from .inout import get_all_files_in_dir
 from .helpers import _print_list, shifted_color_map
 from .setupclasses import MeasSetup
    
@@ -108,7 +109,7 @@ class Dataset(object):
                 "Using all files and file_types")
             self.setup.options["USE_ALL_FILES"] = True
             self.setup.options["USE_ALL_FILE_TYPES"] = True
-                
+     
         if p is None or not exists(p):
             message = ('Error: path %s does not exist' %p)
             print message 

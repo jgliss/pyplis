@@ -513,10 +513,9 @@ class MeasGeometry(object):
         
         return elev_cam, az_cam
         
-    def correct_viewing_direction(self, pix_x, pix_y, pix_pos_err=10,
-                                  obj_id="", geo_point=None, lon_pt=None, 
-                                  lat_pt=None, alt_pt=None, update=True, 
-                                  draw_result=False):
+    def find_viewing_direction(self, pix_x, pix_y, pix_pos_err=10, obj_id="", 
+                               geo_point=None, lon_pt=None, lat_pt=None, 
+                               alt_pt=None, update=True, draw_result=False):
         """Retrieve camera viewing direction from point in image
         
         Uses the geo coordinates of a characteristic point in the image (e.g.
@@ -557,7 +556,7 @@ class MeasGeometry(object):
             self.geo_setup.add_geo_point(obj_pos)
         else:
             try:
-                obj_pos = GeoPoint(lat_pt, lon_pt, alt_pt, name = obj_id)
+                obj_pos = GeoPoint(lat_pt, lon_pt, alt_pt, name=obj_id)
                 self.geo_setup.add_geo_point(obj_pos)
             except:
                 raise IOError("Invalid input, characteristic point for "
@@ -581,8 +580,9 @@ class MeasGeometry(object):
         azim_err = max(abs(az_cam - asarray(azims)))
                 
         if update:
-            print ("New Elev / Azim cam CFOV: " + str(elev_cam) + " / " + 
-                                                            str(az_cam))
+            elev_old, az_old = geom_old.cam["elev"], geom_old.cam["azim"]
+            print ("Old Elev / Azim cam CFOV: %.2f / %.2f" %(elev_old, az_old))
+            print ("New Elev / Azim cam CFOV: %.2f / %.2f" %(elev_cam, az_cam))
             self.cam["elev"] = elev_cam
             self.cam["azim"] = az_cam
             self.cam["elev_err"] = elev_err

@@ -14,11 +14,11 @@ from SETTINGS import SAVEFIGS, SAVE_DIR, FORMAT, DPI, IMG_DIR, OPTPARSE
 
 ### IMPORTS FROM OTHER EXAMPLE SCRIPTS
 from ex01_analysis_setup import create_dataset
-from ex02_meas_geometry import correct_viewing_direction
+from ex02_meas_geometry import find_viewing_direction
 
 
 ### SCRIPT FUNCTION DEFINITIONS        
-def prepare_aa_image_list(bg_corr_mode = 6):
+def prepare_aa_image_list(bg_corr_mode=6):
     """Get and prepare onband list for aa image mode
     
     The relevant gas free areas for background image modelling are set 
@@ -28,7 +28,7 @@ def prepare_aa_image_list(bg_corr_mode = 6):
     """
 
     dataset = create_dataset()
-    geom, _ = correct_viewing_direction(dataset.meas_geometry, False)
+    geom, _ = find_viewing_direction(dataset.meas_geometry, False)
     
     ### Set plume background images for on and off
     # this is the same image which is also used for example script NO

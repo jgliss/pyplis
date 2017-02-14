@@ -108,7 +108,7 @@ class CameraBaseInfo(object):
         Checks if all declared import information works for a given filetype 
         and update all flags for which it does not work 
 
-        :param str file_path: filepath used for info import check
+        :param str file_path: file path used for info import check
         
         """
         acq_time, filter_id, meas_type, texp = None, None, None, None
