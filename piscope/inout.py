@@ -4,8 +4,8 @@ I/O routines for external data access
 -------------------------------------
 """
 from dill import load
-from os.path import join, basename, exists
-from os import listdir, remove
+from os.path import join, basename, exists, isfile
+from os import listdir, remove, walk
 
 from matplotlib.pyplot import imread
 from urllib2 import urlopen
@@ -17,6 +17,44 @@ from urllib import urlretrieve
 from tempfile import mktemp, gettempdir
 from shutil import copy2
 
+def get_all_files_in_dir(directory, file_type=None, include_sub_dirs=False):
+    
+    p = directory
+    if p is None or not exists(p):
+        message = ('Error: path %s does not exist' %p)
+        print message 
+        return []
+    use_all_types = False
+    if not isinstance(file_type, str):
+        use_all_types = True
+ 
+    if include_sub_dirs:
+        print "Include files from subdirectories"
+        all_paths = []
+        if use_all_types:
+            print "Using all file types"
+            for path, subdirs, files in walk(p):
+               for filename in files:
+                   all_paths.append(join(path, filename))
+        else:
+            print "Using only %s files" %file_type
+            for path, subdirs, files in walk(p):
+                for filename in files:
+                    if filename.endswith(file_type):
+                        all_paths.append(join(path, filename))
+        
+    else:
+        print "Exclude files from subdirectories"
+        if use_all_types:
+            print "Using all file types"
+            all_paths = [join(p, f) for f in listdir(p) if isfile(join(p, f))]
+        else:
+            print "Using only %s files" %file_type
+            all_paths = [join(p, f) for f in listdir(p) if
+                         isfile(join(p, f)) and f.endswith(file_type)]
+    all_paths.sort() 
+    return all_paths
+        
 def create_temporary_copy(path):
     temp_dir = gettempdir()
     temp_path = join(temp_dir, basename(path))

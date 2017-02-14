@@ -48,7 +48,7 @@ SKIP_PIX_LINES = 10
 
 # Specify region of interest used to extract the ambient intensity (required
 # for dilution correction)
-AMBIENT_ = [1240, 10, 1300, 70]
+AMBIENT_ROI = [1240, 10, 1300, 70]
 
 # Specify plume velocity (for emission rate estimate)
 PLUME_VELO = 4.14 #m/s (result from ex8)
@@ -106,7 +106,7 @@ def create_dataset_dilution():
                                          wind_info = wind_info)
     return piscope.dataset.Dataset(stp)                  
 
-def correct_view_dir(geom):
+def find_view_dir(geom):
     """Performs a correction of the viewing direction using crater in img
     
     :param MeasGeometry geom: measurement geometry
@@ -118,7 +118,7 @@ def correct_view_dir(geom):
     # Geo location of NE crater (info from Google Earth)
     ne_crater = GeoPoint(37.754788,  14.996673, 3287, name = "NE crater")
     
-    geom.correct_viewing_direction(pix_x=posx, pix_y=posy, pix_pos_err=100,
+    geom.find_viewing_direction(pix_x=posx, pix_y=posy, pix_pos_err=100,
                                    geo_point=ne_crater, draw_result=True)
     return geom
 
@@ -236,7 +236,7 @@ if __name__ == "__main__":
     
     # create dataset and correct viewing direction
     ds = create_dataset_dilution()
-    geom = correct_view_dir(ds.meas_geometry)
+    geom = find_view_dir(ds.meas_geometry)
     
     #get plume distance image    
     pix_dists, _, plume_dist_img = geom.get_all_pix_to_pix_dists()  

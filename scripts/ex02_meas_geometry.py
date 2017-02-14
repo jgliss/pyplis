@@ -1,13 +1,24 @@
 # -*- coding: utf-8 -*-
 """
-piscope example script no. 2
+piscope example script no. 2 - Features of MeasGeometry class
 
-Import plume image dataset from example script 1 and illustrate some important
-features of the MeasGeometry class
+In this script, some important features of the MeasGeometry class are 
+intorduced. The class itself is automatically created in the MeasSetup
+object which was created in example script ex01_analysis_setup.py and was 
+passet to create a Dataset object. The MeasGeometry is stored within the 
+Dataset object and can be accessed via the ``meas_geometry`` attribute.
 
-.. todo::
+As a first feature, the viewing direction of the camera is retrieved from the 
+image data based on the position of the SE crater of Mt.Etna. The result is 
+then visualized in a 2D map to give a good overview of the geometry. The map
+also includes the azimuth angles of the initial viewing direction (see example
+script ex01_analysis_setup.py) which corresponds to the 
+ 
+Further, the distance to the plume is retrieved on a pixel basis (represented 
+as an image where each pixel value represents theas well as 
+the stin pixel scale and km for every 
+image pixel.
 
-    Actually create the class here (import via Dataset is confusing)
     
 """
 from geonum.base import GeoPoint
@@ -20,8 +31,8 @@ from SETTINGS import SAVEFIGS, SAVE_DIR, FORMAT, DPI, OPTPARSE
 ### IMPORTS FROM OTHER EXAMPLE SCRIPTS
 from ex01_analysis_setup import create_dataset
 
-### SCRIPT FUNCTION DEFINITIONS        
-def correct_viewing_direction(meas_geometry, draw_result = True):
+### SCRIPT FUNCTION DEFINITIONS    
+def find_viewing_direction(meas_geometry, draw_result = True):
     """Correct viewing direction using location of Etna SE crater
     
     Defines location of Etna SE crater within images (is plotted into current
@@ -36,12 +47,12 @@ def correct_viewing_direction(meas_geometry, draw_result = True):
     # Create geo point with coordinates (extracted from Google Earth)
     se_crater = GeoPoint(37.747757, 15.002643, name = "SE crater")
     
-    print "Retrieved altitude (SRTM): %s" %se_crater.altitude
+    print "Retrieved altitude SE crater (SRTM): %s" %se_crater.altitude
     
     meas_geometry.geo_setup.add_geo_point(se_crater)
     
     _, _, _, basemap =\
-    meas_geometry.correct_viewing_direction(pix_x=se_crater_img_pos[0], 
+    meas_geometry.find_viewing_direction(pix_x=se_crater_img_pos[0], 
                                             pix_y=se_crater_img_pos[1],
                                             pix_pos_err=100, #for uncertainty estimate
                                             obj_id="SE crater",
@@ -68,8 +79,9 @@ def plot_plume_distance_image(meas_geometry):
 if __name__ == "__main__":
     close("all")
     
+    
     ds = create_dataset()
-    geom_corr, map = correct_viewing_direction(ds.meas_geometry)
+    geom_corr, map = find_viewing_direction(ds.meas_geometry)
 
     fig =  plot_plume_distance_image(ds.meas_geometry)
     

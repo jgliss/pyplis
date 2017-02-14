@@ -620,10 +620,11 @@ class Img(object):
             self.load_fits(file_path)
         elif self.cam_id == "hdcam":
             self.load_hd_custom(file_path)
-        elif self.cam_id == "hd_new":
-            self.load_hd_new(file_path)
         else:
-           self.img = imread(file_path).astype(self.dtype)
+            try:
+                self.load_hd_new(file_path)
+            except:
+               self.img = imread(file_path).astype(self.dtype)
         self.meta["path"] = abspath(file_path)
         self.meta["file_name"] = basename(file_path)
         self.meta["file_type"] = ext
@@ -635,10 +636,10 @@ class Img(object):
         """
         #try:
         im = open(file_path)
-        self.img = asarray(im).astype(self.dtype)
+        self.img = asarray(im).astype(self.dtype)[::-1, 0::] #flip
         self.meta["texp"] = float(im.tag_v2[270].split(" ")[0].split("s")[0])
         self.meta["start_acq"] = datetime.strptime("_".join(basename(file_path)
-                                .split("_")[:2]), "%Y%m%d_%H%M%S")
+                                .split("_")[:3]), "%Y%m%d_%H%M%S_%f")
         
 #==============================================================================
 #         except:

@@ -25,13 +25,15 @@ def create_ecII_cam_new_filters():
     
     # Specify the camera filter setup
 
-    # create an on band filter, obligatory input is param "type" and "acronym"
-    # the former specifies the filter type (choose from "on" or "off"), the 
-    # acronym specifies, how to identify this filter in the file name, if id
-    # is unspecified it will be set equal the type. Param meas_type_acro
-    # is only of importance if a meas type (e.g. M -> meas, C -> calib ...) is 
-    # explicitely specified in the file names (not the case for ECII camera but
-    # for the HD camera, see specifications in file cam_info.txt for more info)
+    # create an on and off band filters, obligatory input is param "type" and 
+    # acronym", the former specifies the filter type (choose from "on" or 
+    # "off"), the acronym specifies, how to identify this filter in the file 
+    # name, if id is unspecified it will be set equal the type. Param 
+    # meas_type_acro is only of importance if a meas type (e.g. M -> meas, 
+    # C -> calib ...) is explicitely specified in the file names (not the case 
+    # for ECII camera but for the HD camera, see specifications in file 
+    # cam_info.txt for more info)
+
     on_band = piscope.utils.Filter(id="on", type="on", acronym="F01",
                                    meas_type_acro="F01", center_wavelength=310)
     off_band = piscope.utils.Filter(type="off", acronym="F02",
