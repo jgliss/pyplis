@@ -13,7 +13,7 @@ from warnings import warn
 from datetime import datetime
 from collections import OrderedDict as od
 from matplotlib.pyplot import subplots, figure, Figure, Circle, Line2D
-
+from matplotlib.cm import RdBu
 from matplotlib.patches import Rectangle
 from scipy.ndimage.filters import median_filter, gaussian_filter
 from scipy.stats.stats import pearsonr
@@ -24,7 +24,7 @@ from cv2 import calcOpticalFlowFarneback, OPTFLOW_FARNEBACK_GAUSSIAN,\
     cvtColor,COLOR_GRAY2BGR,line,circle,VideoCapture,COLOR_BGR2GRAY,\
     waitKey, imshow
 
-from .helpers import bytescale, check_roi, map_roi, roi2rect
+from .helpers import bytescale, check_roi, map_roi, roi2rect, shifted_color_map
 from .optimisation import MultiGaussFit
 from .image import Img
 
@@ -449,8 +449,7 @@ class OpticalFlowFarneback(object):
         calculate and analyse optical flow fields in detector pixel 
         coordinates.
     """
-    def __init__(self, first_img = None, next_img = None, name = "",\
-                                                            **settings):        
+    def __init__(self, first_img=None, next_img=None, name="", **settings):        
         """Initialise the Optical flow environment"""
         self.name = name
     
@@ -571,8 +570,7 @@ class OpticalFlowFarneback(object):
         self.images_input["this"] = this_img
         self.images_input["next"] = next_img
         if any([x.edit_log["crop"] for x in [this_img, next_img]]):
-            raise ValueError("Error setting images for optical flow calc: "
-                "input images are cropped, please use uncropped images")
+            warn("Input images for optical flow calculation are cropped")
         
         i_min, i_max = self.current_contrast_range() 
         if i_max == 1e30 or self.auto_update_contrast:
@@ -969,11 +967,12 @@ class OpticalFlowFarneback(object):
         #load and draw the length and angle image
         angle_im = self.get_flow_orientation_img(True)#rad2deg(arctan2(fx,-fy))
         len_im = self.get_flow_vector_length_img(True)#sqrt(fx**2+fy**2)
-        angle_im_disp = ax4.imshow(angle_im, interpolation='nearest')
+        angle_im_disp = ax4.imshow(angle_im, interpolation='nearest',
+                                   vmin=-180, vmax=180, cmap="RdBu")
         ax4.set_title("Displacement orientation", fontsize=11)        
         fig.colorbar(angle_im_disp, ax = ax4)
         
-        len_im_disp = ax5.imshow(len_im, interpolation='nearest')
+        len_im_disp = ax5.imshow(len_im, interpolation='nearest',  cmap="Blues")
         fig.colorbar(len_im_disp, ax = ax5)
         ax5.set_title("Displacement lengths", fontsize=11)        
         
