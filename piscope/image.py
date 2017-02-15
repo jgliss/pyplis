@@ -7,6 +7,7 @@ from numpy import ndarray, argmax, histogram, float32, uint, nan, linspace,\
             swapaxes, flipud, isnan, uint8, asarray
 from os.path import abspath, splitext, basename, exists, join
 from os import getcwd, remove
+from warnings import warn
 from datetime import datetime
 from re import sub
 from decimal import Decimal
@@ -215,8 +216,7 @@ class Img(object):
         :returns Img: sub image object
         """
         if self.edit_log["crop"]:
-            raise AttributeError("Could not crop image in ROI, image "
-                " was already cropped...")
+            warn("Cropping image thea was already cropped...")
         self.roi_abs = roi_abs #updates current roi_abs setting
         print self.meta["start_acq"]
         roi = self.roi #self.roi is @property method and takes care of ROI conv
