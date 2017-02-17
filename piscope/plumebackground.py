@@ -414,8 +414,8 @@ class PlumeBackgroundModel(object):
         d = self.sky_ref_areas_to_dict()
         return plot_sky_reference_areas(plume, d)
         
-    def plot_tau_result(self, tau_img = None, tau_min = None, tau_max = None,\
-                                    edit_profile_labels = True, **add_lines):
+    def plot_tau_result(self, tau_img=None, tau_min=None, tau_max=None,
+                        edit_profile_labels=True, **add_lines):
         """Plot current tau image including all gas free reference sections and 
         the horizontal and vertical profile line
         
@@ -466,7 +466,14 @@ class PlumeBackgroundModel(object):
         ax[0].plot([0, w0],[self.xgrad_line_rownum, self.xgrad_line_rownum],
                     "-c", label="hor profile")
         for k, l in add_lines.iteritems():
-            ax[0].plot([l[0],l[2]],[l[1],l[3]], "--",c = "g", label=k)
+            try:
+                x0, y0, x1, y1 = l.to_list()
+                c = l.color
+            except:
+                x0, y0, x1, y1 = l
+                c="g"
+        
+            ax[0].plot([x0, x1],[y0,y1], "-", lw=2, c=c, label=k)
     
         ax[0].set_xlim([0, w0 - 1])
         ax[0].set_ylim([h0 - 1, 0])
@@ -532,11 +539,10 @@ class PlumeBackgroundModel(object):
             lbl_str = ["%.2f" %lbl for lbl in lbls]
             ax[2].set_yticklabels(lbl_str)         
             
-        ax[1].set_xlabel(r"$\tau$", fontsize = 16)
-        ax[2].set_ylabel(r"$\tau$", fontsize = 16)  
-        fig.suptitle("CORR_MODE: %s" %self.CORR_MODE, fontsize = 16)
-        ax[0].legend(loc = "best", fancybox = True, framealpha = 0.5,\
-                                                            fontsize = 10)
+        ax[1].set_xlabel(r"$\tau$", fontsize=16)
+        ax[2].set_ylabel(r"$\tau$", fontsize=16)  
+        fig.suptitle("CORR_MODE: %s" %self.CORR_MODE, fontsize=16)
+        ax[0].legend(loc=3, fancybox=True, framealpha=0.7, fontsize=11)
         return fig
         
     """Helpers"""

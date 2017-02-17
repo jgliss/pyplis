@@ -2,7 +2,7 @@
 """
 piscope example script no. 6 - DOAS calibration and FOV search
 
-Sript showing how to work with cell calibration data
+Script showing how to work with cell calibration data
 """
 
 import piscope 
@@ -118,12 +118,14 @@ if __name__ == "__main__":
     
     calib_ifr.fit_calib_polynomial()
     
-    calib_ifr.plot(add_label_str="ifr", color="g", ax=ax2)
+    calib_ifr.plot(add_label_str="IFR", color="r", ax=ax2)
     ax2.set_title("Calibration curves Pearson vs. IFR method")
     ax2.grid()
-    ax2.set_ylim([0, 1.8e18])
+    ax2.set_ylim([0, 1.8])
     ax2.set_xlim([0, 0.20])
-    
+    ax2.set_ylabel(r"$S_{SO_2}$ [10$^{18}$ cm$^{-2}$]", fontsize=16)
+    ax2.set_xlabel(r"$\tau_{AA}$", fontsize=18)
+    ax2.legend(loc=4, fancybox=True, framealpha=0.7, fontsize=11)
     axes = [ax0, ax1, ax2]
     if DO_FINE_SEARCH:    
         """Get position in absolute coordinates and perform a fov search within

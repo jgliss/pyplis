@@ -11,7 +11,7 @@
 """
 from numpy import nan, arctan, deg2rad, linalg, sqrt, abs, array, radians,\
     sin, cos, arcsin, tan, rad2deg, zeros, linspace, isnan, asarray, ones,\
-    arange, argmin, argmax
+    arange, argmin
 from collections import OrderedDict as od
 from warnings import warn
 from matplotlib.pyplot import figure

@@ -742,7 +742,7 @@ class Img(object):
         """Plot image"""
         return self.show_img(zlabel,tit,**kwargs)
 
-    def show_img(self, zlabel=None, tit=None, ax=None, **kwargs):
+    def show_img(self, zlabel=None, tit=None, cbar=True, ax=None, **kwargs):
         """Show image using plt.imshow"""
         if not "cmap" in kwargs.keys():
             kwargs["cmap"] = self.get_cmap()
@@ -755,7 +755,8 @@ class Img(object):
             ax = fig.add_subplot(111)
         
         im = ax.imshow(self.img, **kwargs)
-        cb = fig.colorbar(im, ax = ax)
+        if cbar:
+            cb = fig.colorbar(im, ax=ax)
         if isinstance(zlabel, str):
             cb.set_label(zlabel, fontsize = 16)
         if not isinstance(tit, str):

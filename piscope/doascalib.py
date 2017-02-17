@@ -261,7 +261,8 @@ class DoasCalibData(object):
         """Return custom string representation of polynomial"""
         exp = exponent(self.poly.coeffs[0])
         p = poly1d(round(self.poly / 10**(exp - 2))/10**2)
-        return "%s E%+d" %(p, exp)
+        s = "(%s)E%+d" %(p, exp)
+        return s.replace("x", r"$\tau$")
         
     def plot(self, add_label_str="", ax=None, **kwargs):
         """Plot calibration data and fit result
@@ -275,21 +276,25 @@ class DoasCalibData(object):
             
         if ax is None:
             fig, ax = subplots(1,1, figsize=(16,6))
-        ax.plot(self.tau_vec, self.doas_vec, ls="", marker=".",
-                label="Data %s" %add_label_str, **kwargs)
+        
         taumin, taumax = self.tau_range
         x = linspace(taumin, taumax, 100)
+        exp = exponent(self.poly(taumax))
         
+        ax.plot(self.tau_vec, self.doas_vec/10**exp, ls="", marker=".",
+                label="Data %s" %add_label_str, **kwargs)
+            
         try:
-            ax.plot(x, self.poly(x), ls="--", marker="",
-                    label = "Fit %s" %self.poly_str)
+            ax.plot(x, self.poly(x)/10**exp, ls="-", marker="",
+                    label = "Fit result", **kwargs)
+                    
         except TypeError:
             print "Calibration poly probably not fitted"
-        ax.legend(loc='best', fancybox=True, framealpha=0.5, fontsize=10)
         ax.set_title("DOAS calibration data, ID: %s" %self.calib_id)
-        ax.set_ylabel(r"S$_{SO2}$ [cm$^{-2}$]", fontsize=18)
-        ax.set_xlabel(r"$\tau_{%s}$" %self.calib_id.split("_")[0], fontsize = 18)
+        ax.set_ylabel(r"S [10$^{%d}$ cm$^{-2}$]" %exp, fontsize=16)
+        ax.set_xlabel(r"$\tau_{%s}$" %self.calib_id.split("_")[0], fontsize=18)
         ax.grid()
+        ax.legend(loc='best', fancybox=True, framealpha=0.7, fontsize=11)
         return ax
         
     def plot_data_tseries_overlay(self, ax = None):
