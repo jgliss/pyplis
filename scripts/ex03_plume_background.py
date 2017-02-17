@@ -128,8 +128,8 @@ def plot_pcs_profiles_4_tau_images(tau0, tau1, tau2, tau3, pcs_line):
             %(BG_CORR_MODES[k], np.mean(profile)))
     
     ax.grid()
-    ax.set_ylabel(r"$\tau$", fontsize=20)
-    ax.set_xlim([0,632])
+    ax.set_ylabel(r"$\tau_{on}$", fontsize=20)
+    ax.set_xlim([0, pcs_line.length()])
     ax.set_xticklabels([])
     ax.set_xlabel("PCS", fontsize=16)
     ax.legend(loc="best", fancybox=True, framealpha=0.5, fontsize=12)
@@ -143,11 +143,12 @@ if __name__=="__main__":
     bg_model = init_background_model()
     
     ### Define exemplary plume cross section line
-    pcs_line = piscope.processing.LineOnImage(x0=420,
-                                              y0=655, 
-                                              x1=860,
-                                              y1=200,
-                                              line_id = "example PCS")
+    pcs_line = piscope.processing.LineOnImage(x0=530,
+                                              y0=730, 
+                                              x1=890,
+                                              y1=300,
+                                              line_id = "example PCS",
+                                              color="lime")
     
     plume, plume_vigncorr, bg = load_and_prepare_images()
 
@@ -174,21 +175,21 @@ if __name__=="__main__":
                                   surface_fit_polyorder = 1)
     
     #Plot the result and append the figure to _tau_figs                                 
-    _tau_figs.append(bg_model.plot_tau_result(tau0, PCS = pcs_line.to_list()))
+    _tau_figs.append(bg_model.plot_tau_result(tau0, PCS = pcs_line))
     
     ### Second method: scale background image to plume image in "scale" rect
     tau1 = bg_model.get_tau_image(plume, bg, CORR_MODE = BG_CORR_MODES[1])
-    _tau_figs.append(bg_model.plot_tau_result(tau1, PCS = pcs_line.to_list()))
+    _tau_figs.append(bg_model.plot_tau_result(tau1, PCS = pcs_line))
     
     ### Third method: Linear correction for radiance differences based on two 
     ### rectangles (scale, ygrad)
     tau2 = bg_model.get_tau_image(plume, bg, CORR_MODE = BG_CORR_MODES[2])
-    _tau_figs.append(bg_model.plot_tau_result(tau2, PCS = pcs_line.to_list()))
+    _tau_figs.append(bg_model.plot_tau_result(tau2, PCS = pcs_line))
     
     ### 4th method: 2nd order polynomial fit along vertical profile line
     ### For this method, determine tau on tau off and AA image
     tau3 = bg_model.get_tau_image(plume, bg, CORR_MODE = BG_CORR_MODES[3])
-    _tau_figs.append(bg_model.plot_tau_result(tau3, PCS = pcs_line.to_list()))
+    _tau_figs.append(bg_model.plot_tau_result(tau3, PCS = pcs_line))
     
     fig6 = plot_pcs_profiles_4_tau_images(tau0, tau1, tau2, tau3, pcs_line)
     

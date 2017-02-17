@@ -379,7 +379,7 @@ class CellCalibData(object):
         
         taus = linspace(0, tau.max() * 1.05, 100)
         ax.plot(tau, gas_cd, " ^", label = "Cell data %s" %self.calib_id)
-        ax.plot(taus, poly(taus),"--", label = "Fit: %s" %poly)
+        ax.plot(taus, poly(taus),"--", label = "Fit result")
         
         if not add_to:
             ax.set_ylabel(r"S [cm$^{-2}$]", fontsize=18)
@@ -1155,7 +1155,7 @@ class CellCalibEngine(Dataset):
             taus = linspace(0, tau.max() * 1.2, 100)
             pl = ax.plot(tau, gas_cd, " ^", label = "Data %s" %calib_id)
             ax.plot(taus, poly(taus),"-", color=pl[0].get_color(),
-                    label = "Poly %s" %poly_str(poly))
+                    label = "Fit result")
             tm = tau.max()
             if tm > tau_max:
                 tau_max = tm
@@ -1167,8 +1167,7 @@ class CellCalibEngine(Dataset):
         ax.set_ylim([y_min - gas_cd.min() * 0.1, gas_cd.max()*1.05])
         ax.set_xlim([0, tau_max * 1.05])
         ax.grid()
-        ax.legend(loc = "best", fancybox = True,\
-                            framealpha = 0.5, fontsize = 10)
+        ax.legend(loc=4, fancybox=True, framealpha=0.5, fontsize=11)
         return ax
     
     def __call__(self, value, calib_id="aa", **kwargs):

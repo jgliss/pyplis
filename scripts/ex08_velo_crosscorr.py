@@ -18,11 +18,16 @@ from ex04_prep_aa_imglist import prepare_aa_image_list
 ### SCRIPT OPTONS  
 RELOAD = 0 #reload AA profile images for PCS lines 
 
+# define colors of PCS lines (relevant for illustration)
+COLOR_PCS1 = "#009900"
+COLOR_PCS2 = "r"
 # First PCS line
 # these line coordinates correspond to a cross section originally defined 
 # from a downscaled plume image at pyrlevel=2
-PCS = LineOnImage(150, 180, 215, 75, normal_orientation = "left",\
-    pyrlevel = 2, line_id = "pcs1")
+PCS = LineOnImage(150, 180, 215, 75, normal_orientation="left", pyrlevel=2,
+                  line_id="1. PCS", color=COLOR_PCS1)
+                  
+
 ### RELEVANT DIRECTORIES AND PATHS
 
 FIRST_ICA_TSERIES = join(SAVE_DIR, "first_ica_tseries.fts")
@@ -33,10 +38,12 @@ def create_pcs_lines():
     
     #convert line to pyrlevel 0
     pcs1 = PCS.convert(pyrlevel=0)
+    pcs1.color = COLOR_PCS1
     # create a second line at 40 pixels distance to the first line 
     # (in direction of its normal vector)
     pcs2 = pcs1.offset(pixel_num=40)    
-    pcs2.line_id="pcs2"
+    pcs2.line_id = "2. PCS"
+    pcs2.color = COLOR_PCS2
     return pcs1, pcs2
     
 def reload_profile_tseries_from_aa_list(aa_list, pcs1, pcs2, dist_img):
@@ -145,11 +152,11 @@ def apply_cross_correlation(prof_pic1, prof_pic2, dist_img, **kwargs):
 def plot_result(crosscorr_res, pcs1, pcs2, example_img):
       
     ### Plot image with lines in it
-    ax0 = example_img.show()
+    ax0 = example_img.show(cbar=False)
     ax0.set_title("")
     #plot the two PCS lines (with normal vector) into AA image
-    pcs1.plot_line_on_grid(ax = ax0, include_normal=True, color = "b")    
-    pcs2.plot_line_on_grid(ax = ax0, include_normal=True, color = "g")
+    pcs1.plot_line_on_grid(ax = ax0, include_normal=True)    
+    pcs2.plot_line_on_grid(ax = ax0, include_normal=True)
     ax0.legend(loc='best', fancybox=True, framealpha=0.5, fontsize=10) 
     
     lag, coeffs, tseries1, tseries2, tseries_shift, _ = crosscorr_res
@@ -168,15 +175,17 @@ def plot_result(crosscorr_res, pcs1, pcs2, example_img):
     ### Plot original ICA time series for both lines
     fig2, ax2 = subplots(1,1)
     
-    tseries1.plot(ax = ax2, style = "--b", label="pcs1 original")
-    tseries_shift.plot(ax = ax2, style = "-b", label="pcs1 shift %.1f s" %lag)
-    ax2.fill_between(tseries_shift.index, tseries_shift.values, color="b",
-                     alpha=0.1)
+    #plot original ICA time series along pcs 1
+    tseries1.plot(ax=ax2, style="--", color=COLOR_PCS1, label="1. PCS (original)")
+    # plot shifted time series along pcs 1 and apply light fill
+    tseries_shift.plot(ax=ax2, style="-", color=COLOR_PCS1, 
+                       label="1. PCS (shift %.1f s)" %lag)
+    ax2.fill_between(tseries_shift.index, tseries_shift.values, 
+                     color=COLOR_PCS1, alpha=0.05)
     
-    tseries2.plot(ax = ax2, style="-g", label="pcs2")
+    tseries2.plot(ax=ax2, style="-", color=COLOR_PCS2, label="2. PCS")
     
-    ax2.fill_between(tseries2.index, tseries2.values, color="g",
-                     alpha=0.1)
+
     ax2.set_ylim([40, 100])
     ax2.set_ylabel("ICA [m]")
     #ax[0,].set_title("Original time series", fontsize = 10)
