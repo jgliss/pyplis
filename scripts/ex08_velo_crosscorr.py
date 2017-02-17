@@ -152,7 +152,7 @@ def apply_cross_correlation(prof_pic1, prof_pic2, dist_img, **kwargs):
 def plot_result(crosscorr_res, pcs1, pcs2, example_img):
       
     ### Plot image with lines in it
-    ax0 = example_img.show(cbar=False)
+    ax0 = example_img.show(zlabel=r"$\tau_{AA}$")
     ax0.set_title("")
     #plot the two PCS lines (with normal vector) into AA image
     pcs1.plot_line_on_grid(ax = ax0, include_normal=True)    

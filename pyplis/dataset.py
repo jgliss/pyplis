@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
 """
-Module containing the :class:`Dataset` object
+Module containing the :class:`Dataset` object which is important for automated
+separation of image files by their type (e.g. on-band, off-band, dark, offset)
+using information from a file naming convention specified within a 
+:class:`Camera` object.
 """
 from os.path import exists, join, isfile
 from os import listdir, walk
@@ -14,7 +17,6 @@ from traceback import format_exc
 from collections import OrderedDict as od
 
 from .imagelists import ImgList, DarkImgList
-from .inout import get_all_files_in_dir
 from .helpers import _print_list, shifted_color_map
 from .setupclasses import MeasSetup
    

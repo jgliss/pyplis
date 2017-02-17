@@ -51,7 +51,7 @@ def perform_auto_cell_calib():
     # on / off, dark / offset lists for all images in the specified time window 
     c = pyplis.cellcalib.CellCalibEngine(setup)
     
-    # the following high level method calls several funcitons in the 
+    # the following high level method calls several functions in the 
     # CellCalibEngine class, most importantly the method find_cells for on and
     # off band image time series, which detects sub time windows for each cell
     # and background images. After the individual time windows are detected for
@@ -65,7 +65,6 @@ def perform_auto_cell_calib():
     # detected intensity dips, the + 1 is the corresponding background list and
     # times 2 for on / off)
     c.find_and_assign_cells_all_filter_lists()
-    
     # prepares CellCalibData object for tau on band (at pyramid level 2)
     c.prepare_tau_calib("on", pyrlevel=2)
     # prepares CellCalibData object for tau off band (at pyramid level 2)

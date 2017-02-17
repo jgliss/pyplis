@@ -116,8 +116,6 @@ class BaseImgList(object):
         for key, val in settings.iteritems():
             if self.img_prep.has_key(key) and\
                         isinstance(val, type(self.img_prep[key])):
-                print ("Updating img prep setting %s in list %s, new val: %s"
-                           %(key, self.list_id, val))
                 self.img_prep[key] = val
         self.load()
         
@@ -410,7 +408,7 @@ class BaseImgList(object):
         times_lst, _ = lst.get_img_meta_all_filenames()
         if lst.nof == 1:
             warn("Other list contains only one file, assign all indices to "
-                 "this file")
+                 "the corresponding image")
         elif any([x is False for x in (times, times_lst)]):
             warn("Image acquisition times could not be accessed from file"
                 " names, assigning by indices")
@@ -498,7 +496,7 @@ class BaseImgList(object):
         return stack
     
 
-    def get_mean_value(self, roi = [0, 0, 9999, 9999], apply_img_prep = True):
+    def get_mean_value(self, roi=[0, 0, 9999, 9999], apply_img_prep=True):
         """Determine pixel mean value time series in ROI
         
         Determines the mean pixel value (and standard deviation) for all images 
@@ -512,9 +510,10 @@ class BaseImgList(object):
             as set in ``self.img_prep`` dictionary  (True)        
         """
         if not self.data_available:
-            raise Exception("No images available in ImgList object")
+            raise IndexError("No images available in ImgList object")
         #settings = deepcopy(self.img_prep)
         self.activate_edit(apply_img_prep)
+        cfn = self.cfn
         num = self.nof
         vals, stds, texps, acq_times = [],[],[],[]
         self.goto_img(0)
@@ -527,9 +526,11 @@ class BaseImgList(object):
             stds.append(sub.std())
             
             self.next_img()
+        
+        self.goto_img(cfn)
 
-        return PixelMeanTimeSeries(vals, acq_times, stds, texps, roi,\
-                                                            img.edit_log)
+        return PixelMeanTimeSeries(vals, acq_times, stds, texps, roi,
+                                   img.edit_log)
         
     def current_edit(self):
         """Returns the current image preparation settings
@@ -730,9 +731,9 @@ class BaseImgList(object):
                 raise
         return self.loaded_images[key]
         
-    def show_current(self):
+    def show_current(self, **kwargs):
         """Show the current image"""
-        return self.current_img().show()
+        return self.current_img().show(**kwargs)
         
             
     def goto_img(self, num):
@@ -1077,6 +1078,7 @@ class ImgList(BaseImgList):
         if isinstance(val, ndarray):
             warn("Input for AA correction mask in list %s is numpy array and"
                     "will be converted into Img object" %self.list_id)
+            val = Img(val)
         if not isinstance(val, Img):
             raise TypeError("Invalid input for AA correction mask: need Img"
                 " object (or numpy array)")
@@ -1191,8 +1193,8 @@ class ImgList(BaseImgList):
         self.linked_indices[list_id] = {}
         idx_array = self.assign_indices_linked_list(other_list)
         self.linked_indices[list_id] = idx_array
-        self.linked_lists[list_id].change_index(\
-                self.linked_indices[list_id][self.index])     
+        self.update_index_linked_lists()  
+        self.load()
 
     def disconnect_linked_imglist(self, list_id):
         """Disconnect a linked list from this object

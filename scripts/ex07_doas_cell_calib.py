@@ -1,6 +1,16 @@
 # -*- coding: utf-8 -*-
 """
 pyplis example script no. 7 - Combined DOAS and cell calibration
+
+In this script, cell and DOAS calibration (see previous 2 scripts) of the Etna
+test dataset are opposed. Furthermore, it is illustrated, how to create
+correction masks for pixel variations in the SO2 sensitivity due to shifts in
+the filter transmission windows.
+
+The cell calibration is re-performed (using method ``perform_auto_cell_calib``)
+from example script 5. The results from the DOAS calibration (see prev. example)
+where stored as a FITS file (including FOV information) and the results are 
+imported here.
 """
 import pyplis
 from os.path import join, exists
@@ -93,30 +103,48 @@ if __name__ == "__main__":
     cellcalib = perform_auto_cell_calib().calib_data["aa"]
     
     ### Define lines on image for plume profiles
-    pcs1 = pyplis.processing.LineOnImage(620, 700, 940, 280,\
-                                                        line_id = "center")
-    pcs2 = pyplis.processing.LineOnImage(40, 40, 40, 600,\
-                                                        line_id = "edge")
+    pcs1 = pyplis.processing.LineOnImage(620, 700, 940, 280,
+                                         line_id="center")
+    pcs2 = pyplis.processing.LineOnImage(40, 40, 40, 600,
+                                         line_id="edge")
 
     ### Plot DOAS calibration polynomial
-    ax0 = doascalib.plot()
+    ax0 = doascalib.plot(add_label_str="DOAS")
     ax0 = cellcalib.plot(pos_x_abs=fov_x, pos_y_abs=fov_y,
-                         radius_abs=fov_extend, ax=ax0)
-                                                            
-    ### Show current AA image from image list
-    aa_init = aa_list.current_img()
-    ax = aa_init.show()
+                         radius_abs=fov_extend, ax=ax0, c="r")
+    ax0.set_title("")
+    ax0.set_xlim([0,0.5])
     
-    # plot the two lines into the exemplary AA image
-    pcs1.plot_line_on_grid(ax = ax, c="r")
-    pcs2.plot_line_on_grid(ax = ax, c="g")
-    ax.legend(loc='best', fancybox=True, framealpha=0.5, fontsize=10)
-    ax = draw_doas_fov(fov_x, fov_y, fov_extend, ax=ax)
-
+    ### Get current AA image from image list
+    aa_init = aa_list.current_img()
+    
+    ### Prepare sensitivity correction masks from all 3 cells
     masks = prepare_sensitivity_corr_masks_cells(cellcalib, doascalib.fov)        
     aa_imgs_corr = {}    
     for cd, mask in masks.iteritems():        
         aa_imgs_corr[cd] = pyplis.Img(aa_init.img / mask)
+    
+    #get mask corresponding to minimum cell CD
+    mask = masks.values()[np.argmin(masks.keys())]
+    
+    #assing mask to aa_list
+    aa_list.aa_corr_mask = mask
+    
+    #activate AA sensitivity correction in list
+    aa_list.sensitivity_corr_mode = True
+    
+    #set DOAS calibration data in list ...
+    aa_list.calib_data = doascalib
+    
+    # ... and activate calibration mode
+    aa_list.calib_mode=True
+    ax = aa_list.current_img().show(zlabel=r"$S_{SO2}$ [cm$^{-2}$]")
+    
+    # plot the two lines into the exemplary AA image
+    pcs1.plot_line_on_grid(ax=ax, color="r")
+    pcs2.plot_line_on_grid(ax=ax, color="g")
+    ax.legend(loc='best', fancybox=True, framealpha=0.5, fontsize=10)
+    ax = draw_doas_fov(fov_x, fov_y, fov_extend, ax=ax)    
     
     fig, _ = plot_pcs_comparison(aa_init, aa_imgs_corr, pcs1, pcs2) 
     

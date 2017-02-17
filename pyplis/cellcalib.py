@@ -27,7 +27,7 @@ from .image import Img
 from .helpers import subimg_shape, map_coordinates_sub_img, exponent
 from .doascalib import DoasFOV
 from .optimisation import PolySurfaceFit
-from .__init__ import SPECIES_ID
+from .__init__ import SPECIES_ID, _CALIB_ID_STRINGS
       
 class CellSearchInfo(object):
     """Class for for storage cell search from automatic cell search engine"""
@@ -130,8 +130,8 @@ class CellSearchInfo(object):
         ``self.mean_err``
         
         """
-        lst = CellImgList(list_id = self.filter_id, cell_id = self.id,\
-                                                            camera = camera)
+        lst = CellImgList(list_id=self.filter_id, cell_id=self.id,
+                          camera=camera)
         for idx in range(len(self.mean_vals)):
             if self.point_ok(idx):
                 lst.files.append(self.file_paths[idx])
@@ -155,9 +155,9 @@ class CellAutoSearchResults(object):
     is used
     """
     def __init__(self):
-        self.cell_info = {}
-        self.bg_info = {}
-        self.rest_info = {}
+        self.cell_info = od()
+        self.bg_info = od()
+        self.rest_info = od()
     
     def add_cell_search_result(self, filter_id, cell_info, bg_info, rest_info):
         """Adds a collection of :class:`CellSearchInfo` objects
@@ -172,7 +172,7 @@ class CellAutoSearchResults(object):
             of the two other criteria
         
         """
-        self.cell_info[filter_id] = {}
+        self.cell_info[filter_id] = od()
         for cell_id, res in cell_info.iteritems():
             if isinstance(res, CellSearchInfo):
                 self.cell_info[filter_id][cell_id] = res
@@ -191,7 +191,7 @@ class CellCalibData(object):
     This object can be used to retrieve cell calibration curves (on a pixel 
     basis) and / or tau / AA sensitivity correction masks
     """
-    _calib_id=""
+    _calib_id = ""
     def __init__(self, tau_stack=None, calib_id="", gas_cds=None):
         """Class initialisation
 
@@ -205,7 +205,7 @@ class CellCalibData(object):
         """
         
         self.tau_stack = tau_stack
-        self.calib_id = calib_id        
+        self.calib_id = calib_id  
                 
         try:
             if len(gas_cds) == self.tau_stack.shape[0]:
@@ -227,6 +227,14 @@ class CellCalibData(object):
             self.tau_stack.stack_id = val
         except:
             pass
+    
+    @property
+    def calib_id_str(self):
+        """Return plot string for calibration ID"""
+        try:
+            return _CALIB_ID_STRINGS[self.calib_id]
+        except:
+            return self.calib_id
         
     @property
     def cell_gas_cds(self):
@@ -265,7 +273,7 @@ class CellCalibData(object):
             h, w = stack.shape[1:]
             x_rel, y_rel = int(w / 2.0), int(h / 2.0)
         try:
-            rad_rel = int(ceil(float(radius_abs) /\
+            rad_rel = int(ceil(float(radius_abs) / 
                             2**stack.img_prep["pyrlevel"]))
         except:
             print "Using radius of 3"
@@ -357,7 +365,7 @@ class CellCalibData(object):
         return mask, cd
         
     def plot(self, pos_x_abs, pos_y_abs, radius_abs=1, mask=None,
-             ax=None):
+             ax=None, **kwargs):
         """Plot all available calibration curves in a certain pixel region
         
         :param int pos_x_abs (None): x position of center pixel on detector
@@ -379,15 +387,15 @@ class CellCalibData(object):
         poly, tau, gas_cd = self.poly(pos_x_abs, pos_y_abs, radius_abs, mask)
         
         taus = linspace(0, tau.max() * 1.05, 100)
-        ax.plot(tau, gas_cd, " ^", label = "Cell data %s" %self.calib_id)
-        ax.plot(taus, poly(taus),"--", label = "Fit result")
+        ax.plot(tau, gas_cd, " ^", label = "Data cell %s" %self.calib_id_str, 
+                **kwargs)
+        ax.plot(taus, poly(taus),"-", label = "Fit result", **kwargs)
         
         if not add_to:
             ax.set_ylabel(r"$S_{%s}$ [cm$^{-2}$]" %SPECIES_ID, fontsize=18)
-            ax.set_xlabel(r"$\tau$", fontsize = 18)    
+            ax.set_xlabel(r"$\tau$", fontsize=18)    
             ax.grid()
-        ax.legend(loc = "best", fancybox = True, framealpha = 0.5,\
-                                                        fontsize = 14)
+        ax.legend(loc="best", fancybox=True, framealpha=0.5, fontsize=14)
         return ax
         
     def __sub__(self, other):
@@ -443,7 +451,7 @@ class CellCalibEngine(Dataset):
     setup is like plume data using a :class:`MeasSetup` object (make sure 
     that ``cell_info_dict`` is set in the setup class).
     """
-    def __init__(self, setup = None, init = 1):
+    def __init__(self, setup=None, init=1):
         print 
         print "INIT CALIB DATASET OBJECT"
         print
@@ -534,7 +542,7 @@ class CellCalibEngine(Dataset):
             raise ValueError("Error adding cell image list, invalid value encountered for"
                 "attribute gas_cd: %s" %lst.gas_cd)
         if not self.cell_lists.has_key(lst.list_id):
-            self.cell_lists[lst.list_id] = {}
+            self.cell_lists[lst.list_id] = od()
         self.cell_lists[lst.list_id][lst.cell_id] = lst
     
     def add_bg_img_list(self, lst):
@@ -555,10 +563,10 @@ class CellCalibEngine(Dataset):
     def det_bg_mean_pix_timeseries(self, filter_id):
         """Determine (or get) pixel mean values of background image list
         
-        :param str filter_id: list ID
+        :param str filter_id: ID of background image list
         
-        Gets the average pixel intenisty (conisdering the whole image) for 
-        all images in background image list and loads it as 
+        Gets the average pixel intenisty (considering the whole image) for 
+        all images in specified background image list and loads it as 
         :class:`PixelMeanTimeSeries` object, which is then stored in 
         ``self.bg_tseries`` and can be used to interpolate background 
         intensities for cell image time stamps (this might be important for
@@ -614,25 +622,32 @@ class CellCalibEngine(Dataset):
         cell_count = 0 #counter for number of cells detected
         on_cell = 0 #flag which is set when cell entry_cond is fulfilled
         for k in range(len(y) - 2):
-            #Look for dip in intensity => candidate for calib cell time stamp
+            # Look for dip in intensity => candidate for calib cell time stamp
         
-            #Define entry and leave acceptance condition for detection of time window
-            entry_cond = ((1 - abs(y[k + 1] / y_max)) > threshold and abs(\
-                ydiff[k]) / y_max < threshold and abs(ydiff[k - 1]) /\
-                y_max > threshold)
+            # Define entry and leave acceptance condition for detection of time 
+            # window
+            entry_cond = ((1 - abs(y[k + 1] / y_max)) > threshold 
+                            and abs(ydiff[k]) / y_max < threshold 
+                            and abs(ydiff[k - 1]) / y_max > threshold)
                 
-            leave_cond = (1 - abs(y[k] / y_max)) > threshold and abs(ydiff[k]) /\
-                y_max > threshold and abs(ydiff[k - 1]) / y_max < threshold 
-                
-            bg_cond = (1 - abs(y[k] / y_max)) < threshold and abs(ydiff[k]) /\
-                y_max < threshold and abs(ydiff[k - 1]) / y_max < threshold
+            leave_cond = ((1 - abs(y[k] / y_max)) > threshold 
+                            and abs(ydiff[k]) / y_max > threshold 
+                            and abs(ydiff[k - 1]) / y_max < threshold)
+            
+            # Condition for background image candidates
+            bg_cond = ((1 - abs(y[k] / y_max)) < threshold 
+                            and abs(ydiff[k]) / y_max < threshold 
+                            and abs(ydiff[k - 1]) / y_max < threshold)
                     
             if not accept_last_in_dip:
-                #print "Adapting entry condition for cell time window"
-                entry_cond = entry_cond and abs(ydiff[k + 1]) / y_max < threshold
-                leave_cond = (1 - abs(y[k] / y_max)) > threshold and\
-                    abs(ydiff[k]) / y_max<threshold and abs(ydiff[k - 1]) /\
-                    y_max < threshold and abs(ydiff[k + 1]) / y_max > threshold
+                # adapt entry and leave condition for cell time window"
+                entry_cond = (entry_cond 
+                                and abs(ydiff[k + 1]) / y_max < threshold)
+                
+                leave_cond = ((1 - abs(y[k] / y_max)) > threshold 
+                                and abs(ydiff[k]) / y_max < threshold 
+                                and abs(ydiff[k - 1]) / y_max < threshold 
+                                and abs(ydiff[k + 1]) / y_max > threshold)
             
             if entry_cond:
                 if on_cell:
@@ -690,21 +705,16 @@ class CellCalibEngine(Dataset):
         #and one list for each cell that was detected
         bg_info.create_image_list(self.camera)
         bg_info.img_list.update_cell_info("bg", 0.0, 0.0)
-        self.assign_dark_offset_lists(into_list = bg_info.img_list)
+        self.assign_dark_offset_lists(into_list=bg_info.img_list)
         for cell_id, info in cell_info.iteritems():
             info.create_image_list(self.camera)
-            self.assign_dark_offset_lists(into_list = info.img_list)
+            self.assign_dark_offset_lists(into_list=info.img_list)
             
-        self.search_results.add_cell_search_result(filter_id, cell_info,\
-                                                                bg_info, rest)
+        self.search_results.add_cell_search_result(filter_id, cell_info,
+                                                   bg_info, rest)
         self.pix_mean_tseries["%s_auto_search" %filter_id] = ts
-        #link background image list to earliest cell list
-        cell_info.items()[0][1].img_list.link_imglist(bg_info.img_list)
-        
-        #bg_info.img_list.change_index(argmin(bg_info.mean_vals_err))
-        
-        
-    def _assign_calib_specs(self, filter_id = None):
+
+    def _assign_calib_specs(self, filter_id=None):
         """Assign the gas CD amounts to search results for all filter lists
         
         :param str filter_id: ID of filter used (e.g. "on") for assignment. Uses 
@@ -770,21 +780,34 @@ class CellCalibEngine(Dataset):
         (i.e. lists that contain images and have the gas column assigned)
                 
         """
-        for filter_id, info in self.search_results.bg_info.iteritems():
-            self.add_bg_img_list(info.img_list)
-        dff = self.filters.default_key_on
-        #link all background image lists to default background image list such
-        for filter_id, lst in self.bg_lists.iteritems():
-            if filter_id != dff:
-                self.bg_lists[dff].link_imglist(self.bg_lists[filter_id])
+        # Add all cell image lists that were found for each filter
         for filter_id, cell_dict in self.search_results.cell_info.iteritems():
             for cell_id, cell in cell_dict.iteritems():
                 lst = cell.img_list
                 if lst.has_files() and lst.gas_cd > 0:
                     self.add_cell_img_list(lst)
+        # Add all BG image lists found for each filter                    
+        for filter_id, info in self.search_results.bg_info.iteritems():
+            self.add_bg_img_list(info.img_list)
+        # set background images closest to first detected cell list for each 
+        # filter
+        self.set_bg_closest()
+    
+    def set_bg_closest(self, cell_id=None):
+        """Set the current background image closest to one of the cells
+        
+        :param str cell_id: cell ID supposed to be used, if None, then the 
+            first cell is used, i.e.::
             
+                cell_id = self.cell_lists[self.filters.default_key_on].keys()[0]
+        """
+        if cell_id is None:
+            cell_id = self.cell_lists[self.filters.default_key_on].keys()[0]
+    
+        for filter_id, lst in self.bg_lists.iteritems():
+            self.cell_lists[filter_id][cell_id].link_imglist(lst)
             
-    def find_and_assign_cells_all_filter_lists(self, threshold = 0.10):
+    def find_and_assign_cells_all_filter_lists(self, threshold=0.10):
         """High level function for automatic cell and background image search"""
         for filter_id in self.filters.filters.keys():
             try:
@@ -929,7 +952,7 @@ class CellCalibEngine(Dataset):
         :param int pyrlevel: Specify size reduction factor using gaussian 
             pyramide
         """
-
+        
         bg_list = self.bg_lists[filter_id]
         bg_list.update_img_prep(blurring = blurring)
         bg_list.darkcorr_mode = darkcorr
@@ -937,17 +960,20 @@ class CellCalibEngine(Dataset):
         bg_img = bg_list.current_img()
         bg_mean = bg_img.img.mean()
          
-        h, w = subimg_shape(bg_list.current_img().img.shape,\
-                                                pyrlevel = pyrlevel)
-        num = len(self.cell_lists[filter_id])
-        tau_stack = ImgStack(h, w, num, stack_id = filter_id)
+        h, w = subimg_shape(bg_list.current_img().img.shape,
+                            pyrlevel=pyrlevel)
         
+        num = len(self.cell_lists[filter_id])
+        tau_stack = ImgStack(h, w, num, stack_id=filter_id)
+        try:
+            bg_mean_tseries = self.det_bg_mean_pix_timeseries(filter_id)
+        except:
+            pass
         for cell_id, lst in self.cell_lists[filter_id].iteritems():
-            lst.update_img_prep(blurring = blurring)
+            lst.update_img_prep(blurring=blurring)
             lst.darkcorr_mode = darkcorr
-            cell_img = lst.current_img()
+            cell_img = lst.current_img()            
             try:
-                bg_mean_tseries = self.det_bg_mean_pix_timeseries(filter_id)
                 bg_mean_now = bg_mean_tseries.get_poly_vals(cell_img.meta[\
                                                                 "start_acq"])
                 offset = bg_mean - bg_mean_now
@@ -969,9 +995,11 @@ class CellCalibEngine(Dataset):
             tau_img.img = log(bg_img.img / cell_img.img)
             
             tau_img.to_pyrlevel(pyrlevel)
-            tau_stack.append_img(tau_img.img, start_acq =\
-                    cell_img.meta["start_acq"], texp = cell_img.meta["texp"],\
-                                    add_data = lst.gas_cd)
+            tau_stack.append_img(tau_img.img,
+                                 start_acq=cell_img.meta["start_acq"],
+                                 texp=cell_img.meta["texp"],
+                                 add_data=lst.gas_cd)
+                                 
         tau_stack.img_prep.update(tau_img.edit_log)
         self.calib_data[filter_id] = CellCalibData(tau_stack=tau_stack,
                                                    calib_id=filter_id)
@@ -1061,12 +1089,16 @@ class CellCalibEngine(Dataset):
     """
     Plotting etc
     """           
-    def plot_cell_search_result(self, filter_id = "on", for_app = 0,\
-                                        include_tit = True, ax = None):
+    def plot_cell_search_result(self, filter_id="on", for_app=False,
+                                include_tit=True, ax=None):
         """High level plotting function for results from automatic cell search
         
-        :param str filter_id ("on"): image type ID (e.g. "on", "off"), i.e. 
-        usually ID of filter used
+        :param str filter_id: filter ID (e.g. "on", "off")
+        :param bool for_app: currently irrelevant (default is False)
+        :param bool include_tit: include default title
+        :param ax: matplotlib axes object
+        :return:
+            - matplotlib axes object
             
         """
         # get stored time series (was automatically saved in :func:`find_cells`)
@@ -1090,11 +1122,10 @@ class CellCalibEngine(Dataset):
         dt = timedelta(0, (ts[-1] - ts[0]).total_seconds() /\
                                                 (len(ts_all) * 10))
         for cell in info.values():                
-            lbl = "Cell %s: %.2e cm-2" %(cell.img_list.cell_id,\
-                                            cell.img_list.gas_cd)
-            p = ax.plot(cell.start_acq, cell.mean_vals,' o', ms = 10,\
-                label = lbl, markeredgecolor = "None",\
-                markeredgewidth = 1, alpha = 0.6)
+            lbl = (r"Cell %s: $S_{%s}$=%.2e cm$^{-2}$" 
+                    %(cell.img_list.cell_id, SPECIES_ID, cell.img_list.gas_cd))
+            p = ax.plot(cell.start_acq, cell.mean_vals,' o', ms=10, label=lbl,
+                        markeredgecolor="None", markeredgewidth=1, alpha=0.6)
             c = p[0].get_color()
             ax.fill_betweenx(arange(0, ts_all.max()*1.05, 1), cell.start - dt,\
                                     cell.stop + dt, facecolor = c, alpha = 0.1)

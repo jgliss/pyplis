@@ -216,7 +216,7 @@ def prepare_images(onlist, offlist):
     return on_vigncorr, off_vigncorr, bg_on, bg_off, tau_mask, tau_on, tau_off
 
 def plot_lines_into_image(img):
-    ax = img.show()
+    ax = img.show(zlabel=r"$S_{SO2}$ [cm$^{-2}$]")
     ax.set_title("Retrieval lines")
     for line in USE_LINES:
         line.plot_line_on_grid(ax=ax, marker="", color=line.color,
@@ -340,10 +340,12 @@ if __name__ == "__main__":
         "%.2f (+/- %.2f) kg/s" %(phi_corr/1000.0, phi_corr_err/1000.0))
     
     ax3.set_title("Cross section profile", fontsize = 12)
-    ax3.legend(loc="best", framealpha=0.5, fancybox= True, fontsize = 10)
+    ax3.legend(loc="best", framealpha=0.5, fancybox= True, fontsize = 12)
     ax3.set_xlim([0, len(pix_dists_line)])
     ax3.set_ylim([0, 5e18])
-    ax3.set_ylabel(r'SO2 CD [cm-2]')
+    ax3.set_ylabel(r"$S_{SO2}$ [cm$^{-2}$]", fontsize=14)
+    ax3.set_xlabel("PCS", fontsize=14)
+    ax3.grid()
     
     ### IMPORTANT STUFF FINISHED
     

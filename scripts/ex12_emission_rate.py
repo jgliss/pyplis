@@ -38,7 +38,7 @@ CALIB_FILE = join(SAVE_DIR,
 CORR_MASK_FILE = join(SAVE_DIR, "aa_corr_mask.fts")
 
 ### SCRIPT FUNCTION DEFINITIONS        
-def plot_results(ana, line_id = "pcs1"):
+def plot_results(ana, line_id = "1. PCS"):
     fig, ax = subplots(2, 1, figsize = (7, 9), sharex = True)
     
     #Get emission rate results for the PCS line 
@@ -62,10 +62,7 @@ def plot_results(ana, line_id = "pcs1"):
     #flow histogram analysis and stored in object of type LocalPlumeProperties
     #which is part of plumespeed.py module
     ana.plume_properties[line_id].plot_directions(ax=ax2, color="#ff9900")
-#==============================================================================
-#     ax[2].set_title("Predominant movement direction (from optflow histo "
-#                         "analysis)")
-#==============================================================================
+
     ax2.set_ylim([-180, 180])
     pyplis.helpers.rotate_xtick_labels(ax=ax[1])
     tight_layout()
