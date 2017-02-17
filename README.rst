@@ -6,6 +6,10 @@ pyplis is a Python toolbox for the analysis of UV SO2 camera data. It includes a
   #. Plume velocity retrieval either using an optical flow analysis or using signal cross correlation
   #. Detailed analysis of the measurement geometry including automized retrieval of distances to the emission plume and/or to topographic features in the camera images (on a pixel basis)
   #. Routine for image based light dilution correction
+  
+.. note::
+
+  The software was renamed on 17.02.2017 from **piscope** to **pyplis**
 
 Requirements
 ------------
@@ -58,7 +62,7 @@ After installation try running and understanding the example scripts (can be fou
 Example and test data
 ---------------------
 
-The pyplis example data (required to run example scripts) is not part of the installation. It can be downloaded `here <https://folk.nilu.no/~gliss/pyplis_testdata/pyplis_etna_testdata.zip>`_
+The pyplis example data (required to run example scripts) is not part of the installation. It can be downloaded `here <https://folk.nilu.no/~gliss/piscope_testdata/piscope_etna_testdata.zip>`_
 
 or automatically after installation using::
 

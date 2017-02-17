@@ -1,7 +1,18 @@
 # -*- coding: utf-8 -*-
 """
-Basic and advanced processing objects
--------------------------------------
+This module contains the following processing classes and methods::
+
+    1. :class:`PixelMeanTimeSeries`: storage and post analysis of time series
+        of average pixel intensities
+    #. :class:`LineOnImage`: data access along a line on a 2D discrete grid 
+        using interpolation
+    #. :class:`ProfileTimeSeriesImg`: expanded :class:`Img` object, where y 
+        axis corresponds to 1D profile data (e.g. line profile from an image)
+        and x corresponds to the time axis.
+    #. :class:`ImgStack`: Object for storage of 3D image data
+    #. :func:`model_dark_image`: method to model a dark image from a long and
+        short exposure dark
+        
 """
 from numpy import vstack, ogrid, empty, ones, asarray, ndim, round, hypot,\
     linspace, sum, dstack, float32, zeros, poly1d, polyfit, argmin, where,\

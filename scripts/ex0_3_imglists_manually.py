@@ -109,17 +109,17 @@ if __name__ == "__main__":
     
     on_img.show(ax = ax[0])
     on_time_str = datetime.strftime(on_img.start_acq, "%Y-%m-%d %H:%M:%S")
-    ax[0].set_title("Current img (on list): %s" %on_time_str)
+    ax[0].set_title("Current img (on-band list): %s" %on_time_str)
     
     # show the current off band image as well (this iamge is unedited)
     off_img.show(ax = ax[1])
     off_time_str = datetime.strftime(off_img.start_acq, "%Y-%m-%d %H:%M:%S")
-    ax[1].set_title("Current img (off band list): %s" %off_time_str)
+    ax[1].set_title("Current img (off-band list): %s" %off_time_str)
         
     
     ### IMPORTANT STUFF FINISHED    
     if SAVEFIGS:
-        fig.savefig(join(SAVE_DIR, "ex0_2_out_1.%s" %FORMAT),
+        fig.savefig(join(SAVE_DIR, "ex0_3_out_1.%s" %FORMAT),
                            format=FORMAT, dpi=DPI)
         
     

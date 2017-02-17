@@ -758,10 +758,10 @@ class Img(object):
         if cbar:
             cb = fig.colorbar(im, ax=ax)
             if isinstance(zlabel, str):
-                cb.set_label(zlabel, fontsize = 16)
+                cb.set_label(zlabel, fontsize = 18)
         if not isinstance(tit, str):
             tit = self.make_info_header_str()
-        ax.set_title(tit, fontsize = 9)
+        ax.set_title(tit, fontsize = 12)
         tight_layout()
         return ax
         

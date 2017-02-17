@@ -123,8 +123,6 @@ if __name__ == "__main__":
     ax2.grid()
     ax2.set_ylim([0, 1.8e18])
     ax2.set_xlim([0, 0.20])
-    #ax2.set_ylabel(r"$S_{SO_2}$ [10$^{18}$ cm$^{-2}$]", fontsize=16)
-    ax2.set_xlabel(r"$\tau_{AA}$", fontsize=18)
     ax2.legend(loc=4, fancybox=True, framealpha=0.7, fontsize=11)
     axes = [ax0, ax1, ax2]
     if DO_FINE_SEARCH:    

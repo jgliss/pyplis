@@ -17,7 +17,7 @@ from matplotlib.pyplot import subplots
 from matplotlib.patches import Circle, Ellipse
 from matplotlib.cm import RdBu
 
-from .__init__ import SPECIES_ID
+from .__init__ import SPECIES_ID, _CALIB_ID_STRINGS
 from .processing import ImgStack
 from .helpers import shifted_color_map, mesh_from_img, get_img_maximum,\
         sub_img_to_detector_coords, map_coordinates_sub_img, exponent
@@ -26,10 +26,11 @@ from .image import Img
 from .inout import get_camera_info
 from .setupclasses import Camera
 
+
 class DoasCalibData(object):
     """Object representing DOAS calibration data"""
-    def __init__(self, tau_vec = [], doas_vec = [], time_stamps = [],\
-            calib_id = "", fov = None, camera = None, polyorder = 1):
+    def __init__(self, tau_vec=[], doas_vec=[], time_stamps=[],
+                 calib_id="", fov=None, camera=None, polyorder=1):
         """Class initialisation
         
         :param ndarray tau_vec: tau data vector for calibration data
@@ -72,6 +73,14 @@ class DoasCalibData(object):
             return self.time_stamps[-1]
         except TypeError:
             return self.fov.stop_search
+    
+    @property
+    def calib_id_str(self):
+        """Return plot string for calibration ID"""
+        try:
+            return _CALIB_ID_STRINGS[self.calib_id.split("_")[0]]
+        except:
+            return self.calib_id.split("_")[0]
             
     @property
     def coeffs(self):
@@ -290,9 +299,9 @@ class DoasCalibData(object):
                     
         except TypeError:
             print "Calibration poly probably not fitted"
-        ax.set_title("DOAS calibration data, ID: %s" %self.calib_id)
-        ax.set_ylabel(r"S [cm$^{-2}$]", fontsize=16)
-        ax.set_xlabel(r"$\tau_{%s}$" %self.calib_id.split("_")[0], fontsize=18)
+        ax.set_title("DOAS calibration data, ID: %s" %self.calib_id_str)
+        ax.set_ylabel(r"$S_{%s}$ [cm$^{-2}$]" %SPECIES_ID, fontsize=16)
+        ax.set_xlabel(r"$\tau_{%s}$" %self.calib_id_str, fontsize=18)
         ax.grid()
         ax.legend(loc='best', fancybox=True, framealpha=0.7, fontsize=11)
         return ax

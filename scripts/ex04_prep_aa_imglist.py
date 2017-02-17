@@ -82,8 +82,6 @@ if __name__ == "__main__":
     close("all")
     aa_list = prepare_aa_image_list()
     
-    aa_list.show_current()
-    
     t0=time()
     #Deactivate auto reload while changing some settings (else, after each
     #of the following operations the images are reloaded and edited, which)
@@ -97,7 +95,7 @@ if __name__ == "__main__":
     #now reactive image reload in list (loads image no. 50 with all changes
     #that where set in the previous lines)
     aa_list.auto_reload = True
-    ax = aa_list.show_current()
+    ax = aa_list.show_current(zlabel=r"$\tau_{AA}$")
     print "Elapsed time: %s s" %(time() - t0)
     
     aa_list.crop = False
