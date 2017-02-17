@@ -28,7 +28,7 @@ from .exceptions import ImgMetaError
 class Img(object):
     """ Image base class
     
-    Implementation of image object for :mod:`piscope` library. Images are
+    Implementation of image object for :mod:`pyplis` library. Images are
     represented as :class:`numpy.ndarray` objects and the image data is 
     stored in the attribute ``self.img``.
     
@@ -278,7 +278,7 @@ class Img(object):
             :func:`modified` returns False.
             
         """
-        from piscope.processing import model_dark_image
+        from pyplis.processing import model_dark_image
         if self.modified:
             print ("Dark correction not possible, it was either already "
             "performed, the image was already modified")
@@ -512,7 +512,7 @@ class Img(object):
         return Img(im)
         
     def _valid_cam_id(self):
-        """Checks if current cam ID is one of the piscope default IDs"""
+        """Checks if current cam ID is one of the pyplis default IDs"""
         if self.cam_id.lower() in get_all_valid_cam_ids():
             return True
         return False
@@ -692,7 +692,7 @@ class Img(object):
             save_dir = getcwd()
         if save_name is None:
             if self.meta["file_name"] == "":
-                save_name = "piscope_img_name_undefined.fts"
+                save_name = "pyplis_img_name_undefined.fts"
             else:
                 save_name = self.meta["file_name"].split(".")[0] + ".fts"
         else:
@@ -757,8 +757,8 @@ class Img(object):
         im = ax.imshow(self.img, **kwargs)
         if cbar:
             cb = fig.colorbar(im, ax=ax)
-        if isinstance(zlabel, str):
-            cb.set_label(zlabel, fontsize = 16)
+            if isinstance(zlabel, str):
+                cb.set_label(zlabel, fontsize = 16)
         if not isinstance(tit, str):
             tit = self.make_info_header_str()
         ax.set_title(tit, fontsize = 9)
@@ -826,7 +826,7 @@ class Img(object):
     """MAGIC METHODS"""
     def __str__(self):
         """String representation"""
-        s = "\n-----------\npiscope Img\n-----------\n\n"
+        s = "\n-----------\npyplis Img\n-----------\n\n"
         s += "Min / Max intensity: %s - %s\n" %(self.min(), self.max())
         s += "Mean intensity: %s\n" %(self.img.mean())
         s += "Shape: %s\n" %str(self.shape)

@@ -21,7 +21,7 @@ from .setupclasses import MeasSetup
 class Dataset(object):
     """Class for data import management
     
-    Default input is a :class:`piscope.setupclasses.MeasSetup` object, which 
+    Default input is a :class:`pyplis.setupclasses.MeasSetup` object, which
     specifies the camera used (e.g. file naming convention, detector specifics)
     the measurement geometry and information about the source and
     meteorological wind direction, start / stop time stamps and the image 
@@ -557,7 +557,7 @@ class Dataset(object):
 #     def open_in_gui(self):
 #         """Open this dataset in GUI application"""
 #         try:
-#             import piscope.gui as gui
+#             import pyplis.gui as gui
 #             app=QApplication(argv)
 #             
 #     #win = DispTwoImages.DispTwoImagesWidget(fileListRight=fileList)
@@ -565,7 +565,7 @@ class Dataset(object):
 #             win.show()
 #             app.exec_() #run main loop
 #         except:
-#             print ("Error: could not open piscope GUI")
+#             print ("Error: could not open pyplis GUI")
 #             raise
 #==============================================================================
     

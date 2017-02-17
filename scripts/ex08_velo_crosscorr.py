@@ -1,13 +1,13 @@
 # -*- coding: utf-8 -*-
 """
-piscope example script no. 8 - plume speed via cross correlation
+pyplis example script no. 8 - plume speed via cross correlation
 """
 from matplotlib.pyplot import close, show, subplots
 from os.path import join
 import numpy as np
 
-from piscope.processing import LineOnImage, ProfileTimeSeriesImg
-from piscope.plumespeed import find_signal_correlation
+from pyplis.processing import LineOnImage, ProfileTimeSeriesImg
+from pyplis.plumespeed import find_signal_correlation
 
 ### IMPORT GLOBAL SETTINGS
 from SETTINGS import SAVEFIGS, SAVE_DIR, FORMAT, DPI, OPTPARSE
@@ -239,10 +239,10 @@ if __name__ == "__main__":
     ### IMPORTANT STUFF FINISHED    
     if SAVEFIGS:
         for k in range(len(axes)):
-            axes[k].figure.savefig(join(SAVE_DIR, "ex08_out_%d.%s" %(k, FORMAT)),
-                                   format=FORMAT, dpi=DPI)
-                           
-    
+            axes[k].figure.savefig(join(SAVE_DIR, "ex08_out_%d.%s"
+                                        %((k+1), FORMAT)),
+                                        format=FORMAT, dpi=DPI)
+                          
     # Display images or not    
     (options, args)   =  OPTPARSE.parse_args()
     try:

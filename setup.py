@@ -12,15 +12,15 @@ with open("VERSION.rst") as f:
     version = f.readline()
     f.close()
     
-with open(join("piscope","data", "_paths.txt"), 'w'): pass
+with open(join("pyplis","data", "_paths.txt"), 'w'): pass
     
 setup(
-    name        =   'piscope',
+    name        =   'pyplis',
     version     =   version,
     author      =   'Jonas Gliss',
     author_email=   'jg@nilu.no',
     license     =   'GPLv3+',
-    url         =   'https://github.com/jgliss/piscope',
+    url         =   'https://github.com/jgliss/pyplis',
     description = ('A Python library for the analysis UV SO2 camera data'),
     long_description = readme,
     # See https://pypi.python.org/pypi?%3Aaction=list_classifiers
@@ -45,12 +45,12 @@ setup(
 
     # What does your project relate to?
     keywords='sample setuptools development',
-    #packages    =   ['piscope'],
-    package_dir =   {'piscope'     :    'piscope'},
-                     #'piscope.gui_features' :    'piscope/gui_features'},
-    packages =  ['piscope'], #'piscope.gui_features'],
+    #packages    =   ['pyplis'],
+    package_dir =   {'pyplis'     :    'pyplis'},
+                     #'pyplis.gui_features' :    'pyplis/gui_features'},
+    packages =  ['pyplis'], #'pyplis.gui_features'],
                  
-    package_data=   {'piscope'     :   ['data/*.txt',
+    package_data=   {'pyplis'     :   ['data/*.txt',
                                         'data/*.rst'
                                         'data/*.png',
                                         'data/icons/axialis/k/*.png',

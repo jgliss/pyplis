@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-piscope introduction script 4 - Automatic creation of image lists    
+pyplis introduction script 4 - Automatic creation of image lists
 
 The previous script gives an introduction into manual creation of ImgList 
 objects. In this script, a number of ImgList objects (on, off, dark low gain, 
@@ -11,7 +11,7 @@ Based on this camera a MeasSetup is created containing the camera specs and the
 image base directory (note that in this example, start / stop acq. time stamps
 are ignored, i.e. all images available in the specified directory are imported)
 """
-import piscope
+import pyplis
 
 ### IMPORT GLOBAL SETTINGS
 from SETTINGS import IMG_DIR
@@ -26,11 +26,11 @@ if __name__ == "__main__":
     cam = create_ecII_cam_new_filters()
     
     #now throw all this stuff into the BaseSetup objec
-    stp = piscope.setupclasses.MeasSetup(IMG_DIR, camera = cam)
+    stp = pyplis.setupclasses.MeasSetup(IMG_DIR, camera = cam)
     
     # Create a Dataset which creates separate ImgLists for all types (dark,
     # offset, etc.)
-    ds = piscope.dataset.Dataset(stp)
+    ds = pyplis.dataset.Dataset(stp)
     
     # The image lists can be accessed in different ways for instance using
     # the method "all_lists", which returns a Python list containing all 

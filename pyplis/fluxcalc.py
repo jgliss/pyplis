@@ -73,7 +73,7 @@ class EmissionRateSettings(object):
         
     def __str__(self):
         """String representation"""
-        s = "\npiscope settings for emission rate retrieval\n"
+        s = "\npyplis settings for emission rate retrieval\n"
         s+= "--------------------------------------------\n\n"
         s+= "Velocity retrieval:\n"
         for k, v in self.velo_modes.iteritems():

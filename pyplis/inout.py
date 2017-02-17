@@ -62,7 +62,7 @@ def create_temporary_copy(path):
     return temp_path
     
 def download_test_data(save_path = None):
-    """Download piscope test data from
+    """Download pyplis test data from
     
     :param save_path: location where path is supposed to be stored
     
@@ -72,9 +72,9 @@ def download_test_data(save_path = None):
     -progress-bar-in-python
     
     """
-    from piscope import _LIBDIR, URL_TESTDATA
+    from pyplis import _LIBDIR, URL_TESTDATA
     url = URL_TESTDATA
-    widgets = ['Downloading piscope test data: ', Percentage(), ' ',\
+    widgets = ['Downloading pyplis test data: ', Percentage(), ' ',\
                    Bar(marker=RotatingMarker()), ' ',\
                     ETA(), ' ', FileTransferSpeed()]
     
@@ -113,14 +113,14 @@ def download_test_data(save_path = None):
 
 def load_img_dummy():
     """Load image dummy as numpy array"""
-    from piscope import _LIBDIR
+    from pyplis import _LIBDIR
     return imread(join(_LIBDIR, "data", "no_images_dummy.png"))
 
 def find_test_data():
     """Searches location of test data folder"""
-    from piscope import _LIBDIR
+    from pyplis import _LIBDIR
     data_path = join(_LIBDIR, "data")
-    folder_name = "piscope_etna_testdata"
+    folder_name = "pyplis_etna_testdata"
     if folder_name in listdir(data_path):
         print "Found test data at default location: %s" %data_path
         return join(data_path, folder_name)
@@ -132,14 +132,14 @@ def find_test_data():
                 print "Found test data at default location: %s" %p
                 f.close()
                 return join(p, folder_name)
-    raise IOError("piscope test data could not be found, please download"
-        "testdata first, using method piscope.inout.download_test_data or"
+    raise IOError("pyplis test data could not be found, please download"
+        "testdata first, using method pyplis.inout.download_test_data or"
         "specify the local path where the test data is stored using"
-        "piscope.inout.set_test_data_path")
+        "pyplis.inout.set_test_data_path")
 
 def all_test_data_paths():
     """Return list of all search paths for test data"""
-    from piscope import _LIBDIR
+    from pyplis import _LIBDIR
     data_path = join(_LIBDIR, "data")
     paths = [data_path]
     with open(join(data_path, "_paths.txt"), "r") as f:
@@ -152,7 +152,7 @@ def all_test_data_paths():
     
 def set_test_data_path(save_path):
     """Set local path where test data is stored"""
-    from piscope import _LIBDIR
+    from pyplis import _LIBDIR
     if save_path.lower() in all_test_data_paths():
         print "Path is already in search tree"
         return
@@ -165,8 +165,8 @@ def set_test_data_path(save_path):
             print ("Adding new path for test data location in "
                     "file _paths.txt: %s" %save_path)
             f.close()
-        if not "piscope_etna_testdata" in listdir(save_path):
-            print ("WARNING: test data folder (name: piscope_etna_testdata) "
+        if not "pyplis_etna_testdata" in listdir(save_path):
+            print ("WARNING: test data folder (name: pyplis_etna_testdata) "
                 "could not be  found at specified location, please download "
                 "test data, unzip and save at: %s" %save_path)
     except:
@@ -182,7 +182,7 @@ def get_camera_info(cam_id):
     dat = od()
     if cam_id is None:
         return dat
-    from piscope import _LIBDIR
+    from pyplis import _LIBDIR
     with open(join(_LIBDIR, "data", "cam_info.txt")) as f:
         filters = []
         darkinfo = []
@@ -223,7 +223,7 @@ def save_new_default_camera(info_dict):
     
     Only valid keys will be added to the
     """
-    from piscope import _LIBDIR
+    from pyplis import _LIBDIR
     cam_file = join(_LIBDIR, "data", "cam_info.txt")
     keys = get_camera_info("ecII").keys()
     print info_dict["cam_id"]
@@ -285,7 +285,7 @@ def get_all_valid_cam_ids():
     
     Reads info from file cam_info.txt which is part of package data
     """
-    from piscope import _LIBDIR
+    from pyplis import _LIBDIR
     ids = []
     with open(join(_LIBDIR, "data", "cam_info.txt")) as f:        
         for line in f: 
@@ -299,7 +299,7 @@ def get_cam_ids():
     
     Reads info from file cam_info.txt which is part of package data
     """
-    from piscope import _LIBDIR
+    from pyplis import _LIBDIR
     ids = []
     with open(join(_LIBDIR, "data", "cam_info.txt")) as f:        
         for line in f: 
@@ -313,7 +313,7 @@ def get_source_ids():
     
     Reads info from file my_sources.txt which is part of package data
     """
-    from piscope import _LIBDIR
+    from pyplis import _LIBDIR
     ids = []
     with open(join(_LIBDIR, "data", "my_sources.txt")) as f:        
         for line in f: 
@@ -331,7 +331,7 @@ def get_source_info(source_id, try_online = True):
     :param bool try_online: if True and local access fails, try to find source 
         ID in online database
     """
-    from piscope import _LIBDIR
+    from pyplis import _LIBDIR
     dat = od()
     if source_id == "":
         return dat
@@ -420,7 +420,7 @@ def get_icon(name, color = None):
     
     """
     try:
-        from piscope import _LIBDIR
+        from pyplis import _LIBDIR
     except:
         raise
     subfolders = ["axialis", "myIcons"]

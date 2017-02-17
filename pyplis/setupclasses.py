@@ -151,7 +151,7 @@ class Source(object):
         
     def __str__(self):
         """String representation of source"""
-        s=("\npiSCOPE Source\n-------------------------\n")
+        s=("\npyplis Source\n-------------------------\n")
         for key, val in self._type_dict.iteritems():
             s=s + "%s: %s\n" %(key, self(key))
         return s
@@ -175,7 +175,7 @@ class Source(object):
         return self.__getitem__(key)
         
 class FilterSetup(object):
-    """A collection of :class:`piscope.utils.Filter` objects 
+    """A collection of :class:`pyplis.utils.Filter` objects
     
     This collection specifies a filter setup for a camera. A typical setup 
     would be one on and one off band filter. 
@@ -184,7 +184,7 @@ class FilterSetup(object):
                  default_key_off=None):
         """Class initialisation
         
-        :param list filters: list of :class:`piscope.utils.Filter` objects 
+        :param list filters: list of :class:`pyplis.utils.Filter` objects
             specifying camera filter setup
         :param str default_key_on: string ID of default on band filter (only
             relevant if collection contains more than one on band filter)
@@ -218,7 +218,7 @@ class FilterSetup(object):
         The filters will be written into the dictionary ``self.filters``
         in the list order, keys are the filter ids
         
-        :param list filters: list of :class:`piscope.utils.Filter` objects 
+        :param list filters: list of :class:`pyplis.utils.Filter` objects
             specifying camera filter setup
         
         
@@ -336,7 +336,7 @@ class FilterSetup(object):
     """
     def print_setup(self):
         """Prints the current setup"""
-        s=("piSCOPE FilterSetup\n------------------------------\n"
+        s=("pyplis FilterSetup\n------------------------------\n"
             "All filters:\n\n")
         for flt in self.filters.values():
             s += ("%s" %flt)
@@ -371,7 +371,7 @@ class Camera(CameraBaseInfo):
         :param str cam_id: camera ID (e.g "ecII"), if this ID corresponds to 
             one of the default cameras, the information is automatically 
             loaded from supplementary file *cam_info.txt* 
-        :param list filter_list: list containing :class:`piscope.utils.Filter`
+        :param list filter_list: list containing :class:`pyplis.utils.Filter`
             objects specifying the camera filter setup. If unspecified (empty
             list) and input param ``cam_id`` is a valid default ID, then the 
             default filter setup of the camera will be loaded.
@@ -386,13 +386,13 @@ class Camera(CameraBaseInfo):
         Example creating a new camera (using ECII default info with custom
         filter setup)::
         
-            import piscope
+            import pyplis
     
             #the custom filter setup
-            filters= [piscope.utils.Filter(type="on", acronym="F01"),
-                      piscope.utils.Filter(type="off", acronym="F02")]
+            filters= [pyplis.utils.Filter(type="on", acronym="F01"),
+                      pyplis.utils.Filter(type="off", acronym="F02")]
             
-            cam = piscope.setupclasses.Camera(cam_id=ecII", filter_list=filters,
+            cam = pyplis.setupclasses.Camera(cam_id=ecII", filter_list=filters,
                                               lon=15.11, lat=37.73, elev=18.0,
                                               elev_err=3, azim=270.0,
                                               azim_err=10.0, focal_lengh=25e-3)
@@ -460,7 +460,7 @@ class Camera(CameraBaseInfo):
                              default_key_off=None):
         """Create :class:`FilterSetup` object (collection of bandpass filters)
         
-        :param list filter_list: list containing :class:`piscope.utils.Filter`
+        :param list filter_list: list containing :class:`pyplis.utils.Filter`
             objects
         :param default_filter_on: string specifiying the string ID of the 
             main onband filter of the camera (usually "on"). If unspecified 
@@ -585,7 +585,7 @@ class FormSetup(object):
         
     def __str__(self):
         """String representation"""
-        s = "piSCOPE FormSetup\n-----------------------------------\n\n"
+        s = "pyplis FormSetup\n-----------------------------------\n\n"
         s += "Lines: %s\n" %self.lines
         s += "Rects: %s\n" %self.rects
         return s
@@ -746,7 +746,7 @@ class BaseSetup(object):
 #         """Name according to saving convention"""
 #         d = self.start.strftime('%Y%m%d')
 #         i, f = self.start.strftime('%H%M'),self.stop.strftime('%H%M')
-#         return "piscope_setup_%s_%s_%s_%s" %(self.id, d, i, f)
+#         return "pyplis_setup_%s_%s_%s_%s" %(self.id, d, i, f)
 #     
 #==============================================================================
     def _dict_miss_info_str(self, key, val):
@@ -777,8 +777,8 @@ class MeasSetup(BaseSetup):
     camera specs (:class:`Camera`) and meteorology information (wind 
     direction and velocity, stored as Python directory). 
     :class:`MeasSetup` objects can for instance be used as input for 
-    :class:`piscope.Datasets.PlumeData` objects or 
-    :class:`piscope.Datasets.BackgroundData` objects.
+    :class:`pyplis.Datasets.PlumeData` objects or
+    :class:`pyplis.Datasets.BackgroundData` objects.
     """
     def __init__(self, base_dir=None, start=None, stop=None, camera=None,
                  source=None, wind_info=None, cell_info_dict={}, rects={},
@@ -938,7 +938,7 @@ class MeasSetup(BaseSetup):
 #==============================================================================
 #     @property
 #     def _save_name(self):
-#         """Returns the save name using piscope naming convention"""
+#         """Returns the save name using pyplis naming convention"""
 #         name = super(BaseSetup, self)._save_name
 #         try:
 #             name += "_%s" %self.source.name
@@ -965,7 +965,7 @@ class MeasSetup(BaseSetup):
 #==============================================================================
 #     def edit_in_gui(self):
 #         """Edit the current dataSet object"""
-#         from piscope.gui_features.setup_widgets import MeasSetupEdit
+#         from pyplis.gui_features.setup_widgets import MeasSetupEdit
 #         app=QApplication(argv)
 #         dial = MeasSetupEdit(deepcopy(self))
 #         dial.exec_()
@@ -1059,7 +1059,7 @@ class MeasSetup(BaseSetup):
 #     a dictionary containing information about the gas columns of the 
 #     calibration cells used. 
 #     :class:`AutoCellCalibSetup` objects are supposed to be used as input for 
-#     :class:`piscope.Calibration.CellCalib` objects.
+#     :class:`pyplis.Calibration.CellCalib` objects.
 #     """
 #     def __init__(self, cell_info_dict = {}, *args, **kwargs):
 #         """Class initialisation
@@ -1100,7 +1100,7 @@ class MeasSetup(BaseSetup):
 #     
 #     Basically a "putting it all together" class to determine emission rates
 #     from a set of plume images. :class:`EmissionRateAnalysisSetup` objects can 
-#     be used as input for :class:`piscope.Evaluation.EmissionRateAnalysis` 
+#     be used as input for :class:`pyplis.Evaluation.EmissionRateAnalysis`
 #     objects
 #     """
 #     def __init__(self, plume_data_setup = None, auto_cell_calib_setup = None,\
@@ -1247,7 +1247,7 @@ class MeasSetup(BaseSetup):
 #             self.bgPolyFiles.append(f)
 #             
 #     def __str__(self):
-#         s=("\npiSCOPE background model setup\n-------------------------\n" +
+#         s=("\npyplis background model setup\n-------------------------\n" +
 #             "Settings:\n")
 #         for key, val in self.settings.iteritems():
 #             s=s + key + ": " + str(val) + "\n"

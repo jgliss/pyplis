@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-ImageList objects of piscope library
+ImageList objects of pyplis library
 
     1. :class:`BaseImgList` the base class for image list objects (includes 
         functionality for file management and iteration and basic editing)
@@ -9,7 +9,7 @@ ImageList objects of piscope library
         for dark and offset images was also done to have a clearer structure 
         (e.g. when using identifiers such as :func:`isinstance` or 
         :func:`type`)
-    #. :class:`ImgList`: the central list object in piSCOPE, e.g. for 
+    #. :class:`ImgList`: the central list object in pyplis, e.g. for
         representing on and off band lists of plume image data. Inherits from
         :class:`BaseImgList` and was extended by functionality for dark image
         correction, optical flow calculations and background image modelling 
@@ -20,7 +20,7 @@ ImageList objects of piscope library
         calibration cell (covering the whole camera FOV). It is extended by 
         the attributes cell_id, gas_cd and gas_cd_err. It inherits
         from :class:`ImgList` (to enable dark and offset correction) and is 
-        mainly used in the :class:`piscope.Calibration.CellCalib` object.
+        mainly used in the :class:`pyplis.Calibration.CellCalib` object.
 
 """
 from numpy import asarray, zeros, argmin, arange, ndarray, float32, ceil
@@ -318,7 +318,7 @@ class BaseImgList(object):
         
         Two options:
             
-            1. set :class:`piscope.setup.Camera`directly
+            1. set :class:`pyplis.setup.Camera`directly
             #. provide one of the default camera IDs (e.g. "ecII", "hdcam")
         
         :param Camera camera: camera setup, or, alternatively
@@ -890,7 +890,7 @@ class BaseImgList(object):
     """  
     def __str__(self):
         """String representation of image list"""
-        s = "\npiscope ImgList\n----------------------------------\n"
+        s = "\npyplis ImgList\n----------------------------------\n"
         s += "ID: %s\nType: %s\n" %(self.list_id, self.list_type)
         s += "Number of files (imgs): %s\n\n" %self.nof
         s += "Current image prep settings\n.................................\n"
@@ -1092,16 +1092,16 @@ class ImgList(BaseImgList):
     @property
     def calib_data(self):
         """Get set object to perform calibration"""
-        from piscope.cellcalib import CellCalibEngine as cc
-        from piscope.doascalib import DoasCalibData as dc
+        from pyplis.cellcalib import CellCalibEngine as cc
+        from pyplis.doascalib import DoasCalibData as dc
         if not any([isinstance(self._calib_data, x) for x in [cc, dc]]):
             warn("No calibration data available in imglist %s" %self.list_id)
         return self._calib_data
     
     @calib_data.setter
     def calib_data(self, val):
-        from piscope.cellcalib import CellCalibEngine as cc
-        from piscope.doascalib import DoasCalibData as dc
+        from pyplis.cellcalib import CellCalibEngine as cc
+        from pyplis.doascalib import DoasCalibData as dc
         if not any([isinstance(val, x) for x in [cc, dc]]):
             raise TypeError("Could not set calibration data in imglist %s: "
             "need CellCalibEngine obj or DoasCalibData obj" %self.list_id)
@@ -1162,7 +1162,7 @@ class ImgList(BaseImgList):
         
     def set_optical_flow(self, optflow):
         """Set the current optical flow object (type 
-        :class:`piscope.Processing.OpticalFlowFarneback`)
+        :class:`pyplis.Processing.OpticalFlowFarneback`)
         """
         self.optflow = optflow
     
@@ -1173,7 +1173,7 @@ class ImgList(BaseImgList):
     
     @meas_geometry.setter
     def meas_geometry(self, val):
-        """Set :class:`piscope.Utils.MeasGeometry` object"""
+        """Set :class:`pyplis.Utils.MeasGeometry` object"""
         if not isinstance(val, MeasGeometry):
             raise TypeError("Could not set meas_geometry, need MeasGeometry "
                 "object")

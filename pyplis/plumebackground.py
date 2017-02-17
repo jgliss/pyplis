@@ -218,7 +218,7 @@ class PlumeBackgroundModel(object):
         
         Example::
         
-            from piscope.PlumeBackground import ModelPlumeBackground as bgModel
+            from pyplis.PlumeBackground import ModelPlumeBackground as bgModel
             from numpy import ones, full, log
             from matplotlib.pyplot import imshow
             
@@ -524,7 +524,9 @@ class PlumeBackgroundModel(object):
         
         if edit_profile_labels:
             _range = p_vert.max() - p_vert.min()
-            lbls = [0, p_vert.max() - _range * .05]
+            lbls = [0]
+            if p_vert.max() > 0 and p_vert.max()/_range > 0.2:
+                lbls.append(p_vert.max() - _range * .05)
             if p_vert.min() < 0 and abs(p_vert.min())/p_vert.max() > 0.5:
                 lbls.insert(0, p_vert.min() + _range*.05)
             ax[1].get_xaxis().set_ticks(lbls)
@@ -532,7 +534,9 @@ class PlumeBackgroundModel(object):
             ax[1].set_xticklabels(lbl_str)                
             
             _range = p_hor.max() - p_hor.min()
-            lbls = [0, p_hor.max() - _range*.05]
+            lbls = [0]
+            if p_hor.max() > 0 and p_hor.max() / _range > 0.2:
+                lbls.append(p_hor.max() - _range*.05)
             if p_hor.min() < 0 and abs(p_hor.min())/p_hor.max() > 0.5:
                 lbls.insert(0, p_hor.min() + _range *.05)
             ax[2].get_yaxis().set_ticks(lbls)

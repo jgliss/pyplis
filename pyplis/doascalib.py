@@ -17,6 +17,7 @@ from matplotlib.pyplot import subplots
 from matplotlib.patches import Circle, Ellipse
 from matplotlib.cm import RdBu
 
+from .__init__ import SPECIES_ID
 from .processing import ImgStack
 from .helpers import shifted_color_map, mesh_from_img, get_img_maximum,\
         sub_img_to_detector_coords, map_coordinates_sub_img, exponent
@@ -177,7 +178,7 @@ class DoasCalibData(object):
         if save_dir is None:
             save_dir = getcwd()
         if save_name is None:
-            save_name = "piscope_doascalib_id_%s_%s_%s_%s.fts" %(\
+            save_name = "pyplis_doascalib_id_%s_%s_%s_%s.fts" %(\
                 self.calib_id, self.start.strftime("%Y%m%d"),\
                 self.start.strftime("%H%M"), self.stop.strftime("%H%M"))
         else:
@@ -279,25 +280,24 @@ class DoasCalibData(object):
         
         taumin, taumax = self.tau_range
         x = linspace(taumin, taumax, 100)
-        exp = exponent(self.poly(taumax))
         
-        ax.plot(self.tau_vec, self.doas_vec/10**exp, ls="", marker=".",
+        ax.plot(self.tau_vec, self.doas_vec, ls="", marker=".",
                 label="Data %s" %add_label_str, **kwargs)
             
         try:
-            ax.plot(x, self.poly(x)/10**exp, ls="-", marker="",
+            ax.plot(x, self.poly(x), ls="-", marker="",
                     label = "Fit result", **kwargs)
                     
         except TypeError:
             print "Calibration poly probably not fitted"
         ax.set_title("DOAS calibration data, ID: %s" %self.calib_id)
-        ax.set_ylabel(r"S [10$^{%d}$ cm$^{-2}$]" %exp, fontsize=16)
+        ax.set_ylabel(r"S [cm$^{-2}$]", fontsize=16)
         ax.set_xlabel(r"$\tau_{%s}$" %self.calib_id.split("_")[0], fontsize=18)
         ax.grid()
         ax.legend(loc='best', fancybox=True, framealpha=0.7, fontsize=11)
         return ax
         
-    def plot_data_tseries_overlay(self, ax = None):
+    def plot_data_tseries_overlay(self, ax=None):
         """Plot overlay of tau and DOAS time series"""
         if ax is None:
             fig, ax = subplots(1,1)
@@ -308,7 +308,7 @@ class DoasCalibData(object):
         ax2 = ax.twinx()
             
         p2 = ax2.plot(s2, "--xr", label="DOAS CDs")
-        ax2.set_ylabel("SO2-SCD [cm-2]")
+        ax2.set_ylabel(r"$S_{%s}$ [cm$^{-2}$]" %SPECIES_ID)
         ax.set_title("Time series overlay DOAS calib data")
         
         ps = p1 + p2
@@ -467,7 +467,7 @@ class DoasFOV(object):
         
         :param tuple img_shape_orig: image shape of original image data (can
             be extracted from an unedited image), or
-        :param str cam_id: string ID of piscope default camera (e.g. "ecII")
+        :param str cam_id: string ID of pyplis default camera (e.g. "ecII")
             
         The shape of the FOV mask (and the represented pixel coordinates) 
         depends on the image preparation settings of the :class:`ImgStack` 

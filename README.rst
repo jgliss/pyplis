@@ -1,4 +1,4 @@
-piscope is a Python toolbox for the analysis of UV SO2 camera data. It includes a large collection of routines for the analysis of such data, for instance:
+pyplis is a Python toolbox for the analysis of UV SO2 camera data. It includes a large collection of routines for the analysis of such data, for instance:
 
   1. Several routines for plume background estimation
   #. Automatic cell calibration 
@@ -35,7 +35,7 @@ We recommend using `Anaconda <https://www.continuum.io/downloads>`_ as package m
 Installation
 ------------
 
-piscope can be installed from source by downloading and extracting the latest release. After navigating to the source folder (where the setup.py file is located), call::
+pyplis can be installed from source by downloading and extracting the latest release. After navigating to the source folder (where the setup.py file is located), call::
 
   python setup.py install
 
@@ -43,7 +43,7 @@ On Linux::
   
   sudo python setup.py install 
   
-In case the installation fails make sure that all dependencies (see above) are installed correctly. piscope is currently only supported for Python v2.7.
+In case the installation fails make sure that all dependencies (see above) are installed correctly. pyplis is currently only supported for Python v2.7.
 
 Instructions and code documentation
 -----------------------------------
@@ -58,16 +58,16 @@ After installation try running and understanding the example scripts (can be fou
 Example and test data
 ---------------------
 
-The piscope example data (required to run example scripts) is not part of the installation. It can be downloaded `here <https://folk.nilu.no/~gliss/piscope_testdata/piscope_etna_testdata.zip>`_
+The pyplis example data (required to run example scripts) is not part of the installation. It can be downloaded `here <https://folk.nilu.no/~gliss/pyplis_testdata/pyplis_etna_testdata.zip>`_
 
 or automatically after installation using::
 
-  import piscope
-  piscope.inout.download_test_data(<local_path>)
+  import pyplis
+  pyplis.inout.download_test_data(<local_path>)
   
 which downloads the data to the installation *data* directory if *<local_path>* is unspecified. If <local_path> is a valid location it will be downloaded to the specified folder and <local_path> will be added to the supplementary file "./data/_paths.txt", i.e. it will be added as default search path to the test data search method::
 
-  piscope.inout.find_test_data()
+  pyplis.inout.find_test_data()
   
 which searches all valid test data folders and raises Exception, if the data cannot be found.
 

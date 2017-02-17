@@ -8,7 +8,7 @@ from os.path import basename, exists
 if not __name__ == "__main__":
     from .inout import get_camera_info, save_new_default_camera
 else: 
-    from piscope.inout import get_camera_info, save_new_default_camera
+    from pyplis.inout import get_camera_info, save_new_default_camera
         
 class CameraBaseInfo(object):
     """Low level base class for camera specific information 
@@ -212,9 +212,9 @@ class CameraBaseInfo(object):
                    ("pix_width"       ,   "Detector pixel width in m"),
                    ("pixnum_x"        ,   "Detector number of pixels in x dir"),
                    ("pixnum_y"        ,   "Detector number of pixels in y dir"),
-                   ("default_filters" ,   ("A Python list containing piSCOPE"
+                   ("default_filters" ,   ("A Python list containing pyplis"
                                            "Filter objects")),                   
-                   ("dark_info"       ,   ("A Python list containing piSCOPE"
+                   ("dark_info"       ,   ("A Python list containing pyplis"
                                            "DarkOffsetInfo objects"))])
         
              
@@ -335,7 +335,7 @@ class CameraBaseInfo(object):
     """
     def __str__(self):
         """String representation"""
-        s=("\npiSCOPE CameraBaseInfo\n-------------------------\n\n")
+        s=("\npyplis CameraBaseInfo\n-------------------------\n\n")
         for key in self._type_dict:
             #print key in ["defaultFilterSetup", "dark_img_info"]
             val = self(key)

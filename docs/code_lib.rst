@@ -4,122 +4,122 @@ Code Documentation
 Setup classes
 -------------
 
-.. automodule:: piscope.setupclasses
+.. automodule:: pyplis.setupclasses
    :members:
    :undoc-members:
    
 Data Set object
 ---------------
 
-.. automodule:: piscope.dataset
+.. automodule:: pyplis.dataset
    :members:
    :undoc-members:
    
 Measurement geometry
 --------------------
 
-.. automodule:: piscope.geometry
+.. automodule:: pyplis.geometry
    :members:
    :undoc-members:
 
 Image base module
 -----------------
 
-.. automodule:: piscope.image
+.. automodule:: pyplis.image
    :members:
    :undoc-members:
 
 Image list objects
 ------------------
 
-.. automodule:: piscope.imagelists
+.. automodule:: pyplis.imagelists
    :members:
    :undoc-members:
    
 Processing module
 -----------------
-.. automodule:: piscope.processing
+.. automodule:: pyplis.processing
    :members:
    :undoc-members:
 
 Plume background analysis
 -------------------------
 
-.. automodule:: piscope.plumebackground
+.. automodule:: pyplis.plumebackground
    :members:
    :undoc-members:
 
 Plume velocity analysis
 -----------------------
 
-.. automodule:: piscope.plumespeed
+.. automodule:: pyplis.plumespeed
    :members:
    :undoc-members:   
 
 Cell calibration
 ----------------
 
-.. automodule:: piscope.cellcalib
+.. automodule:: pyplis.cellcalib
    :members:
    :undoc-members:
    
 DOAS calibration
 ----------------
 
-.. automodule:: piscope.doascalib
+.. automodule:: pyplis.doascalib
    :members:
    :undoc-members:
    
 Emission rate retrieval
 -----------------------
 
-.. automodule:: piscope.fluxcalc
+.. automodule:: pyplis.fluxcalc
    :members:
    :undoc-members:
    
 Signal dilution correction
 --------------------------
 
-.. automodule:: piscope.dilutioncorr
+.. automodule:: pyplis.dilutioncorr
    :members:
    :undoc-members:  
       
 Low level utils
 ---------------
-.. automodule:: piscope.utils
+.. automodule:: pyplis.utils
    :members:
    :undoc-members:
    
 Fitting / Optimisation algorithms
 ---------------------------------
 
-.. automodule:: piscope.optimisation
+.. automodule:: pyplis.optimisation
    :members:
    :undoc-members:
 
 Mathematical model functions
 ----------------------------
 
-.. automodule:: piscope.model_functions
+.. automodule:: pyplis.model_functions
    :members:
    :undoc-members:
       
 I/O routines
 ------------
 
-.. automodule:: piscope.inout
+.. automodule:: pyplis.inout
    :members:
    :undoc-members:
 
 Helper functions
 ----------------
 
-.. automodule:: piscope.helpers
+.. automodule:: pyplis.helpers
    :members:
    :undoc-members:
    
 Forms and geometrical objects
 -----------------------------
-.. automodule:: piscope.forms
+.. automodule:: pyplis.forms
    :members:
    :undoc-members:

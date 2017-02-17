@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-piscope module for image based light dilution correction
+pyplis module for image based light dilution correction
 """
 from numpy import asarray, linspace, exp, ones, nan
 from matplotlib.pyplot import subplots

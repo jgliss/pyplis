@@ -1,4 +1,4 @@
-This folder contains supplementary data for piscope
+This folder contains supplementary data for pyplis
 ---------------------------------------------------
 
 This includes

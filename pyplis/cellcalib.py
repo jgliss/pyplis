@@ -27,6 +27,7 @@ from .image import Img
 from .helpers import subimg_shape, map_coordinates_sub_img, exponent
 from .doascalib import DoasFOV
 from .optimisation import PolySurfaceFit
+from .__init__ import SPECIES_ID
       
 class CellSearchInfo(object):
     """Class for for storage cell search from automatic cell search engine"""
@@ -382,7 +383,7 @@ class CellCalibData(object):
         ax.plot(taus, poly(taus),"--", label = "Fit result")
         
         if not add_to:
-            ax.set_ylabel(r"S [cm$^{-2}$]", fontsize=18)
+            ax.set_ylabel(r"$S_{%s}$ [cm$^{-2}$]" %SPECIES_ID, fontsize=18)
             ax.set_xlabel(r"$\tau$", fontsize = 18)    
             ax.grid()
         ax.legend(loc = "best", fancybox = True, framealpha = 0.5,\
@@ -438,7 +439,7 @@ class CellCalibEngine(Dataset):
     based on the depth of each dip (in the on band) and the column densities
     of the cells used (the latter need to be provided).
     
-    Is initialised as :class:`piscope.Datasets.Dataset` object, i.e. normal
+    Is initialised as :class:`pyplis.Datasets.Dataset` object, i.e. normal
     setup is like plume data using a :class:`MeasSetup` object (make sure 
     that ``cell_info_dict`` is set in the setup class).
     """
@@ -564,21 +565,14 @@ class CellCalibEngine(Dataset):
         large SZA measurements where the background radiance changes 
         fastly).
         """
-#==============================================================================
-#         if filter_id in self.search_results.bg_info.keys():
-#             info = self.search_results.bg_info[filter_id]
-#             ts = PixelMeanTimeSeries(info.mean_vals, info.start_acq,\
-#                 info.mean_vals_err, info.texps)
-#         else:
-#==============================================================================
         ts = self.bg_lists[filter_id].get_mean_value()
         ts.fit_polynomial()
         ts.img_prep.update(self.bg_lists[filter_id].current_img().edit_log)
         self.bg_tseries[filter_id] = ts
         return ts
             
-    def find_cells(self, filter_id = "on", threshold = 0.10,\
-                                        accept_last_in_dip = False):
+    def find_cells(self, filter_id="on", threshold=0.10,
+                   accept_last_in_dip=False):
         """Autodetection of cell images and bg images using mean value series
         
         :param str filter_id: filter ID (mean value series is determined from 
@@ -1162,7 +1156,7 @@ class CellCalibEngine(Dataset):
             if poly(0) < y_min:
                 y_min = poly(0)
                 
-        ax.set_ylabel(r"S [cm$^{-2}$]", fontsize=18)
+        ax.set_ylabel(r"$S_{%s}$ [cm$^{-2}$]" %SPECIES_ID, fontsize=18)
         ax.set_xlabel(r"$\tau$", fontsize = 18)
         ax.set_ylim([y_min - gas_cd.min() * 0.1, gas_cd.max()*1.05])
         ax.set_xlim([0, tau_max * 1.05])

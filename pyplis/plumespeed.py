@@ -440,9 +440,9 @@ class OpticalFlowFarneback(object):
     .. note::
     
         Image handling withhin this object is kept on low level base, i.e. on 
-        numpy arrays. Input :class:`piscope.Image.Img` also works on input but
+        numpy arrays. Input :class:`pyplis.Image.Img` also works on input but
         this class does not provide any funcitonality based on the functionality
-        of :class:`piscope.Image.Img` objects (i.e. access of meta data, etc).
+        of :class:`pyplis.Image.Img` objects (i.e. access of meta data, etc).
         As a result, this engine cannot perform any wind speed estimates (it
         would need to know about image acquisition times for that and further
         about the measurement geometry) but only provides functionality to 

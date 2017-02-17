@@ -17,7 +17,7 @@ from warnings import warn
 from matplotlib.pyplot import figure
 from copy import deepcopy
 
-from piscope import GEONUMAVAILABLE
+from pyplis import GEONUMAVAILABLE
 from .image import Img
 from .helpers import check_roi
 if GEONUMAVAILABLE:
@@ -71,7 +71,7 @@ class MeasGeometry(object):
         
     def get_cam_specs(self, img_obj):
         """Reads meta data relevant for geometry calculations from 
-        :class:`piSCOPE.Image.Img` objec
+        :class:`pyplis.Image.Img` objec
             
             1. Focal length lense
             2. Image sensor
@@ -1039,7 +1039,7 @@ class MeasGeometry(object):
     """
     def __str__(self):
         """String representation of this object"""
-        s = "piscope MeasGeometry object\n##################################\n"
+        s = "pyplis MeasGeometry object\n##################################\n"
         s += "\nCamera specifications\n-------------------\n"
         for k, v in self.cam.iteritems():
             s += "%s: %s\n" %(k, v)

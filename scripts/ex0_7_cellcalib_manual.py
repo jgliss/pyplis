@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-piscope introduction script no. 5: manual cell calibration
+pyplis introduction script no. 5: manual cell calibration
 
 Perform manual cell calibration based on 3 cell images and one background 
 image. The calibration data consists of 3 cells which were put in front of the 
@@ -19,7 +19,7 @@ before the calibration, therefore, the results are slightly different compared
 to the results from ex05_cell_calib_auto.py.
 """
 
-import piscope
+import pyplis
 from os.path import join
 from matplotlib.pyplot import close, show
 
@@ -45,7 +45,7 @@ BG_AFTER_OFF    = "EC2_1106307_1R02_2015091607020440_F02_Etna.fts"
 ### SCRIPT MAIN FUNCTION
 if __name__ == "__main__":
     close("all")
-    cellcalib = piscope.cellcalib.CellCalibEngine()
+    cellcalib = pyplis.cellcalib.CellCalibEngine()
     
     # now add all cell images manually, specifying paths, the SO2 column 
     # densities of each cell, and the corresponding cell ID as well as image

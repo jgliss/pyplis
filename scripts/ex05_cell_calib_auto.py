@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-piscope example script no. 5: Automatic cell calibration
+pyplis example script no. 5: Automatic cell calibration
 
 Script showing how to use the automatic cell calibration engine which only 
 requires to specify start / stop time stamps of a calibration window. Based on 
@@ -10,7 +10,7 @@ on / off).
 
 """
 
-import piscope
+import pyplis
 from datetime import datetime
 from os.path import join
 from matplotlib.pyplot import show, close
@@ -35,21 +35,21 @@ def perform_auto_cell_calib():
     
     # The camera filter setup is different from the ECII default setup and is
     # therefore defined explicitely
-    filters= [piscope.utils.Filter(type = "on", acronym = "F01"),
-              piscope.utils.Filter(type = "off", acronym = "F02")]
+    filters= [pyplis.utils.Filter(type = "on", acronym = "F01"),
+              pyplis.utils.Filter(type = "off", acronym = "F02")]
     
     ### create camera setup, this includes the filename convention for image separation
-    cam = piscope.setupclasses.Camera(cam_id = cam_id, filter_list = filters)
+    cam = pyplis.setupclasses.Camera(cam_id = cam_id, filter_list = filters)
     
     ### Create CellCalibSetup class for initiation of CellCalib object
-    setup = piscope.setupclasses.MeasSetup(IMG_DIR, start, stop,
+    setup = pyplis.setupclasses.MeasSetup(IMG_DIR, start, stop,
                                            camera=cam,
                                            cell_info_dict=calib_cells) 
     
     ### Create CellCalibEngine object, read on...
     # This is a DataSet object and performs file separation and creation of 
     # on / off, dark / offset lists for all images in the specified time window 
-    c = piscope.cellcalib.CellCalibEngine(setup)
+    c = pyplis.cellcalib.CellCalibEngine(setup)
     
     # the following high level method calls several funcitons in the 
     # CellCalibEngine class, most importantly the method find_cells for on and

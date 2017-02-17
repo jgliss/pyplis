@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-piscope intorduction script no. 6 - LineOnImage objects and their orientation
+pyplis intorduction script no. 6 - LineOnImage objects and their orientation
 
 This script introduces how to create LineOnImage objects within the image plane
 and specify their orientation (i.e. the direction into which the normal vector
@@ -11,7 +11,7 @@ the dot product).
 
 
 """
-from piscope.processing import LineOnImage
+from pyplis.processing import LineOnImage
 from os.path import join
 from matplotlib.pyplot import show, subplots, close
 from matplotlib.cm import get_cmap

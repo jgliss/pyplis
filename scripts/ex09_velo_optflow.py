@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 """
-piscope example script no. 8 - optical flow analysis
+pyplis example script no. 8 - optical flow analysis
 """
 from matplotlib.pyplot import close, show
 from os.path import join
-import piscope
+import pyplis
 
 ### IMPORT GLOBAL SETTINGS
 from SETTINGS import SAVEFIGS, SAVE_DIR, FORMAT, DPI, OPTPARSE
@@ -68,12 +68,12 @@ if __name__ == "__main__":
     ax2 = fit4.plot_result(add_single_gaussians = True)[0]
     
     #Show an image containing plume speed magnitudes (ignoring direction)
-    velo_img = piscope.Img(fl.to_plume_speed(dist_img))
+    velo_img = pyplis.Img(fl.to_plume_speed(dist_img))
     velo_img.show(vmin = 0, vmax = 7, cmap = "Greens",
                   tit = "Optical flow plume velocities",
                   zlabel ="Plume velo [m/s]")
     
-    plume_params = piscope.plumespeed.LocalPlumeProperties()
+    plume_params = pyplis.plumespeed.LocalPlumeProperties()
     #mask = fl.prepare_intensity_condition_mask(lower_val = 0.10)
     plume_params.get_and_append_from_farneback(fl, cond_mask_flat = mask)  
     

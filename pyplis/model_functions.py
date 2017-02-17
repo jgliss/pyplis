@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-piscope model functions for optimisation
+pyplis model functions for optimisation
 """
 from numpy import exp, sin, cos
 

@@ -25,10 +25,10 @@ try:
         multi_gaussian_same_offset, dilutioncorr_model
     from .helpers import mesh_from_img
 except:
-    from piscope.model_functions import supergauss_2d, supergauss_2d_tilt,\
+    from pyplis.model_functions import supergauss_2d, supergauss_2d_tilt,\
         multi_gaussian_no_offset, gaussian_no_offset, gaussian,\
         multi_gaussian_same_offset
-    from piscope.helpers import mesh_from_img
+    from pyplis.helpers import mesh_from_img
 
 GAUSS_2D_PARAM_INFO = ["amplitude", "mu_x", "mu_y", "sigma", "asymmetry",\
     "shape", "offset", "tilt_theta"]
@@ -1213,7 +1213,7 @@ class MultiGaussFit(object):
     def __str__(self):
         """String representation"""
         gs = self.gaussians()
-        s=("piscope MultiGaussFit info\n--------------------------------\n\n" 
+        s=("pyplis MultiGaussFit info\n--------------------------------\n\n"
             "All current gaussians:\n\n")
         for k in range(len(gs)):
             g = gs[k]

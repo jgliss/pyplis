@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """
-piscope example script no. 7 - Combined DOAS and cell calibration
+pyplis example script no. 7 - Combined DOAS and cell calibration
 """
-import piscope 
+import pyplis
 from os.path import join, exists
 import numpy as np
 from matplotlib.pyplot import close, subplots, show
@@ -19,7 +19,7 @@ from ex04_prep_aa_imglist import prepare_aa_image_list
 
 #fits file containing DOAS calibration information (from ex6)
 CALIB_FILE = join(SAVE_DIR,
-                  "piscope_doascalib_id_aa_avg_20150916_0706_0721.fts")
+                  "pyplis_doascalib_id_aa_avg_20150916_0706_0721.fts")
                   
 ### SCRIPT FUNCTION DEFINITIONS    
 def draw_doas_fov(fov_x, fov_y, fov_extend, ax):
@@ -81,7 +81,7 @@ if __name__ == "__main__":
     aa_list.add_gaussian_blurring(2)
     
     ### Load DOAS calbration data and FOV information (see example 6)
-    doascalib = piscope.doascalib.DoasCalibData()
+    doascalib = pyplis.doascalib.DoasCalibData()
     doascalib.load_from_fits(file_path=CALIB_FILE)
     doascalib.fit_calib_polynomial()
     
@@ -93,9 +93,9 @@ if __name__ == "__main__":
     cellcalib = perform_auto_cell_calib().calib_data["aa"]
     
     ### Define lines on image for plume profiles
-    pcs1 = piscope.processing.LineOnImage(620, 700, 940, 280,\
+    pcs1 = pyplis.processing.LineOnImage(620, 700, 940, 280,\
                                                         line_id = "center")
-    pcs2 = piscope.processing.LineOnImage(40, 40, 40, 600,\
+    pcs2 = pyplis.processing.LineOnImage(40, 40, 40, 600,\
                                                         line_id = "edge")
 
     ### Plot DOAS calibration polynomial
@@ -116,7 +116,7 @@ if __name__ == "__main__":
     masks = prepare_sensitivity_corr_masks_cells(cellcalib, doascalib.fov)        
     aa_imgs_corr = {}    
     for cd, mask in masks.iteritems():        
-        aa_imgs_corr[cd] = piscope.Img(aa_init.img / mask)
+        aa_imgs_corr[cd] = pyplis.Img(aa_init.img / mask)
     
     fig, _ = plot_pcs_comparison(aa_init, aa_imgs_corr, pcs1, pcs2) 
     
@@ -132,7 +132,7 @@ if __name__ == "__main__":
     
     #Save the sensitivity correction mask from the cell with the lowest SO2 CD
     so2min = np.min(masks.keys())
-    mask = piscope.Img(masks[so2min])
+    mask = pyplis.Img(masks[so2min])
     mask.save_as_fits(SAVE_DIR, "aa_corr_mask")
     
     # Display images or not    

@@ -770,7 +770,7 @@ class ProfileTimeSeriesImg(Img):
         if save_dir is None:
             save_dir = getcwd()
         if save_name is None:
-            save_name = "piscope_profile_tseries_id_%s_%s_%s_%s.fts"\
+            save_name = "pyplis_profile_tseries_id_%s_%s_%s_%s.fts"\
                 %(self.img_id, self.start.strftime("%Y%m%d"),\
                 self.start.strftime("%H%M"), self.stop.strftime("%H%M"))
         else:
@@ -1487,7 +1487,7 @@ class ImgStack(object):
         if save_dir is None:
             save_dir = getcwd()
         if save_name is None:
-            save_name = "piscope_imgstack_id_%s_%s_%s_%s.fts" %(self.stack_id,\
+            save_name = "pyplis_imgstack_id_%s_%s_%s_%s.fts" %(self.stack_id,\
                 self.start.strftime("%Y%m%d"), self.start.strftime(\
                                     "%H%M"), self.stop.strftime("%H%M"))
         else:
