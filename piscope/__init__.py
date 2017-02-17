@@ -21,7 +21,7 @@ except:
 
 _LIBDIR = abspath(dirname(__file__))
 
-import inout as io
+import inout
 import geometry
 import utils
 from image import Img
