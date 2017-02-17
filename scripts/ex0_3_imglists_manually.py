@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-piscope introduction script 3 - manual creation of image lists  
+pyplis introduction script 3 - manual creation of image lists
 
 This script gives an introduction into the creation and the handling of 
 ImgList objects. Each list normally contains images of a certain type (e.g.
@@ -19,7 +19,7 @@ Some basic features of list objects are introduced (e.g. linking of lists, dark
 correction, automatic blurring, cropping, size reduction).
 """
 
-import piscope
+import pyplis
 from matplotlib.pyplot import subplots, close, show
 from datetime import datetime
 
@@ -45,7 +45,7 @@ if __name__ == "__main__":
     # Note that the files are not separated by filter type, or dark and offset, 
     # etc. so the list simply contains all images of type fts which were found
     # in IMG_DIR
-    list_all_imgs = piscope.imagelists.ImgList(all_paths, list_id = "all")
+    list_all_imgs = pyplis.imagelists.ImgList(all_paths, list_id = "all")
     
     # Split the list by on band file type (which is identified by acronym
     # "F01" at 4th position in file name after splitting using delimiter "_")
@@ -74,8 +74,8 @@ if __name__ == "__main__":
     on_list.link_imglist(off_list)
     
     ### Load dark and offset images and set them in on band image list
-    dark_img = piscope.image.Img(DARK_FILE)
-    offset_img = piscope.image.Img(OFFSET_FILE)
+    dark_img = pyplis.image.Img(DARK_FILE)
+    offset_img = pyplis.image.Img(OFFSET_FILE)
     
     on_list.add_master_dark_image(dark_img)
     on_list.add_master_offset_image(offset_img)

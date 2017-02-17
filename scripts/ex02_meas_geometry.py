@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-piscope example script no. 2 - Features of MeasGeometry class
+pyplis example script no. 2 - Features of MeasGeometry class
 
 In this script, some important features of the MeasGeometry class are 
 intorduced. The class itself is automatically created in the MeasSetup

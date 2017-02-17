@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """
-piscope introduction script 1 - Image import
+pyplis introduction script 1 - Image import
 
-This script loads an exemplary image which is part of the piscope suppl. 
+This script loads an exemplary image which is part of the pyplis suppl.
 data. Further, the concept of extraction of image meta information from 
 image file names is introduced manually (this is done automatically in 
 picsope using file name conventions which can be specified globally, see next 
@@ -11,19 +11,19 @@ script). Applies some basic pro
 from os.path import join
 from datetime import datetime
 from matplotlib.pyplot import close
-import piscope
+import pyplis
 
 # file name of test image stored in data folder 
 IMG_FILE_NAME = "test_201509160708_F01_335.fts"
 
-IMG_DIR = join(piscope._LIBDIR, "data")
+IMG_DIR = join(pyplis._LIBDIR, "data")
 
 if __name__ == "__main__":
     close("all")    
     
     img_path = join(IMG_DIR, IMG_FILE_NAME)
     # Create image object
-    img = piscope.image.Img(img_path)
+    img = pyplis.image.Img(img_path)
     
     # The file name includes some image meta information which can be set manually
     # (this is normally done automatically by defining a file name convention, see

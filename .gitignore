@@ -89,7 +89,7 @@ ENV/
 .ropeproject
 
 # Test data folder
-piscope/data/piscope_etna_testdata
+pyplis/data/pyplis_etna_testdata
 
 # _private folder
 _private
@@ -104,13 +104,13 @@ scripts/_private
 scripts/scripts_out/bu
 
 # GUI stuff
-piscope/_gui_features
+pyplis/_gui_features
 
 # Sorted out stuff
-piscope/_sorted_out
+pyplis/_sorted_out
 
 # Icons for GUI stuff
-piscope/data/icons
+pyplis/data/icons
 
 # Docs GUI stuff
 docs/code_gui.rst

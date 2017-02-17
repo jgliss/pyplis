@@ -12,7 +12,7 @@ in order to illustrate all relevant parameters. The only difference to the
 classic ecII camera is, that the filter setup is different.
 """
 
-import piscope
+import pyplis
 ### SCRIPT OPTIONS
 
 # Save the new camera as default in database 
@@ -21,7 +21,7 @@ SAVE_TO_DATABASE = False
 ### SCRIPT FUNCTION DEFINITIONS
 def create_ecII_cam_new_filters():
     # Start with creating an empty Camera object                  
-    cam = piscope.setupclasses.Camera()
+    cam = pyplis.setupclasses.Camera()
     
     # Specify the camera filter setup
 
@@ -34,9 +34,9 @@ def create_ecII_cam_new_filters():
     # for ECII camera but for the HD camera, see specifications in file 
     # cam_info.txt for more info)
 
-    on_band = piscope.utils.Filter(id="on", type="on", acronym="F01",
+    on_band = pyplis.utils.Filter(id="on", type="on", acronym="F01",
                                    meas_type_acro="F01", center_wavelength=310)
-    off_band = piscope.utils.Filter(type="off", acronym="F02",
+    off_band = pyplis.utils.Filter(type="off", acronym="F02",
                                     center_wavelength=330)
     
     # put the two filter into a list and assign to the camera
@@ -51,13 +51,13 @@ def create_ecII_cam_new_filters():
     # low and one at high read gain. The other two recorded at longest possible 
     #exposure time -> dark current predominant, also at low and high read gain
     
-    offset_low_gain = piscope.utils.DarkOffsetInfo(id="offset0",type="offset",
+    offset_low_gain = pyplis.utils.DarkOffsetInfo(id="offset0",type="offset",
                                                    acronym="D0L", read_gain=0)
-    offset_high_gain = piscope.utils.DarkOffsetInfo(id="offset1",type="offset",
+    offset_high_gain = pyplis.utils.DarkOffsetInfo(id="offset1",type="offset",
                                                    acronym="D0H", read_gain=1)
-    dark_low_gain = piscope.utils.DarkOffsetInfo(id="dark0",type="dark",
+    dark_low_gain = pyplis.utils.DarkOffsetInfo(id="dark0",type="dark",
                                                   acronym="D1L", read_gain=0)
-    dark_high_gain = piscope.utils.DarkOffsetInfo(id="dark1",type="dark",
+    dark_high_gain = pyplis.utils.DarkOffsetInfo(id="dark1",type="dark",
                                                   acronym="D1H", read_gain=1)
                                                   
     # put the 4 dark info objects into a list and assign to the camera
@@ -69,7 +69,7 @@ def create_ecII_cam_new_filters():
     # Now specify further information about the camera
     
     # camera ID (needs to be unique, i.e. not included in data base, call
-    # piscope.inout.get_all_valid_cam_ids() to check existing IDs)
+    # pyplis.inout.get_all_valid_cam_ids() to check existing IDs)
     cam.cam_id = "ecII_new"
 
     # image file type

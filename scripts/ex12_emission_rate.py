@@ -3,7 +3,7 @@
 Example script 12 - Emission rate retrieval from AA image list
 """
 
-import piscope
+import pyplis
 from os.path import join, exists
 from matplotlib.pyplot import close, subplots, tight_layout, show
 
@@ -33,7 +33,7 @@ LOG_ROI_SKY = [530, 30, 600, 100] #correspond to pyrlevel 1
 ### RELEVANT DIRECTORIES AND PATHS
 
 CALIB_FILE = join(SAVE_DIR,
-                  "piscope_doascalib_id_aa_avg_20150916_0706_0721.fts")
+                  "pyplis_doascalib_id_aa_avg_20150916_0706_0721.fts")
 
 CORR_MASK_FILE = join(SAVE_DIR, "aa_corr_mask.fts")
 
@@ -67,7 +67,7 @@ def plot_results(ana, line_id = "pcs1"):
 #                         "analysis)")
 #==============================================================================
     ax2.set_ylim([-180, 180])
-    piscope.helpers.rotate_xtick_labels(ax=ax[1])
+    pyplis.helpers.rotate_xtick_labels(ax=ax[1])
     tight_layout()
     
     fig2, ax2 = subplots(1,1)
@@ -88,12 +88,12 @@ if __name__ == "__main__":
     aa_list.pyrlevel = PYRLEVEL
     
     ### Load DOAS calbration data and FOV information (see example 6)
-    doascalib = piscope.doascalib.DoasCalibData()
+    doascalib = pyplis.doascalib.DoasCalibData()
     doascalib.load_from_fits(file_path=CALIB_FILE)
     doascalib.fit_calib_polynomial()
     
     #Load AA corr mask and set in image list(is normalised to DOAS FOV see ex7)
-    aa_corr_mask = piscope.Img(CORR_MASK_FILE)
+    aa_corr_mask = pyplis.Img(CORR_MASK_FILE)
     aa_list.aa_corr_mask = aa_corr_mask
     
     #set DOAS calibration data in image list
@@ -101,13 +101,13 @@ if __name__ == "__main__":
     
     pcs = PCS.convert(pyrlevel=PYRLEVEL)
 #==============================================================================
-#     pcs = piscope.processing.LineOnImage(250, 365, 420, 105,
+#     pcs = pyplis.processing.LineOnImage(250, 365, 420, 105,
 #                                              normal_orientation="left", 
 #                                              pyrlevel=PYRLEVEL,
 #                                              line_id="img_center")
 #==============================================================================
                                              
-    ana = piscope.fluxcalc.EmissionRateAnalysis(aa_list, pcs,
+    ana = pyplis.fluxcalc.EmissionRateAnalysis(aa_list, pcs,
                                                 velo_glob=PLUME_VEL_GLOB,
                                                 bg_roi=LOG_ROI_SKY)
     

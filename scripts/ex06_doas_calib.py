@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
 """
-piscope example script no. 6 - DOAS calibration and FOV search
+pyplis example script no. 6 - DOAS calibration and FOV search
 
 Script showing how to work with cell calibration data
 """
 
-import piscope 
+import pyplis
 import pydoas
 from datetime import timedelta
 from matplotlib.pyplot import close, show, subplots
@@ -38,7 +38,7 @@ DO_FINE_SEARCH = 0
 DOAS_DATA_DIR = join(IMG_DIR, "..", "spectra", "plume_prep", "min10Scans",
                      "ResultFiles")                                                                
 
-STACK_PATH = join(SAVE_DIR, "piscope_imgstack_id_aa_20150916_0706_0721.fts")
+STACK_PATH = join(SAVE_DIR, "pyplis_imgstack_id_aa_20150916_0706_0721.fts")
 
 ### SCRIPT FUNCTION DEFINITIONS                    
 def load_doas_results():
@@ -98,12 +98,12 @@ if __name__ == "__main__":
         aa_list = prepare_aa_image_list()
         stack = make_aa_stack_from_list(aa_list)
     else:
-        stack = piscope.processing.ImgStack()
+        stack = pyplis.processing.ImgStack()
         stack.load_stack_fits(STACK_PATH)
 
     
     doas_time_series = load_doas_results()
-    s = piscope.doascalib.DoasFOVEngine(stack, doas_time_series, maxrad = 10)
+    s = pyplis.doascalib.DoasFOVEngine(stack, doas_time_series, maxrad = 10)
     calib_pears = s.perform_fov_search(method = "pearson")
     calib_ifr= s.perform_fov_search(method = "ifr", ifrlbda = 2e-3)
     
@@ -121,9 +121,9 @@ if __name__ == "__main__":
     calib_ifr.plot(add_label_str="IFR", color="r", ax=ax2)
     ax2.set_title("Calibration curves Pearson vs. IFR method")
     ax2.grid()
-    ax2.set_ylim([0, 1.8])
+    ax2.set_ylim([0, 1.8e18])
     ax2.set_xlim([0, 0.20])
-    ax2.set_ylabel(r"$S_{SO_2}$ [10$^{18}$ cm$^{-2}$]", fontsize=16)
+    #ax2.set_ylabel(r"$S_{SO_2}$ [10$^{18}$ cm$^{-2}$]", fontsize=16)
     ax2.set_xlabel(r"$\tau_{AA}$", fontsize=18)
     ax2.legend(loc=4, fancybox=True, framealpha=0.7, fontsize=11)
     axes = [ax0, ax1, ax2]
@@ -144,7 +144,7 @@ if __name__ == "__main__":
                 
         stack = make_aa_stack_from_list(aa_list, roi_abs=roi, pyrlevel=0, 
                                         save=0)
-        s = piscope.doascalib.DoasFOVEngine(stack, doas_time_series,\
+        s = pyplis.doascalib.DoasFOVEngine(stack, doas_time_series,\
                                                     pearson_max_radius = 30)
         calib_pears_fine = s.perform_fov_search(method = "pearson")
         calib_pears_fine.fit_calib_polynomial()
@@ -153,7 +153,7 @@ if __name__ == "__main__":
         
     try:
         remove(join(SAVE_DIR, 
-                    "piscope_doascalib_id_aa_avg_20150916_0706_0721.fts"))
+                    "pyplis_doascalib_id_aa_avg_20150916_0706_0721.fts"))
     except:
         pass
     calib_pears.save_as_fits(save_dir = SAVE_DIR)

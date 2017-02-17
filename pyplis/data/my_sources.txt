@@ -1,0 +1,13 @@
+source_ids:guallatiri, Guallatiri
+name:Guallatiri
+lon:-69.090369
+lat:-18.423672
+altitude:6071.0
+END
+
+source_ids:etna,Etna
+name:Etna
+lon:14.997124
+lat:37.751850
+altitude:3329.0
+END

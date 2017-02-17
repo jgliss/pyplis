@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
 """
-piscope example script no. 4 - Prepare AA image list (from onband list)
+pyplis example script no. 4 - Prepare AA image list (from onband list)
 
-Sript showing how to work in AA mode using ImgList object
+Script showing how to work in AA mode using ImgList object
 """
 
-import piscope 
+import pyplis
 from matplotlib.pyplot import close
 from os.path import join
 
@@ -46,10 +46,10 @@ def prepare_aa_image_list(bg_corr_mode=6):
     off_list.activate_darkcorr()
 
     # Prepare on and offband background images
-    bg_on = piscope.Img(path_bg_on)
+    bg_on = pyplis.Img(path_bg_on)
     bg_on.subtract_dark_image(lst.get_dark_image())
     
-    bg_off = piscope.Img(path_bg_off)
+    bg_off = pyplis.Img(path_bg_off)
     bg_off.subtract_dark_image(off_list.get_dark_image())
     
     #set the background images within the lists

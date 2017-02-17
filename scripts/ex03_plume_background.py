@@ -1,13 +1,13 @@
 # -*- coding: utf-8 -*-
 """
-piscope example script no. 3: Plume background analysis
+pyplis example script no. 3: Plume background analysis
 
 This example script introduces features related to plume background modelling
 and tau image calculations.    
 """
 import numpy as np
 from os.path import join
-import piscope
+import pyplis
 from matplotlib.pyplot import show, subplots, close
 
 ### IMPORT GLOBAL SETTINGS
@@ -39,7 +39,7 @@ DARK_FILE = join(IMG_DIR, 'EC2_1106307_1R02_2015091607064865_D1L_Etna.fts')
 def init_background_model():
     """Create background model and define relevant sky reference areas"""
     ### Create background modelling object
-    m = piscope.plumebackground.PlumeBackgroundModel()
+    m = pyplis.plumebackground.PlumeBackgroundModel()
     
     ### Define default gas free areas in plume image
     w, h = 40, 40 #width/height of rectangles
@@ -78,13 +78,13 @@ def load_and_prepare_images():
         
     """    
     ### Load the image objects and peform dark correction
-    plume, bg = piscope.Img(PLUME_FILE), piscope.Img(BG_FILE)
-    dark, offset = piscope.Img(DARK_FILE), piscope.Img(OFFSET_FILE)
+    plume, bg = pyplis.Img(PLUME_FILE), pyplis.Img(BG_FILE)
+    dark, offset = pyplis.Img(DARK_FILE), pyplis.Img(OFFSET_FILE)
     
     # Model dark image for tExp of plume image
-    dark_plume = piscope.processing.model_dark_image(plume, dark, offset)
+    dark_plume = pyplis.processing.model_dark_image(plume, dark, offset)
     # Model dark image for tExp of background image
-    dark_bg = piscope.processing.model_dark_image(bg, dark, offset)
+    dark_bg = pyplis.processing.model_dark_image(bg, dark, offset)
     
     plume.subtract_dark_image(dark_plume)
     bg.subtract_dark_image(dark_bg)
@@ -94,7 +94,7 @@ def load_and_prepare_images():
     
     ### Create vignetting correction mask from background image 
     vign = bg.img / bg.img.max() #NOTE: potentially includes y and x gradients
-    plume_vigncorr = piscope.Img(plume.img / vign)
+    plume_vigncorr = pyplis.Img(plume.img / vign)
     return plume, plume_vigncorr, bg
 
 def autosettings_vs_manual_settings(bg_model):
@@ -103,14 +103,14 @@ def autosettings_vs_manual_settings(bg_model):
     then you could also use the auto search function, a comparison is plotted 
     here
     """
-    auto_params = piscope.plumebackground.find_sky_reference_areas(plume)
+    auto_params = pyplis.plumebackground.find_sky_reference_areas(plume)
     current_params = bg_model.sky_ref_areas_to_dict()
                                                                 
     fig, axes = subplots(1, 2, figsize = (16, 6))                                                                
     axes[0].set_title("Manually set parameters")
-    piscope.plumebackground.plot_sky_reference_areas(plume, current_params,
+    pyplis.plumebackground.plot_sky_reference_areas(plume, current_params,
                                                      ax=axes[0])
-    piscope.plumebackground.plot_sky_reference_areas(plume, auto_params,
+    pyplis.plumebackground.plot_sky_reference_areas(plume, auto_params,
                                                      ax=axes[1])
     axes[1].set_title("Automatically set parameters")
     
@@ -143,7 +143,7 @@ if __name__=="__main__":
     bg_model = init_background_model()
     
     ### Define exemplary plume cross section line
-    pcs_line = piscope.processing.LineOnImage(x0=530,
+    pcs_line = pyplis.processing.LineOnImage(x0=530,
                                               y0=730, 
                                               x1=890,
                                               y1=300,

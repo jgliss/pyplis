@@ -1,16 +1,16 @@
 # -*- coding: utf-8 -*-
 """
-piscope example script no. 10 - Image based light dilution correction
+pyplis example script no. 10 - Image based light dilution correction
 """
-import piscope as piscope
+import pyplis as pyplis
 from geonum.base import GeoPoint
 from matplotlib.pyplot import show, close, subplots, Rectangle
 from datetime import datetime
 import numpy as np
 from os.path import join, exists
 
-from piscope.dilutioncorr import DilutionCorr
-from piscope.doascalib import DoasCalibData
+from pyplis.dilutioncorr import DilutionCorr
+from pyplis.doascalib import DoasCalibData
 
 ### IMPORT GLOBAL SETTINGS
 from SETTINGS import IMG_DIR, SAVEFIGS, SAVE_DIR, FORMAT, DPI, OPTPARSE
@@ -24,17 +24,17 @@ I0_MIN = 0.0
 
 # exemplary plume cross section line for emission rate retrieval (is also used
 # for full analysis in ex12)
-PCS_LINE = piscope.processing.LineOnImage(x0=530,y0=586,x1=910,y1=200,
+PCS_LINE = pyplis.processing.LineOnImage(x0=530,y0=586,x1=910,y1=200,
                                           line_id="pcs")
 # Retrieval lines for dilution correction (along these lines, topographic
 # distances and image radiances are determined for fitting the atmospheric
 # extinction coefficients)
-TOPO_LINE1 = piscope.processing.LineOnImage(1100, 650, 1000, 900,
+TOPO_LINE1 = pyplis.processing.LineOnImage(1100, 650, 1000, 900,
                                             line_id="flank far",
                                             color="lime",
                                             linestyle="-")
                                       
-TOPO_LINE2 = piscope.processing.LineOnImage(1000, 990, 1100, 990,
+TOPO_LINE2 = pyplis.processing.LineOnImage(1000, 990, 1100, 990,
                                             line_id="flank close",
                                             color="b",
                                             linestyle="-")
@@ -52,15 +52,15 @@ AMBIENT_ROI = [1240, 10, 1300, 70]
 
 # Specify plume velocity (for emission rate estimate)
 PLUME_VELO = 4.14 #m/s (result from ex8)
-SO2_MMOL = piscope.fluxcalc.MOL_MASS_SO2
+SO2_MMOL = pyplis.fluxcalc.MOL_MASS_SO2
 
 ### RELEVANT DIRECTORIES AND PATHS
 
-CALIB_FILE = join(SAVE_DIR, "piscope_doascalib_id_aa_avg_20150916_0706_0721.fts")
+CALIB_FILE = join(SAVE_DIR, "pyplis_doascalib_id_aa_avg_20150916_0706_0721.fts")
 
 ### SCRIPT FUNCTION DEFINITIONS        
 def create_dataset_dilution():
-    """Create a :class:`piscope.dataset.Dataset` object for dilution analysis
+    """Create a :class:`pyplis.dataset.Dataset` object for dilution analysis
     
     The test dataset includes one on and one offband image which are recorded
     around 6:45 UTC at lower camera elevation angle than the time series shown
@@ -76,8 +76,8 @@ def create_dataset_dilution():
     stop = datetime(2015, 9, 16, 6, 47, 00)
     #the camera filter setup
     cam_id = "ecII"
-    filters= [piscope.utils.Filter(type = "on", acronym = "F01"),
-              piscope.utils.Filter(type = "off", acronym = "F02")]
+    filters= [pyplis.utils.Filter(type = "on", acronym = "F01"),
+              pyplis.utils.Filter(type = "off", acronym = "F02")]
     
     geom_cam = {"lon"           :   15.1129,
                 "lat"           :   37.73122,
@@ -89,11 +89,11 @@ def create_dataset_dilution():
                 "alt_offset"    :   7} #meters above topography
 
     #create camera setup
-    cam = piscope.setupclasses.Camera(cam_id=cam_id, filter_list=filters,
+    cam = pyplis.setupclasses.Camera(cam_id=cam_id, filter_list=filters,
                                       **geom_cam)
     
     ### Load default information for Etna
-    source = piscope.setupclasses.Source("etna") 
+    source = pyplis.setupclasses.Source("etna")
     
     #### Provide wind direction
     wind_info= {"dir"      : 0.0,
@@ -101,10 +101,10 @@ def create_dataset_dilution():
 
 
     ### Create BaseSetup object (which creates the MeasGeometry object)
-    stp = piscope.setupclasses.MeasSetup(IMG_DIR, start, stop, camera=cam,
+    stp = pyplis.setupclasses.MeasSetup(IMG_DIR, start, stop, camera=cam,
                                          source = source,
                                          wind_info = wind_info)
-    return piscope.dataset.Dataset(stp)                  
+    return pyplis.dataset.Dataset(stp)
 
 def find_view_dir(geom):
     """Performs a correction of the viewing direction using crater in img
@@ -194,7 +194,7 @@ def prepare_images(onlist, offlist):
     
     # now activate AA mode to determine a pixel mask for the dilution correction
     onlist.aa_mode = True
-    tau_mask = piscope.Img(onlist.current_img().img > 0.03)
+    tau_mask = pyplis.Img(onlist.current_img().img > 0.03)
     tau_mask.img[840:,:] = 0 #remove tree in lower part of the image
     tau_mask.show()
     # deactivate AA mode
@@ -295,7 +295,7 @@ if __name__ == "__main__":
     
     # Calculate flux and uncertainty
     phi_uncorr, phi_uncorr_err =\
-        piscope.fluxcalc.det_emission_rate(cds=so2_cds_uncorr,
+        pyplis.fluxcalc.det_emission_rate(cds=so2_cds_uncorr,
                                            velo=PLUME_VELO,
                                            pix_dists=pix_dists_line,
                                            cds_err=calib.slope_err,
@@ -304,19 +304,19 @@ if __name__ == "__main__":
     on_corr = dil.correct_img(on_vigncorr, ext_on, bg_on,
                               plume_dist_img, tau_mask)
                               
-    tau_on_corr = piscope.Img(np.log(bg_on.img / on_corr.img))
+    tau_on_corr = pyplis.Img(np.log(bg_on.img / on_corr.img))
     
     off_corr = dil.correct_img(off_vigncorr, ext_off, bg_off,
                               plume_dist_img, tau_mask)
                               
-    tau_off_corr = piscope.Img(np.log(bg_off.img / off_corr.img))
+    tau_off_corr = pyplis.Img(np.log(bg_off.img / off_corr.img))
     
     so2_img_corr = calib(tau_on_corr - tau_off_corr)
     so2_img_corr.edit_log["is_tau"] = True #for plotting
     so2_cds_corr = pcs_line.get_line_profile(so2_img_corr)
     
     phi_corr, phi_corr_err =\
-        piscope.fluxcalc.det_emission_rate(cds=so2_cds_corr,
+        pyplis.fluxcalc.det_emission_rate(cds=so2_cds_corr,
                                            velo=PLUME_VELO,
                                            pix_dists=pix_dists_line,
                                            cds_err=calib.slope_err,
@@ -328,7 +328,7 @@ if __name__ == "__main__":
     ax2.legend(loc="best", framealpha=0.5, fancybox= True, fontsize = 10)   
     ax2.set_title("Dilution corrected AA image", fontsize = 12)
     
-    x0, y0, w, h = piscope.helpers.roi2rect(AMBIENT_ROI)
+    x0, y0, w, h = pyplis.helpers.roi2rect(AMBIENT_ROI)
     ax2.add_patch(Rectangle((x0, y0), w, h, fc = "none", ec = "c"))
     
     

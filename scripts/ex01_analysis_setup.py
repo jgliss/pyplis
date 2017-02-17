@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-piscope example script no. 1
+pyplis example script no. 1
 
 Setup of a example data set
 
@@ -29,7 +29,7 @@ ex04_prep_aa_imglist.py which shows how to create an image list displaying
 AA images.
 
 """
-import piscope as piscope
+import pyplis as pyplis
 from datetime import datetime
 from matplotlib.pyplot import show
 
@@ -46,8 +46,8 @@ def create_dataset():
     cam_id = "ecII"
     
     #the camera filter setup
-    filters= [piscope.utils.Filter(type="on", acronym="F01"),
-              piscope.utils.Filter(type="off", acronym="F02")]
+    filters= [pyplis.utils.Filter(type="on", acronym="F01"),
+              pyplis.utils.Filter(type="off", acronym="F02")]
     
     #camera location and viewing direction (altitude will be retrieved automatically)                    
     geom_cam = {"lon"           :   15.1129,
@@ -68,13 +68,13 @@ def create_dataset():
     #can be passed as additional keyword dictionary using **geom_cam 
     #Alternatively, they could also be passed directly, e.g.:
     
-    #cam = piscope.setup.Camera(cam_id, filter_list=filters, lon=15.1129,
+    #cam = pyplis.setup.Camera(cam_id, filter_list=filters, lon=15.1129,
     #                           lat=37.73122)
 
-    cam = piscope.setupclasses.Camera(cam_id, filter_list=filters, **geom_cam)
+    cam = pyplis.setupclasses.Camera(cam_id, filter_list=filters, **geom_cam)
     
     ### Load default information for Etna
-    source = piscope.setupclasses.Source("etna") 
+    source = pyplis.setupclasses.Source("etna")
     
     #### Provide wind direction
     wind_info= {"dir"     : 0.0,
@@ -82,12 +82,12 @@ def create_dataset():
 
 
     ### Create BaseSetup object (which creates the MeasGeometry object)
-    stp = piscope.setupclasses.MeasSetup(IMG_DIR, start, stop, camera=cam,
+    stp = pyplis.setupclasses.MeasSetup(IMG_DIR, start, stop, camera=cam,
                                          source=source, wind_info=wind_info)
     
     ### Create analysis object (from BaseSetup)
     # The dataset takes care of finding all vali
-    return piscope.dataset.Dataset(stp)
+    return pyplis.dataset.Dataset(stp)
 
 
 ### SCRIPT MAIN FUNCTION    
