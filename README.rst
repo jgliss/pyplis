@@ -62,7 +62,7 @@ After installation try running and understanding the example scripts (can be fou
 Example and test data
 ---------------------
 
-The pyplis example data (required to run example scripts) is not part of the installation. It can be downloaded `here <https://folk.nilu.no/~gliss/piscope_testdata/piscope_etna_testdata.zip>`_
+The pyplis example data (required to run example scripts) is not part of the installation. It can be downloaded `here <https://folk.nilu.no/~gliss/piscope_testdata/piscope_etna_testdata.zip>`__
 
 or automatically after installation using::
 
