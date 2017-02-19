@@ -32,7 +32,7 @@ class Mock(MagicMock):
 
 MOCK_MODULES = [
     'mpl_toolkits.basemap',
-    'cv2'
+    'cv2',
     'astropy',
     'astropy.io',
     'astropy.modeling',
