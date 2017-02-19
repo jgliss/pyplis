@@ -32,7 +32,8 @@ class Mock(MagicMock):
 
 MOCK_MODULES = [
     'mpl_toolkits.basemap',
-    'astropy.io'
+    'astropy.io',
+    'astropy'
 ]
 sys.modules.update((mod_name, Mock()) for mod_name in MOCK_MODULES)
 
