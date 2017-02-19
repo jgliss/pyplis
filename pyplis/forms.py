@@ -1,26 +1,17 @@
 # -*- coding: utf-8 -*-
+"""Geometrical forms"""
 from collections import OrderedDict as od
 
 class FormCollectionBase(object):
     """Abtract base class representing collection of geometrical forms
     
-    Abstract class providing basic functionality for object collections. Please
-    note that the basic management functions for adding / deleting forms 
-    :func:`add` , :func:`remove` create the objects based on start (x,y) and
-    stop (x,y) points, i.e.  [x0, y0, x1, y1]
+    Abstract class providing basic functionality for object collections. 
+    Note that the basic management functions for adding / deleting forms 
+    :func:`add` , :func:`remove` create the objects based on start (x,y) 
+    and stop (x,y) points, i.e.  [x0, y0, x1, y1]
     
     This class and classes inheriting from it show large similarities to 
-    dictionaries
-    
-    .. Note::
-    
-        When designing "ObjectForm" classes inheriting from this base class
-        make sure to override relevant methods for example, when the object is 
-        a circle, a ::  
-        
-            def add(self, center = [x, y], radius = 50, id):
-                self._forms[id]=[center,radius]
-                
+    dictionaries     
     """
     def __init__(self, forms_dict = {}):
         """Class initialisation"""

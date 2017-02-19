@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+"""Low level utilities"""
 from datetime import datetime as dt
 from numpy import nan
 from collections import OrderedDict as od

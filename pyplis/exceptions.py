@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+"""Module containing pyplis custom exceptions"""
 class CellSearchError(Exception):
     pass
 

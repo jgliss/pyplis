@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+"""Module containing optimisation and fitting algorithms"""
 from numpy import abs, linspace, random, asarray, ndarray, where, diff,\
     insert, argmax, average, gradient, arange,argmin, full, inf, sqrt, pi,\
     nan, mod, mgrid, ndim, ones_like,ogrid, finfo, remainder, e, sum

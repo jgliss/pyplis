@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+"""This module contains features related to DOAS calibration including
+FOV search engines"""
 from numpy import min, arange, asarray, zeros, linspace, column_stack,\
     ones, nan, float32, polyfit, poly1d, sqrt, isnan, round
 from scipy.stats.stats import pearsonr 

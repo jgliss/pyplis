@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+"""Image base module"""
 from astropy.io import fits
 from matplotlib import gridspec
 import matplotlib.cm as cmaps

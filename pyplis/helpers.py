@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Helper methods
+Module containing all sorts of helper methods
 """
 
 import matplotlib.cm as colormaps

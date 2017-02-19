@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-pyplis model functions for optimisation
+Module containing mathematical model functions relevant for pyplis
 """
 from numpy import exp, sin, cos
 

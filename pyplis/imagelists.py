@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-ImageList objects of pyplis library
+Image list objects of pyplis library
 
     1. :class:`BaseImgList` the base class for image list objects (includes 
         functionality for file management and iteration and basic editing)

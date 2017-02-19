@@ -1,10 +1,7 @@
 # -*- coding: utf-8 -*-
 """
-Test script for development of new background image treatment
-
-Created on Tue Sep 06 14:38:54 2016
-
-@author: jg
+Module containing features related to plume background analysis and tau
+image determination
 """
 from numpy import polyfit, poly1d, linspace, logical_and, log, full, argmin,\
     gradient, nan, exp, ndarray, arange, ones

@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Classes for plume speed retrievals
-----------------------------------
+Module containing features related to plume velocity analysis
 """
 from time import time
 from numpy import mgrid,vstack,int32,sqrt,arctan2,rad2deg, asarray, sin, cos,\

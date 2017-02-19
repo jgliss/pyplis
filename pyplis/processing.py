@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-This module contains the following processing classes and methods::
+This module contains the following processing classes and methods:
 
     1. :class:`PixelMeanTimeSeries`: storage and post analysis of time series
         of average pixel intensities
