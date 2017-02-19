@@ -2,7 +2,6 @@
 """
 Module containing input / output routines (e.g. test data access)
 """
-from dill import load
 from os.path import join, basename, exists, isfile
 from os import listdir, remove, walk
 
@@ -433,7 +432,3 @@ def get_icon(name, color = None):
                 return base_path + file
     print "Failed to load icon at: " + _LIBDIR
     return False
-    
-def load_setup(fp):
-    """Load a setup file which was stored as binary using :mod:`dill`"""
-    return load(open(fp, "rb"))
