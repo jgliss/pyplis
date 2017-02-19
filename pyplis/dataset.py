@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 """
-Module containing the :class:`Dataset` object which is important for automated
-separation of image files by their type (e.g. on-band, off-band, dark, offset)
-using information from a file naming convention specified within a 
-:class:`Camera` object.
+Module containing the :class:`Dataset` object which is important for 
+automated separation of image files by their type (e.g. on-band, off-band, 
+dark, offset) using information from a file naming convention specified 
+within a :class:`Camera` object.
 """
 from os.path import exists, join, isfile
 from os import listdir, walk

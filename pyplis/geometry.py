@@ -1,12 +1,15 @@
 # -*- coding: utf-8 -*-
 """
+Module containing the :class:`MeasGeometry` object relevant for geometrical
+calculations 
+
 .. todo::
 
-    Geonum has 3rd party dependencies and success of installation can not be
-    guaranteed. Therefore, include functionality here to  determine plume 
-    distances directly rather than relying on the functionality of geonum. In 
-    this case, however, mapping functionality and handling of topography data
-    does not work.
+    Geonum has 3rd party dependencies and success of installation can not 
+    be guaranteed. Therefore, include functionality here to  determine 
+    plume distances directly rather than relying on the functionality of 
+    :mod:`geonum`. In this case, however, mapping functionality and 
+    handling of topographic data will not work.
     
 """
 from numpy import nan, arctan, deg2rad, linalg, sqrt, abs, array, radians,\
@@ -25,8 +28,8 @@ if GEONUMAVAILABLE:
     from geonum.topodata import TopoAccessError
 
 class MeasGeometry(object):
-    """A new MeasGeometry object based on :mod:`geonum` library"""
-    def __init__(self, source_info = {}, cam_info = {}, wind_info={}):
+    """Class containing features related to measurement geometry"""
+    def __init__(self, source_info={}, cam_info={}, wind_info={}):
         """Class initialisation"""
         self.geo_setup = GeoSetup()
         
@@ -83,7 +86,7 @@ class MeasGeometry(object):
         for key in param_keys:
             if isnan(self.cam[key]):
                 self.cam[key] = img_obj.meta[key]
-    """IO stuff"""        
+    
     def update_cam_specs(self, info_dict):
         """Update camera settings
         
@@ -300,8 +303,8 @@ class MeasGeometry(object):
         elevs = -rad2deg(arctan(dy / f)) + self.cam["elev"]
         return azims, elevs, x, y
             
-    def get_distances_to_topo_line(self, line, skip_pix = 30, topo_res_m = 5.,
-                                   min_slope_angle = 5.):
+    def get_distances_to_topo_line(self, line, skip_pix=30, topo_res_m=5.,
+                                   min_slope_angle=5.):
         """Retrieve distances to topography for a line on an image
         
         Calculates distances to topography based on pixels on the line. This is 
@@ -310,9 +313,13 @@ class MeasGeometry(object):
         and the corresponding camera elevation (pixel row) to find the first
         intersection of the viewing direction (line) with the topography
         
-        :param list line: list with line coordinates: ``[x0, y0, x1, y1]`` (can
-            also be :class:`LineOnImage` object)
+        :param list line: list with line coordinates: ``[x0, y0, x1, y1]`` 
+            (can also be :class:`LineOnImage` object)
         :param int skip_pix: step width for retrieval along line
+        :param float topo_res_m: desired resolution of topographic data
+            (is interpolated)
+        :param float min_slope_angle: mininum angle of slope, pixels 
+            pointing into flatter topographic areas are ignored
         """
         try:
             print self.cam_pos
@@ -513,9 +520,10 @@ class MeasGeometry(object):
         
         return elev_cam, az_cam
         
-    def find_viewing_direction(self, pix_x, pix_y, pix_pos_err=10, obj_id="", 
-                               geo_point=None, lon_pt=None, lat_pt=None, 
-                               alt_pt=None, update=True, draw_result=False):
+    def find_viewing_direction(self, pix_x, pix_y, pix_pos_err=10, 
+                               obj_id="", geo_point=None, lon_pt=None, 
+                               lat_pt=None, alt_pt=None, update=True, 
+                               draw_result=False):
         """Retrieve camera viewing direction from point in image
         
         Uses the geo coordinates of a characteristic point in the image (e.g.
@@ -540,13 +548,18 @@ class MeasGeometry(object):
         :param float lon_pt: longitude of characteristic point
         :param float lat_pt: latitude of characteristic point
         :param float alt_pt: altitude of characteristic point (unit m)
+        :param bool update: if True, camera azim and elev are updated 
+            within this object
+        :param bool draw_result: if True, a 2D map is drawn showing 
+            results
         
         :returns:
             - float, retrieved camera elevation
             - float, retrieved camera azimuth
-            - MeasGeometry, initial state of this object, a deepcopy of this 
-                class, before changes where applied (if they were applied, see
-                also :param:`update`)
+            - MeasGeometry, initial state of this object, a deepcopy of 
+            this class, before changes where applied (if they were applied, 
+            see also :param:`update`)
+            
         """
         geom_old = deepcopy(self)
         if obj_id in self.geo_setup.points:

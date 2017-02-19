@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
-"""
-High level functionality for emission rate analysis
+"""Module containing high level functionality for emission rate analysis
 """
 from warnings import warn
 from numpy import dot, sqrt, mean, nan, isnan, asarray

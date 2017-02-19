@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-I/O routines for external data access
--------------------------------------
+Module containing input / output routines (e.g. test data access)
 """
 from dill import load
 from os.path import join, basename, exists, isfile

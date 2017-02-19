@@ -1,13 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-This module contains everything related to cell calibration, contining the 
-following classes (ordered by their importance)
-
-    1. :class:`CellCalibData`: retrieval of calibration curves and sensitivity
-        correction masks   
-    #. :class:`CellCalibEngine`: engine to prepare calibration data (e.g. from
-        time series of image data containing cell and background images)
-    
+This module contains everything related to cell calibration
 """
 from matplotlib.pyplot import subplots
 from warnings import warn
