@@ -40,8 +40,11 @@ We recommend using `Anaconda <https://www.continuum.io/downloads>`_ as package m
 
 Installation
 ------------
+pyplis can be installed from `PyPi <https://pypi.python.org/pypi/pyplis>`_ using::
 
-pyplis can be installed from source by downloading and extracting the latest release. After navigating to the source folder (where the setup.py file is located), call::
+  pip install pyplis
+  
+or from source by downloading and extracting the latest release. After navigating to the source folder (where the setup.py file is located), call::
 
   python setup.py install
 
