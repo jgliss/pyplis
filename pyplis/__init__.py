@@ -4,8 +4,8 @@ from pkg_resources import get_distribution
 
 __version__ = get_distribution('pyplis').version
 
-URL_TESTDATA = ("https://folk.nilu.no/~gliss/piscope_testdata/"
-                "piscope_etna_testdata.zip")
+URL_TESTDATA = ("https://folk.nilu.no/~gliss/pyplis_testdata/"
+                "pyplis_etna_testdata.zip")
 
 try:
     import pydoas
