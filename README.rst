@@ -52,12 +52,12 @@ In case the installation fails make sure that all dependencies (see above) are i
 Instructions and code documentation
 -----------------------------------
 
-Coming soon ...
+The code documentation of pyplis is hosted on `Read the Docs <http://pyplis.readthedocs.io/en/latest/>`__
 
 Getting started
 ---------------
 
-After installation try running and understanding the example scripts (can be found in the scripts folder). The scripts require downloading the example data (see following section).
+After installation try running and understanding the `example scripts <https://github.com/jgliss/pyplis/tree/master/scripts>`_. The scripts require `downloading the example data <>`__ (see also following section for details).
 
 Example and test data
 ---------------------
