@@ -9,7 +9,7 @@ pyplis is a Python toolbox for the analysis of UV SO2 camera data. It includes a
   
 .. note::
 
-  The software was renamed on 17.02.2017 from **piscope** to **pyplis**
+  The software was renamed from **piscope** to **pyplis** on 17.02.2017 
 
 Requirements
 ------------
@@ -22,9 +22,11 @@ Requirements are listed in the order of likelyhood to run into problems when usi
   - Pillow (PIL fork) >= 3.3.0 (installs scipy.misc.pilutil)
   - astropy >= 1.0.3
   - geonum >= 1.0.0
+    
     - latlon >= 1.0.2
     - srtm.py >= 0.3.2
     - pyproj  >= 1.9.5.1
+    
   - pandas >= 0.16.2
   - matplotlib >= 1.4.3
 
@@ -34,7 +36,7 @@ Requirements are listed in the order of likelyhood to run into problems when usi
   - scikit-image (skimage) >= 0.11.3 (for blob detection in optical flow analysis)
   
 
-We recommend using `Anaconda <https://www.continuum.io/downloads>`_ as package manager since it includes most of the required dependencies and is updated on a regular basis. Moreover, it is probably the most comfortable way to postinstall and upgrade dependencies such as OpenCV (`see here <http://stackoverflow.com/questions/23119413/how-to-install-python-opencv-through-conda>`_) or the scipy stack.
+We recommend using `Anaconda <https://www.continuum.io/downloads>`_ as package manager since it includes most of the required dependencies and is updated on a regular basis. Moreover, it is probably the most comfortable way to postinstall and upgrade dependencies such as OpenCV (`see here <http://stackoverflow.com/questions/23119413/how-to-install-python-opencv-through-conda>`__) or the scipy stack.
 
 Installation
 ------------
@@ -49,20 +51,20 @@ On Linux::
   
 In case the installation fails make sure that all dependencies (see above) are installed correctly. pyplis is currently only supported for Python v2.7.
 
-Instructions and code documentation
------------------------------------
+Code documentation
+------------------
 
 The code documentation of pyplis is hosted on `Read the Docs <http://pyplis.readthedocs.io/en/latest/>`__
 
 Getting started
 ---------------
 
-After installation try running and understanding the `example scripts <https://github.com/jgliss/pyplis/tree/master/scripts>`_. The scripts require `downloading the example data <>`__ (see also following section for details).
+After installation try running and understanding the `example scripts <https://github.com/jgliss/pyplis/tree/master/scripts>`_. The scripts require the example data (see also following section for details).
 
 Example and test data
 ---------------------
 
-The pyplis example data (required to run example scripts) is not part of the installation. It can be downloaded `here <https://folk.nilu.no/~gliss/piscope_testdata/piscope_etna_testdata.zip>`__
+The pyplis example data (required to run example scripts) is not part of the installation. It can be downloaded `here <https://folk.nilu.no/~gliss/pyplis_testdata/pyplis_etna_testdata.zip>`__
 
 or automatically after installation using::
 
