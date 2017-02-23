@@ -2,12 +2,17 @@
 """
 pyplis introduction script 4 - Automatic creation of image lists
 
-The previous script gives an introduction into manual creation of ImgList 
-objects. In this script, a number of ImgList objects (on, off, dark low gain, 
+The previous script gave an introduction into the manual creation of ``ImgList``
+objects and some basic image preparation features. 
+In this script, a number of ImgList objects (on, off, dark low gain, 
 dark high gain, offset low gain, offset high gain) is created automatically 
-using the Camera class created in example script ex0_2_camera_setup.py.
+using the Camera class created in example script ex0_2_camera_setup.py (ECII
+camera)
 
-Based on this camera a MeasSetup is created containing the camera specs and the
+Based on the information stored in the Camera class, a MeasSetup class is 
+created. The latter class collects all meta information relevant for an 
+emission rate analysis. Apart from the camera specs, this may include source
+definitions  contains information about the camera specs a the
 image base directory (note that in this example, start / stop acq. time stamps
 are ignored, i.e. all images available in the specified directory are imported)
 """
