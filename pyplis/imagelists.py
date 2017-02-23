@@ -58,8 +58,8 @@ class BaseImgList(object):
     on a list of image file paths, which are dynamically loaded during usage.
     
     """
-    def __init__(self, files = [], list_id = None, list_type = None,\
-                        camera = None, init = True, **img_prep_settings):
+    def __init__(self, files=[], list_id=None, list_type=None,
+                 camera=None, init=True, **img_prep_settings):
         """Init image list
         
         :param list files: list with file names
@@ -119,7 +119,6 @@ class BaseImgList(object):
                 self.img_prep[key] = val
         self.load()
         
-    """Helpers"""
     @property
     def auto_reload(self):
         """Activate / deactivate automatic reload of images"""
@@ -237,7 +236,7 @@ class BaseImgList(object):
         """Empty file list ``self.files``"""
         self.files = []
     
-    def separate_by_substr_filename(self, sub_str, sub_str_pos, delim = "_"):
+    def separate_by_substr_filename(self, sub_str, sub_str_pos, delim="_"):
         """Separate this list by filename specifications
         
         :param str sub_str: string identification used to identify the image 
@@ -287,7 +286,7 @@ class BaseImgList(object):
         self.init_filelist()
         return True
         
-    def init_filelist(self, num = 0):
+    def init_filelist(self, num=0):
         """Initiate the filelist
         
         :param int num (0): index of image which will be loaded (`self.index`)
@@ -597,6 +596,7 @@ class BaseImgList(object):
             
         if onload["vigncorr"]:
             self._list_modes["vigncorr"]
+            
     def load(self):
         """Load current image"""
         if not self._auto_reload:
@@ -605,8 +605,7 @@ class BaseImgList(object):
             return False
         img_file = self.files[self.index]
         try:
-            img = Img(img_file, self.cam_id(),\
-                                **self.get_img_meta_from_filename(img_file))
+            img = Img(img_file, **self.get_img_meta_from_filename(img_file))
             self.loaded_images["this"] = img
             self._load_edit.update(img.edit_log)
             
@@ -615,7 +614,7 @@ class BaseImgList(object):
             
             self.update_prev_next_index()
             self.apply_current_edit("this")
-     
+            
         except IOError:
             print ("Invalid file encountered at list index %s, file will"
                 " be removed from list" %self.index)
@@ -629,12 +628,11 @@ class BaseImgList(object):
                 self.init_filelist()
                 self.load()
             except:
-                print ("Could not load image in list %s: file list "
-                    "empty" %(self.list_id))
-                return False
+                raise IndexError("Could not load image in list %s: file list "
+                    " is empty" %(self.list_id))
         return True
     
-    def pop(self, idx = None):
+    def pop(self, idx=None):
         """Remove one file from this list"""
         if idx == None:
             idx = self.index
@@ -1336,7 +1334,7 @@ class ImgList(BaseImgList):
         self.master_offset = offset
 
     def get_dark_image(self, key = "this"):
-        """Prepares the current dark image dependent on dark corr mode
+        """Prepares the current dark image dependent on ``DARK_CORR_OPT``
         
         The code checks current dark correction mode and, if applicable, 
         prepares the dark image. 
@@ -1352,9 +1350,9 @@ class ImgList(BaseImgList):
                 ``self.DARK_CORR_OPT = 2``, else model dark image using
                 :func:`model_dark_image` and return this image
                 
-            3. ``self.DARK_CORR_OPT == 2`` (subtract dark image if exposure times
-                of current image does not deviate by more than 20% to current
-                dark image)
+            3. ``self.DARK_CORR_OPT == 2`` (subtract dark image if exposure 
+                times of current image does not deviate by more than 20% to 
+                current dark image)
                 Try access current dark image in ``self.dark_lists``, if this 
                 fails, try to access current dark image in ``self.darkImg``
                 (which can be set manually using :func:`set_dark_image`). If 
@@ -1376,7 +1374,6 @@ class ImgList(BaseImgList):
             except:
                 print ("Error retrieving dark and offset images from linked "
                     "list: check for master dark / offset images")
-                print img
                 dark = model_dark_image(img, self.master_dark,\
                                                 self.master_offset)
 
@@ -1393,10 +1390,16 @@ class ImgList(BaseImgList):
                 dark = self.master_dark
                 texp_ratio = img.meta["texp"] / dark.meta["texp"]
                 if not 0.8 <= texp_ratio <= 1.2:
-                    raise ValueError("Could not retrieve dark image from"
+                    warn("Could not retrieve dark image from"
                         "self.darkImg: exposure time of deviates by more "
                         "than 20% from current image in list %s" %self.list_id)
-      
+        
+        if self.DARK_CORR_OPT == 0:
+            warn("Dark image could not be accessed in list %s since "
+                "self.DARK_CORR_OPT==0, please set a dark correction option "
+                "in camera using <list_name>.camera.DARK_CORR_OPT = <new_val>")
+            dark = zeros(img.img.shape).astype(float)
+
         return dark
                 
     def update_index_dark_offset_lists(self):
@@ -1442,7 +1445,7 @@ class ImgList(BaseImgList):
             return False
         return True   
         
-    def activate_darkcorr(self, val = True):
+    def activate_darkcorr(self, val=True):
         """Activate or deactivate dark and offset correction of images
         
         :param bool val: Active / Inactive
@@ -1652,12 +1655,12 @@ class ImgList(BaseImgList):
             return False
         if self.nof > 1:
             prev_file = self.files[self.prev_index]
-            self.loaded_images["prev"] = Img(prev_file, self.cam_id(),\
+            self.loaded_images["prev"] = Img(prev_file,
                             **self.get_img_meta_from_filename(prev_file))
             self.apply_current_edit("prev")
             
             next_file = self.files[self.next_index]
-            self.loaded_images["next"] = Img(next_file, self.cam_id(),\
+            self.loaded_images["next"] = Img(next_file,
                             **self.get_img_meta_from_filename(next_file))
             self.apply_current_edit("next")
         else:
@@ -1689,7 +1692,7 @@ class ImgList(BaseImgList):
         self.loaded_images["this"] = self.loaded_images["next"]
         
         next_file = self.files[self.next_index]
-        self.loaded_images["next"] = Img(next_file, self.cam_id(),\
+        self.loaded_images["next"] = Img(next_file,
                             **self.get_img_meta_from_filename(next_file))
     
 
@@ -1715,7 +1718,7 @@ class ImgList(BaseImgList):
         self.loaded_images["this"] = self.loaded_images["prev"]
         
         prev_file = self.files[self.prev_index]
-        self.loaded_images["prev"] = Img(prev_file, self.cam_id(),\
+        self.loaded_images["prev"] = Img(prev_file,
                         **self.get_img_meta_from_filename(prev_file))
         
         self.apply_current_edit("prev")
@@ -1736,13 +1739,13 @@ class ImgList(BaseImgList):
         if self.darkcorr_mode:
             dark = self.get_dark_image(key)
             img.subtract_dark_image(dark)
-        img.correct_vignetting(self.vign_mask, new_state = self.vigncorr_mode)
+        img.correct_vignetting(self.vign_mask, new_state=self.vigncorr_mode)
         if self.tau_mode:
             img = self.bg_model.get_tau_image(img, self.bg_img)
         elif self.aa_mode:
             off = self.get_off_list()
-            img = self.bg_model.get_aa_image(img, off.current_img(),\
-                                                self.bg_img, off.bg_img)
+            img = self.bg_model.get_aa_image(img, off.current_img(),
+                                             self.bg_img, off.bg_img)
             if self.sensitivity_corr_mode:
                 img = img / self.aa_corr_mask
                 img.edit_log["senscorr"] = 1

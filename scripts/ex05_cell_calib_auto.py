@@ -84,7 +84,8 @@ if __name__ == "__main__":
     # Plot all calibration curves for center pixel and in a radial 
     # neighbourhood of 20 pixels
     ax2 = c.plot_all_calib_curves(pos_x_abs=672, pos_y_abs=512, radius_abs=20)
-    
+    ax2.set_xlim([0, 0.7])
+    ax2.set_ylim([0, 2.25e18])
     ### IMPORTANT STUFF FINISHED    
     if SAVEFIGS:
         ax0.figure.savefig(join(SAVE_DIR, "ex05_2_out_1.%s" %FORMAT),

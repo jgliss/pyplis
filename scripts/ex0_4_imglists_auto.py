@@ -21,7 +21,6 @@ from ex0_2_camera_setup import create_ecII_cam_new_filters
 
 
 if __name__ == "__main__":
-    
     # create the camera which was 
     cam = create_ecII_cam_new_filters()
     

@@ -12,6 +12,7 @@ Welcome to pyplis's documentation!
    :maxdepth: 3
    
    intro
+   camdef
    code_lib
 
 Indices and tables

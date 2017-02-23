@@ -38,8 +38,10 @@ import model_functions
 import setupclasses  
  
 import helpers
+import image_import
 import exceptions
 
+# String ID of species to be analysed (for plots etc.)
 SPECIES_ID = r"SO2"
 
 #map of internal calibration access keys to string repr. for plots
@@ -50,5 +52,6 @@ _CALIB_ID_STRINGS = {"on" :  "On",
 from matplotlib import rcParams
 
 rcParams["mathtext.default"] = u"regular"
+
 
 #import gui_features as gui_features

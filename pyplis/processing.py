@@ -371,12 +371,10 @@ class LineOnImage(object):
         dx0, dy0 = other.x0 - self.x0, other.y0 - self.y0
         dx1, dy1 = other.x1 - self.x1, other.y1 - self.y1
         if dx1 != dx0 or dy1 != dy0:
-            print "dx0, dx1: %s, %s"%(dx0, dx1)
-            print "dy0, dy1: %s, %s"%(dy0, dy1)
             raise ValueError("Lines are not parallel...")
         return norm([dx0, dy0]), dx0, dy0
         
-    def offset(self, pixel_num = 20, line_id = None):
+    def offset(self, pixel_num=20, line_id=None):
         """Returns a shifted line at given distance along normal orientation
         
         .. note::
@@ -401,7 +399,7 @@ class LineOnImage(object):
     def convert(self, pyrlevel = 0, roi_abs = [0, 0, 9999, 9999]):
         """Convert to other image preparation settings"""
         if pyrlevel == self.pyrlevel and same_roi(self.roi_abs, roi_abs):
-            print "Same shape settings, returning current line object"""
+            print("Same shape settings, returning current line object""")
             return self
 
         (x0, x1), (y0, y1) = map_coordinates_sub_img([self.x0, self.x1],
@@ -427,8 +425,8 @@ class LineOnImage(object):
             raise ValueError("Invalid value encountered, start coordinates of "
                 "line must be bigger than 0")
         if self.start[0] > self.stop[0]:
-            print "X coordinate of Start point is larger than X of stop point"
-            print "Start and Stop will be exchanged"
+            print ("x coordinate of start point is larger than of stop point: "
+                    "start and stop will be exchanged")
             self.start, self.stop = self.stop, self.start
      
     def in_image(self, img_array):
@@ -532,12 +530,12 @@ class LineOnImage(object):
             pass
         if ndim(array) != 2:
             if ndim(array) != 3:
-                print ("Error retrieving line profile, invalid dimension of input "
-                " array: " + str(ndim(array)))
+                print ("Error retrieving line profile, invalid dimension of "  
+                        "input array: %s" %(ndim(array)))
                 return
             if array.shape[2] != 3:
-                print ("Error retrieving line profile, invalid dimension of input "
-                " array: " + str(ndim(array)))
+                print ("Error retrieving line profile, invalid dimension of "
+                         "input array: %s" %(ndim(array)))
                 return
             "Input in BGR, conversion into gray image"
             array = cvtColor(array, COLOR_BGR2GRAY)
@@ -1273,10 +1271,6 @@ class ImgStack(object):
             f = stop_acq[k]
             texp = (f - i).total_seconds()
             cond = (times >= i) & (times < f)
-#==============================================================================
-#             print ("Found %s images for input index %s (of %s)" 
-#                                                 %(sum(cond), k, num))
-#==============================================================================
             if sum(cond) > 0:
                 print ("Found %s images for spectrum #%s (of %s)" 
                                                 %(sum(cond), k, num))
@@ -1396,7 +1390,6 @@ class ImgStack(object):
         
         if not steps:
             return
-        #print "Reducing image size, pyrlevel %s" %steps
         h, w = Img(self.stack[0]).pyr_down(steps).shape
         prep = deepcopy(self.img_prep)        
         new_stack = ImgStack(height=h, width=w, img_num= self.num_of_imgs,\
@@ -1420,7 +1413,7 @@ class ImgStack(object):
         """
         if not steps:
             return
-        #print "Reducing image size, pyrlevel %s" %steps
+
         h, w = Img(self.stack[0]).pyr_up(steps).shape
         prep = deepcopy(self.img_prep)        
         new_stack = ImgStack(height=h, width=w, img_num= self.num_of_imgs,\
@@ -1583,10 +1576,6 @@ def model_dark_image(img, dark, offset):
         raise ImgModifiedError("Could not model dark image at least one of the "
             "input dark / offset images was already modified")
     if img.modified:
-#==============================================================================
-#         print ("Input image is modified, try reloading raw data for dark model"
-#             " retrieval")
-#==============================================================================
         img = Img(img.meta["path"])
             
     dark_img = offset.img + (dark.img - offset.img) * img.meta["texp"]/\

@@ -6,7 +6,7 @@ This script loads an exemplary image which is part of the pyplis suppl.
 data. Further, the concept of extraction of image meta information from 
 image file names is introduced manually (this is done automatically in 
 picsope using file name conventions which can be specified globally, see next 
-script). Applies some basic pro
+script).
 """
 from os.path import join
 from datetime import datetime

@@ -1,6 +1,24 @@
 # -*- coding: utf-8 -*-
 """
 Example script 12 - Emission rate retrieval from AA image list
+
+This example import results from the previous examples, for instance the AA 
+image list including measurement geometry (ex 4), the DOAS calibration 
+information (which was stored as FITS file, see ex. 6) and the AA sensitivity
+correction mask retrieved from the cell calibration and normalised to the 
+position of the DOAS FOV (ex 7). The emission rates are retrieved for three 
+different plume velocity retrievals: 1. using the global velocity vector 
+retrieved from the cross correlation algorithm (ex8), 2. using the raw output 
+of the optical flow Farneback algorithm (``farneback_raw``) and 3. using the 
+histogram based post analysis of the optical flow field (``farneback_histo``).
+The analysis is performed using the EmissionRateAnalysis class which basically 
+checks the AA list and activates ``calib_mode`` (-> images are loaded as 
+calibrated gas CD images) and loops over all images to retrieve the emission 
+rates for the 3 velocity modes. Here, emission rates are retrieved along 1 
+exemplary plume cross section. This can be easily extended by adding additional
+PCS lines in the EmissionRateAnalysis class using ``add_pcs_line``. 
+The results for each velocity mode and for each PCS line are stored within 
+EmissionRateResults classes.
 """
 
 import pyplis
@@ -51,7 +69,7 @@ def plot_results(ana, line_id = "1. PCS"):
     res1.plot(yerr=False, ax=ax[0], color="b")
     res2.plot(yerr=True, ax=ax[0], color="g")
     #ax[0].set_title("Retrieved emission rates")
-    ax[0].legend(loc='best', fancybox=True, framealpha=0.5, fontsize=10)
+    ax[0].legend(loc='best', fancybox=True, framealpha=0.5, fontsize=12)
     
     #Plot effective velocity retrieved from optical flow histogram analysis    
     res2.plot_velo_eff(ax=ax[1], color="g")
@@ -97,12 +115,6 @@ if __name__ == "__main__":
     aa_list.calib_data = doascalib
     
     pcs = PCS.convert(pyrlevel=PYRLEVEL)
-#==============================================================================
-#     pcs = pyplis.processing.LineOnImage(250, 365, 420, 105,
-#                                              normal_orientation="left", 
-#                                              pyrlevel=PYRLEVEL,
-#                                              line_id="img_center")
-#==============================================================================
                                              
     ana = pyplis.fluxcalc.EmissionRateAnalysis(aa_list, pcs,
                                                 velo_glob=PLUME_VEL_GLOB,

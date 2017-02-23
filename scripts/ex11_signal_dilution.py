@@ -275,7 +275,7 @@ if __name__ == "__main__":
                                                  rad_ambient=ia_on, 
                                                  i0_min=I0_MIN,
                                                  plot=True)
-    ax0.set_ylabel("Flank radiances (on band)")
+    ax0.set_ylabel("Terrain radiances (on band)", fontsize=14)
     ax0.set_ylim([0, 2500])                                             
     #ax[0, 0].set_title(r"On: $I_A$ = %.1f DN" %(ia_on))        
     
@@ -283,7 +283,7 @@ if __name__ == "__main__":
                                                    rad_ambient=ia_off,
                                                    i0_min=I0_MIN,
                                                    plot=True)
-    ax1.set_ylabel("Flank radiances (off band)")     
+    ax1.set_ylabel("Terrain radiances (off band)", fontsize=14)     
     ax1.set_ylim([0, 2500])
     #ax[0, 1].set_title(r"Off: $I_A$ = %.1f DN" %(ia_off), fontsize = 12)        
     
@@ -325,8 +325,10 @@ if __name__ == "__main__":
                                            
     ax2 = plot_lines_into_image(so2_img_corr)
     pcs_line.plot_line_on_grid(ax = ax2, ls="-", color = "g")
-    ax2.legend(loc="best", framealpha=0.5, fancybox= True, fontsize = 10)   
+    ax2.legend(loc="best", framealpha=0.5, fancybox=True, fontsize=20)   
     ax2.set_title("Dilution corrected AA image", fontsize = 12)
+    ax2.get_xaxis().set_ticks([])
+    ax2.get_yaxis().set_ticks([])
     
     x0, y0, w, h = pyplis.helpers.roi2rect(AMBIENT_ROI)
     ax2.add_patch(Rectangle((x0, y0), w, h, fc = "none", ec = "c"))

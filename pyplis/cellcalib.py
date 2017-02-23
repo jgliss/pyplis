@@ -5,7 +5,7 @@ This module contains everything related to cell calibration
 from matplotlib.pyplot import subplots
 from warnings import warn
 from numpy import float, log, arange, polyfit, poly1d, linspace, isnan,\
-    diff, mean, argmin, ceil, round
+    diff, mean, argmin, ceil, round, ndim, asarray
 from matplotlib.pyplot import Figure
 from datetime import timedelta
 from os.path import exists
@@ -183,9 +183,15 @@ class CellCalibData(object):
     
     This object can be used to retrieve cell calibration curves (on a pixel 
     basis) and / or tau / AA sensitivity correction masks
+    
+    .. todo::
+    
+        1. remove stack dependency
+        
     """
     _calib_id = ""
-    def __init__(self, tau_stack=None, calib_id="", gas_cds=None):
+    def __init__(self, tau_stack=None, calib_id="", gas_cds=None,
+                 gas_cd_errs=None):
         """Class initialisation
 
         :param ImgStack tau_stack: image stack containing optical density 
@@ -197,15 +203,69 @@ class CellCalibData(object):
             the ``add_data`` attribute of the image stack)
         """
         
-        self.tau_stack = tau_stack
+        self.tau_stack = None
+        self.gas_cds = None
+        self.gas_cd_errs = None
+        
         self.calib_id = calib_id  
                 
-        try:
-            if len(gas_cds) == self.tau_stack.shape[0]:
-                self.tau_stack.add_data = gas_cds
-        except:
-            pass
+        self.set_data(tau_stack, gas_cds, gas_cd_errs)
     
+    def set_data(self, tau_stack, gas_cds, gas_cd_errs):
+        """This function reads and sets the relevant Data
+        
+        The data includes a stack containing cell tau images (e.g. 
+        :math:`\\tau_{on}\,\\tau_{off}`\,\\tau_{AA}`) a list of corresponding
+        cell gas CDs and a list of corresponding gas CD errors. If the latter 
+        are unspecified they will be set to 20% of the corresponding CD.
+        
+        :param ImgStack tau_stack: stack containing Cell tau images
+        :param list gas_cds: Gas column densities for the Cell images in the 
+            stack (if unspecified, attempt to read them from the stack
+            variable ``add_data``). They need to be in the same order as the 
+            images in the stack, i.e. the first Cell CD (i.e.``gas_cds[0]``) 
+            must correspond to the first cell image in the stack 
+            (``tau_stack.stack[0]``) (input can also be ``ndarray``)
+        :param list gas_cd_errs: Uncertainties in gas column densities (see
+            input param ``gas_cds``). If input invalid (i.e. None, or length
+            mismatch with list ``gas_cds``) then, the values are set to 20%
+            of the corresponding CDs (input can also be ``ndarray``)
+        """
+        try:
+            has_cds = False
+            if ndim(gas_cds) == 1 and len(gas_cds) > 0:
+                self.gas_cds = asarray(gas_cds)
+                has_cds = True
+        except:
+            has_cds = False
+            
+        try:
+            has_cd_errs = False
+            if ndim(gas_cd_errs) == 1 and len(gas_cds) == len(gas_cd_errs):
+                self.gas_cd_errs = asarray(gas_cd_errs)
+                has_cd_errs = True
+        except:
+            has_cd_errs = False
+            
+        if not isinstance(tau_stack, ImgStack):
+            warn("Image stack could not be set in CellCalibData: invalid input"
+                "type %s" %type(tau_stack))
+        else:
+            self.tau_stack = tau_stack
+            if not has_cds or tau_stack.num_of_imgs != len(self.gas_cds):
+                self.gas_cds = asarray(tau_stack.add_data)
+                has_cds = True
+                try:
+                    if len(tau_stack.add_data_err) == len(self.gas_cds):
+                        self.gas_cd_errs = asarray(tau_stack.add_data_err)
+                        has_cd_errs = True
+                except:
+                    pass
+                
+        if has_cds and not has_cd_errs or sum(self.gas_cd_errs) == 0:
+            warn ("Cell gas CD errors not defined, assuming 20% of Cell CDs")
+            self.gas_cd_errs = self.gas_cds * 0.2
+        
     @property
     def calib_id(self):
         """Get / set calibration ID"""
@@ -232,8 +292,30 @@ class CellCalibData(object):
     @property
     def cell_gas_cds(self):
         """return vector containing cell gas CDs"""
-        return self.tau_stack.add_data
-     
+        return self.gas_cds
+    
+    @property
+    def cell_gas_cd_errs(self):
+        """return vector containing cell gas CD errors"""
+        return self.gas_cd_errs
+   
+    @property
+    def tau_std_allpix(self, sigma=3):
+        """Returns array of tau value uncertainties
+        
+        The uncertainties are determined for each Cell OD image in 
+        ``self.tau_stack`` using a provided confidence interval of the 
+        standard deviation of tau values of all image pixels.
+        
+        :param int sigma: confidence interval for uncertainty estimate
+        :return: 
+            - ndarray, vector containing tau uncertainties for all cell images
+        """  
+        vals = []
+        for k in range(self.tau_stack.shape[0]):
+            vals.append(self.tau_stack.stack[k].std()* sigma) 
+        return asarray(vals)
+            
     def poly(self, pos_x_abs=None, pos_y_abs=None, radius_abs=1, mask=None, 
              polyorder=1):
         """Retrieve calibration polynomial within a certain pixel neighbourhood
@@ -382,6 +464,12 @@ class CellCalibData(object):
         taus = linspace(0, tau.max() * 1.05, 100)
         ax.plot(tau, gas_cd, " ^", label = "Data cell %s" %self.calib_id_str, 
                 **kwargs)
+        try:
+            ax.errorbar(tau, gas_cd, self.gas_cd_errs, self.tau_std_allpix,
+                        " ", color="#6E6E6E")
+        except:
+            warn("Failed to plot uncertainties of calibration data")
+                    
         ax.plot(taus, poly(taus),"-", label = "Fit result", **kwargs)
         
         if not add_to:
@@ -958,6 +1046,8 @@ class CellCalibEngine(Dataset):
         
         num = len(self.cell_lists[filter_id])
         tau_stack = ImgStack(h, w, num, stack_id=filter_id)
+        # TEMPORARY SOLUTION
+        tau_stack.add_data_err = []
         try:
             bg_mean_tseries = self.det_bg_mean_pix_timeseries(filter_id)
         except:
@@ -992,6 +1082,8 @@ class CellCalibEngine(Dataset):
                                  start_acq=cell_img.meta["start_acq"],
                                  texp=cell_img.meta["texp"],
                                  add_data=lst.gas_cd)
+            tau_stack.add_data_err.append(lst.gas_cd_err)
+                            
                                  
         tau_stack.img_prep.update(tau_img.edit_log)
         self.calib_data[filter_id] = CellCalibData(tau_stack=tau_stack,
@@ -1154,7 +1246,7 @@ class CellCalibEngine(Dataset):
         """
         return self.calib_data[calib_id].plot(**kwargs)
         
-    
+
     def plot_all_calib_curves(self, ax=None, **kwargs):
         """Plot all available calibration curves in a certain pixel region
         
@@ -1169,11 +1261,21 @@ class CellCalibEngine(Dataset):
         y_min = 1e20
         for calib_id, calib in self.calib_data.iteritems():
             poly, tau, gas_cd = calib.poly(**kwargs)
-            
+            gas_cd_errs, tau_errs = calib.gas_cd_errs, calib.tau_std_allpix
             taus = linspace(0, tau.max() * 1.2, 100)
+            # plot data points
             pl = ax.plot(tau, gas_cd, " ^", label = "Data %s" %calib_id)
-            ax.plot(taus, poly(taus),"-", color=pl[0].get_color(),
+            
+            # try adding error bars
+            try:
+                ax.errorbar(tau, gas_cd, gas_cd_errs, tau_errs, " ", 
+                            color="#6E6E6E")
+            except:
+                warn("Failed to plot uncertainties of calibration data")
+            
+            ax.plot(taus, poly(taus),"--", color=pl[0].get_color(),
                     label = "Fit result")
+            
             tm = tau.max()
             if tm > tau_max:
                 tau_max = tm

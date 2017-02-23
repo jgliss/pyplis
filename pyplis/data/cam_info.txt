@@ -1,15 +1,15 @@
 This file contains information about pyplis default cameras
 
-When creating a new camera type please use 0er case filter names. The filter ID is the string by which all images acquired with this filter are represented within pyplis. Parameters which include the substring "Pos" (e.g. time_info_pos, meas_type_pos, filter_id_pos) refer to positions of specific information in the image filenames (after they are splitted using "delim"), for instance "time_info_pos"==1 means, that a datetime string can be found at pos (!) 2 in the filename after splitting. PLEASE leave these "Pos" fields empty if the specific information is not available in your filename. If you
-want to use the basic functionality, i.e. automatic separation of images by type ("on", "off", "dark", "offset") and image selection (and sorting) by acquisition time, then the the fields "meas_type_pos", "filter_id_pos" and "time_info_pos" need to be filled. 
+When creating a new camera type please use lower case filter names. The filter ID is the string by which all images acquired with this filter are represented within pyplis. Parameters which include the substring "Pos" (e.g. time_info_pos, meas_type_pos, filter_id_pos) refer to positions of specific information in the image filenames (after they are splitted using "delim"), for instance "time_info_pos"==1 means, that a datetime string can be found at pos (!) 2 in the filename after splitting. PLEASE leave these "Pos" fields empty if the specific information is not available in your filename. If you wish to use automatic separation of images by type ("on", "off", "dark", "offset") and image selection (and sorting) by acquisition time, then the the fields "meas_type_pos", "filter_id_pos" and "time_info_pos" need to be filled. 
 
 NEWCAM
+
 #Insert camera access IDs (these can be used to identify a certain camera within pyplis)
 cam_ids:hdcam,hd,HD,HDCam
 
 #Camera and detector specifications
-#Please only fill the filename specifications which can actually be extracted from your convention
-#and leave the other fields empty
+#Please only fill the filename specifications which can actually be extracted from your convention and leave the other fields empty
+
 cam_id:hdcam 			#ID of camera
 delim:_ 			#filename delimiter for information extraction
 time_info_pos:0 		#position of acquisition time string in filename (after split using delim)
@@ -39,8 +39,8 @@ filter:off,off,B0,M,330
 #are stored 
 #Row format: 
 #dark_info:<ID>,<type>,<type acronym>,<measType acronym>,<read_gain>
-dark_info:on,dark,A0,D,0
-dark_info:off,dark,B0,D,0
+dark_info:on_dark,dark,A0,D,0
+dark_info:off_dark,dark,B0,D,0
 ENDCAM
 
 NEWCAM

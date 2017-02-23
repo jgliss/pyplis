@@ -73,26 +73,31 @@ if __name__ == "__main__":
     
     on_list.link_imglist(off_list)
     
-    ### Load dark and offset images and set them in on band image list
+    ### Load dark and offset images and set them in the on-band image list
     dark_img = pyplis.image.Img(DARK_FILE)
     offset_img = pyplis.image.Img(OFFSET_FILE)
     
     on_list.add_master_dark_image(dark_img)
     on_list.add_master_offset_image(offset_img)
     
-    # Go to image number 100 in on band list
+    # Go to image number 100 in on-band list
     on_list.goto_img(100)
     
     ### Change image preparation settings (these are applied on image load)
-    # region of interest (in abs. coords)
+    
+    # region of interest 
     on_list.roi_abs = [100, 100, 1300, 900] 
+    
     # activate cropping in image list
     on_list.crop = 1 
+
     # scale down to pyramid level 2
     on_list.pyrlevel = 2 
+
     # activate automatic dark correction in list
     on_list.camera.DARK_CORR_OPT = 1 #see previous script
     on_list.darkcorr_mode = True 
+
     # blur the on band images
     on_list.add_gaussian_blurring(3) 
     
@@ -111,7 +116,7 @@ if __name__ == "__main__":
     on_time_str = datetime.strftime(on_img.start_acq, "%Y-%m-%d %H:%M:%S")
     ax[0].set_title("Current img (on-band list): %s" %on_time_str)
     
-    # show the current off band image as well (this iamge is unedited)
+    # show the current off band image as well (this image is unedited)
     off_img.show(ax = ax[1])
     off_time_str = datetime.strftime(off_img.start_acq, "%Y-%m-%d %H:%M:%S")
     ax[1].set_title("Current img (off-band list): %s" %off_time_str)

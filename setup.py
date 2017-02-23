@@ -51,15 +51,9 @@ setup(
     packages =  ['pyplis'], #'pyplis.gui_features'],
                  
     package_data=   {'pyplis'     :   ['data/*.txt',
-                                        'data/*.rst'
-                                        'data/*.png',
-                                        'data/icons/axialis/k/*.png',
-                                        'data/icons/axialis/r/*.png',
-                                        'data/icons/axialis/g/*.png',
-                                        'data/icons/axialis/ReadMe.txt',
-                                        'data/icons/myIcons/k/*.png',
-                                        'data/icons/myIcons/r/*.png',
-                                        'data/icons/myIcons/g/*.png']},
+                                       'data/*.rst',
+                                       'data/*.png',
+                                       'data/*.fts']},
 
     install_requires    =   ["progressbar"],
     dependency_links    =   [],   

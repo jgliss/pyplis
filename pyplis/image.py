@@ -4,25 +4,18 @@ from astropy.io import fits
 from matplotlib import gridspec
 import matplotlib.cm as cmaps
 from matplotlib.pyplot import imread, figure, tight_layout
-from numpy import ndarray, argmax, histogram, float32, uint, nan, linspace,\
-            swapaxes, flipud, isnan, uint8, asarray
+from numpy import ndarray, argmax, histogram, uint, nan, linspace,\
+    isnan, uint8, float32
 from os.path import abspath, splitext, basename, exists, join
 from os import getcwd, remove
 from warnings import warn
 from datetime import datetime
-from re import sub
 from decimal import Decimal
-from cv2 import pyrDown,resize, pyrUp, addWeighted
+from cv2 import pyrDown, pyrUp, addWeighted
 from scipy.ndimage.filters import gaussian_filter, median_filter
-from traceback import format_exc
 from collections import OrderedDict as od
 from copy import deepcopy
-try:
-    from PIL.Image import open
-except:
-    pass
 
-from .inout import get_all_valid_cam_ids
 from .helpers import shifted_color_map, bytescale, map_roi, check_roi
 from .exceptions import ImgMetaError
 
@@ -83,14 +76,13 @@ class Img(object):
     """
     _FITSEXT = [".fits", ".fit", ".fts"]
     
-    def __init__(self, input=None, cam_id="", dtype=float32, **meta_info):
+    def __init__(self, input=None, dtype=float32, **meta_info):
         """Class initialisation
         
         :param input: if input is valid (e.g. file path to an image type which
             can be read or numpy array) it is loaded
-        :param str cam_id (""): ID of camera used. This can be important if 
-            a certain camera type has its own import routine within this class
         :param dtype: datatype for image data (float32)
+        :param **meta_info: keyword args specifying meta data
         """
         if isinstance(input, Img):
             return input
@@ -98,8 +90,6 @@ class Img(object):
         self._img = None #: the actual image data
         self.dtype = dtype
         self.vign_mask = None
-        
-        self.cam_id = cam_id
         
         #Log of applied edit operations
         self.edit_log = od([  ("darkcorr"   ,   0), # boolean
@@ -179,10 +169,10 @@ class Img(object):
             elif isinstance(input, ndarray):
                 self.img = input.astype(self.dtype)
             else:
-                raise Exception
+                raise
         except:
-            raise IOError("Image data could not be imported:\nError msg: %s"\
-                                        %format_exc())
+            raise IOError("Image data could not be imported, invalid input: %s"
+                        %(input))
     
     def make_histogram(self):
         """Make histogram of current image"""
@@ -193,8 +183,8 @@ class Img(object):
             hist, bins = histogram(self.img, 100)
             return hist, bins
         #print "Determining Histogram"
-        hist, bins = histogram(self.img, 2**(self.meta["bit_depth"]),\
-                                        [0,2**(self.meta["bit_depth"])])
+        hist, bins = histogram(self.img, 2**(self.meta["bit_depth"]),
+                               [0, 2**(self.meta["bit_depth"])])
         return hist, bins
             
     def get_brightness_range(self):
@@ -207,17 +197,19 @@ class Img(object):
         rad_high = bins[len(hist) - argmax(hist[::-1]>thresh)-1]
         return rad_low, rad_high, hist, bins
     
-    def crop(self, roi_abs = [0, 0, 9999, 9999], new_img = False):
+    def crop(self, roi_abs=[0, 0, 9999, 9999], new_img=False):
         """Cut subimage specified by rectangular ROI
         
         :param list roi_abs: region of interest (i.e. ``[x0, y0, x1, y1]``)
             in ABSOLUTE image coordinates. The ROI is automatically converted 
-            with respect to current pyrlevel.
-            
-        :returns Img: sub image object
+            with respect to current pyrlevel
+        :param bool new_img: creates and returns a new image object and leaves 
+            this one uncropped        
+        :return:
+            - Img, cropped image
         """
         if self.edit_log["crop"]:
-            warn("Cropping image thea was already cropped...")
+            warn("Cropping image that was already cropped...")
         self.roi_abs = roi_abs #updates current roi_abs setting
         print self.meta["start_acq"]
         roi = self.roi #self.roi is @property method and takes care of ROI conv
@@ -239,10 +231,6 @@ class Img(object):
     def roi(self):
         """Returns current roi (in consideration of current pyrlevel)"""
         roi_sub = map_roi(self._roi_abs, self.edit_log["pyrlevel"])
-#==============================================================================
-#         print ("Current roi in Img (in abs coords): %s, mapped to pyrlevel: "
-#             "%s" %(self._roi_abs, roi_sub))
-#==============================================================================
         return roi_sub
     
     @property
@@ -364,7 +352,7 @@ class Img(object):
         self.img = gaussian_filter(self.img, sigma, **kwargs)
         self.edit_log["blurring"] += sigma   
     
-    def to_pyrlevel(self, final_state = 0):
+    def to_pyrlevel(self, final_state=0):
         """Down / upscale image to a given pyramide level"""
         steps = final_state - self.edit_log["pyrlevel"]
         if steps > 0:
@@ -443,9 +431,6 @@ class Img(object):
         img.img = sc
         return img
             
-    """
-    HELPER FUNCTIONS ETC
-    """
     def print_meta(self):
         """Print current image meta information"""
         for key, val in self.meta.iteritems():
@@ -511,12 +496,6 @@ class Img(object):
                 "using _to_8bit_int method)")
         im = addWeighted(self.img, 1-fac, other, fac, 0)
         return Img(im)
-        
-    def _valid_cam_id(self):
-        """Checks if current cam ID is one of the pyplis default IDs"""
-        if self.cam_id.lower() in get_all_valid_cam_ids():
-            return True
-        return False
         
     def meta(self, meta_key):
         """Returns current meta data for input key"""
@@ -591,29 +570,7 @@ class Img(object):
         if sum(self.edit_log.values()) > 0:
             return 1
         return 0
-     
-    """I/O""" 
-    def load_hd_custom(self, file_path):
-        """Load HD custom file and meta information"""
-        im = imread(file_path, 2)#[1::, 1::]
-        self.img = flipud(swapaxes(resize(im, (512, 512)),0,1)).astype(\
-                                                                self.dtype)
-#        try:
-        f = sub('.tiff', '.txt', file_path) #open the *.txt instead    
-        file = open(f)
-        spl = file.read().split('\n')
-        print spl[1].split("Exposure Time: ")[1]
-        self.meta["texp"] = float(spl[1].split("Exposure Time: ")[1])
-        spl2 = spl[0].split("_")
-        self.meta["start_acq"] = datetime.strptime(spl2[0] + spl2[1],
-                                                    '%Y%m%d%H%M%S%f') 
-        
-            #self.meta["read_gain"] = 0
-#==============================================================================
-#         except:
-#             print "Error loading image meta info for HD custom cam"
-#     
-#==============================================================================
+
     def load_file(self, file_path):
         """Try to import file specified by input path"""
         ext = splitext(file_path)[-1]
@@ -630,17 +587,7 @@ class Img(object):
         self.meta["file_name"] = basename(file_path)
         self.meta["file_type"] = ext
     
-    def load_hd_new(self, file_path):
-        """Load new format from Heidelberg group
-        
-        This format contains IPTC information
-        """
-        #try:
-        im = open(file_path)
-        self.img = asarray(im).astype(self.dtype)[::-1, 0::] #flip
-        self.meta["texp"] = float(im.tag_v2[270].split(" ")[0].split("s")[0])
-        self.meta["start_acq"] = datetime.strptime("_".join(basename(file_path)
-                                .split("_")[:3]), "%Y%m%d_%H%M%S_%f")
+
         
 #==============================================================================
 #         except:
@@ -652,16 +599,13 @@ class Img(object):
         
         `Fits info <http://docs.astropy.org/en/stable/io/fits/>`_
         """
-        #t0 = time()
         hdu = fits.open(file_path)
         head = hdu[0].header 
         self._header_raw = head
         self.img = hdu[0].data.astype(self.dtype)
-        #self.img=hdu[0].data.astype(np.float16)
         hdu.close()
         try:
             if head["CAMTYPE"] == 'EC2':
-                self.cam_id = "ecII"
                 self.import_ec2_header(head)
         except:
             pass
@@ -724,7 +668,7 @@ class Img(object):
         self.meta["texp"] = float(ec2header['EXP'])*10**-6        #unit s
         self.meta["bit_depth"] = 12
         self.meta["device_id"] = 'ECII'        
-        self.meta["file_type"] = '.fts'
+        self.meta["file_type"] = 'fts'
         self.meta["start_acq"] = datetime.strptime(ec2header['STIME'],\
                                                     '%Y-%m-%d %H:%M:%S.%f')
         self.meta["stop_acq"] = datetime.strptime(ec2header['ETIME'],\
@@ -751,18 +695,17 @@ class Img(object):
             fig = ax.figure
             ax = ax
         except:
-            fig = figure(facecolor = 'w', edgecolor = 'none',\
-                                            figsize = (12,7))  
+            fig = figure(facecolor='w', edgecolor='none', figsize=(12,7))  
             ax = fig.add_subplot(111)
         
         im = ax.imshow(self.img, **kwargs)
         if cbar:
             cb = fig.colorbar(im, ax=ax)
             if isinstance(zlabel, str):
-                cb.set_label(zlabel, fontsize = 18)
+                cb.set_label(zlabel, fontsize=20)
         if not isinstance(tit, str):
             tit = self.make_info_header_str()
-        ax.set_title(tit, fontsize = 12)
+        ax.set_title(tit, fontsize = 14)
         tight_layout()
         return ax
         

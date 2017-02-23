@@ -86,6 +86,8 @@ if __name__ == "__main__":
     
     if SAVEFIGS:
         ax0.set_title("")
+        ax0.get_xaxis().set_ticks([])
+        ax0.get_yaxis().set_ticks([])
         ax0.figure.savefig(join(SAVE_DIR, "ex09_out_1.%s" %FORMAT),
                            format=FORMAT, dpi=DPI)
         ax1.figure.savefig(join(SAVE_DIR, "ex09_out_2.%s" %FORMAT),
