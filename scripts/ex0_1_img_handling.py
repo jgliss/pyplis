@@ -3,9 +3,13 @@
 pyplis introduction script 1 - Image import
 
 This script loads an exemplary image which is part of the pyplis suppl.
-data. Further, the concept of extraction of image meta information from 
-image file names is introduced manually (this is done automatically in 
-picsope using file name conventions which can be specified globally, see next 
+data. Image data in pyplis is represented by the ``Img`` class, which also
+allows for storage of image meta data and keeps track of changes applied to 
+the image data (e.g. cropping, blurring, dark correction).
+
+The script also illustrates how to manually work with image meta data 
+encrypted in the image file name. The latter can be performed automatically in 
+pyplis using file name conventions (which can be specified globally, see next 
 script).
 """
 from os.path import join
@@ -22,7 +26,8 @@ if __name__ == "__main__":
     close("all")    
     
     img_path = join(IMG_DIR, IMG_FILE_NAME)
-    # Create image object
+    
+    # Create Img object
     img = pyplis.image.Img(img_path)
     
     # The file name includes some image meta information which can be set manually

@@ -3,7 +3,7 @@
 pyplis introduction script 3 - manual creation of image lists
 
 This script gives an introduction into the creation and the handling of 
-ImgList objects. Each list normally contains images of a certain type (e.g.
+ImgList objects. Image lists normally contain images of a certain type (e.g.
 on, off, dark, offset). The separation by these file types is normally done
 automatically within a Dataset object (see e.g. following script 
 ex0_4_imglists_auto.py or example script ex01_analysis_setup.py) using a 
@@ -11,12 +11,14 @@ certain camera type (see previous script ex0_2_camera_setup.py).
 
 In this example these features are NOT used but rather, an on and off band 
 image list is created manually without previous definition of the Camera type
-(i.e. file naming convention, etc.) starting off with creating an ImgList 
-containing all images of type FITS in the test data image base directory. 
-On and off band lists are then consecutively extracted from this list. 
+(i.e. file naming convention, etc.). The script starts with creating an ImgList 
+containing all images of type FITS found in the test data image base directory. 
+On and off band lists are then consecutively extracted from this list using 
+the list method ``separate_by_substr_filename``. 
 
-Some basic features of list objects are introduced (e.g. linking of lists, dark
-correction, automatic blurring, cropping, size reduction).
+Furthermore, some basic image preparation features of ImgList objects are 
+introduced (e.g. linking of lists, dark correction, automatic blurring, 
+cropping, size reduction).
 """
 
 import pyplis
