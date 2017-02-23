@@ -2,7 +2,7 @@
 """
 Module containing input / output routines (e.g. test data access)
 """
-from os.path import join, basename, exists, isfile
+from os.path import join, basename, exists, isfile, abspath
 from os import listdir, remove, walk
 
 from matplotlib.pyplot import imread
@@ -154,6 +154,7 @@ def set_test_data_path(save_path):
     if save_path.lower() in all_test_data_paths():
         print "Path is already in search tree"
         return
+    save_path = abspath(save_path)
     try:
         if not exists(save_path):
             raise IOError("Could not set test data path: specified location "

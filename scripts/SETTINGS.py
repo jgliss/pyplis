@@ -7,10 +7,10 @@ from os.path import join
 from optparse import OptionParser
 
 SAVEFIGS = 1 # save plots from this script in SAVE_DIR
-DPI = 300 #pixel resolution for saving
+DPI = 150 #pixel resolution for saving
 FORMAT = "png" #format for saving
 
-SCREENPRINT = 0 #show images on screen when executing script
+SCREENPRINT = 1 #show images on screen when executing script
 
 # Image directory
 IMG_DIR = join(find_test_data(), "images")
@@ -22,3 +22,6 @@ SAVE_DIR = join(".", "scripts_out")
 
 OPTPARSE = OptionParser(usage='')
 OPTPARSE.add_option('--show', dest="show", default=SCREENPRINT)
+
+from matplotlib import rcParams
+rcParams.update({'font.size': 13})

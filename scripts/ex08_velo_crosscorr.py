@@ -157,7 +157,9 @@ def plot_result(crosscorr_res, pcs1, pcs2, example_img):
     #plot the two PCS lines (with normal vector) into AA image
     pcs1.plot_line_on_grid(ax = ax0, include_normal=True)    
     pcs2.plot_line_on_grid(ax = ax0, include_normal=True)
-    ax0.legend(loc='best', fancybox=True, framealpha=0.5, fontsize=10) 
+    ax0.legend(loc='best', fancybox=True, framealpha=0.5, fontsize=14) 
+    ax0.get_xaxis().set_ticks([])
+    ax0.get_yaxis().set_ticks([])
     
     lag, coeffs, tseries1, tseries2, tseries_shift, _ = crosscorr_res
     
@@ -190,7 +192,7 @@ def plot_result(crosscorr_res, pcs1, pcs2, example_img):
     ax2.set_ylabel("ICA [m]")
     #ax[0,].set_title("Original time series", fontsize = 10)
     ax2.grid()
-    ax2.legend(loc='best', fancybox=True, framealpha=0.5, fontsize=10) 
+    ax2.legend(loc=2, fancybox=True, framealpha=0.5, fontsize=11) 
 
 
     

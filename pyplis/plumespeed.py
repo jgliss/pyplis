@@ -12,7 +12,6 @@ from warnings import warn
 from datetime import datetime
 from collections import OrderedDict as od
 from matplotlib.pyplot import subplots, figure, Figure, Circle, Line2D
-from matplotlib.cm import RdBu
 from matplotlib.patches import Rectangle
 from scipy.ndimage.filters import median_filter, gaussian_filter
 from scipy.stats.stats import pearsonr
@@ -23,7 +22,7 @@ from cv2 import calcOpticalFlowFarneback, OPTFLOW_FARNEBACK_GAUSSIAN,\
     cvtColor,COLOR_GRAY2BGR,line,circle,VideoCapture,COLOR_BGR2GRAY,\
     waitKey, imshow
 
-from .helpers import bytescale, check_roi, map_roi, roi2rect, shifted_color_map
+from .helpers import bytescale, check_roi, map_roi, roi2rect
 from .optimisation import MultiGaussFit
 from .image import Img
 
@@ -260,7 +259,7 @@ class LocalPlumeProperties(object):
         ax.plot(velos.index, velos, **kwargs)
         ax.fill_between(velos.index, velos_lower, velos_upper, alpha=0.1,
                         **kwargs)
-        ax.set_ylabel("v [%s]" %velo_unit)
+        ax.set_ylabel("v [%s]" %velo_unit, fontsize=14)
         ax.grid()
         return ax
         
@@ -276,7 +275,7 @@ class LocalPlumeProperties(object):
         ax.plot(angle.index, angle, **kwargs)
         ax.fill_between(angle.index, angle_lower, angle_upper, alpha=0.1,
                         **kwargs)
-        ax.set_ylabel(r"$\Theta$ [$^\circ$]")
+        ax.set_ylabel(r"$\Theta$ [degrees]", fontsize=14)
         #ax.grid()
         return ax
     

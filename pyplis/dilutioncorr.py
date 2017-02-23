@@ -209,12 +209,11 @@ class DilutionCorr(object):
         ax.plot(dists, rads, " x", label = "Data")
         lbl_fit = r"Fit result: $I_0$=%.1f DN, $\epsilon$ = %.2e" %(i0, ext)
         ax.plot(x, ints, "--c", label = lbl_fit)
-        ax.set_xlabel("Distance [m]")
-        ax.set_ylabel("Radiances [DN]")
-        ax.set_title(r"$I_A$ = %.1f" %rad_ambient)
+        ax.set_xlabel("Distance [m]", fontsize=14)
+        ax.set_ylabel("Radiances [DN]", fontsize=14)
+        ax.set_title(r"$I_A$ = %.1f" %rad_ambient, fontsize=16)
         ax.grid()
-        ax.legend(loc = "best", fancybox = True, framealpha = 0.5,\
-                                                        fontsize = 12)
+        ax.legend(loc="best", fancybox=True, framealpha=0.5, fontsize=13)
         return ax
     
     def get_extinction_coeffs_imglist(self, imglist, ambient_roi_abs,

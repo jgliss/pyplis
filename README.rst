@@ -67,16 +67,24 @@ After installation try running and understanding the `example scripts <https://g
 Example and test data
 ---------------------
 
-The pyplis example data (required to run example scripts) is not part of the installation. It can be downloaded `here <https://folk.nilu.no/~gliss/pyplis_testdata/pyplis_etna_testdata.zip>`__
-
-or automatically after installation using::
+The pyplis example data (required to run example scripts) is not part of the installation. It can be downloaded `here <https://folk.nilu.no/~gliss/pyplis_testdata/pyplis_etna_testdata.zip>`__ or automatically within a Python console (after installation) using::
 
   import pyplis
-  pyplis.inout.download_test_data(<local_path>)
+  pyplis.inout.download_test_data(*local_path*)
   
-which downloads the data to the installation *data* directory if *<local_path>* is unspecified. If <local_path> is a valid location it will be downloaded to the specified folder and <local_path> will be added to the supplementary file "./data/_paths.txt", i.e. it will be added as default search path to the test data search method::
+which downloads the data to the installation *data* directory if *local_path* is unspecified. Else, (and if *local_path* is a valid location) it will be downloaded into the specific directory which will then be added to the supplementary file *./data/_paths.txt* such that it can be found by the test data search method::
 
   pyplis.inout.find_test_data()
   
-which searches all valid test data folders and raises Exception, if the data cannot be found.
+The latter searches all paths provided in the file *./data/_paths.txt* whenever access to the test data is required. It raises an Exception, if the data cannot be found.
 
+.. note::
+
+  If you download the data manually (e.g. using the link provided above), please unzip it to a suitable location *my_testdata_is_here* and let pyplis know about it using::
+  
+    import pyplis
+    pyplis.inout.set_test_data_path(*my_testdata_is_here*)
+    
+  The path is then added to *./data/_paths.txt* such that it can be found by::
+  
+    pyplis.inout.find_test_data()

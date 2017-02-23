@@ -574,8 +574,10 @@ class DoasFOV(object):
             ax.add_artist(ell)
             ax.axhline(self.cy_rel, ls="--", color = "k")
             ax.axvline(self.cx_rel, ls="--", color = "k")
+
             ax.get_xaxis().set_ticks([0, self.cx_rel, w])
             ax.get_yaxis().set_ticks([0, self.cy_rel, h])
+            
             #ax.set_axis_off()
             ax.set_title(r"Corr img (IFR), pos abs (x,y): (%d, %d), "
                 "lambda=%.1e" %(cx, cy, self.search_settings["ifrlbda"]))
@@ -592,7 +594,8 @@ class DoasFOV(object):
             ax.get_yaxis().set_ticks([0, self.cy_rel, h])
             ax.axhline(self.cy_rel, ls="--", color="k")
             ax.axvline(self.cx_rel, ls="--", color="k")
-            
+        ax.set_xlabel("Pixel row", fontsize=14)
+        ax.set_ylabel("Pixel column", fontsize=14)    
         return ax
 
 class DoasFOVEngine(object):

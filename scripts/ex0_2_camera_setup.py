@@ -16,7 +16,7 @@ import pyplis
 ### SCRIPT OPTIONS
 
 # Save the new camera as default in database 
-SAVE_TO_DATABASE = False 
+SAVE_TO_DATABASE = False
 
 ### SCRIPT FUNCTION DEFINITIONS
 def create_ecII_cam_new_filters():
