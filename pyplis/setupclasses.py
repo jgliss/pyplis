@@ -8,15 +8,16 @@ analysis, the most important ones are:
     #. :class:`Camera`: camera specifications
     #. :class:`MeasSetup`: full measurement setup  
 """
-from datetime import datetime, timedelta
+from datetime import datetime
 from collections import OrderedDict as od
 from copy import deepcopy
 from os.path import exists
 from numpy import nan, rad2deg, arctan
 from abc import ABCMeta
+from warnings import warn
 
 from .forms import LineCollection, RectCollection  
-from .helpers import isnum
+from .helpers import isnum, to_datetime
 from .exceptions import MetaAccessError
 from .inout import get_source_info
 from .utils import Filter, CameraBaseInfo
@@ -354,7 +355,8 @@ class FilterSetup(object):
         """String representation"""
         s = ""
         for f in self.filters.values():
-            s += "%s (%s): %s nm\n" %(f.type, f.acronym, f.center_wavelength) 
+            s += ("%s, type: %s (%s): %s nm\n" 
+                    %(f.id, f.type, f.acronym, f.center_wavelength))
         s += "Default Filter: %s\n" %self.default_key_on
         return s
             
@@ -604,21 +606,25 @@ class BaseSetup(object):
         
     """
     __metaclass__ = ABCMeta
-
+    _start = None
+    _stop = None
     def __init__(self, base_dir, start, stop, **opts):
         """Class initialisation
         
         :param str base_dir: Path were e.g. imagery data lies
-        :param datetime start: start time of Dataset
-        :param datetime stop: stop time of Dataset
+        :param datetime start: start time of Dataset (can also be 
+            datetime.time)
+        :param datetime stop: stop time of Dataset (can also be datetime.time)
         :param **opts: setup options for file handling (currently only 
             INCLUDE_SUB_DIRS option)
             
         """
         self.base_dir = base_dir
         self.save_dir = base_dir
+        
         self.start = start
         self.stop = stop
+        
         self.options = od([("USE_ALL_FILES"      ,   False),
                            ("SEPARATE_FILTERS"   ,   True),
                            ("USE_ALL_FILE_TYPES" ,   False),
@@ -629,14 +635,38 @@ class BaseSetup(object):
         for k, v in opts.iteritems():
             if self.options.has_key(k):
                 self.options[k] = v
+    
+    @property
+    def start(self):
+        """Getter / setter method for start time"""
+        return self._start
         
+    @start.setter
+    def start(self, val):
+        try:
+            self._start = to_datetime(val)
+        except:
+            warn("Start time stamp was not set in Setup class")
+    
+    @property
+    def stop(self):
+        """Getter / setter method for start time"""
+        return self._stop
+        
+    @stop.setter
+    def stop(self, val):
+        try:
+            self._stop = to_datetime(val)
+        except:
+            warn("Stop time stamp was not set in Setup class")
+            
     def check_timestamps(self):
         """Check if timestamps are valid and set to current time if not"""
         if not isinstance(self.start, datetime):
             self.options["USE_ALL_FILES"] = True
-            self.start = datetime.now()
+            self.start = datetime(1900, 1, 1)
         if not isinstance(self.stop, datetime):
-            self.stop = self.start + timedelta(1) #add one day to start time
+            self.stop = datetime(1900, 1, 1)
         if self.start > self.stop:
             self.start, self.stop = self.stop, self.start
             
@@ -654,7 +684,7 @@ class BaseSetup(object):
         """Setter for this option"""
         if not value in [0, 1]:
             raise ValueError("need boolean")
-        self.options["USE_ALL_FILES"] = value
+        self.options["USE_ALL_FILES"] = bool(value)
         
     @property
     def SEPARATE_FILTERS(self):
@@ -932,8 +962,37 @@ class MeasSetup(BaseSetup):
         self.meas_geometry.__init__(self.source.to_dict(),\
                         self.camera.to_dict(), self.wind_info)
         
-    """I/O stuff and helpers
+    def short_str(self):
+        """A short info string"""
+        s = super(BaseSetup, self).__str__() + "\n"
+        return s + "Camera: %s\nSource: %s" %(self.camera.cam_id,\
+                                                        self.source.name)
+    
+    """Magic methods
     """
+    def __setitem__(self, key, value):
+        """Update class item"""
+        if self.__dict__.has_key(key):
+            self.__dict__[key] = value
+
+    def __getitem__(self, key):
+        """Load value of class item"""
+        if self.__dict__.has_key(key):
+            return self.__dict__[key]
+            
+    def __str__(self):
+        """Detailed information string"""
+        s = super(BaseSetup, self).__str__() + "\n\n"
+        s += "Meteorology info\n-----------------------\n"
+        for key, val in self.wind_info.iteritems():
+            s += "%s: %s\n" %(key, val)
+        s += "\n" + str(self.camera) +"\n"
+        s += str(self.source)
+        if self.cell_info_dict.keys():
+            s += "\nCell specifications:\n"
+            for key, val in self.cell_info_dict.iteritems():
+                s += "%s: %s +/- %s\n" %(key, val[0], val[1]) 
+        return s
 #==============================================================================
 #     @property
 #     def _save_name(self):
@@ -980,34 +1039,3 @@ class MeasSetup(BaseSetup):
 #             self.update_actions()
 #==============================================================================
     
-    def short_str(self):
-        """A short info string"""
-        s = super(BaseSetup, self).__str__() + "\n"
-        return s + "Camera: %s\nSource: %s" %(self.camera.cam_id,\
-                                                        self.source.name)
-    
-    """Magic methods
-    """
-    def __setitem__(self, key, value):
-        """Update class item"""
-        if self.__dict__.has_key(key):
-            self.__dict__[key] = value
-
-    def __getitem__(self, key):
-        """Load value of class item"""
-        if self.__dict__.has_key(key):
-            return self.__dict__[key]
-            
-    def __str__(self):
-        """Detailed information string"""
-        s = super(BaseSetup, self).__str__() + "\n\n"
-        s += "Meteorology info\n-----------------------\n"
-        for key, val in self.wind_info.iteritems():
-            s += "%s: %s\n" %(key, val)
-        s += "\n" + str(self.camera) +"\n"
-        s += str(self.source)
-        if self.cell_info_dict.keys():
-            s += "\nCell specifications:\n"
-            for key, val in self.cell_info_dict.iteritems():
-                s += "%s: %s +/- %s\n" %(key, val[0], val[1]) 
-        return s

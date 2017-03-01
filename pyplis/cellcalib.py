@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-This module contains everything related to cell calibration
+Module containing features related to cell calibration
 """
 from matplotlib.pyplot import subplots
 from warnings import warn

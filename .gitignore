@@ -114,6 +114,3 @@ pyplis/data/icons
 
 # Docs GUI stuff
 docs/code_gui.rst
-
-# New image module
-pyplis/image_bu.py

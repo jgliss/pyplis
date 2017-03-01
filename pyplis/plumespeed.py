@@ -26,10 +26,10 @@ from .helpers import bytescale, check_roi, map_roi, roi2rect
 from .optimisation import MultiGaussFit
 from .image import Img
 
-def find_signal_correlation(first_data_vec, next_data_vec,\
-        time_stamps = None, reg_grid_tres = None, freq_unit = "S",\
-            itp_method = "linear", cut_border_idx = 0, sigma_smooth = 1,\
-                                                                plot = False):
+def find_signal_correlation(first_data_vec, next_data_vec, time_stamps=None,
+                            reg_grid_tres=None, freq_unit="S",
+                            itp_method="linear", cut_border_idx=0,
+                            sigma_smooth=1, plot=False):
     """Determines cross correlation from two ICA time series
     
     :param ndarray first_data_vec: first data vector (i.e. left or before 
@@ -46,8 +46,25 @@ def find_signal_correlation(first_data_vec, next_data_vec,\
         settings, see following 3 parameters.
     :param int reg_grid_tres: sampling resolution of resampled time series
         data in units specified by input parameter ``freq_unit``. If None, 
-        then the resolution is determined from the mean time difference 
-        between consecutive points in ``time_stamps``,
+        then the resolution is determined automatically based on the mean time
+        resolution of the data
+    :param str freq_unit: pandas frequency unit (use S for seconds, L for ms)
+    :param str itp_method: interpolation method, choose from 
+        ``["linear", "quadratic", "cubic"]``
+    :param int cut_border_idx: number of indices to be removed from both ends of
+        the input arrays (excluded datapoints for cross correlation analysis)
+    :param int sigma_smooth: width of gaussian blurring kernel applied to data
+        before correlation analysis
+    :param bool plot: if True, result is plotted
+    :return:
+        - float, lag -> retrieved lag factor (either in seconds or indices, 
+                                              dependent on input data)
+        - ndarray, coeffs -> retrieved correlation coefficients for all shifts 
+        - Series, s1_ana -> pandas Series analysis signal 1. data vector 
+        - Series, s2_ana -> pandas Series analysis signal 2. data vector 
+        - Series , max_coeff_signal -> pandas Series, analysis signal 2. data 
+            vector shifted using ``lag``
+        
     """
     if not all([isinstance(x, ndarray) for x in\
                     [first_data_vec, next_data_vec]]):
@@ -212,7 +229,8 @@ class LocalPlumeProperties(object):
                         -cos(deg2rad(self.dir_mu[index]))])\
                         * self.len_mu[index]
                         
-    def get_velocity(self, idx, pix_dist_m, pix_dist_m_err = None, normal_vec=None):
+    def get_velocity(self, idx, pix_dist_m, pix_dist_m_err=None, 
+                     normal_vec=None):
         """Determine plume velocity from displacements
         
         :param pix_dist_m: in plume distance between pixels (comes e.g.

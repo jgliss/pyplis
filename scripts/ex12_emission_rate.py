@@ -133,7 +133,7 @@ if __name__ == "__main__":
         ana.imglist.optflow_mode = True
         ana.imglist.optflow.plot_flow_histograms()
     else:
-        ana.calc_emission_rate(start_index=1)
+        ana.calc_emission_rate(start_index=1, stop_index=20)
         
         ax0, ax1 = plot_results(ana)
         

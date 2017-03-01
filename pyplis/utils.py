@@ -5,21 +5,16 @@ from numpy import nan
 from collections import OrderedDict as od
 from pandas import Series
 from os.path import basename, exists
+from warnings import warn
+from .inout import get_camera_info, save_new_default_camera
+import custom_image_import
 
-if not __name__ == "__main__":
-    from .inout import get_camera_info, save_new_default_camera
-else: 
-    from pyplis.inout import get_camera_info, save_new_default_camera
         
 class CameraBaseInfo(object):
     """Low level base class for camera specific information 
     
     Mainly detector definitions (pixel geometries, size, etc, detector size),
     image file convention issues and how to handle dark image correction
-    
-    .. todo::
-    
-        1. Include binning
         
     """
     def __init__(self, cam_id=None, **kwargs):
@@ -45,6 +40,8 @@ class CameraBaseInfo(object):
         self.main_filter_id = None#"on"
         self.texp_pos = None
         self.texp_unit = "ms"
+        
+        self.image_import_method = None
         
         self.meas_type_pos = None#nan
         #:the next flag (self.DARK_CORR_OPT) is set for image lists created using this fileconvention
@@ -127,19 +124,19 @@ class CameraBaseInfo(object):
             acq_time = dt.strptime(spl[self.time_info_pos], self.time_info_str)
             flags["start_acq"] = True
         except:
-            warnings.append("Failed to extract start_acq from filename")
+            warnings.append("INFO: start_acq cannot be accessed from filename")
             flags["start_acq"] = False
         try:
             filter_id = spl[self.filter_id_pos]
             flags["filter_id"] = True
         except:
-            warnings.append("Failed to extract filter_id from filename")
+            warnings.append("INFO: filter_id cannot be accessed from filename")
             flags["filter_id"] = False
         try:
             meas_type = spl[self.meas_type_pos]
             flags["meas_type"] = True
         except:
-            warnings.append("Failed to extract meas_type from filename")
+            warnings.append("INFO: meas_type cannot be accessed from filename")
             flags["meas_type"] = False
         try:
             texp = float(spl[self.texp_pos])
@@ -147,7 +144,7 @@ class CameraBaseInfo(object):
                 texp = texp / 1000.0 #convert to s
             flags["texp"] = True
         except:
-            warnings.append("Failed to extract texp from filename")
+            warnings.append("INFO: texp cannot be accessed from filename")
             flags["texp"] = False
         return acq_time, filter_id, meas_type, texp, warnings
     
@@ -236,22 +233,49 @@ class CameraBaseInfo(object):
                     val = func(info_dict[key])
                     if key == "default_filters":
                         for f in val:
-                            filters.append(Filter(id=f[0], type=f[1],
-                                                  acronym=f[2],
-                                                  meas_type_acro=f[3],
-                                                  center_wavelength=f[4]))
+                            try:
+                                wl = f[4]
+                            except:
+                                wl = nan
+                            try:
+                                f = Filter(id=f[0], type=f[1],
+                                           acronym=f[2],
+                                           meas_type_acro=f[3],
+                                           center_wavelength=wl)
+                                filters.append(f)
+                            except:
+                                warn("Failed to convert %s into Filter"
+                                    " class in Camera" %f)
+                                    
                     elif key == "dark_info":
                         for f in val:
-                            dark_info.append(DarkOffsetInfo(id=f[0], type=f[1],
-                                                            acronym=f[2],
-                                                            meas_type_acro=f[3],
-                                                            read_gain=int(f[4])))
+                            try:
+                                rg = int(f[4])
+                            except:
+                                rg = 0
+                            try:
+                                i = DarkOffsetInfo(id=f[0], type=f[1],
+                                                   acronym=f[2],
+                                                   meas_type_acro=f[3],
+                                                   read_gain=rg)
+                                dark_info.append(i)
+                            except:
+                                warn("Failed to convert %s into DarkOffsetInfo"
+                                    " class in Camera" %f)
                     else:
                         self[key] = val
                 except:
                     err.append(key)
             else:
                 missed.append(key)
+        
+        try:
+            self.image_import_method = getattr(custom_image_import, 
+                                               info_dict["image_import_method"])
+            
+        except:
+            pass
+        
         self.default_filters = filters
         self.dark_info = dark_info
         
@@ -270,14 +294,32 @@ class CameraBaseInfo(object):
     """
     Helpers, supplemental stuff...
     """ 
-    def get_acronym_dark_offset_corr(self, read_gain = 0):
+    @property
+    def dark_meas_type_acros(self):
+        """Returns list containing meas_type_acros of dark images"""
+        acros = []
+        for item in self.dark_info:
+            if not item.meas_type_acro in acros and item.type == "dark":
+                acros.append(item.meas_type_acro)
+        return acros
+    
+    @property
+    def offset_meas_type_acros(self):
+        """Returns list containing meas_type_acros of dark images"""
+        acros = []
+        for item in self.dark_info:
+            if not item.meas_type_acro in acros and item.type == "offset":
+                acros.append(item.meas_type_acro)
+        return acros    
+        
+    def get_acronym_dark_offset_corr(self, read_gain=0):
         """Get file name acronyms for dark and offset image identification
         
         :param str read_gain (0): detector read gain
         """
         offs = None
         dark = None
-        for info in self.dark_img_info:
+        for info in self.dark_info:
             if info.type == "dark" and info.read_gain == read_gain:
                 dark = info.acronym
             elif info.type == "offset" and info.read_gain == read_gain:
@@ -294,11 +336,14 @@ class CameraBaseInfo(object):
             if k in ["default_filters", "dark_info"]:
                 d[k] = []
                 for f in self[k]:
-                    print f
-                    print k
                     d[k].append(f.to_list())
             else:
                 d[k] = self[k]
+        try:
+            ipm = self.image_import_method.__name__
+        except: 
+            ipm = ""
+        d["image_import_method"] = ipm
         return d
     
     def save_as_default(self, *add_cam_ids):
@@ -324,11 +369,13 @@ class CameraBaseInfo(object):
             if key in ["default_filters", "dark_info"]:
                 pass
             else:
-                s = s + "%s: %s\n" %(key,val)
-        s = s + "\nDark & offset info\n------------------------\n"
+                s += "%s: %s\n" %(key, val)
+        
+        s += "image_import_method: %s\n" %self.image_import_method        
+        s += "\nDark & offset info\n------------------------\n"
         for i in self.dark_info:
-            s = s + ("ID: %s, Type: %s, Acro: %s, MeasTypeAcro: %s," 
-                     "Read gain: %s\n" 
+            s += ("ID: %s, type: %s, acronym: %s, meas_type_acro: %s," 
+                     "read_gain: %s\n" 
                      %(i.id, i.type, i.acronym, i.meas_type_acro, i.read_gain))
         return s
     """
@@ -373,8 +420,8 @@ class Filter(object):
     
     A low level helper class to store information of interference filters.    
     """          
-    def __init__(self, id = None, type = "on", acronym = "default",\
-                                meas_type_acro = None, center_wavelength = nan):      
+    def __init__(self, id=None, type="on", acronym="default",
+                 meas_type_acro=None, center_wavelength=nan):      
         """Initiation of object
         
         :param str id ("on"): string identification of this object for 
@@ -390,6 +437,7 @@ class Filter(object):
                 "please use on or off as type")
         if id is None:
             id = type
+            
         if meas_type_acro is None:
             meas_type_acro = acronym
     
@@ -413,7 +461,7 @@ class Filter(object):
         return [self.id, self.type, self.acronym, self.meas_type_acro,
                 self.center_wavelength]
                 
-    def set_trans_curve(self, data, wavelengths = None):
+    def set_trans_curve(self, data, wavelengths=None):
         """Assign transmission curve to this filter
         
         :param ndarray data: transmission data
@@ -431,7 +479,7 @@ class Filter(object):
             self.trans_curve = data
         else:
             try:
-                self.trans_urve = Series(data, wavelengths)
+                self.trans_curve = Series(data, wavelengths)
             except:
                 print ("Failed to set transmission curve in Filter %s" %self.id)
         

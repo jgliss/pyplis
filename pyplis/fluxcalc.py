@@ -410,8 +410,8 @@ class EmissionRateAnalysis(object):
                 resultclass.pix_dist_mean_err = dist_errs[line_id]
                 resultclass.cd_err = cd_err
         
-    def calc_emission_rate(self, start_index=0, stop_index=None,\
-                                                    check_list=False):
+    def calc_emission_rate(self, start_index=0, stop_index=None,
+                           check_list=False):
         """Calculate emission rate based on current settings
         
         :param start_index: index of first considered image in ``self.imglist``
@@ -583,7 +583,7 @@ class EmissionRateAnalysis(object):
         return ax
         
 def det_emission_rate(cds, velo, pix_dists, cds_err=None, velo_err=None,
-                      pix_dists_err=None, mmol = MOL_MASS_SO2):
+                      pix_dists_err=None, mmol=MOL_MASS_SO2):
     """Determine emission rate
     
     :param cds: column density in units cm-2 (float or ndarray)

@@ -12,7 +12,7 @@ pyplis is a Python toolbox for the analysis of UV SO2 camera data. It includes a
   The software was renamed from **piscope** to **pyplis** on 17.02.2017 
 
 Requirements
-------------
+============
 
 Requirements are listed in the order of likelyhood to run into problems when using pip for installing them (on Windows machines you may use the pre-compiled binary wheels on Christoph Gohlke's `webpage <http://www.lfd.uci.edu/~gohlke/pythonlibs/>`_)
 
@@ -39,7 +39,7 @@ Requirements are listed in the order of likelyhood to run into problems when usi
 We recommend using `Anaconda <https://www.continuum.io/downloads>`_ as package manager since it includes most of the required dependencies and is updated on a regular basis. Moreover, it is probably the most comfortable way to postinstall and upgrade dependencies such as OpenCV (`see here <http://stackoverflow.com/questions/23119413/how-to-install-python-opencv-through-conda>`__) or the scipy stack.
 
 Installation
-------------
+============
 pyplis can be installed from `PyPi <https://pypi.python.org/pypi/pyplis>`_ using::
 
   pip install pyplis
@@ -55,17 +55,17 @@ On Linux::
 In case the installation fails make sure that all dependencies (see above) are installed correctly. pyplis is currently only supported for Python v2.7.
 
 Code documentation
-------------------
+==================
 
 The code documentation of pyplis is hosted on `Read the Docs <http://pyplis.readthedocs.io/en/latest/>`__
 
 Getting started
----------------
+===============
 
 After installation try running and understanding the `example scripts <https://github.com/jgliss/pyplis/tree/master/scripts>`_. The scripts require the example data (see also following section for details).
 
 Example and test data
----------------------
+=====================
 
 The pyplis example data (required to run example scripts) is not part of the installation. It can be downloaded `here <https://folk.nilu.no/~gliss/pyplis_testdata/pyplis_etna_testdata.zip>`__ or automatically within a Python console (after installation) using::
 

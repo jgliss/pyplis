@@ -354,7 +354,7 @@ class DoasCalibData(object):
         
 class DoasFOV(object):
     """Class for storage of FOV information"""
-    def __init__(self, camera = None):
+    def __init__(self, camera=None):
         self.search_settings = {}
         self.img_prep = {}
         self.roi_abs = None
@@ -441,7 +441,7 @@ class DoasFOV(object):
         else: 
             return max([self.popt[3], self.popt[3] / self.popt[4]])
          
-    def pixel_extend(self, abs_coords = False):
+    def pixel_extend(self, abs_coords=False):
         """Return pixel extend of FOV on image
         
         :param bool abs_coords: return value in absolute or relative 
@@ -457,7 +457,7 @@ class DoasFOV(object):
         """Returns center coordinates of FOV (in absolute detector coords)"""
         return self.pixel_position_center(True)
         
-    def pixel_position_center(self, abs_coords = False):
+    def pixel_position_center(self, abs_coords=False):
         """Return pixel position of center of FOV
         
         :param bool abs_coords: return position in absolute or relative 
@@ -469,11 +469,11 @@ class DoasFOV(object):
         cx, cy = self.cx_rel, self.cy_rel
         if not abs_coords:
             return (cx, cy)
-        return map_coordinates_sub_img(cx, cy, self.roi_abs, self.pyrlevel,\
-                                                                inverse = True)
+        return map_coordinates_sub_img(cx, cy, self.roi_abs, self.pyrlevel,
+                                       inverse=True)
                                                                 
         
-    def transform_fov_mask_abs_coords(self, img_shape_orig = (), cam_id = ""):
+    def transform_fov_mask_abs_coords(self, img_shape_orig=(), cam_id=""):
         """Converts the FOV mask to absolute detector coordinates
         
         :param tuple img_shape_orig: image shape of original image data (can
@@ -491,8 +491,9 @@ class DoasFOV(object):
             except:
                 raise IOError("Image shape could not be retrieved...")
         mask = self.fov_mask.astype(float32)       
-        return sub_img_to_detector_coords(mask, img_shape_orig,\
-                    self.img_prep["pyrlevel"], self.roi_abs).astype(bool)
+        return sub_img_to_detector_coords(mask, img_shape_orig,
+                                          self.img_prep["pyrlevel"],
+                                          self.roi_abs).astype(bool)
         
 #==============================================================================
 #       
@@ -543,10 +544,10 @@ class DoasFOV(object):
                     s += "%s: %s\n" %(k, v)
         return s
     
-    def plot(self, ax = None):
+    def plot(self, ax=None):
         """Draw the current FOV position into the current correlation img"""
         if ax is None:        
-            fig, ax = subplots(1, 1, figsize = (12, 8))
+            fig, ax = subplots(1, 1, figsize=(12, 8))
         else:
             fig = ax.figure
         img = self.corr_img.img
@@ -558,22 +559,22 @@ class DoasFOV(object):
         cx, cy = self.pixel_position_center(1)
         if self.method == "ifr":
             popt = self.popt
-            cb.set_label(r"FOV fraction [$10^{-2}$ pixel$^{-1}$]",\
-                                                         fontsize = 16)
+            cb.set_label(r"FOV fraction [$10^{-2}$ pixel$^{-1}$]",
+                         fontsize = 16)
             
             xgrid, ygrid = mesh_from_img(img)
             if len(popt) == 7:
-                ell = Ellipse(xy = (popt[1], popt[2]), width = popt[3],\
-                    height = popt[3] / popt[4], color="k", lw = 2,\
-                    fc="lime", alpha =.5)
+                ell = Ellipse(xy = (popt[1], popt[2]), width=popt[3],
+                              height=popt[3]/popt[4], color="k", lw=2,
+                              fc="lime", alpha=.5)
             else:
-                ell = Ellipse(xy = (popt[1], popt[2]), width = popt[3],\
-                    height = popt[3] / popt[4], angle = popt[7], color="k",\
-                    lw=2, fc="lime", alpha =.5)
+                ell = Ellipse(xy = (popt[1], popt[2]), width=popt[3],
+                              height=popt[3]/popt[4], angle=popt[7], color="k",
+                              lw=2, fc="lime", alpha=.5)
                     
             ax.add_artist(ell)
-            ax.axhline(self.cy_rel, ls="--", color = "k")
-            ax.axvline(self.cx_rel, ls="--", color = "k")
+            ax.axhline(self.cy_rel, ls="--", color="k")
+            ax.axvline(self.cx_rel, ls="--", color="k")
 
             ax.get_xaxis().set_ticks([0, self.cx_rel, w])
             ax.get_yaxis().set_ticks([0, self.cy_rel, h])
@@ -583,13 +584,14 @@ class DoasFOV(object):
                 "lambda=%.1e" %(cx, cy, self.search_settings["ifrlbda"]))
                         
         elif self.method == "pearson":
-            cb.set_label(r"Pearson corr. coeff.", fontsize = 16)
+            cb.set_label(r"Pearson corr. coeff.", fontsize=16)
             ax.autoscale(False)
             
-            c = Circle((self.cx_rel, self.cy_rel), self.radius_rel, ec = "k",\
-                       lw = 2, fc = "lime", alpha = .5)
+            c = Circle((self.cx_rel, self.cy_rel), self.radius_rel, ec="k",
+                       lw=2, fc="lime", alpha=.5)
             ax.add_artist(c)
-            ax.set_title("Corr img (pearson), pos abs (x,y): (%d, %d)" %(cx, cy))
+            ax.set_title("Corr img (pearson), pos abs (x,y): (%d, %d)" 
+                            %(cx, cy))
             ax.get_xaxis().set_ticks([0, self.cx_rel, w])
             ax.get_yaxis().set_ticks([0, self.cy_rel, h])
             ax.axhline(self.cy_rel, ls="--", color="k")
@@ -600,8 +602,8 @@ class DoasFOV(object):
 
 class DoasFOVEngine(object):
     """Engine to perform DOAS FOV search"""
-    def __init__(self, img_stack = None, doas_series = None,\
-                                        method = "pearson", **settings):
+    def __init__(self, img_stack=None, doas_series=None, method="pearson",
+                 **settings):
         
         self._settings = {"method"              :   "pearson",
                           "maxrad"              :   80,
@@ -652,14 +654,6 @@ class DoasFOVEngine(object):
             raise ValueError("Invalid search method: choose from ifr or"
                              " pearson")
         self._settings["method"] = value
-
-    def _check_data(self):
-        """Checks image stack and DOAS data"""
-        if not isinstance(self.img_stack, ImgStack) or not\
-                                    isinstance(self.doas_, Series):
-            raise IOError("SearchCorrelation  could not be created wrong input"
-                    ": %s, %s" %(type(self.img_stack), type(\
-                                                     self.doas_series)))
     
     def perform_fov_search(self, **settings):
         """High level method for automatic FOV search
@@ -711,8 +705,8 @@ class DoasFOVEngine(object):
                    "already merged in time")
             return
         
-        new_stack, new_doas_series = self.img_stack.merge_with_time_series(\
-                            self.doas_series, method = merge_type)
+        new_stack, new_doas_series = self.img_stack.merge_with_time_series(
+                                        self.doas_series, method=merge_type)
         if len(new_doas_series) == new_stack.shape[0]:
             self.img_stack = new_stack
             self.doas_series = new_doas_series
@@ -737,16 +731,15 @@ class DoasFOVEngine(object):
                 "merging first")
         self.update_search_settings(method = search_type, **kwargs)
         if search_type == "pearson":
-            corr_img, _ = self._det_correlation_image_pearson(\
+            corr_img, _ = self._det_correlation_image_pearson(
                                                     **self._settings)
         elif search_type == "ifr":
-            corr_img, _ = self._det_correlation_image_ifr_lsmr(\
+            corr_img, _ = self._det_correlation_image_ifr_lsmr(
                                                     **self._settings)
         else:
             raise ValueError("Invalid search type %s: choose from "
                              "pearson or ifr" %search_type)
-        corr_img = Img(corr_img, pyrlevel =\
-                               self.img_stack.img_prep["pyrlevel"])
+        corr_img = Img(corr_img, pyrlevel=self.img_stack.img_prep["pyrlevel"])
         #corr_img.pyr_up(self.img_stack.img_prep["pyrlevel"])
         self.calib_data.fov.corr_img = corr_img
         self.calib_data.fov.img_prep = self.img_stack.img_prep
@@ -775,7 +768,7 @@ class DoasFOVEngine(object):
         self._settings["method"] = "pearson"
         return corr_img, corr_img_err
     
-    def _det_correlation_image_ifr_lsmr(self, ifrlbda = 1e-6, **kwargs):
+    def _det_correlation_image_ifr_lsmr(self, ifrlbda=1e-6, **kwargs):
         """Apply LSMR algorithm to identify the FOV
         
         :param float ifrlbda: tolerance parameter lambda
@@ -795,7 +788,7 @@ class DoasFOVEngine(object):
         # and stacking in the end
         h = column_stack((h_vec, h_matrix))
         # solve using LSMR regularisation
-        a = lsmr(h, self.doas_data_vec, atol = ifrlbda, btol = ifrlbda)
+        a = lsmr(h, self.doas_data_vec, atol = ifrlbda, btol=ifrlbda)
         c = a[0]
         # separate offset and image
         lsmr_offset = c[0]
@@ -825,8 +818,8 @@ class DoasFOVEngine(object):
         if not isinstance(self.calib_data.fov.corr_img, Img):
             raise Exception("Could not access correlation image")
         if self.method == "pearson":
-            cy, cx = get_img_maximum(self.calib_data.fov.corr_img.img,\
-                gaussian_blur = self._settings["blur"])
+            cy, cx = get_img_maximum(self.calib_data.fov.corr_img.img,
+                                     gaussian_blur=self._settings["blur"])
             print "Start radius search in stack around x/y: %s/%s" %(cx, cy)
             radius, corr_curve, tau_vec, doas_vec, fov_mask =\
                                     self.fov_radius_search(cx, cy)
@@ -851,7 +844,7 @@ class DoasFOVEngine(object):
         elif self.method == "ifr":
             #the fit is performed in absolute dectector coordinates
             #corr_img_abs = Img(self.fov.corr_img.img).pyr_up(pyrlevel).img
-            popt, pcov, fov_mask = self.fov_gauss_fit(\
+            popt, pcov, fov_mask = self.fov_gauss_fit(
                             self.calib_data.fov.corr_img.img, **self._settings)
             tau_vec = self.convolve_stack_fov(fov_mask)
             
@@ -903,7 +896,7 @@ class DoasFOVEngine(object):
             print "current radius:" + str(r)
             #now get mean values of all images in stack in circular ROI around
             #CFOV
-            tau_series, m = stack.get_time_series(cx, cy, radius = r)
+            tau_series, m = stack.get_time_series(cx, cy, radius=r)
             tau_dat = tau_series.values
             coeff, err = pearsonr(tau_dat, doas_vec)
             coeffs.append(coeff)
@@ -919,9 +912,8 @@ class DoasFOVEngine(object):
         
     # define IFR model function (Super-Gaussian)    
         
-    def fov_gauss_fit(self, corr_img, g2dasym = True,\
-                      g2dsuper = True, g2dcrop = True,\
-                      g2dtilt = False, blur = 4, **kwargs):
+    def fov_gauss_fit(self, corr_img, g2dasym=True, g2dsuper=True,
+                      g2dcrop=True, g2dtilt=False, blur=4, **kwargs):
         """Apply 2D gauss fit to correlation image
         
         :param corr_img: correlation image
