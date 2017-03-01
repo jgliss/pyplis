@@ -36,7 +36,7 @@ from astropy.io import fits
 from .image import Img
 from .setupclasses import Camera
 from .exceptions import ImgMetaError, ImgModifiedError
-from .helpers import map_coordinates_sub_img, same_roi, map_roi
+from .helpers import map_coordinates_sub_img, same_roi, map_roi, to_datetime
 
 class PixelMeanTimeSeries(Series):
     """A ``pandas.Series`` object with extended functionality representing time
@@ -54,8 +54,8 @@ class PixelMeanTimeSeries(Series):
     roi_abs = None
     poly_model = None
     
-    def __init__(self, data, start_acq, std = None, texps = None,
-                         roi_abs = None, img_prep = {}, **kwargs):
+    def __init__(self, data, start_acq, std=None, texps=None, roi_abs=None, 
+                 img_prep={}, **kwargs):
         """
         :param ndarray data: data array 
             (is passed into pandas Series init -> ``self.values``)
@@ -90,7 +90,7 @@ class PixelMeanTimeSeries(Series):
         for key, val in kwargs.iteritems():
             self[key] = val
         
-    def get_data_normalised(self, texp = None):
+    def get_data_normalised(self, texp=None):
         """Normalise the mean value to a given exposure time
         
         :param float texp (None): the exposure time to which all deviating times
@@ -104,15 +104,15 @@ class PixelMeanTimeSeries(Series):
             facs = texp / self.texps
             ts = self.texps * facs
             
-            return PixelMeanTimeSeries(self.values * facs, self.index,\
-                        self.std, ts, self.roi_abs, self.img_prep)
+            return PixelMeanTimeSeries(self.values*facs, self.index, self.std, 
+                                       ts, self.roi_abs, self.img_prep)
             
         except Exception as e:
             print ("Failed to normalise data bases on exposure times:\n%s\n\n"
                         %repr(e))
                       
     
-    def fit_polynomial(self, order = 2):
+    def fit_polynomial(self, order=2):
         """Fit polynomial to data series
         
         :param int order: order of polynomial
@@ -134,18 +134,21 @@ class PixelMeanTimeSeries(Series):
         self.poly_model = p
         return p
     
-    def includes_timestamp(self, time_stamp, ext_border_secs = 0.0):
+    def includes_timestamp(self, time_stamp, ext_border_secs=0.0):
         """Checks if input time stamp is included in this dataset
         
         :param datetime time_stamp: the time stamp to be checked
+        :param float ext_border_secs: extend start / stop range (default 0 s)
+        :return:
+            - bool, True / False (timestamp is within interval)
         """
         i = self.start - timedelta(ext_border_secs / 86400.0)
         f = self.stop + timedelta(ext_border_secs / 86400.0)
-        if i <= time_stamp <= f:
+        if i <= to_datetime(time_stamp) <= f:
             return True
         return False
         
-    def get_poly_vals(self, time_stamps, ext_border_secs = 0.0):
+    def get_poly_vals(self, time_stamps, ext_border_secs=0.0):
         """Get value of polynomial at input time stamp
         
         :param datetime time_stamp: poly input value
@@ -167,8 +170,7 @@ class PixelMeanTimeSeries(Series):
             
         return asarray(values)
         
-    def estimate_noise_amplitude(self, sigma_gauss = 1, median_size = 3,\
-                                                                    plot = 0):
+    def estimate_noise_amplitude(self, sigma_gauss=1, median_size=3, plot=0):
         """Estimate the amplitude of the noise in the data 
         
         Steps:
@@ -209,8 +211,8 @@ class PixelMeanTimeSeries(Series):
                 kwargs["style"] = "--x"    
             ax = super(PixelMeanTimeSeries, self).plot(**kwargs)
             if include_tit:
-                ax.set_title("Mean value (%s), roi_abs: %s" %(self.name,\
-                        self.roi_abs))
+                ax.set_title("Mean value (%s), roi_abs: %s" 
+                                %(self.name, self.roi_abs))
             ax.grid()
             
             return ax
@@ -456,8 +458,8 @@ class LineOnImage(object):
             return 0
         return 1
     
-    def get_roi_abs_coords(self, img_array, add_left = 80, add_right = 80,\
-                                        add_bottom = 80, add_top = 80):
+    def get_roi_abs_coords(self, img_array, add_left=80, add_right=80,
+                           add_bottom=80, add_top=80):
         """Get a rectangular ROI covering this line 
                 
         :param int add_left: expand range to left of line (in pix)
@@ -546,8 +548,8 @@ class LineOnImage(object):
         
     """Plotting / visualisation etc...
     """
-    def plot_line_on_grid(self, img_arr = None, ax = None,\
-                                include_normal = False, **kwargs):
+    def plot_line_on_grid(self, img_arr=None, ax=None, include_normal=False, 
+                          **kwargs):
         """Draw the line on the image
         
         :param ndarray img_arr: if specified, the array is plotted using 
@@ -579,8 +581,8 @@ class LineOnImage(object):
             ylim = ax.get_ylim()
         if img_arr is not None:
             ax.imshow(img_arr, cmap = "gray")
-        p = ax.plot([self.start[0],self.stop[0]], [self.start[1],self.stop[1]],\
-             **kwargs)
+        p = ax.plot([self.start[0],self.stop[0]], [self.start[1],
+                     self.stop[1]], **kwargs)
         if img_arr is not None:
             ax.set_xlim([0,img_arr.shape[1]])
             ax.set_ylim([img_arr.shape[0],0])
@@ -590,8 +592,8 @@ class LineOnImage(object):
             xm, ym = self.center_pix
             epx, epy = n[0], n[1]
             c = p[0].get_color()
-            ax.arrow(xm, ym, epx, epy, head_width=mag/2, head_length=mag,\
-                                    fc = c, ec = c, label = "Scaled normal")
+            ax.arrow(xm, ym, epx, epy, head_width=mag/2, head_length=mag,
+                     fc=c, ec=c, label="Scaled normal")
             
         #axis('image')
         if new_ax:
@@ -715,16 +717,16 @@ class ProfileTimeSeriesImg(Img):
     along a profile (e.g. using :class:`LineOnImage`) for plume speed cross 
     correlation
     """
-    def __init__(self, img_data = None, time_stamps = asarray([]), img_id =\
-                    "", dtype = float32, profile_info_dict = {}, **meta_info):
+    def __init__(self, img_data=None, time_stamps=asarray([]), img_id="",
+                 dtype=float32, profile_info_dict={}, **meta_info):
         self.img_id = img_id
         self.time_stamps = asarray(time_stamps)
         self.profile_info = {}
         if isinstance(profile_info_dict, dict):
             self.profile_info = profile_info_dict
         #Initiate object as Img object
-        super(ProfileTimeSeriesImg, self).__init__(input = img_data,\
-                                            dtype = dtype, **meta_info)
+        super(ProfileTimeSeriesImg, self).__init__(input=img_data,
+                                                   dtype=dtype, **meta_info)
                                                 
     @property
     def img(self):
@@ -769,7 +771,7 @@ class ProfileTimeSeriesImg(Img):
             print "no time information available, return 1/1/1900"
             return datetime(1900,1,1)
               
-    def save_as_fits(self, save_dir = None, save_name = None):
+    def save_as_fits(self, save_dir=None, save_name=None):
         """Save stack as FITS file"""
         self._format_check()
         try:
@@ -977,8 +979,8 @@ class ImgStack(object):
         else:
             raise TypeError("Need Camera object...")
             
-    def append_img(self, img_arr, start_acq = datetime(1900, 1, 1), texp = 0.0, 
-                                                               add_data = 0.0):
+    def append_img(self, img_arr, start_acq=datetime(1900, 1, 1), texp=0.0, 
+                   add_data=0.0):
         """Append at the end of the stack
         
         :param ndarray img_arr: image data (must have same dimension than
@@ -998,8 +1000,8 @@ class ImgStack(object):
         self.set_img(self.current_index, img_arr, start_acq, texp, add_data)
         self.current_index += 1
             
-    def set_img(self, pos, img_arr, start_acq  = datetime(1900, 1, 1),\
-                                                texp = 0.0, add_data = 0.0):
+    def set_img(self, pos, img_arr, start_acq=datetime(1900, 1, 1),
+                texp=0.0, add_data=0.0):
         """Place the imageArr in the stack
         :param int pos: Position of img in stack
         :param ndarray img_arr: image data (must have same dimension than
@@ -1010,7 +1012,7 @@ class ImgStack(object):
         
         """
         self.stack[pos] = img_arr
-        self.start_acq[pos] = start_acq
+        self.start_acq[pos] = to_datetime(start_acq)
         self.texps[pos] = texp
         self.add_data[pos] = add_data
         self._access_mask[pos] = True
@@ -1032,7 +1034,7 @@ class ImgStack(object):
         """Return current number of images in stack"""
         return self.stack.shape[0]
         
-    def set_stack_data(self, stack, start_acq = None, texps = None):
+    def set_stack_data(self, stack, start_acq=None, texps=None):
         """Sets the current data based on input
         
         :param ndarray stack: the image stack data
@@ -1059,8 +1061,8 @@ class ImgStack(object):
             - ndarray, exposure times
         """
         m = self._access_mask
-        return (self.stack[m], asarray(self.time_stamps)[m],\
-                                                asarray(self.texps)[m])
+        return (self.stack[m], asarray(self.time_stamps)[m], 
+                asarray(self.texps)[m])
         
     def apply_mask(self, mask):
         """Convolves the stack data with a input mask along time axis (2)
@@ -1076,8 +1078,7 @@ class ImgStack(object):
         data_conv = (d[0] * mask.astype(float32))#[:, :, newaxis])#, d[1], d[2])
         return (data_conv, d[1], d[2])
     
-    def get_time_series(self, pos_x = None, pos_y = None, radius = 1,\
-                                                            mask = None):
+    def get_time_series(self, pos_x=None, pos_y=None, radius=1, mask=None):
         """Get time series in a circular ROI
         
         Retrieve the time series at a given pixel position *in stack 
@@ -1099,15 +1100,15 @@ class ImgStack(object):
             if radius == 1:
                 mask = zeros(self.shape[1:]).astype(bool)
                 mask[pos_y, pos_x] = True
-                return Series(d[0][self._access_mask, pos_y, pos_x], d[1]),\
-                                                                        mask
+                s = Series(d[0][self._access_mask, pos_y, pos_x], d[1])
+                return s, mask
             mask = self.make_circular_access_mask(pos_x, pos_y, radius)
             data_mask, start_acq, texps = self.apply_mask(mask)
         values = data_mask.sum((1, 2)) / float(sum(mask))
         return Series(values, start_acq), mask
     
     """Data merging functionality based on additional time series data"""
-    def merge_with_time_series(self, time_series, method = "average", **kwargs):
+    def merge_with_time_series(self, time_series, method="average", **kwargs):
         """High level wrapper for data merging"""
         if not isinstance(time_series, Series):
             raise TypeError("Could not merge stack data with input data: "
@@ -1123,8 +1124,8 @@ class ImgStack(object):
         if method == "nearest":
             return self._merge_tseries_nearest(time_series, **kwargs)
         elif method == "interpolation":
-            return self._merge_tseries_cross_interpolation(time_series,\
-                                                                   **kwargs)
+            return self._merge_tseries_cross_interpolation(time_series,
+                                                           **kwargs)
         else:
             raise TypeError("Unkown merge type: %s. Choose from "
                     "[nearest, average, interpolation]")
@@ -1162,15 +1163,15 @@ class ImgStack(object):
         stack_new = self.stack[img_idxs]
         texps_new = self.texps[img_idxs]
         start_acq_new = self.start_acq[img_idxs]
-        stack_obj_new = ImgStack(stack_id = self.stack_id + "_merged_nearest",\
-            img_prep = self.img_prep, stack = stack_new, start_acq =\
-                                        start_acq_new, texps = texps_new)
+        stack_obj_new = ImgStack(stack_id=self.stack_id + "_merged_nearest",
+                                 img_prep=self.img_prep, stack=stack_new,
+                                 start_acq=start_acq_new, texps=texps_new)
         stack_obj_new.roi_abs = self.roi_abs
         stack_obj_new.add_data = series_new
         return stack_obj_new, series_new
             
-    def _merge_tseries_cross_interpolation(self, time_series,\
-                                               itp_type = "linear"):
+    def _merge_tseries_cross_interpolation(self, time_series,
+                                           itp_type="linear"):
         """Merge this stack with input data using interpolation
         
         :param Series time_series_data: pandas Series object containing time 
@@ -1216,8 +1217,9 @@ class ImgStack(object):
                 #df = df.dropna()
                 new_stack[:, i, j] = df[0].values
         
-        stack_obj = ImgStack(new_num, h, w, stack_id = self.stack_id +\
-                                "_interpolated", img_prep = self.img_prep)
+        stack_obj = ImgStack(new_num, h, w, 
+                             stack_id=self.stack_id+"_interpolated", 
+                             img_prep=self.img_prep)
         stack_obj.roi_abs = self.roi_abs
         #print new_stack.shape, new_acq_times.shape, new_texps.shape
         stack_obj.set_stack_data(new_stack, new_acq_times, new_texps)
@@ -1286,8 +1288,9 @@ class ImgStack(object):
             else:
                 bad_indices.append(k)
         new_stack = rollaxis(new_stack, 2)
-        stack_obj = ImgStack(len(new_texps), h, w, stack_id =\
-                        self.stack_id + "_avg", img_prep = self.img_prep)
+        stack_obj = ImgStack(len(new_texps), h, w, 
+                             stack_id=self.stack_id+"_avg", 
+                             img_prep=self.img_prep)
         stack_obj.roi_abs = self.roi_abs
         stack_obj.set_stack_data(new_stack, new_acq_times, new_texps)
         time_series = time_series.drop(time_series.index[bad_indices])
@@ -1301,8 +1304,8 @@ class ImgStack(object):
 #         start = self.start - self.total_time_period_in_seconds() * tol_borders
 #         stop = self.stop + self.total_time_period_in_seconds() * tol_borders
 #==============================================================================
-        cond = logical_and(time_series.index >= self.start,\
-                                 time_series.index <= self.stop)
+        cond = logical_and(time_series.index >= self.start,
+                           time_series.index <= self.stop)
         return time_series[cond]
         
     def total_time_period_in_seconds(self):
@@ -1369,7 +1372,7 @@ class ImgStack(object):
         return self.stack.ndim   
         
     """Plots / visualisation"""
-    def show_img(self, index = 0):
+    def show_img(self, index=0):
         """Show image at input index
         :param int index: index of image in stack        
         """
@@ -1379,7 +1382,7 @@ class ImgStack(object):
         im.roi_abs = self.roi_abs
         return im.show()
 
-    def pyr_down(self, steps = 0):
+    def pyr_down(self, steps=0):
         """Reduce the stack image size using gaussian pyramid 
              
         :param int steps: steps down in the pyramide
@@ -1392,14 +1395,14 @@ class ImgStack(object):
             return
         h, w = Img(self.stack[0]).pyr_down(steps).shape
         prep = deepcopy(self.img_prep)        
-        new_stack = ImgStack(height=h, width=w, img_num= self.num_of_imgs,\
-            stack_id = self.stack_id, img_prep=prep)
+        new_stack = ImgStack(height=h, width=w, img_num=self.num_of_imgs,
+                             stack_id=self.stack_id, img_prep=prep)
         for i in range(self.shape[0]):
             im = self.stack[i]
             for k in range(steps):
                 im = pyrDown(im)
-            new_stack.append_img(img_arr = im, start_acq = self.start_acq[i],\
-                texp = self.texps[i], add_data = self.add_data[i])
+            new_stack.append_img(img_arr=im, start_acq=self.start_acq[i],
+                                 texp=self.texps[i], add_data=self.add_data[i])
         new_stack._format_check()
         new_stack.img_prep["pyrlevel"] += steps
         return new_stack
@@ -1416,19 +1419,19 @@ class ImgStack(object):
 
         h, w = Img(self.stack[0]).pyr_up(steps).shape
         prep = deepcopy(self.img_prep)        
-        new_stack = ImgStack(height=h, width=w, img_num= self.num_of_imgs,\
-            stack_id = self.stack_id, img_prep=prep)
+        new_stack = ImgStack(height=h, width=w, img_num=self.num_of_imgs,
+                             stack_id=self.stack_id, img_prep=prep)
         for i in range(self.shape[0]):
             im = self.stack[i]
             for k in range(steps):
                 im = pyrUp(im)
-            new_stack.append_img(img_arr = im, start_acq = self.start_acq[i],\
-                texp = self.texps[i], add_data = self.add_data[i])
+            new_stack.append_img(img_arr=im, start_acq=self.start_acq[i],
+                                 texp=self.texps[i], add_data=self.add_data[i])
         new_stack._format_check()
         new_stack.img_prep["pyrlevel"] -= steps
         return new_stack
     
-    def to_pyrlevel(self, final_state = 0):
+    def to_pyrlevel(self, final_state=0):
         """Down / upscale image to a given pyramide level"""
         steps = final_state - self.img_prep["pyrlevel"]
         if steps > 0:
@@ -1442,8 +1445,10 @@ class ImgStack(object):
         
     def _format_check(self):
         """Checks if all relevant data arrays have the same length"""
-        if not all([len(x) == self.num_of_imgs for x in [self.add_data,\
-                            self.texps, self._access_mask, self.start_acq]]):
+        if not all([len(x) == self.num_of_imgs for x in [self.add_data,
+                                                         self.texps, 
+                                                         self._access_mask, 
+                                                         self.start_acq]]):
             raise ValueError("Mismatch in array lengths of stack data, check"
                 "add_data, texps, start_acq, _access_mask")
     
@@ -1462,8 +1467,8 @@ class ImgStack(object):
                 self.img_prep[key.lower()] = val
         self.stack_id = hdu[0].header["stack_id"]
         try:
-            self.start_acq = [datetime.strptime(x, "%Y%m%d%H%M%S%f") for x in\
-                                                    hdu[1].data["start_acq"]]
+            self.start_acq = [datetime.strptime(x, "%Y%m%d%H%M%S%f") 
+                              for x in hdu[1].data["start_acq"]]
         except:
             warn("Failed to import acquisition times")
         try:
@@ -1481,7 +1486,7 @@ class ImgStack(object):
         self.roi_abs = hdu[2].data["roi_abs"]
         self._format_check()
         
-    def save_as_fits(self, save_dir = None, save_name = None):
+    def save_as_fits(self, save_dir=None, save_name=None):
         """Save stack as FITS file"""
         self._format_check()
         try:
@@ -1491,32 +1496,26 @@ class ImgStack(object):
         if save_dir is None:
             save_dir = getcwd()
         if save_name is None:
-            save_name = "pyplis_imgstack_id_%s_%s_%s_%s.fts" %(self.stack_id,\
-                self.start.strftime("%Y%m%d"), self.start.strftime(\
-                                    "%H%M"), self.stop.strftime("%H%M"))
+            save_name = ("pyplis_imgstack_id_%s_%s_%s_%s.fts" 
+                            %(self.stack_id,
+                              self.start.strftime("%Y%m%d"),
+                              self.start.strftime("%H%M"),
+                              self.stop.strftime("%H%M")))
         else:
             save_name = save_name + ".fts"
         hdu = fits.PrimaryHDU()
         start_acq_str = [x.strftime("%Y%m%d%H%M%S%f") for x in self.start_acq]
-        col1 = fits.Column(name = "start_acq", format = "25A", array =\
-            start_acq_str)
-        col2 = fits.Column(name = "texps", format = "D", array =\
-                                                        self.texps)
-        col3 = fits.Column(name = "_access_mask", format = "L",\
-                                            array = self._access_mask)
-        col4 = fits.Column(name = "add_data", format = "D",\
-                                            array = self.add_data)
+        col1 = fits.Column(name="start_acq", format="25A", array=start_acq_str)
+        col2 = fits.Column(name="texps", format="D", array=self.texps)
+        col3 = fits.Column(name="_access_mask", format="L", 
+                           array=self._access_mask)
+        col4 = fits.Column(name="add_data", format="D", array=self.add_data)
         cols = fits.ColDefs([col1, col2, col3, col4])
         arrays = fits.BinTableHDU.from_columns(cols)
         
-        col5 = fits.Column(name = "roi_abs", format = "I",\
-                                            array = self.roi_abs)                                    
+        col5 = fits.Column(name="roi_abs", format="I", array=self.roi_abs)                                    
         
         roi_abs = fits.BinTableHDU.from_columns([col5])
-        #==============================================================================
-        # col1 = fits.Column(name = 'target', format = '20A', array=a1)
-        # col2 = fits.Column(name = 'V_mag', format = 'E', array=a2)
-        #==============================================================================
         hdu.data = self.stack
         hdu.header.update(self.img_prep)
         hdu.header["stack_id"] = self.stack_id
@@ -1576,13 +1575,12 @@ def model_dark_image(img, dark, offset):
         raise ImgModifiedError("Could not model dark image at least one of the "
             "input dark / offset images was already modified")
     if img.modified:
-        img = Img(img.meta["path"])
+        img = Img(img.meta["path"], import_method=img.import_method)
             
-    dark_img = offset.img + (dark.img - offset.img) * img.meta["texp"]/\
-                                (dark.meta["texp"] - offset.meta["texp"])
+    dark_img = (offset.img + (dark.img - offset.img) * img.meta["texp"]/
+                             (dark.meta["texp"] - offset.meta["texp"]))
     
-    return Img(dark_img, start_acq = img.meta["start_acq"],\
-                                            texp = img.meta["texp"])
+    return Img(dark_img, start_acq=img.meta["start_acq"], texp=img.meta["texp"])
 #==============================================================================
 # import matplotlib.animation as animation
 # 

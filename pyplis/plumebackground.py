@@ -20,7 +20,7 @@ from .helpers import shifted_color_map
 
 class PlumeBackgroundModel(object):
     """Class for plume background modelling and tau image determination"""
-    def __init__(self, bg_raw = None, plume_init = None, **kwargs):
+    def __init__(self, bg_raw=None, plume_init=None, **kwargs):
         """Initialisation of object
         
         :param (Img) bg_raw: sky background radiance raw image data
@@ -105,7 +105,7 @@ class PlumeBackgroundModel(object):
             if value is None:
                 return False
         return True
-        #return ~any([x is None for x in self.__dict__.values()])
+        
     
     def update(self, **kwargs):
         """Update class attributes
@@ -200,8 +200,8 @@ class PlumeBackgroundModel(object):
         d["xgrad_line_mask"] = self.xgrad_line_mask
         return d
         
-    def bg_from_poly_surface_fit(self, plume, mask = None, polyorder = 2,\
-                                                                pyrlevel = 4):
+    def bg_from_poly_surface_fit(self, plume, mask=None, polyorder=2,
+                                 pyrlevel=4):
         """Applies poly surface fit to plume image for bg retrieval
         
         :param ndarray plume: plume image
@@ -254,7 +254,7 @@ class PlumeBackgroundModel(object):
         offs,_ = _mean_in_rect(tau0, rect)
         return tau0 - offs
     
-    def get_tau_image(self, plume_img, bg_img = None, **kwargs):
+    def get_tau_image(self, plume_img, bg_img=None, **kwargs):
         """Determine current tau image for input plume image
         
         :param Img plume_img: plume image 
@@ -287,9 +287,10 @@ class PlumeBackgroundModel(object):
         tau = None
         mode = self.CORR_MODE
         if mode == 0: #no sky radiance image, poly surface fit
-            (bg, fit) = self.bg_from_poly_surface_fit(plume,\
-                self.surface_fit_mask, self.surface_fit_polyorder,\
-                                            self.surface_fit_pyrlevel)
+            (bg, fit)=self.bg_from_poly_surface_fit(plume,
+                                                    self.surface_fit_mask,
+                                                    self.surface_fit_polyorder,
+                                                    self.surface_fit_pyrlevel)
             tau = log(bg / plume)
         
         else:
@@ -325,38 +326,52 @@ class PlumeBackgroundModel(object):
         if isinstance(tau_init, Img):
             tau_init = tau_init.img
         if mode == 2:
-                 tau = corr_tau_curvature_vert_two_rects(tau_init,\
-                                             self.scale_rect, self.ygrad_rect)
+                 tau = corr_tau_curvature_vert_two_rects(tau_init,
+                                                         self.scale_rect,
+                                                         self.ygrad_rect)
         elif mode == 3:
-            tau, _ = corr_tau_curvature_vert_line(tau_init,\
-                self.ygrad_line_colnum, self.ygrad_line_startrow,\
-                    self.ygrad_line_stoprow, self.ygrad_line_mask,\
-                                            self.ygrad_line_polyorder)
+            tau, _ = corr_tau_curvature_vert_line(tau_init,
+                                                  self.ygrad_line_colnum,
+                                                  self.ygrad_line_startrow,
+                                                  self.ygrad_line_stoprow, 
+                                                  self.ygrad_line_mask,
+                                                  self.ygrad_line_polyorder)
 
         elif mode == 4:
-            tau = corr_tau_curvature_vert_two_rects(tau_init,\
-                                            self.scale_rect, self.ygrad_rect)
-            tau = corr_tau_curvature_hor_two_rects(tau,\
-                                            self.scale_rect, self.xgrad_rect)
+            tau = corr_tau_curvature_vert_two_rects(tau_init,
+                                                    self.scale_rect,
+                                                    self.ygrad_rect)
+            tau = corr_tau_curvature_hor_two_rects(tau,
+                                                   self.scale_rect,
+                                                   self.xgrad_rect)
             
         elif mode == 5:
-            tau, _ = corr_tau_curvature_vert_line(tau_init,\
-                self.ygrad_line_colnum, self.ygrad_line_startrow,\
-                    self.ygrad_line_stoprow, self.ygrad_line_mask,\
-                                            self.ygrad_line_polyorder)
-            tau = corr_tau_curvature_hor_two_rects(tau,\
-                self.scale_rect, self.xgrad_rect)
+            tau, _ = corr_tau_curvature_vert_line(tau_init,
+                                                  self.ygrad_line_colnum,
+                                                  self.ygrad_line_startrow,
+                                                  self.ygrad_line_stoprow,
+                                                  self.ygrad_line_mask,
+                                                  self.ygrad_line_polyorder)
+            
+            tau = corr_tau_curvature_hor_two_rects(tau,
+                                                   self.scale_rect,
+                                                   self.xgrad_rect)
             
 
         elif mode == 6:
-            tau, _ = corr_tau_curvature_vert_line(tau_init,\
-                    self.ygrad_line_colnum, self.ygrad_line_startrow,\
-                        self.ygrad_line_stoprow, self.ygrad_line_mask,\
-                                                self.ygrad_line_polyorder)
-            tau, _ = corr_tau_curvature_hor_line(tau,\
-                    self.xgrad_line_rownum, self.xgrad_line_startcol,\
-                        self.xgrad_line_stopcol, self.xgrad_line_mask,\
-                                                self.xgrad_line_polyorder)
+            tau, _ = corr_tau_curvature_vert_line(tau_init,
+                                                  self.ygrad_line_colnum,
+                                                  self.ygrad_line_startrow,
+                                                  self.ygrad_line_stoprow,
+                                                  self.ygrad_line_mask,
+                                                  self.ygrad_line_polyorder)
+            
+            tau, _ = corr_tau_curvature_hor_line(tau,
+                                                 self.xgrad_line_rownum, 
+                                                 self.xgrad_line_startcol,
+                                                 self.xgrad_line_stopcol, 
+                                                 self.xgrad_line_mask,
+                                                 self.xgrad_line_polyorder)
         return tau
         
     def get_aa_image(self, plume_on, plume_off, bg_on, bg_off):
@@ -368,15 +383,10 @@ class PlumeBackgroundModel(object):
         :param Img bg_off: off band sky radiance image
         
         """            
-        aa_init = log(bg_on.img / plume_on.img) -\
-                            log(bg_off.img / plume_off.img)
+        aa_init = log(bg_on.img/plume_on.img) - log(bg_off.img/plume_off.img)
                         
         aa = self.correct_tau_curvature_ref_areas(aa_init)
         
-#==============================================================================
-#         aa2_init = log(plume_off.img * bg_on.img / (plume_on.img * bg_off.img))
-#         aa2 = self.correct_tau_curvature_ref_areas(aa2_init)
-#==============================================================================
         aa_img = plume_on.duplicate()
         aa_img.meta["bit_depth"] = nan
         aa_img.edit_log["is_tau"] = 1
@@ -687,8 +697,8 @@ def corr_tau_curvature_hor_two_rects(tau0, r0, r1):
     tau_mod = tau0 - poly_vals
     return tau_mod#, vert_poly
     
-def corr_tau_curvature_vert_line(tau0, pos_x, start_y = 0,\
-                        stop_y = None, row_mask = None, polyorder = 2):
+def corr_tau_curvature_vert_line(tau0, pos_x, start_y=0, stop_y=None,
+                                 row_mask=None, polyorder=2):
     """Correction of vertical tau curvature using selected row indices of 
     vertical line.
     
@@ -726,8 +736,8 @@ def corr_tau_curvature_vert_line(tau0, pos_x, start_y = 0,\
     tau_mod = (tau0.T - poly_vals).T
     return (tau_mod, vert_poly)
 
-def corr_tau_curvature_hor_line(tau0, pos_y, start_x = 0,\
-                        stop_x = None, col_mask = None, polyorder = 2):
+def corr_tau_curvature_hor_line(tau0, pos_y, start_x=0, stop_x=None,
+                                col_mask=None, polyorder=2):
     """Correction of vertical tau curvature using selected row indices of 
     vertical line.
     
@@ -770,7 +780,7 @@ def _roi_coordinates(roi):
     """
     return roi[0], roi[1], roi[2] - roi[0], roi[3] - roi[1]
         
-def find_sky_reference_areas(plume_img, sigma_blur = 2, plot = False):
+def find_sky_reference_areas(plume_img, sigma_blur=2, plot=False):
     """Takes an input plume image and identifies suited sky reference areas"""
     if isinstance(plume_img, Img):
         plume = plume_img.img    
@@ -784,17 +794,12 @@ def find_sky_reference_areas(plume_img, sigma_blur = 2, plot = False):
     #estimate mean intensity in left image part (without flank pixels)
     y0_left = argmin(gradient(plume[vert_mag : h - vert_mag, hor_mag]))
     
-    avg_left = plume[\
-            vert_mag : y0_left - vert_mag, hor_mag:hor_mag * 2].mean()
+    avg_left = plume[vert_mag : y0_left - vert_mag, hor_mag:hor_mag * 2].mean()
     #estimate mean intensity in right image part (without flank pixels
-#==============================================================================
-#     grad = gradient(average(plume[vert_mag : h - vert_mag,\
-#                             w - 2 * hor_mag : w - hor_mag], axis=1))
-#==============================================================================
     grad = gradient(plume[vert_mag : h - vert_mag, w - hor_mag])
     y0_right = argmin(grad)
-    avg_right = plume[vert_mag : y0_right - vert_mag,\
-                        w - 2 * hor_mag : w - hor_mag].mean()
+    avg_right = plume[vert_mag : y0_right - vert_mag,
+                      w - 2 * hor_mag : w - hor_mag].mean()
     results["xgrad_line_rownum"] = vert_mag
     if avg_right > avg_left: #brighter on the right image side (assume this is clear sky)
         results["ygrad_line_colnum"] = w - hor_mag
@@ -815,14 +820,16 @@ def find_sky_reference_areas(plume_img, sigma_blur = 2, plot = False):
     x0, y0, x1, y1 = results["scale_rect"]
     ymax = results["ygrad_line_stoprow"]
     
-    results["ygrad_rect"] = [x0, int(ymax - 8 * hor_mag), x1, int(ymax - 4 * hor_mag)]
+    results["ygrad_rect"] = [x0, int(ymax - 8 * hor_mag),
+                             x1, int(ymax - 4 * hor_mag)]
+                             
     results["xgrad_rect"] = [int(w / 2.0 - 2 * hor_mag), y0,
                              int(w / 2.0 + 2 * hor_mag), y1]
     if plot:
         plot_sky_reference_areas(plume, results)
     return results
 
-def plot_sky_reference_areas(plume_img, settings_dict, ax = None):
+def plot_sky_reference_areas(plume_img, settings_dict, ax=None):
     """Plot provided sky reference areas into a plume image
     
     :param (ndarray, Img) plume_img: plume image data

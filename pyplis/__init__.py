@@ -25,6 +25,7 @@ import inout
 import geometry
 import utils
 from image import Img
+import custom_image_import
 import dataset
 import plumebackground
 import cellcalib
@@ -38,7 +39,6 @@ import model_functions
 import setupclasses  
  
 import helpers
-import image_import
 import exceptions
 
 # String ID of species to be analysed (for plots etc.)
@@ -48,7 +48,9 @@ SPECIES_ID = r"SO2"
 _CALIB_ID_STRINGS = {"on" :  "On",
                      "off":  "Off",
                      "aa" :  "AA"}
-
+# Global specification of image custom load method (can e.g. be used in 
+# in scripts)
+IMAGE_LOAD_CUSTOM = None
 from matplotlib import rcParams
 
 rcParams["mathtext.default"] = u"regular"

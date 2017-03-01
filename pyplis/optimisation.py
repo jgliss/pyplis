@@ -665,7 +665,7 @@ class MultiGaussFit(object):
         """
         return [self.params[i:i + 3] for i in range(0, len(self.params), 3)]
         
-    def integrate_gauss(self, amp, mu, sigma, start = -inf, stop = inf):
+    def integrate_gauss(self, amp, mu, sigma, start=-inf, stop=inf):
         """Return integral value of one gaussian
         :param float amp: amplitude of gaussian
         :param float mu: mean of gaussian

@@ -1,71 +1,121 @@
 This file contains information about pyplis default cameras
+-----------------------------------------------------------
 
-When creating a new camera type please use lower case filter names. The filter ID is the string by which all images acquired with this filter are represented within pyplis. Parameters which include the substring "Pos" (e.g. time_info_pos, meas_type_pos, filter_id_pos) refer to positions of specific information in the image filenames (after they are splitted using "delim"), for instance "time_info_pos"==1 means, that a datetime string can be found at pos (!) 2 in the filename after splitting. PLEASE leave these "Pos" fields empty if the specific information is not available in your filename. If you wish to use automatic separation of images by type ("on", "off", "dark", "offset") and image selection (and sorting) by acquisition time, then the the fields "meas_type_pos", "filter_id_pos" and "time_info_pos" need to be filled. 
+In this text file, new default camera types can be specified, this mainly includes information about how to extract information from the image file names (e.g. acq. time, which filter was used, exposure time, etc.) and which information can be extracted. Further it includes additional default information about the camera specifications, such as the pixel pitch, the detector size (pixel number) or the focal length of the lens used, which filters are used and in which way dark (and potentially offset) images are recorded.
+
+The individual parameters that can be set are explained on the example of the first default camera listed below (HD-Custom camera). 
+
+When creating a new camera type please use lower case filter names. Parameters which include the substring "pos" (e.g. time_info_pos, meas_type_pos, filter_id_pos) refer to positions of specific information in the image filenames (after they are splitted using "delim"), for instance "time_info_pos"==1 means, that a datetime string can be found at pos (!) 2 in the filename after splitting. PLEASE leave these "pos" fields empty if the specific information is not available in your filename. If you wish to use automatic separation of images by type ("on", "off", "dark", "offset") and image selection (and sorting) by acquisition time, then the the fields "meas_type_pos", "filter_id_pos" and "time_info_pos" need to be filled.
+
+ 
+
+NEW FEATURES
+
+28/02/2017
+**********
+
+  1. Included new default parameter ``import_method`` -> can be used to set a customised image import method (the name of it) which needs to be defined in the pyplis source file ``custom_image_import.py``. The latter can be helpful if you want to apply some image pre-processing (e.g. binning / undo binning, rotation or) or include image customised import of image meta information (e.g. acq. time, exposure time, e.g. from .tiff file header) when importing the data in pyplis. If no customised image import method is defined, then the images are loaded using standard functions (e.g. matplotlib.imread) and only the image meta information is imported, which can be extracted from the file names (explained above)
 
 NEWCAM
 
-#Insert camera access IDs (these can be used to identify a certain camera within pyplis)
+#Camera access IDs (these can be used to identify a certain camera within pyplis), use as many as you like, but they need to be unique (! -> compare with already existing cams)
+
 cam_ids:hdcam,hd,HD,HDCam
 
-#Camera and detector specifications
-#Please only fill the filename specifications which can actually be extracted from your convention and leave the other fields empty
+#ID of camera within pyplis
+cam_id:hdcam
 
-cam_id:hdcam 			#ID of camera
-delim:_ 			#filename delimiter for information extraction
-time_info_pos:0 		#position of acquisition time string in filename (after split using delim)
-time_info_str:%H%M%S%f 		#datetime string conversion format of filename datetime string 
-filter_id_pos:2 		#position of filter acronym in filename (after split using delim)
-file_type:tiff 			#image file_type
-main_filter_id:on 		#ID of main filter 
-meas_type_pos:1 		#position of meastype info, e.g. dark offset (after split using delim)
-DARK_CORR_OPT:2		#0: no dark corr, 1: dark + offset, 2: one dark at same exposure time (NOTE: USE CAPITAL LETTERS FOR THIS FLAG)
-texp_pos:			#position of exposure time (exp. time must be in s or ms)
-texp_unit:    #choose from s or ms
+# Custom import method (leave empty if not required, else please use pyplis source file ``custom_image_import.py`` to define your method and reinstall)
+image_import_method: load_hd_custom
+
+# Camera and detector specifications
+# Please only fill the filename specifications which can actually be extracted from your convention and leave the other fields empty
+
+# Filename delimiter for information extraction
+delim:_ 			
+
+# Position of acquisition time string in filename (after split using delim)
+time_info_pos:0 		
+
+# Datetime string conversion format of filename datetime string 
+time_info_str:%H%M%S%f 		 
+
+# Position of filter acronym in filename (after split using delim)
+filter_id_pos:2 		
+
+# Image file_type
+file_type:tiff 			
+
+# ID of main filter (usually on-band, must match ID of one of the filters defined below)
+main_filter_id:on 	
+
+# Position of meastype info, e.g. dark offset (after split using delim)
+# Note: can be the same as filter_id_pos (see ECII camera) but MUST be set 
+meas_type_pos:1 		
+
+# Specify dark correction option
+# 0: no dark corr, 1: dark + offset, 2: one dark at same exposure time  NOTE: USE CAPITAL LETTERS FOR THIS FLAG) 
+DARK_CORR_OPT:2		
+
+# Position of exposure time (exp. time must be in s or ms)
+texp_pos:			
+
+#Choose from s or ms
+texp_unit:   
+
+# Camera lens focal length (default)
 focal_length:32.0e-3 #in m
-pix_height:13.0e-6  #in m
-pix_width:13.0e-6   #in m
+
+# Pixel geometry in m
+pix_height:13.0e-6 
+pix_width:13.0e-6 
+
+# Detector size
 pixnum_x:1024
 pixnum_y:1024
 
-#Insert information about default Filter setup (this can be adapted 
-#and individualised for specific cases within pyplis)
-#Row format: 
-#filter:<filter ID>,<type>,<type acronym>,<meas type acronym>,<center wavelength>
+# Now sepcify the camera (default) filter setup (one row for each filter)
+# Row format for filter specifications 
+# filter:<filter ID>,<type>,<type acronym>,<meas type acronym>,<center wavelength>
+# filters for plume image data access
 filter:on,on,A0,M,315 
 filter:off,off,B0,M,330
+# filters for cell calibration data access
+filter:bg_on,on,A00,K
+filter:cell1_on,on,A01,K
+filter:cell2_on,on,A02,K
+filter:cell3_on,on,A03,K
+filter:cell4_on,on,A04,K
 
-#Insert information about Dark (and offset) image identification
-#On import, all dark image lists are separated from plume image lists and 
-#are stored 
-#Row format: 
-#dark_info:<ID>,<type>,<type acronym>,<measType acronym>,<read_gain>
-dark_info:on_dark,dark,A0,D,0
-dark_info:off_dark,dark,B0,D,0
+filter:bg_off,off,B00,K
+filter:cell1_off,off,B01,K
+filter:cell2_off,off,B02,K
+filter:cell3_off,off,B03,K
+filter:cell4_off,off,B04,K
+
+# Specify information about Dark (and offset) image identification (one row for each dark / offset image type), parameter read_gain is optional
+# Row format for dark / offset image specifications
+# dark_info:<id>,<type>,<type acronym>,<meas_type_acro>,<read_gain>
+dark_info:on_dark,dark,A0,D
+dark_info:off_dark,dark,B0,D
+# dark images for cell calibration data access
+dark_info:bg_on_dark,dark,A00,D
+dark_info:cell1_on_dark,dark,A01,D
+dark_info:cell2_on_dark,dark,A02,D
+dark_info:cell3_on_dark,dark,A03,D
+dark_info:cell4_on_dark,dark,A04,D
+
+dark_info:bg_off_dark,dark,B00,D
+dark_info:cell1_off_dark,dark,B01,D
+dark_info:cell2_off_dark,dark,B02,D
+dark_info:cell3_off_dark,dark,B03,D
+dark_info:cell4_off_dark,dark,B04,D
 ENDCAM
 
 NEWCAM
-#Insert camera access IDs (these can be used to identify a certain camera within pyplis)
 cam_ids:ecII,ec2,ECII,EC2,EnvicamII 
-
-#Insert information about default Filter setup (this can be adapted 
-#and individualised for specific cases within pyplis)
-#Row format: 
-#filter:<ID>,<type>,<type acronym>,<measType acronym>,<centerWavelength>
-filter:on,on,F01,F01,310
-filter:off,off,F03,F03,330
-
-#Insert information about Dark (and offset) image identification
-#On import, all dark image lists are separated from plume image lists and 
-#are stored 
-#Row format: 
-#dark_info:<ID>,<type>,<type acronym>,<measType acronym>,<read_gain>
-dark_info:offset0,offset,D0L,D0L,0
-dark_info:dark0,dark,D1L,D1L,0
-dark_info:offset1,offset,D0H,D0H,1
-dark_info:dark1,dark,D1H,D1H,1
-
-#Camera and detector specifications (need to be filled)
 cam_id:ecII
+image_import_method:
 delim:_
 time_info_pos:3
 time_info_str:%Y%m%d%H%M%S%f
@@ -75,44 +125,43 @@ main_filter_id:on
 meas_type_pos:4
 DARK_CORR_OPT:1
 texp_pos:
-texp_unit:    #choose from s or ms
+texp_unit:
 focal_length:
 pix_height:4.65e-6
 pix_width:4.65e-6
 pixnum_x:1344
 pixnum_y:1024
+
+# Filters (row-wise, format): 
+# filter:<ID>,<type>,<type acronym>,<meas_type acronym>,<center_wavelength>
+filter:on,on,F01,F01,310
+filter:off,off,F03,F03,330
+
+# Dark / offset information (row-wise, format):
+# dark_info:<ID>,<type>,<type acronym>,<meas_type acronym>,<read_gain>
+dark_info:offset0,offset,D0L,D0L,0
+dark_info:dark0,dark,D1L,D1L,0
+dark_info:offset1,offset,D0H,D0H,1
+dark_info:dark1,dark,D1H,D1H,1
 ENDCAM
 
 NEWCAM
-#Insert camera access IDs (these can be used to identify a certain camera within pyplis)
 cam_ids:PCO, pco, pco.ultraviolet, PCO.ultraviolet
-
-#Insert information about default Filter setup (this can be adapted 
-#and individualised for specific cases within pyplis)
-#Row format: 
-#filter:<ID>,<type>,<type acronym>,<measType acronym>,<centerWavelength>
+cam_id:pco
+image_import_method:
 filter:on,on,FilterOn,FilterOn,310
 filter:bg,off,BG,BG,999 #fake offband filter for test purposes
-
-#Insert information about Dark (and offset) image identification
-#On import, all dark image lists are separated from plume image lists and 
-#are stored 
-#Row format: 
-#dark_info:<ID>,<type>,<type acronym>,<measType acronym>,<read_gain>
 dark_info:dark,dark,DarkImage2,DarkImage2,0
-
-#Camera and detector specifications (need to be filled)
-cam_id:pco
 delim:_
 time_info_pos:1
 time_info_str:%H%M%S
 filter_id_pos:0
-file_type:tif                #image format
+file_type:tif     
 main_filter_id:on
 meas_type_pos:0
-DARK_CORR_OPT:2               #DARK_CORR_OPT 1: dark and offset, 2: dark at same exposure time
+DARK_CORR_OPT:2   
 texp_pos:
-texp_unit:    #choose from s or ms
+texp_unit: 
 focal_length:25.0e-3
 pix_height:4.65e-6
 pix_width:4.65e-6

@@ -5,6 +5,7 @@ Module containing all sorts of helper methods
 
 import matplotlib.cm as colormaps
 import matplotlib.colors as colors
+from datetime import datetime, time, date
 
 from matplotlib.pyplot import draw
 from numpy import mod, linspace, hstack, vectorize, uint8, cast, asarray,\
@@ -16,6 +17,18 @@ exponent = lambda num: int(floor(log10(abs(num))))
 
 time_delta_to_seconds = vectorize(lambda x: x.total_seconds())
 
+def to_datetime(value):
+    """Method to evaluate time and / or date input and convert to datetime"""
+    if isinstance(value, datetime):
+        return value
+    elif isinstance(value, date):
+        return datetime.combine(value, time())
+    elif isinstance(value, time):
+        return datetime.combine(date(1900,1,1), value)
+    else:
+        raise ValueError("Conversion into datetime object failed for input: "
+            "%s (type: %s)" %(value, type(value)))       
+        
 def isnum(val):
     """Checks if input is number (int or float) and not nan
     

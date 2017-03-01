@@ -19,6 +19,9 @@ from copy import deepcopy
 from .helpers import shifted_color_map, bytescale, map_roi, check_roi
 from .exceptions import ImgMetaError
 
+# Custom image import method (can be set externally)
+IMAGE_LOAD_CUSTOM = None
+
 class Img(object):
     """ Image base class
     
@@ -76,11 +79,16 @@ class Img(object):
     """
     _FITSEXT = [".fits", ".fit", ".fts"]
     
-    def __init__(self, input=None, dtype=float32, **meta_info):
+    def __init__(self, input=None, import_method=None, dtype=float32,
+                 **meta_info):
         """Class initialisation
         
         :param input: if input is valid (e.g. file path to an image type which
             can be read or numpy array) it is loaded
+        :param function import_method: custom image load method, must return
+            tuple containing image data (2D ndarray) and dictionary containing
+            meta information (can be empty if read routine does not import 
+            any meta information)
         :param dtype: datatype for image data (float32)
         :param **meta_info: keyword args specifying meta data
         """
@@ -90,6 +98,9 @@ class Img(object):
         self._img = None #: the actual image data
         self.dtype = dtype
         self.vign_mask = None
+        
+        # custom data import method (optional on class initialisation)
+        self.import_method = import_method
         
         #Log of applied edit operations
         self.edit_log = od([  ("darkcorr"   ,   0), # boolean
@@ -125,6 +136,19 @@ class Img(object):
                         ("ser_no"        ,   "")])
                         
         
+        try:
+            temp = import_method(input)            
+            input = temp[0]
+            meta_info.update(temp[1])
+        except:
+            from pyplis import IMAGE_LOAD_CUSTOM
+            try:
+                temp = IMAGE_LOAD_CUSTOM(input)
+                input = temp[0]
+                meta_info.update(temp[1])
+            except:
+                pass
+            
         if input is not None:                              
             self.load_input(input)
           
@@ -211,7 +235,6 @@ class Img(object):
         if self.edit_log["crop"]:
             warn("Cropping image that was already cropped...")
         self.roi_abs = roi_abs #updates current roi_abs setting
-        print self.meta["start_acq"]
         roi = self.roi #self.roi is @property method and takes care of ROI conv
         sub = self.img[roi[1]:roi[3], roi[0]:roi[2]] 
         im = self
@@ -441,7 +464,7 @@ class Img(object):
         try:
             return ("Acq.: %s, texp: %.2f s, rgain %s\n"
                     "pyrlevel: %d, roi_abs: %s" %(self.meta["start_acq"].\
-                    strftime('%d/%m/%Y %H:%M:%S'), self.meta["texp"],\
+                    strftime('%H:%M:%S'), self.meta["texp"],\
                     self.meta["read_gain"], self.pyrlevel, self.roi_abs)) 
         except Exception as e:
             print repr(e)
@@ -574,15 +597,10 @@ class Img(object):
     def load_file(self, file_path):
         """Try to import file specified by input path"""
         ext = splitext(file_path)[-1]
-        if ext in self._FITSEXT:
+        try:
             self.load_fits(file_path)
-        elif self.cam_id == "hdcam":
-            self.load_hd_custom(file_path)
-        else:
-            try:
-                self.load_hd_new(file_path)
-            except:
-               self.img = imread(file_path).astype(self.dtype)
+        except:
+            self.img = imread(file_path).astype(self.dtype)
         self.meta["path"] = abspath(file_path)
         self.meta["file_name"] = basename(file_path)
         self.meta["file_type"] = ext

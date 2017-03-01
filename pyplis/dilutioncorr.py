@@ -93,7 +93,7 @@ class DilutionCorr(object):
         self._skip_pix[line_id] = self.settings["skip_pix"]
         return dists
             
-    def get_data(self, img, line_ids = []):
+    def get_data(self, img, line_ids=[]):
         """Returns array with all available distances
         
         :param Img img: vignetting corrected plume image
@@ -155,7 +155,8 @@ class DilutionCorr(object):
         """    
         dists, rads = self.get_data(img, line_ids)
         fit_res = dilution_corr_fit(rads, dists, rad_ambient, i0_guess,
-                                    i0_min, i0_max, ext_guess, ext_min, ext_max)
+                                    i0_min, i0_max, ext_guess,
+                                    ext_min, ext_max)
         i0, ext = fit_res.x
         ax = None
         if plot:
@@ -163,8 +164,8 @@ class DilutionCorr(object):
                                       **kwargs)
         return ext, i0, fit_res, ax
     
-    def correct_img(self, plume_img, ext, plume_bg_img, plume_dist_img,\
-                                                        plume_pix_mask):
+    def correct_img(self, plume_img, ext, plume_bg_img, plume_dist_img,
+                    plume_pix_mask):
         """Perform dilution correction for a plume image
         
         Corresponds to Eq. 4 in in `Campion et al., 2015 <http://
@@ -195,12 +196,12 @@ class DilutionCorr(object):
 
         dists = plume_pix_mask.astype(float) * plume_dist_img 
         corr_img = plume_img.duplicate()
-        corr_img.img = (corr_img.img - plume_bg_img.img *\
-                            (1 - exp(-ext * dists))) / exp(-ext * dists)
+        corr_img.img = ((corr_img.img - plume_bg_img.img *
+                        (1 - exp(-ext * dists))) / exp(-ext * dists))
         corr_img.edit_log["dilcorr"] = True
         return corr_img
         
-    def plot_fit_result(self, dists, rads, rad_ambient, i0, ext, ax = None):
+    def plot_fit_result(self, dists, rads, rad_ambient, i0, ext, ax=None):
         """Plot result of dilution fit"""
         if ax is None:
             fig, ax = subplots(1,1)
@@ -287,9 +288,8 @@ class DilutionCorr(object):
             map3d.ax.set_axis_off()
         return map3d
         
-def get_topo_dists_lines(lines, geom, img = None, skip_pix = 5,\
-        topo_res_m = 5.0, min_slope_angle = 5.0, plot = False,\
-                                                    line_color = "lime"):
+def get_topo_dists_lines(lines, geom, img=None, skip_pix=5, topo_res_m=5.0, 
+                         min_slope_angle=5.0, plot=False, line_color="lime"):
 
     if isinstance(lines, LineOnImage):
         lines = [lines]
@@ -324,13 +324,13 @@ def get_topo_dists_lines(lines, geom, img = None, skip_pix = 5,\
         
     return dists, asarray(mask), map3d, ax
 
-def perform_dilution_correction(plume_img, ext, plume_bg_img, plume_dist_img,\
-                                                        plume_pix_mask):
+def perform_dilution_correction(plume_img, ext, plume_bg_img, plume_dist_img,
+                                plume_pix_mask):
     dists = plume_pix_mask.astype(float) * plume_dist_img 
-    return (plume_img - plume_bg_img * (1 - exp(-ext * dists))) /\
-                                                    exp(-ext * dists)
+    return ((plume_img - plume_bg_img *
+            (1 - exp(-ext * dists))) / exp(-ext * dists))
                                                 
-def get_extinction_coeff(rads, dists, rad_ambient, plot = True, **kwargs):
+def get_extinction_coeff(rads, dists, rad_ambient, plot=True, **kwargs):
     """Perform dilution correction fit to retrieve extinction coefficient
     
     :param ndarray rads: radiances retrieved for topographic features
@@ -353,114 +353,8 @@ def get_extinction_coeff(rads, dists, rad_ambient, plot = True, **kwargs):
         ax.plot(x, ints, "--c", label = lbl_fit)
         ax.set_xlabel("Distance [m]")
         ax.set_ylabel("Radiances [DN]")
-        ax.legend(loc = "best", fancybox = True, framealpha = 0.5,\
-                                                        fontsize = 12)
+        ax.legend(loc="best", fancybox=True, framealpha=0.5, fontsize=12)
     return ext, i0, fit_res, ax
-#==============================================================================
-# class DilutionCorrection(object):
-#     
-#     def __init__(self, onlist, geometry, offlist = None, vign_mask = None,\
-#                                                             *lines, **kwargs):
-#                                                         
-#         if not isinstance(onlist, ImgList):
-#             raise TypeError("Invalid input: need ImgList...")
-#         if not isinstance(geometry, MeasGeometry):
-#             raise TypeError("Invalid input type: need MeasGeometry...")
-#             
-#         self.lists = {"on"  :   None, 
-#                       "off" :   None,
-#                       "aa"  :   None}
-#     
-#         self.geometry = geometry
-#         
-#         self.lines = {}
-#         
-#         self.settings = {"skip_pix"    :   10,
-#                          "bg_corr_mode":   6}
-#         
-#         for line in lines:
-#             if isinstance(line, LineOnImage):
-#                 self.lines[line.line_id] = line
-#         
-#         for key, val in kwargs.iteritems():
-#             if self.settings.has_key(key):
-#                 self.settings[key] = val
-#                 
-#         self._check_lists(onlist, offlist)
-#     
-#     @property
-#     def on_list(self):
-#         """Get / set onband list"""
-#         return self.lists["on"]
-#     
-#     @on_list.setter
-#     def on_list(self, val):
-#         dc, tau = val.dark_corr_mode, val.tau_mode
-#         val.bg_model.CORR_MODE = self.bg_corr_mode
-#         val.dark_corr_mode = 1
-#         val.tau_mode = 1
-#         val.tau_mode = tau
-#         val.dark_corr_mode = dc
-#         self.lists["on"] = val
-#         
-#     @property
-#     def off_list(self): 
-#         try:
-#             return self.on_list.get_off_list(self._off_id)
-#         except:
-#             return None
-#         
-#     @property
-#     def bg_corr_mode(self):
-#         """Get / set bg corr mode in on and off image list"""
-#         return self.settings["bg_corr_mode"]
-#     
-#     @bg_corr_mode.setter
-#     def bg_corr_mode(self, value):
-#         """Change background correction mode"""        
-#         if int(value) in arange(7):
-#              self.on_list.bg_model.CORR_MODE = value
-#              self.off_list.bg_model.CORR_MODE = value
-#              self.on_list.load()
-#              self.off_list.load()
-#              return
-#         raise ValueError("Invalid input for background correction mode")
-#         
-#     def _check_lists(self, onlist, offlist):
-#         """Check input and initiate working environment"""
-#         #first check if on list is prepared for dark correction and tau img
-#         #calculation
-#         self.on_list = onlist
-#         try:
-#             dc, tau = offlist.dark_corr_mode, offlist.tau_mode
-#             offlist.bg_model.CORR_MODE = self.bg_corr_mode
-#             offlist.dark_corr_mode = 1
-#             offlist.tau_mode = 1
-#             self.on_list.link_imglist(offlist)
-#             self._off_id = offlist.list_id
-#             offlist.tau_mode = tau
-#             offlist.dark_corr_mode = dc
-#         except:
-#             offlist = self.on_list.get_off_list()
-#             offlist.bg_model.CORR_MODE = self.bg_corr_mode
-#             dc, tau = offlist.dark_corr_mode, offlist.tau_mode
-#             offlist.dark_corr_mode = 1
-#             offlist.tau_mode = 1
-#             offlist.tau_mode = tau
-#             offlist.dark_corr_mode = dc
-#             self._off_id = offlist.list_id
-#         
-#         self.lists["off"] = offlist
-#         aa_list = deepcopy(onlist)
-#         aa_list.aa_mode = True
-#         aa_list.list_id = "aa"
-#         self.on_list.link_imglist(aa_list)
-#         self.lists["aa"] = aa_list
-#==============================================================================
-            
-        
-            
-        
         
                     
                 

@@ -97,7 +97,7 @@ if __name__ == "__main__":
     on_list.pyrlevel = 2 
 
     # activate automatic dark correction in list
-    on_list.camera.DARK_CORR_OPT = 1 #see previous script
+    on_list.DARK_CORR_OPT = 1 #see previous script
     on_list.darkcorr_mode = True 
 
     # blur the on band images
@@ -122,7 +122,8 @@ if __name__ == "__main__":
     off_img.show(ax = ax[1])
     off_time_str = datetime.strftime(off_img.start_acq, "%Y-%m-%d %H:%M:%S")
     ax[1].set_title("Current img (off-band list): %s" %off_time_str)
-        
+     
+    on_list.edit_info()
     
     ### IMPORTANT STUFF FINISHED    
     if SAVEFIGS:
