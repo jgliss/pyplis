@@ -237,10 +237,6 @@ class Dataset(object):
             for filter_id, lst in sub_dict.iteritems():
                 lst.init_filelist()
         
-        no_dark_ids = self.check_dark_lists()
-        if len(no_dark_ids) > 0:
-            self.find_master_darks(no_dark_ids)
-        
         self.assign_dark_offset_lists()
         
         try:
@@ -410,6 +406,10 @@ class Dataset(object):
             into_list.link_dark_offset_lists(self.dark_lists_with_data)
             return True
         
+        no_dark_ids = self.check_dark_lists()
+        if len(no_dark_ids) > 0:
+            self.find_master_darks(no_dark_ids)
+            
         for filter_id, lst in self.img_lists.iteritems():
             if lst.nof > 0:
                 print ("Assigning dark and offset lists in image list %s" 
@@ -497,6 +497,46 @@ class Dataset(object):
                 no_data_ids.append(lst.list_id)
         return no_data_ids
     
+    def find_master_dark(self):
+        """Search master dark image for specific dark list
+        
+        Search a master dark image for all dark image lists that do not
+        contain images
+        """
+        print "\nCHECKING DARK IMAGE LISTS IN DATASET"
+        flags = self.camera._fname_access_flags
+        if not (flags["filter_id"] and flags["meas_type"]):
+            #: it is not possible to separate different image types (on, off, 
+            #: dark..) from filename, thus dark or offset images can not be searched
+            return []
+            
+        all_files = self.get_all_filepaths()
+        l = self.get_list(self.filters.default_key_on)
+        if l.data_available:
+            f_name = l.files[int(l.nof/2)]
+        else:
+            f_name = all_files[int(len(all_files)/2.)]
+        failed_ids = [] 
+        if not bool(dark_ids):
+            dark_ids = self.dark_lists.keys()
+        for dark_id in dark_ids:
+            lst = self.dark_lists[dark_id]
+            if not lst.nof > 0:
+                meas_type_acro, acronym = self.lists_access_info[dark_id]
+                print ("\nSearching master dark image for\nID: %s\nacronym: %s"
+                  "\nmeas_type_acro: %s" %(dark_id, acronym, meas_type_acro))
+                try:
+                    p = self.find_closest_img(f_name, all_files, acronym,
+                                              meas_type_acro)
+                    lst.files.append(p)
+                    lst.init_filelist()
+                    print "Found dark image for ID %s\n" %dark_id
+                except:
+                    print "Failed to find dark image for ID %s\n" %dark_id
+                    failed_ids.append(dark_id)
+                    
+        return failed_ids
+        
     def find_master_darks(self, dark_ids = []):
         """Search master dark image for each dark type
         
