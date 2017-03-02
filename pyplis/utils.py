@@ -33,8 +33,13 @@ class CameraBaseInfo(object):
         self.cam_id = None
         self.delim = None #""
         self.time_info_pos = None # nan
-        self.time_info_str = None #""
+        self.time_info_str = "" #""
+        self._time_info_subnum = 1
+    
+        #Specify filter ID    
         self.filter_id_pos = None #nan
+        self._fid_subnum_max = 1        
+        
         self.file_type = None #""
         self.default_filters = []
         self.main_filter_id = None#"on"
@@ -44,6 +49,10 @@ class CameraBaseInfo(object):
         self.image_import_method = None
         
         self.meas_type_pos = None#nan
+        # maximum length of meastype substrings after splitting using delim
+        self._mtype_subnum_max = 1
+        
+        
         #:the next flag (self.DARK_CORR_OPT) is set for image lists created using this fileconvention
         #:and is supposed to define the way dark image correction is performed.
         #:for definition of the modes, see in :class:`BaseImgList` documentation)
@@ -75,7 +84,26 @@ class CameraBaseInfo(object):
                 
         if self.meas_type_pos is None:
             self.meas_type_pos = self.filter_id_pos
-    
+        self._init_access_substring_info()
+        
+    def _init_access_substring_info(self):
+        """Check number of sub strings for specific access values after split"""
+        self._time_info_subnum = len(self.time_info_str.split(self.delim))
+        for f in self.default_filters:
+            len_acro = len(f.acronym.split(self.delim))
+            len_mtype = len(f.meas_type_acro.split(self.delim))
+            if len_acro > self._fid_subnum_max:
+                self._fid_subnum_max = len_acro
+            if len_mtype > self._mtype_subnum_max:
+                self._mtype_subnum_max = len_mtype
+        for f in self.dark_info:
+            len_acro = len(f.acronym.split(self.delim))
+            len_mtype = len(f.meas_type_acro.split(self.delim))
+            if len_acro > self._fid_subnum_max:
+                self._fid_subnum_max = len_acro
+            if len_mtype > self._mtype_subnum_max:
+                self._mtype_subnum_max = len_mtype
+        
     def update_file_access_flags(self):
         """Check which info can (potentially) be extracted from filename
         
@@ -88,7 +116,6 @@ class CameraBaseInfo(object):
         checks if the access works for an given input file.
         
         """
-        #for this camera and set the flags.
         flags = self._fname_access_flags        
         if isinstance(self.filter_id_pos, int):
             flags["filter_id"] = True
@@ -101,7 +128,7 @@ class CameraBaseInfo(object):
             flags["start_acq"] = True
     
     def get_img_meta_from_filename(self, file_path):
-        """Extract as much as possible from filename and updated flags
+        """Extract as much as possible from filename and update access flags
         
         Checks if all declared import information works for a given filetype 
         and update all flags for which it does not work 
@@ -121,19 +148,23 @@ class CameraBaseInfo(object):
                
         spl = basename(file_path).split(".")[0].split(self.delim)
         try:
-            acq_time = dt.strptime(spl[self.time_info_pos], self.time_info_str)
+            pos = self.time_info_pos
+            sub = self.delim.join(spl[pos:(pos + self._time_info_subnum)])
+            acq_time = dt.strptime(sub, self.time_info_str)
             flags["start_acq"] = True
         except:
             warnings.append("INFO: start_acq cannot be accessed from filename")
             flags["start_acq"] = False
         try:
-            filter_id = spl[self.filter_id_pos]
+            pos = self.filter_id_pos
+            filter_id = self.delim.join(spl[pos:(pos + self._fid_subnum_max)])
             flags["filter_id"] = True
         except:
             warnings.append("INFO: filter_id cannot be accessed from filename")
             flags["filter_id"] = False
         try:
-            meas_type = spl[self.meas_type_pos]
+            pos = self.meas_type_pos
+            meas_type = self.delim.join(spl[pos:(pos + self._mtype_subnum_max)])
             flags["meas_type"] = True
         except:
             warnings.append("INFO: meas_type cannot be accessed from filename")

@@ -16,4 +16,10 @@ release (version 0.9.2)
   
     1. Master dark / offset images are now searched for each dark / offset image list individually
     2. Customised assignment of dark / offset lists in image lists for cameras where meas type is specified in own filename substring (e.g. HD cam). 
+    
+02/03/2017
+----------
+
+  1. Expanded flexibility for meta information access via filename for acquisition time, meas_type and filter_id in Camera class: now, the conversion / identification strings can also include the actual delimiter (e.g. delim="_", time_info_pos = 0, time_info_str="%Y%m%d_%H%M%S_%f" or filter_id_pos=3 and filter.acronym="A_dark"). This is for instance required for file naming convention of new default SO2 camera type "hd_new".
+  
   

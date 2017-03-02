@@ -2,7 +2,26 @@
 """
 pyplis example script no. 6 - DOAS calibration and FOV search
 
-Script showing how to work with cell calibration data
+Script showing how to work with DOAS calibration data
+
+In this script, a stack of plume AA images from the Etna test data is imported
+as well as a time series of DOAS SO2-CDs in the plume retrieved using the 
+software DOASIS (see directory "spectra" in test data folder for corresponding 
+analysis details, the folder also contains the RAW data and the jscript code 
+for analysing the spectra). The DOAS result import is performed using the
+Python package ``pydoas``.
+
+Based on these data, position and shape of the DOAS FOV within the camera 
+uimages is identified using both FOV search methods (IFR and Pearson). The 
+results of the FOV search are plotted as well as the corresponding calibration
+curves retrieved for both FOV parametrisations.
+
+.. note:: 
+
+    if a MemoryError occurs while determining the AA image stack, then the 
+    stack (3D numpy array) is too large for your RAM. In this case, try 
+    increasing script option PYRLEVEL_ROUGH_SEARCH.
+    
 """
 
 import pyplis
@@ -30,7 +49,8 @@ RELOAD_STACK = 0
 #the result from pyrlevel=2, another stack is determined at pyrlevel = 0 
 #(i.e. in full resolution) within ROI around the center position from 
 #pyrlevel=2
-DO_FINE_SEARCH = 0
+DO_FINE_SEARCH = 1
+PYRLEVEL_ROUGH_SEARCH = 2
 
 ### RELEVANT DIRECTORIES AND PATHS
 
@@ -44,31 +64,52 @@ STACK_PATH = join(SAVE_DIR, "pyplis_imgstack_id_aa_20150916_0706_0721.fts")
 def load_doas_results():
     """ Specify DOAS data import from DOASIS fit result files
     
-    In order to perform the DOAS FOV search, as much spectrum datapoints 
-    as possible are needed. Therefore, we only added 10 scans per plume
-    spectrum. In this case (and because the spectrometer was not temperature 
-    stabilised, the DOAS fit in the recommended wavelength range (~ 314 - 326, 
-    here "f01") might not exceed the S/N ratio for low SO2 CDs. Thus, to have a 
-    quality check of the fit performance, SO2 was therefore also fitted in a lower 
-    wavelength region ("f02" : ~ 309 - 323 nm), both datasets are imported here
-    and are plotted against each other below, showing that the correlation is 
-    good (i.e. f01 is trustworthy) and that the SO2 CDs are too small
+    In order to perform the DOAS FOV search, as many spectrum datapoints 
+    as possible are needed. Therefore, only 10 spectra were added (to reduce
+    noise) per plume spectrum. The DOAS fit was performed in a wavelength 
+    range between 314 - 326 nm (fit ID: "f01").
     """
-    fit_import_info = {"so2" : ["SO2_Hermans_298_air_conv_satCorr1e18", 
-                                                            ["f01"]]}
     
-    doas_import_setup = pydoas.dataimport.ResultImportSetup(DOAS_DATA_DIR,\
-                                        result_import_dict = fit_import_info)
-    ### Import the DOAS fit results
+    # This dictionary specifies which information is supposed to be imported
+    # from the DOAS fit result files stored in DOAS_DATA_DIR. In the example
+    # shown here, only the SO2 fit results are imported from fit scenario
+    # with ID "f01" (key of dict). The corresponding value of each key is 
+    # a list of format ["header_id", ["fit_id1", "fit_id2", ..., "fit_idN"]]
+    # specifying the identification string of the species in the result file
+    # headers and the second entry is a list specifying all fit scenario IDs
+    # from which this species is supposed to be imported (here only f01)
+    fit_import_info = {"so2" : ["SO2_Hermans_298_air_conv_satCorr1e18", ["f01"]
+                               ]}
+    
+    # Create a result import setup for the DOAS data based on the import 
+    # dictionary and the image base directory of the result files ... 
+    doas_import_setup =\
+    pydoas.dataimport.ResultImportSetup(DOAS_DATA_DIR,
+                                        result_import_dict=fit_import_info)
+    
+    # ... and create a result dataset from that
     doas_dataset = pydoas.analysis.DatasetDoasResults(doas_import_setup)
     
-    ### get fit results from standard so2 fit (f01)
-    # they were recorded in LT, so shift them to UTC (2h back) 
-    return doas_dataset.get_results("so2", "f01").shift(timedelta(-1./12))
+    # get the SO2 fit results from the dataset. Individual results of certain
+    # species can be accessed using the species ID (key in ``fit_import_info``
+    # dict) and its fit ID (one of the fit IDs specified for this species, here
+    # f01).
+    # Note, that the DOAS data was stored using local time, thus they need to
+    # be shifted (2h back) to match the camera data time stamps (which are in 
+    # UTC), otherwise the temporal merging of the two datasets (for the DOAS
+    # calibration) does not work
+    results_utc = doas_dataset.get_results("so2", "f01").shift(timedelta(-1./12))
+    return results_utc
 
-def make_aa_stack_from_list(aa_list, roi_abs = None, pyrlevel = 2,\
-                                                        save = True):
+def make_aa_stack_from_list(aa_list, roi_abs=None, pyrlevel=None,
+                            save=True, stack_path=STACK_PATH, 
+                            save_dir=SAVE_DIR):
     """Get and prepare onband list for aa image mode"""
+    # Deactivate auto reload to change some settings (if auto_reload is active
+    # list images are reloaded whenever a setting is changed in the list. This
+    # can slow down things, thus, if you intend to change a couple of settings
+    # you might deactivate auto_reload, adapt the settings and then re-activate
+    # auto_reload
     aa_list.auto_reload = False
     if roi_abs is not None:
         aa_list.roi_abs = roi_abs
@@ -76,31 +117,44 @@ def make_aa_stack_from_list(aa_list, roi_abs = None, pyrlevel = 2,\
     aa_list.pyrlevel = pyrlevel
     aa_list.auto_reload = True
     
+    # Stack all images in image list at pyrlevel 2 and cropped using specified
+    # roi (uncropped if roi_abs=None).
     stack = aa_list.make_stack()
     if save:
         try:
-            remove(STACK_PATH)
+            remove(stack_path)
         except:
             pass    
-        stack.save_as_fits(save_dir = SAVE_DIR)  
+        stack.save_as_fits(save_dir=save_dir)  
     return stack
 
-
+def get_stack(reload_stack=RELOAD_STACK, stack_path=STACK_PATH,
+              pyrlevel=PYRLEVEL_ROUGH_SEARCH):
+    """Load stack data based on current settings"""
+    if not exists(STACK_PATH):
+        reload_stack = 1
+        
+    if not reload_stack:
+        stack = pyplis.processing.ImgStack()
+        stack.load_stack_fits(stack_path)
+        if stack.pyrlevel != pyrlevel:
+            reload_stack = True
+    aa_list = None
+    if reload_stack:
+        # import AA image list
+        aa_list = prepare_aa_image_list()
+        # Try creating stack 
+        stack = make_aa_stack_from_list(aa_list, pyrlevel=pyrlevel)
+    
+    return stack, aa_list
+    
 ### SCRIPT MAIN FUNCTION
 if __name__ == "__main__":
+    # close all plots
     close("all")
     
-    if not exists(STACK_PATH):
-        RELOAD_STACK = 1
-        
-    aa_list = None
-    if RELOAD_STACK:
-        aa_list = prepare_aa_image_list()
-        stack = make_aa_stack_from_list(aa_list)
-    else:
-        stack = pyplis.processing.ImgStack()
-        stack.load_stack_fits(STACK_PATH)
-
+    # reload or create the AA image stack based on current script settings
+    stack, aa_list = get_stack()
     
     doas_time_series = load_doas_results()
     s = pyplis.doascalib.DoasFOVEngine(stack, doas_time_series, maxrad = 10)

@@ -19,9 +19,6 @@ from copy import deepcopy
 from .helpers import shifted_color_map, bytescale, map_roi, check_roi
 from .exceptions import ImgMetaError
 
-# Custom image import method (can be set externally)
-IMAGE_LOAD_CUSTOM = None
-
 class Img(object):
     """ Image base class
     
@@ -141,13 +138,7 @@ class Img(object):
             input = temp[0]
             meta_info.update(temp[1])
         except:
-            from pyplis import IMAGE_LOAD_CUSTOM
-            try:
-                temp = IMAGE_LOAD_CUSTOM(input)
-                input = temp[0]
-                meta_info.update(temp[1])
-            except:
-                pass
+            pass
             
         if input is not None:                              
             self.load_input(input)
