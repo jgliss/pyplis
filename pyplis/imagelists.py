@@ -710,25 +710,27 @@ class BaseImgList(object):
         """
         return self.current_img().meta["start_acq"]
         
-    def current_time_str(self, format = '%H:%M:%S'):
+    def current_time_str(self, format='%H:%M:%S'):
         """Returns a string of the current acq time"""
         return self.loaded_images["this"].meta["start_acq"].strftime(format)
         
-    def current_img(self, key = "this"):
+    def current_img(self, key="this"):
         """Get the current image object
         
         :param str key ("this"): "prev", "this" or "next"
         :returns Img:
         """
-        if not isinstance(self.loaded_images[key], Img):
+        img = self.loaded_images[key]
+        if not isinstance(img, Img):
             try:
                 self.load()
+                img = self.loaded_images[key]
             except IndexError:
-                raise IndexError("Image list %s is empty (no files in "
-                    "self.files...")
+                raise IndexError("Image list %s does not contain images" 
+                            %self.list_id)
             except:
                 raise
-        return self.loaded_images[key]
+        return img
         
     def show_current(self, **kwargs):
         """Show the current image"""
@@ -1292,9 +1294,9 @@ class ImgList(BaseImgList):
             self.camera.DARK_CORR_OPT = mode
             return True
         return False
-        
+                
     def add_master_dark_image(self, dark, acq_time=datetime(1900, 1, 1),
-                              texp=0.0):
+                              texp=0.0, read_gain=0):
         """Add a (master) dark image data to list
         
         Sets a dark image, which is used for dark correction in case, 
@@ -1333,11 +1335,13 @@ class ImgList(BaseImgList):
         if (acq_time != datetime(1900,1,1) and 
             dark.meta["start_acq"] == datetime(1900,1,1)):
             dark.meta["start_acq"] = acq_time
+        dark.meta["read_gain"] = read_gain
             
         self.master_dark = dark
     
+    
     def add_master_offset_image(self, offset, acq_time=datetime(1900, 1, 1),
-                                texp=0.0):
+                                texp=0.0, read_gain=0):
         """Add a (master) offset image to list
         
         Sets a offset image, which is used for dark correction in case, 
@@ -1375,7 +1379,7 @@ class ImgList(BaseImgList):
         if (acq_time != datetime(1900,1,1) 
                 and offset.meta["start_acq"] == datetime(1900,1,1)):
             offset.meta["start_acq"] = acq_time
-            
+        offset.meta["read_gain"] = read_gain
         self.master_offset = offset
 
     def get_dark_image(self, key="this"):
@@ -1407,10 +1411,14 @@ class ImgList(BaseImgList):
                 raise ValueError. Else, return this dark image.
                 
         """
+        if self.DARK_CORR_OPT == 0:
+            raise ValueError("Dark image could not be accessed in list %s: "
+                "DARK_CORR_OPT is zero, please set DARK_CORR_OPT according "
+                "to your data type")
+                
         img = self.current_img(key)
         read_gain = img.meta["read_gain"]
         self.update_index_dark_offset_lists()
-        dark = None
         if self.DARK_CORR_OPT == 1:
             try:
                 dark = self.dark_lists[read_gain]["list"].current_img()
@@ -1421,34 +1429,29 @@ class ImgList(BaseImgList):
                     dark = model_dark_image(img, self.master_dark,
                                             self.master_offset)
                 except:
-                    pass
+                    raise ValueError("Dark image could not be accessed in "
+                            "image list %s (DARK_CORR_OPT=1)")
 
         if self.DARK_CORR_OPT == 2:
             try:
                 dark = self.dark_lists[read_gain]["list"].current_img()
-                texp_ratio = img.meta["texp"] / dark.meta["texp"]
-                if not 0.8 <= texp_ratio <= 1.2:
-                    warn("Could not retrieve dark image from "
-                        "linked dark lists: exposure time of current dark "
-                        "image in linked dark list deviates by more than 20% "
-                        "from current image in list %s" %self.list_id)
+                if not isinstance(dark, Img):
                     raise ValueError
             except:
                 dark = self.master_dark
-                try:
-                    texp_ratio = img.meta["texp"] / dark.meta["texp"]
-                    if not 0.8 <= texp_ratio <= 1.2:
-                        warn("Could not retrieve dark image from "
-                            "self.darkImg: exposure time of deviates by more "
-                            "than 20% from current image in list %s" 
-                            %self.list_id)
-                except:
-                    pass
-        
-        if self.DARK_CORR_OPT == 0:
-            warn("Dark image could not be accessed in list %s,DARK_CORR_OPT "
-                " is zero...")
-            #dark = Img(zeros(img.img.shape).astype(float))
+                if not isinstance(dark, Img):
+                    raise ValueError("Dark image could not be accessed in "
+                            "image list %s (DARK_CORR_OPT=2)")
+        try:
+            texp_ratio = img.meta["texp"] / dark.meta["texp"]
+            if not 0.8 <= texp_ratio <= 1.2:
+                warn("Exposure time of current dark image in list %s "
+                     "deviates by more than 20% from list image %s "
+                     "(current list index: %d)"
+                     %(self.list_id, key, self.cfn))
+        except:
+            pass
+    
         return dark
                 
     def update_index_dark_offset_lists(self):
@@ -1507,12 +1510,7 @@ class ImgList(BaseImgList):
             raise ImgMetaError("Cannot deactivate dark correction, original"
                 "image file was already dark corrected")
         if val:
-            if not isinstance(self.get_dark_image(), Img):
-                raise Exception("Image dark correction could not be activated "
-                    "please check availability of dark images in this list "
-                    "as well as the current dark correction option "
-                    "(i.e. self.DARK_CORR_OPT)")
-            #self._check_dark_offset()
+            self.get_dark_image()
             self.update_index_dark_offset_lists()
                     
         self._list_modes["darkcorr"] = val
