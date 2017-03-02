@@ -1029,7 +1029,7 @@ class CellCalibEngine(Dataset):
             (e.g. "on", "off")
         :param bool darkcorr: bool specifying whether dark correction is
             supposed to be applied to data (True)
-        :param int blurring: specify amount of gaussian blurring (1)
+        :param int blurring: Specify amount of gaussian blurring (1)
         :param int pyrlevel: Specify size reduction factor using gaussian 
             pyramide
         """

@@ -326,6 +326,15 @@ class CameraBaseInfo(object):
     Helpers, supplemental stuff...
     """ 
     @property
+    def dark_acros(self):
+        """Returns list containing filename access acronyms for dark images"""
+        acros = []
+        for item in self.dark_info:
+            if not item.acronym in acros and item.type == "dark":
+                acros.append(item.acronym)
+        return acros
+        
+    @property
     def dark_meas_type_acros(self):
         """Returns list containing meas_type_acros of dark images"""
         acros = []
@@ -334,6 +343,15 @@ class CameraBaseInfo(object):
                 acros.append(item.meas_type_acro)
         return acros
     
+    @property
+    def offset_acros(self):
+        """Returns list containing filename access acronyms for dark images"""
+        acros = []
+        for item in self.dark_info:
+            if not item.acronym in acros and item.type == "offset":
+                acros.append(item.acronym)
+        return acros
+        
     @property
     def offset_meas_type_acros(self):
         """Returns list containing meas_type_acros of dark images"""

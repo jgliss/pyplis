@@ -23,7 +23,8 @@ Image list objects of pyplis library
         mainly used in the :class:`pyplis.Calibration.CellCalib` object.
 
 """
-from numpy import asarray, zeros, argmin, arange, ndarray, float32, ceil
+from numpy import asarray, zeros, argmin, arange, ndarray, float32, ceil, nan,\
+    isnan
 from ntpath import basename
 from datetime import timedelta, datetime
 #from bunch import Bunch
@@ -335,13 +336,13 @@ class BaseImgList(object):
         if self.nof > 0:
             self.load()
     
-    def get_img_meta_from_filename(self, img_file):
+    def get_img_meta_from_filename(self, file_path):
         """Loads and prepares img meta input dict for Img object
         
         :param str img_file: file path of image
         :returns: dict, keys: "start_acq" and "texp"
         """
-        info = self.camera.get_img_meta_from_filename(img_file)
+        info = self.camera.get_img_meta_from_filename(file_path)
         return {"start_acq" : info[0], "texp": info[3]}
     
     @property
@@ -370,34 +371,17 @@ class BaseImgList(object):
             Only works if relevant information is specified in ``self.camera``
         
         """
-        r0, r1 = False, False #init of return values
-        # check what can be accessed from filename (sets corresponding flags in
-        # camera)
-        self.camera.get_img_meta_from_filename(self.files[0])
+        times, texps = asarray([None] * self.nof), asarray([None] * self.nof) 
         
-        time_access = self.camera._fname_access_flags["start_acq"]
-        texp_access = self.camera._fname_access_flags["texp"]
-        
-        times = []
-        texps = []
-        
-        c = self.camera
-        if not any([x == 1 for x in [time_access, texp_access]]):
-            warn("Failed to extract information from file names in image list"
-                " %s" %self.list_id)
-            return False, False
-        for fpath in self.files:
-            spl = basename(fpath).split(c.delim)
-            if time_access:
-                times.append(datetime.strptime(spl[c.time_info_pos],
-                                               c.time_info_str))
-            if texp_access:
-                texps.append(spl[c.texp_pos])
-        if time_access:
-            r0 = asarray(times)
-        if texp_access:
-            r1 = asarray(texps)
-        return r0, r1
+        for k in range(self.nof):
+            try:
+                info = self.camera.get_img_meta_from_filename(self.files[k])
+                times[k] = info[0]
+                texps[k] = info[3]
+            except:
+                pass
+    
+        return times, texps
 
     def assign_indices_linked_list(self, lst):
         """Create a look up table for fast indexing between image lists
@@ -410,7 +394,8 @@ class BaseImgList(object):
         if lst.nof == 1:
             warn("Other list contains only one file, assign all indices to "
                  "the corresponding image")
-        elif any([x is False for x in (times, times_lst)]):
+        elif (any([x is None for x in times]) or 
+              any([x is None for x in times_lst])):
             warn("Image acquisition times could not be accessed from file"
                 " names, assigning by indices")
             lst_idx = arange(lst.nof)
@@ -853,6 +838,8 @@ class BaseImgList(object):
         y_arr = arange(start_y, stop_y, 1)
         ax1 = fig.add_axes([0.1, 0.1, 0.35, 0.8])
         times = self.get_img_meta_all_filenames()[0]
+        if any([x == None for x in times]):
+            raise ValueError("Cannot access all image acq. times")
         idx = []
         idx.append(cidx)
         for k in range(1, self.nof):
@@ -1229,7 +1216,7 @@ class ImgList(BaseImgList):
         offset_assigned = False
         try:
             texp = self.current_img().texp
-            if texp == 0:
+            if texp == 0 or isnan(texp):
                 raise ValueError
         except:
             warn("Exposure time could not be accessed in ImgList %s"
@@ -1242,14 +1229,15 @@ class ImgList(BaseImgList):
         # for logging the difference in exposure (this method is for instance
         # relevant for the HD cam), requires flag: texp_access = True (see 
         # above)
-        dtexp_dark, dtexp_offset = 999999., 999999.
-        print "Linking dark / offset lists to list %s " %self.list_id
+        dtexp_dark, dtexp_offset = 999999, 999999
         for lst in list_dict.values():
             if isinstance(lst, DarkImgList):
                 if lst.list_type == "dark":
                     try:
                         dt = abs(texp - lst.current_img().texp)
-                        if dt < dtexp_dark:
+                        if isnan(dt):
+                            raise ValueError
+                        elif dt < dtexp_dark:
                             self.dark_lists[lst.read_gain] = od()
                             self.dark_lists[lst.read_gain]["list"] = lst
                             dtexp_dark = dt
@@ -1258,9 +1246,11 @@ class ImgList(BaseImgList):
                         self.dark_lists[lst.read_gain] = od()
                         self.dark_lists[lst.read_gain]["list"] = lst
                         dark_assigned = True
-                        
+        
                 elif lst.list_type == "offset":
+                    print 5
                     try:
+                        print 6
                         dt = abs(texp - lst.current_img().texp)
                         if dt < dtexp_offset:
                             self.offset_lists[lst.read_gain] = od()
@@ -1268,16 +1258,19 @@ class ImgList(BaseImgList):
                             dtexp_offset = dt
                             offset_assigned = True
                     except:
+                        print 7
                         self.offset_lists[lst.read_gain] = od()
                         self.offset_lists[lst.read_gain]["list"] = lst
                         offset_assigned = True
+                        
                 else:
+              
                     warnings.append("List %s, type %s could not be linked "
                         %(lst.list_id, lst.list_type))
             else:
                 warnings.append("Obj of type %s could not be linked, need "
                                         " DarkImgList " %type(lst))
-        
+                                        
         for gain, value in self.dark_lists.iteritems():
             value["idx"] = self.assign_indices_linked_list(value["list"])
         for gain, value in self.offset_lists.iteritems():
@@ -1381,7 +1374,14 @@ class ImgList(BaseImgList):
             offset.meta["start_acq"] = acq_time
         offset.meta["read_gain"] = read_gain
         self.master_offset = offset
-
+        
+    @property
+    def dark_info(self):
+        """Print information about current dark image access"""
+        s = "Dark image info list %s\n------------------------------+n"
+        s += "DARK_CORR_OPT=%d\n" 
+        raise NotImplementedError
+        
     def get_dark_image(self, key="this"):
         """Prepares the current dark image dependent on ``DARK_CORR_OPT``
         
