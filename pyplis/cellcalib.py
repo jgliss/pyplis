@@ -20,7 +20,7 @@ from .image import Img
 from .helpers import subimg_shape, map_coordinates_sub_img, exponent
 from .doascalib import DoasFOV
 from .optimisation import PolySurfaceFit
-from .__init__ import SPECIES_ID, _CALIB_ID_STRINGS
+from .glob import SPECIES_ID, _CALIB_ID_STRINGS
       
 class CellSearchInfo(object):
     """Class for for storage cell search from automatic cell search engine"""

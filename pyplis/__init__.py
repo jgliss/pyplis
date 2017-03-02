@@ -21,36 +21,30 @@ except:
 
 _LIBDIR = abspath(dirname(__file__))
 
-import inout
-import geometry
-import utils
+from inout import download_test_data, find_test_data
+from geometry import MeasGeometry
+from utils import Filter, DarkOffsetInfo
 from image import Img
 import custom_image_import
-import dataset
-import plumebackground
-import cellcalib
-import doascalib
-import plumespeed
-import processing
-import dilutioncorr
-import fluxcalc
+from dataset import Dataset
+from plumebackground import PlumeBackgroundModel
+from cellcalib import CellCalibData, CellCalibEngine
+from doascalib import DoasCalibData, DoasFOV, DoasFOVEngine
+from plumespeed import find_signal_correlation, OpticalFlowFarneback,\
+    OpticalFlowFarnebackSettings
+from processing import LineOnImage, ImgStack, ProfileTimeSeriesImg,\
+    PixelMeanTimeSeries
+from dilutioncorr import DilutionCorr
+from fluxcalc import EmissionRateAnalysis, EmissionRateResults,\
+    EmissionRateSettings
 import optimisation
 import model_functions
-import setupclasses  
+from setupclasses import MeasSetup, Camera, Source
  
 import helpers
 import exceptions
+import glob
 
-# String ID of species to be analysed (for plots etc.)
-SPECIES_ID = r"SO2"
-
-#map of internal calibration access keys to string repr. for plots
-_CALIB_ID_STRINGS = {"on" :  "On",
-                     "off":  "Off",
-                     "aa" :  "AA"}
-# Global specification of image custom load method (can e.g. be used in 
-# in scripts)
-IMAGE_LOAD_CUSTOM = None
 from matplotlib import rcParams
 
 rcParams["mathtext.default"] = u"regular"

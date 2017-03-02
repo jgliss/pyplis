@@ -14,12 +14,11 @@ from os.path import join, exists
 from traceback import format_exc
 from warnings import warn
 
-
 from matplotlib.pyplot import subplots
 from matplotlib.patches import Circle, Ellipse
 from matplotlib.cm import RdBu
 
-from .__init__ import SPECIES_ID, _CALIB_ID_STRINGS
+from .glob import SPECIES_ID, _CALIB_ID_STRINGS
 from .processing import ImgStack
 from .helpers import shifted_color_map, mesh_from_img, get_img_maximum,\
         sub_img_to_detector_coords, map_coordinates_sub_img, exponent
@@ -27,7 +26,6 @@ from .optimisation import gauss_fit_2d, GAUSS_2D_PARAM_INFO
 from .image import Img
 from .inout import get_camera_info
 from .setupclasses import Camera
-
 
 class DoasCalibData(object):
     """Object representing DOAS calibration data"""
