@@ -139,15 +139,14 @@ class Img(object):
             meta_info.update(temp[1])
         except:
             pass
-            
-        if input is not None:                              
-            self.load_input(input)
           
         for k, v in meta_info.iteritems():
             if self.meta.has_key(k) and isinstance(v, type(self.meta[k])):
                 self.meta[k] = v
             elif self.edit_log.has_key(k):
                 self.edit_log[k] = v
+        if input is not None:                              
+            self.load_input(input)
         try:
             self.set_roi_whole_image()
         except:
@@ -617,7 +616,8 @@ class Img(object):
             if head["CAMTYPE"] == 'EC2':
                 self.import_ec2_header(head)
         except:
-            pass
+            from traceback import format_exc
+            print format_exc()
         editkeys = self.edit_log.keys()
         metakeys = self.meta.keys()
         for key, val in head.iteritems():
@@ -674,6 +674,7 @@ class Img(object):
         gain_info = {"LOW"  :   0,
                      "HIGH" :   1}
                      
+         
         self.meta["texp"] = float(ec2header['EXP'])*10**-6        #unit s
         self.meta["bit_depth"] = 12
         self.meta["device_id"] = 'ECII'        

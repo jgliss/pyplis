@@ -20,7 +20,7 @@ from collections import OrderedDict as od
 from .imagelists import ImgList, DarkImgList
 from .helpers import shifted_color_map
 from .setupclasses import MeasSetup
-   
+from .exceptions import ImgMetaError
 class Dataset(object):
     """Class for data import management
     
@@ -406,38 +406,62 @@ class Dataset(object):
             into_list.link_dark_offset_lists(self.dark_lists_with_data)
             return True
         
-        no_dark_ids = self.check_dark_lists()
-        if len(no_dark_ids) > 0:
-            self.find_master_darks(no_dark_ids)
-            
+#==============================================================================
+#         no_dark_ids = self.check_dark_lists()
+#         if len(no_dark_ids) > 0:
+#             self.find_master_darks(no_dark_ids)
+#==============================================================================
+        # loop over all image lists ... 
         for filter_id, lst in self.img_lists.iteritems():
+            # ... that contain data
             if lst.nof > 0:
-                print ("Assigning dark and offset lists in image list %s" 
-                                                                %filter_id)
                 lists = od()
                 if self.camera.meas_type_pos != self.camera.filter_id_pos:
-                    for dark_acro in self.camera.dark_meas_type_acros:
-                        try:
-                            dark_lst = self._lists_intern[dark_acro]\
-                                                    [lst.filter.acronym]
-                            lists[dark_lst.list_id] = dark_lst
-                            print ("Found dark list match for image list %s,"
-                             "dark ID: %s" %(lst.list_id, dark_lst.list_id))
-                        except:
-                            pass
-                    for offset_acro in self.camera.offset_meas_type_acros:
-                        try:
-                            offs_lst = self._lists_intern[offset_acro]\
-                                                    [lst.filter.acronym]
-                            lists[offs_lst.list_id] = offs_lst
-                            print ("Found offset list match for image list %s:"
-                             "dark ID: %s" %(lst.list_id, offs_lst.list_id))
-                        except:
-                            pass
+                    for dark_mtype in self.camera.dark_meas_type_acros:
+                        for dark_acro in self.camera.dark_acros:
+                            try:
+                                if lst.filter.acronym in dark_acro:
+                                    dark_lst = self._lists_intern[dark_mtype]\
+                                                                    [dark_acro]
+                                    if isinstance(dark_lst, DarkImgList):
+                                        lists[dark_lst.list_id] = dark_lst
+                                        print ("Found dark list match for "
+                                            "image list %s, dark ID: %s" 
+                                            %(lst.list_id, dark_lst.list_id))
+                            except:
+                                pass
+                    for offs_mtype in self.camera.offset_meas_type_acros:
+                        for offset_acro in self.camera.offset_acros:
+                            try:
+                                if lst.filter.acronym in offset_acro:
+                                    offs_lst = self._lists_intern[offs_mtype]\
+                                                            [offset_acro]
+                                    if isinstance(offs_lst, DarkImgList):
+                                        lists[offs_lst.list_id] = offs_lst
+                                        print ("Found offset list match for "
+                                            "image list %s: dark ID: %s" 
+                                            %(lst.list_id, offs_lst.list_id))
+                            except:
+                                pass
                 if not lists:
-                    lists = self.dark_lists_with_data
+                    lists = self.dark_lists
+                rm = []
+                for key, dark_list in lists.iteritems():
+                    if dark_list.nof < 1:
+                        try:
+                            dark_list = self.find_master_dark(dark_list)
+                        except:
+                            rm.append(key)
+                for key in rm:
+                    del lists[key]
                 
-                lst.link_dark_offset_lists(lists)
+                if not bool(lists):
+                    warn("Failed to assign dark / offset lists to image "
+                        "list %s, no dark images could be found" %filter_id)
+                else:
+                    print ("Assigning dark/offset lists %s to image list %s\n"
+                            %(lists.keys(), filter_id))
+                    lst.link_dark_offset_lists(lists)
         return True
         
     def get_all_dark_offset_lists(self):
@@ -497,18 +521,20 @@ class Dataset(object):
                 no_data_ids.append(lst.list_id)
         return no_data_ids
     
-    def find_master_dark(self):
-        """Search master dark image for specific dark list
+    def find_master_dark(self, dark_list):
+        """Search master dark image for a specific dark list
         
         Search a master dark image for all dark image lists that do not
         contain images
         """
-        print "\nCHECKING DARK IMAGE LISTS IN DATASET"
+        dark_id = dark_list.list_id
+        print("\nSearching master dark image for dark list %s" %dark_id)
         flags = self.camera._fname_access_flags
         if not (flags["filter_id"] and flags["meas_type"]):
             #: it is not possible to separate different image types (on, off, 
             #: dark..) from filename, thus dark or offset images can not be searched
-            return []
+            raise ImgMetaError("Image identification via file name is not "
+                "possible in Dataset")
             
         all_files = self.get_all_filepaths()
         l = self.get_list(self.filters.default_key_on)
@@ -516,32 +542,25 @@ class Dataset(object):
             f_name = l.files[int(l.nof/2)]
         else:
             f_name = all_files[int(len(all_files)/2.)]
-        failed_ids = [] 
-        if not bool(dark_ids):
-            dark_ids = self.dark_lists.keys()
-        for dark_id in dark_ids:
-            lst = self.dark_lists[dark_id]
-            if not lst.nof > 0:
-                meas_type_acro, acronym = self.lists_access_info[dark_id]
-                print ("\nSearching master dark image for\nID: %s\nacronym: %s"
-                  "\nmeas_type_acro: %s" %(dark_id, acronym, meas_type_acro))
-                try:
-                    p = self.find_closest_img(f_name, all_files, acronym,
-                                              meas_type_acro)
-                    lst.files.append(p)
-                    lst.init_filelist()
-                    print "Found dark image for ID %s\n" %dark_id
-                except:
-                    print "Failed to find dark image for ID %s\n" %dark_id
-                    failed_ids.append(dark_id)
-                    
-        return failed_ids
+        meas_type_acro, acronym = self.lists_access_info[dark_id]
+        
+        try:
+            p = self.find_closest_img(f_name, all_files, acronym,
+                                      meas_type_acro)
+            dark_list.files.append(p)
+            dark_list.init_filelist()
+            print("Found dark image for ID %s\n" %dark_id)
+        except:
+            print("Failed to find dark image for ID %s\n" %dark_id)
+            raise Exception
+            
+        return dark_list
         
     def find_master_darks(self, dark_ids = []):
-        """Search master dark image for each dark type
+        """Search master dark image for dark image lists
         
         Search a master dark image for all dark image lists that do not
-        contain images
+        contain images. 
         """
         print "\nCHECKING DARK IMAGE LISTS IN DATASET"
         flags = self.camera._fname_access_flags

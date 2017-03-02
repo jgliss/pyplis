@@ -123,6 +123,8 @@ def create_ecII_cam_new_filters():
     cam.pixnum_x = 1344
     cam.pixnum_y = 1024
     
+    cam._init_access_substring_info()
+    
     # That's it... 
     return cam
 
