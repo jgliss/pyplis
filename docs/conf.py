@@ -66,7 +66,7 @@ extensions = [
     'sphinx.ext.inheritance_diagram',
     'sphinxcontrib.bibtex',
     'sphinxcontrib.images',
-    'sphinxcontrib.exceltable'
+    #'sphinxcontrib.exceltable'
 ]
 
 # Add any paths that contain templates here, relative to this directory.

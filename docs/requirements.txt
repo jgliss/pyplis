@@ -1,3 +1,2 @@
 sphinxcontrib-images
 sphinxcontrib.bibtex
-sphinxcontrib-exceltable
