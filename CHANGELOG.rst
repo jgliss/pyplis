@@ -25,4 +25,10 @@ release (version 0.9.2)
   #. Improved functionality for dark and offset image access in ImgList classes
   #. Improved data import speed in Dataset -> search of master_dark image is only applied to lists that actually include image data
   
+03/03/2017
+----------
+
+  1. Included image check for negative numbers or zeros after dark image correction and before tau / AA image calculation: correction is directly applied to images (no warning), i.e. pixels <= 0 are set to smallest positive float of system.
+  2. Removed bugs regarding image time stamps in MeasSetup and image match search in Dataset (when specifying start / stop time stamps are provided as time object and not as datetime object). These two bugs resulted from changes applied in 0.9.3.dev1 (1/3/2017) and are irrelevant for previous versions.
+  
   

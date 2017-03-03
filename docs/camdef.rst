@@ -27,8 +27,11 @@ The following list provides an overview of relevant parameters for filename acce
 Table: Example file naming conventions
 ======================================
 
-.. exceltable:: Example file naming conventions for pyplis default cameras
-  :file: fname_conventions.xls
+.. note::
+
+  Here follows an Excel table showing exemplary file naming conventions, currently it can not be built on RTD due to bug in module `sphinxcontrib-exceltable <https://bitbucket.org/birkenfeld/sphinx-contrib/issues/178/excel-table-not-working-with-sphinx-151>`_
+  
+Caption: Example file naming conventions for pyplis default cameras
   
 In the following, all relevant :class:`Camera` parameters are introduced using the example of the ECII camera type.
 

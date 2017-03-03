@@ -1555,7 +1555,7 @@ class ImgList(BaseImgList):
         self._list_modes["tau"] = val
         self.load()
     
-    def activate_aa_mode(self, val = True):
+    def activate_aa_mode(self, val=True):
         """Activates AA mode (i.e. images are loaded as AA images)
         
         In order for this to work, the following prerequisites need to be
@@ -1599,7 +1599,7 @@ class ImgList(BaseImgList):
 
         return aa_test
      
-    def get_off_list(self, list_id = None):
+    def get_off_list(self, list_id=None):
         """Search off band list in linked lists
         
         :param str list_id: specify the ID of the list. If unspecified (None), 

@@ -4,7 +4,7 @@ Module containing features related to plume background analysis and tau
 image determination
 """
 from numpy import polyfit, poly1d, linspace, logical_and, log, full, argmin,\
-    gradient, nan, exp, ndarray, arange, ones
+    gradient, nan, exp, ndarray, arange, ones, finfo
 from matplotlib.patches import Rectangle
 from matplotlib.pyplot import GridSpec, figure, subplots_adjust, subplot,\
     subplots, setp
@@ -291,11 +291,17 @@ class PlumeBackgroundModel(object):
                                                     self.surface_fit_mask,
                                                     self.surface_fit_polyorder,
                                                     self.surface_fit_pyrlevel)
-            tau = log(bg / plume)
+            r = bg / plume
+            #make sure no 0 values or neg. numbers are in the image
+            r[r<=0] = finfo(float).eps
+            tau = log(r)
         
         else:
             bg_norm = scale_bg_img(bg, plume, self.scale_rect)
-            tau = log(bg_norm / plume)
+            r = bg_norm / plume
+            #make sure no 0 values or neg. numbers are in the image
+            r[r<=0] = finfo(float).eps
+            tau = log(r)
             if mode > 1:
                 tau = self.correct_tau_curvature_ref_areas(tau)
             
@@ -382,14 +388,19 @@ class PlumeBackgroundModel(object):
         :param Img bg_on: on band sky radiance image
         :param Img bg_off: off band sky radiance image
         
-        """            
-        aa_init = log(bg_on.img/plume_on.img) - log(bg_off.img/plume_off.img)
+        """           
+        r1 = bg_on.img/plume_on.img
+        r1[r1<=0] = finfo(float).eps
+        r2 = bg_off.img/plume_off.img
+        r2[r2<=0] = finfo(float).eps
+        aa_init = log(r1) - log(r2)
                         
         aa = self.correct_tau_curvature_ref_areas(aa_init)
         
         aa_img = plume_on.duplicate()
         aa_img.meta["bit_depth"] = nan
         aa_img.edit_log["is_tau"] = 1
+        aa_img.edit_log["is_aa"] = 1
         aa_img.img = aa
         #self.set_current_images(plume_img, bg_img, tau_img)
         

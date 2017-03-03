@@ -119,12 +119,12 @@ class Dataset(object):
             print "Exclude files from subdirectories"
             if self.USE_ALL_FILE_TYPES:
                 print "Using all file types"
-                all_paths = [join(p, f) for f in listdir(p) if\
-                                                    isfile(join(p, f))]
+                all_paths = [join(p, f) for f in listdir(p) if 
+                             isfile(join(p, f))]
             else:
                 print "Using only %s files" %self.file_type
-                all_paths = [join(p, f) for f in listdir(p) if\
-                        isfile(join(p, f)) and f.endswith(self.file_type)]
+                all_paths = [join(p, f) for f in listdir(p) if
+                             isfile(join(p, f)) and f.endswith(self.file_type)]
             
         else:
             print "Include files from subdirectories"
@@ -296,8 +296,10 @@ class Dataset(object):
             return all_paths
         acq_time0 = self.camera.get_img_meta_from_filename(all_paths[0])[0]
         if acq_time0.date() == date(1900, 1, 1):
+            print "HEEEEEEEEERE"
             paths=self._find_files_ival_time_only(all_paths)
         else:
+            print "THEEEEERE"
             paths=self._find_files_ival_datetime(all_paths)
         
         if not bool(paths):
@@ -308,6 +310,7 @@ class Dataset(object):
             print("%s files of type were found in specified time interval %s "
                 "- %s" %(len(paths), self.start, self.stop))
         return paths
+        
     def _find_files_ival_time_only(self, all_paths):
         """Extracts all files belonging to specified time interval
         
@@ -319,7 +322,9 @@ class Dataset(object):
         for path in all_paths:    
             acq_time = self.camera.get_img_meta_from_filename(path)[0].time()
             if start <= acq_time <= stop:
-                paths.append(path)         
+                paths.append(path) 
+                
+        return paths
         
         
     
