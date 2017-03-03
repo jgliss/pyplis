@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-pyplis example script no. 10 - background image dataset
+pyplis example script no. 10 - Create background image dataset
 """
 
 import pyplis

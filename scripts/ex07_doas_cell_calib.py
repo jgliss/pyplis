@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-pyplis example script no. 7 - Combined DOAS and cell calibration
+pyplis example script no. 7 - AA sensitivity correction masks
 
 In this script, cell and DOAS calibration (see previous 2 scripts) of the Etna
 test dataset are opposed. Furthermore, it is illustrated, how to create

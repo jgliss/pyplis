@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-pyplis example script no. 10 - Image based light dilution correction
+pyplis example script no. 11 - Image based light dilution correction
 """
 import pyplis as pyplis
 from geonum.base import GeoPoint
