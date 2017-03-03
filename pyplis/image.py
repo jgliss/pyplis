@@ -5,7 +5,7 @@ from matplotlib import gridspec
 import matplotlib.cm as cmaps
 from matplotlib.pyplot import imread, figure, tight_layout
 from numpy import ndarray, argmax, histogram, uint, nan, linspace,\
-    isnan, uint8, float32
+    isnan, uint8, float32, finfo
 from os.path import abspath, splitext, basename, exists, join
 from os import getcwd, remove
 from warnings import warn
@@ -107,6 +107,7 @@ class Img(object):
                               ("8bit"       ,   0), # boolean
                               ("pyrlevel"   ,   0), # int (pyramide level)
                               ("is_tau"     ,   0), # boolean
+                              ("is_aa"      ,   0), # boolean
                               ("vigncorr"   ,   0), # boolean (vignette corrected)
                               ("senscorr"   ,   0), # boolean (correction for sensitivity changes due to filter shifts)
                               ("dilcorr"    ,   0), # light dilution corrected
@@ -324,10 +325,11 @@ class Img(object):
         Simple image subtraction without any modifications of input image
         """
         try:
-            self.img = self.img - dark
+            corr = self.img - dark
         except:
-            self.img = self.img - dark.img
-            
+            corr = self.img - dark.img
+        corr[corr <= 0] = finfo(float32).eps
+        self.img = corr
         self.edit_log["darkcorr"] = 1
         
     def set_roi_whole_image(self):
@@ -568,6 +570,11 @@ class Img(object):
         return self.edit_log["is_tau"]
         
     @property
+    def is_aa(self):
+        """Returns boolean whether current image is AA image"""
+        return self.edit_log["is_aa"]
+        
+    @property
     def is_gray(self):
         """Checks if image is gray image"""
         if self.img.ndim == 2:
@@ -689,7 +696,7 @@ class Img(object):
     """PLOTTING AND VISUALSATION FUNCTIONS"""  
     def get_cmap(self):
         """Determine and return default cmap for current image"""
-        if self.is_tau:
+        if self.is_tau or self.is_aa:
             return shifted_color_map(self.min(), self.max(), cmaps.RdBu)
         return cmaps.gray
         
