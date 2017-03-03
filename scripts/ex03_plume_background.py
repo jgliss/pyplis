@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-pyplis example script no. 3: Plume background analysis
+pyplis example script no. 3 - Plume background analysis
 
 This example script introduces features related to plume background modelling
 and tau image calculations.    

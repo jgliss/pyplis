@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-pyplis example script no. 1
-
-Setup of a example data set
+pyplis example script no. 1 - Analysis setup for example data set
 
 In this script an example data set, recorded on the 16/9/15 7:06-7:22 at 
 Mt. Etna is setup. Most of the following example scripts will work on this data 

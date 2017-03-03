@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-pyplis example script no. 8 - plume speed via cross correlation
+pyplis example script no. 8 - Plume velocity retrieval using cross correlation
 """
 from matplotlib.pyplot import close, show, subplots
 from os.path import join

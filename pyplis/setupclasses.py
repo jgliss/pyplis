@@ -606,8 +606,6 @@ class BaseSetup(object):
         
     """
     __metaclass__ = ABCMeta
-    _start = None
-    _stop = None
     def __init__(self, base_dir, start, stop, **opts):
         """Class initialisation
         
@@ -621,6 +619,9 @@ class BaseSetup(object):
         """
         self.base_dir = base_dir
         self.save_dir = base_dir
+        
+        self._start = None
+        self._stop = None
         
         self.start = start
         self.stop = stop

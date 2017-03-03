@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """
-pyplis example script no. 8 - optical flow analysis
+pyplis example script no. 9 - Plume velocity retrieval using Farneback optical 
+flow algorithm
 """
 from matplotlib.pyplot import close, show
 from os.path import join

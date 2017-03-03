@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-pyplis example script no. 5: Automatic cell calibration
+pyplis example script no. 5 - Automatic cell calibration
 
 Script showing how to use the automatic cell calibration engine which only 
 requires to specify start / stop time stamps of a calibration window. Based on 

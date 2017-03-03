@@ -6,6 +6,8 @@
 Welcome to pyplis's documentation!
 ===================================
 
+Official code documentation web page of pyplis. Apart from the documentation, the web page includes information about installation details, example scripts and a tutorial showing how to define customised camera standards.
+
 **Contents:**
 
 .. toctree::
@@ -13,6 +15,7 @@ Welcome to pyplis's documentation!
    
    intro
    camdef
+   examples
    code_lib
 
 Indices and tables

@@ -1,41 +1,39 @@
-************************************
-Specifying custom camera information
-************************************
+**************************************************
+Data import - Specifying custom camera information
+**************************************************
 
 .. note::
 
   In development, more information follows soon
   
-In order to use all features of pyplis, certain specifications related to camera and image acquisition need to be defined. Basic information about the camera (e.g. detector specifics) and the corresponding file convention (image type, which data can be extracted from file names) are specified within :class:`pyplis.setupclasses.Camera` objects. 
+In order to use all features of pyplis, certain specifications related to camera and image acquisition need to be defined. Basic information about the camera (e.g. detector specifics) and the corresponding file convention (image type, which data can be extracted from file names) are specified within :class:`pyplis.setupclasses.Camera` objects. This tutorial introduces the camera class and how to set up your custom camera type based on your data format, including definitions of your file naming convention.
 
-What information is needed?
-===========================
+How is the data imported?
+=========================
 
-Here follows a list of parameters needed in order to perform emission rate analysis using cams. This also includes data management information, i.e. how are images stored (file naming convention, image type) and how this information can be specified in order to be understood by pyplis.
+At the very beginning of the analysis, the images need to be imported and separated by image type (e.g. on-band plume, off-band plume, dark, offset, on / off-band cell calibration). In order to use the automated separation for a given dataset (e.g. a single folder ``IMG_DIR``` containing images of all types) it is required that the image type can be identified from the file names.
 
-How does pyplis import the data?
-================================
+The relevant information for identifying different image types (e.g. plume on-band, dark, offset) can be specified using either of the following two classes:
 
-Make the following points clear:
-
-  1. What is specified in the Camera class
-  2. Image type separation (on, off, dark, calibration data) happens via file naming convention, i.e. it should be possible to identify the type via the file name
-  3. Image loading functions can be customised (e.g. to add import of meta information or to perform image preparation such as rotating)
-  4. How is the data organised after import
-
-
-The first step of each analysis is a well defined setup of the analysis data. When dealing with SO2 camera data, this means, specifying camera characteristics (e.g. pixel pitch, detector dimension, focal length) and file naming conventions. The latter are important in order to separate images of different types (e.g. on-band, off-band, dark) and potentially belonging to different time intervals (e.g. plume image data, cell calibration data).  
-
-Typical data situation
-======================
-In the following, the relevant parameters are explained using an exemplary (fictional) file naming convention.
-Consider a dataset of SO2 camera images stored within one directory ``IMG_DIR``. The folder contains all images (on, off, dark) recorded on one day (say 1/1/2017) of a field campaign. Let's assume the goal is to analyse a volcanic plume dataset recorded between 15:00 - 15:30 UTC of that day. Let's further say, cell calibration was performed right after that between 15:30 - 15:35 UTC. Your camera saves images in the following format::
-
-  20170101151025345_onband_plume.tiff 
-  20170101151025346_offband_plume.tiff
-  20170101151025345_onband_calib.tiff 
-  20170101151025346_offband_calib.tiff
+  1. :class:`Filter`: specifies file access information for all image types that are NOT dark or offset images (e.g. on / off images plume / background)
+  #. :class:`DarkOffsetInfo`: specifies different types of dark images and offset images.
   
-to be continued ...
+Such a collection of :class:`Filter` and :class:`DarkOffsetInfo` objects is then stored within a :class:`Camera` object. 
 
+These information is used to separate the individual image types when creating a :class:`Dataset` object. The latter searches all valid image files in a given folder ``IMG_DIR`` and creates :class:`ImgList` objects for each :class:`Filter` and :class:`DarkImgList` objects for each :class:`DarkOffsetInfo` object defined in the :class:`Camera`. Each of these lists is then filled with the file paths of the corresponding image type located in ``IMG_DIR``. The :class:`Camera` object furthermore includes relevant specs of the camera (e.g. pixel geometry, lens).
+
+The following list provides an overview of relevant parameters for filename access information using examplary filenames of the ECII camera type as well as the HD-Custom camera type.
+
+Table: Example file naming conventions
+======================================
+
+.. exceltable:: Example file naming conventions for pyplis default cameras
+  :file: fname_conventions.xls
+  
+In the following, all relevant :class:`Camera` parameters are introduced using the example of the ECII camera type.
+
+Example 1: The ECII camera standard
+===================================
+
+Here, an exemplary :class:`Camera` is setup based on the ECII-camera type and file naming convention (cf. :ref:`ex02`).
 

@@ -1248,9 +1248,7 @@ class ImgList(BaseImgList):
                         dark_assigned = True
         
                 elif lst.list_type == "offset":
-                    print 5
                     try:
-                        print 6
                         dt = abs(texp - lst.current_img().texp)
                         if dt < dtexp_offset:
                             self.offset_lists[lst.read_gain] = od()
@@ -1258,7 +1256,6 @@ class ImgList(BaseImgList):
                             dtexp_offset = dt
                             offset_assigned = True
                     except:
-                        print 7
                         self.offset_lists[lst.read_gain] = od()
                         self.offset_lists[lst.read_gain]["list"] = lst
                         offset_assigned = True

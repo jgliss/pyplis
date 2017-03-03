@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Example script 12 - Emission rate retrieval from AA image list
+Example script 12 - Etna emission rate retrieval
 
 This example import results from the previous examples, for instance the AA 
 image list including measurement geometry (ex 4), the DOAS calibration 
