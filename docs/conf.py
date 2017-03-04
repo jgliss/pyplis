@@ -406,6 +406,6 @@ def setup(app):
 autodoc_member_order = 'bysource'
 
 images_config = {
-    'default_image_width' : '800px',
+    'default_image_width' : '600px',
     'default_group'       : 'default'
 }
