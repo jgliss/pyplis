@@ -50,7 +50,7 @@ Gallery
 .. thumbnail::  ../scripts/scripts_out/ex08_out_1.png
   :title:
   
-  Exemplary plume AA image including 2 plume cross section lines used for determining plume velocity using cross correlation method (cf. example script 8) 
+  Exemplary plume AA image including two plume cross section lines used for determination of plume velocity using cross correlation method (cf. example script 8) 
   
 .. thumbnail::  ../scripts/scripts_out/ex08_out_3.png
   :title:
