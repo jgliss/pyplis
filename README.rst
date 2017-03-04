@@ -62,12 +62,12 @@ The code documentation of pyplis is hosted on `Read the Docs <http://pyplis.read
 Getting started
 ===============
 
-After installation try running and understanding the `example scripts <https://github.com/jgliss/pyplis/tree/master/scripts>`_. The scripts require the example data (see also following section for details).
+After installation try running and understanding the `example scripts <https://github.com/jgliss/pyplis/tree/master/scripts>`_. The scripts require downloading an example dataset (see following section for instructions).
 
 Example and test data
 =====================
 
-The pyplis example data (required to run example scripts) is not part of the installation. It can be downloaded `here <https://folk.nilu.no/~gliss/pyplis_testdata/pyplis_etna_testdata.zip>`__ or automatically within a Python console (after installation) using::
+The pyplis example data (required to run example scripts) is not part of the installation. It can be downloaded `here <https://folk.nilu.no/~gliss/pyplis_testdata/pyplis_etna_testdata.zip>`__ or automatically within a Python shell (after installation) using::
 
   import pyplis
   pyplis.inout.download_test_data(*local_path*)
@@ -88,3 +88,14 @@ The latter searches all paths provided in the file *./data/_paths.txt* whenever 
   The path is then added to *./data/_paths.txt* such that it can be found by::
   
     pyplis.inout.find_test_data()
+    
+Future developments / ideas
+===========================
+
+  1. Include DOAS analysis for camera calibration by combining `pydoas <https://pypi.python.org/pypi/pydoas/1.0.1>`__ with `flexDOAS <https://github.com/gkuhl/flexDOAS>`__.
+  #. Re-implementation of graphical user interface 
+  #. Include online access to meteorological databases (e.g. to estimate wind direction, velocity)
+  
+.. note::
+
+  Open for collaboration

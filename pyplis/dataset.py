@@ -296,10 +296,8 @@ class Dataset(object):
             return all_paths
         acq_time0 = self.camera.get_img_meta_from_filename(all_paths[0])[0]
         if acq_time0.date() == date(1900, 1, 1):
-            print "HEEEEEEEEERE"
             paths=self._find_files_ival_time_only(all_paths)
         else:
-            print "THEEEEERE"
             paths=self._find_files_ival_datetime(all_paths)
         
         if not bool(paths):

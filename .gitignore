@@ -114,3 +114,7 @@ pyplis/data/icons
 
 # Docs GUI stuff
 docs/code_gui.rst
+
+# Image files for video
+scripts/scripts_out/all_cd_imgs
+
