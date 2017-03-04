@@ -67,7 +67,7 @@ Live view of optical flow calculation using :class:`OpticalFlowFarneback` object
 Example 0.6 - Plume cross section lines
 ---------------------------------------
 
-Creation and orientation of :class:`LineOnImage` objects for emission rate retrievals
+Creation and orientation of :class:`LineOnImage` objects for emission rate retrievals.
 
 **Code**
 
@@ -88,14 +88,14 @@ Manual cell calibration based on a set of background and cell images (on / off).
 Examples for emission rate analysis
 ===================================
 
-The following scripts are directly related for emission rate analysis and build on top of each other ending with a full emission rate analysis in :ref:`ex12` 
+The following scripts are directly related for emission rate analysis and build on top of each other ending with a full emission rate analysis in :ref:`ex12`.
 
 .. _ex1:
 
 Example 1 - Creation of analysis setup and Dataset
 --------------------------------------------------
 
-This script introduces the :class:`MeasSetup` object and how this can be used to specify all relevant information to create a :class:`Dataset` for emission rate analysis.
+This script introduces the :class:`MeasSetup` object and how it can be used to specify all relevant information to create a :class:`Dataset` for emission rate analysis.
 
 **Code**
 
@@ -114,10 +114,10 @@ This script introduces the :class:`MeasGeometry` object including some basic fea
 
 .. _ex3:
 
-Example 3 - Plume backround analysis
-------------------------------------
+Example 3 - Plume background analysis
+-------------------------------------
 
-Introduction into :class:`PlumeBackgroundModel` object and its different default modes for retrieval of plume background intensities and plume optical density images.
+Introduction into :class:`PlumeBackgroundModel` object the default modes for retrieval of plume background intensities and plume optical density images.
 
 **Code**
 
@@ -158,8 +158,8 @@ Introduction into DOAS calibration including FOV search using both, the Pearson 
 
 .. _ex7:
 
-Example 7 - AA sensitiviy correction masks
-------------------------------------------
+Example 7 - AA sensitivity correction masks
+-------------------------------------------
 
 Combine the results from :ref:`ex5` and :ref:`ex6` in order to retrieve AA sensitivity correction masks normalised to the position of the DOAS FOV. 
 
