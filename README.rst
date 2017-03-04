@@ -1,11 +1,11 @@
 pyplis is a Python toolbox for the analysis of UV SO2 camera data. It includes a large collection of routines for the analysis of such data, for instance:
 
-  1. Several routines for plume background estimation
-  #. Automatic cell calibration 
-  #. DOAS calibration routine including two methods to identify the field of view of a DOAS instrument within the camera images
-  #. Plume velocity retrieval either using an optical flow analysis or using signal cross correlation
-  #. Detailed analysis of the measurement geometry including automized retrieval of distances to the emission plume and/or to topographic features in the camera images (on a pixel basis)
-  #. Routine for image based light dilution correction
+  - Several routines for plume background estimation
+  - Automatic cell calibration 
+  - DOAS calibration routine including two methods to identify the field of view of a DOAS instrument within the camera images
+  - Plume velocity retrieval either using an optical flow analysis or using signal cross correlation
+  - Detailed analysis of the measurement geometry including automized retrieval of distances to the emission plume and/or to topographic features in the camera images (on a pixel basis)
+  - Routine for image based light dilution correction
   
 .. note::
 
@@ -70,24 +70,21 @@ Example and test data
 The pyplis example data (required to run example scripts) is not part of the installation. It can be downloaded `here <https://folk.nilu.no/~gliss/pyplis_testdata/pyplis_etna_testdata.zip>`__ or automatically within a Python shell (after installation) using::
 
   import pyplis
-  pyplis.inout.download_test_data(*local_path*)
+  pyplis.inout.download_test_data(LOCAL_DIR)
   
-which downloads the data to the installation *data* directory if *local_path* is unspecified. Else, (and if *local_path* is a valid location) it will be downloaded into the specific directory which will then be added to the supplementary file *./data/_paths.txt* such that it can be found by the test data search method::
+which downloads the data to the installation **data** directory if ``LOCAL_DIR`` is unspecified. Else, (and if ``LOCAL_DIR`` is a valid location) it will be downloaded into ``LOCAL_DIR`` which will then be added to the supplementary file **_paths.txt** located in the installation **data** directory. It can then be found by the test data search method::
 
   pyplis.inout.find_test_data()
   
-The latter searches all paths provided in the file *./data/_paths.txt* whenever access to the test data is required. It raises an Exception, if the data cannot be found.
+The latter searches all paths provided in the file **_paths.txt** whenever access to the test data is required. It raises an Exception, if the data cannot be found.
 
 .. note::
 
-  If you download the data manually (e.g. using the link provided above), please unzip it to a suitable location *my_testdata_is_here* and let pyplis know about it using::
+  If you download the data manually (e.g. using the link provided above), please unzip it into a suitable directory ``LOCAL_DIR`` and let pyplis know about it using::
   
     import pyplis
-    pyplis.inout.set_test_data_path(*my_testdata_is_here*)
+    pyplis.inout.set_test_data_path(``LOCAL_DIR``)
     
-  The path is then added to *./data/_paths.txt* such that it can be found by::
-  
-    pyplis.inout.find_test_data()
     
 Future developments / ideas
 ===========================

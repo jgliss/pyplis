@@ -21,6 +21,7 @@ Click `here to watch an animated video of the emissions <https://www.youtube.com
    :maxdepth: 3
    
    intro
+   gallery
    tutorials
    examples
    code_lib
