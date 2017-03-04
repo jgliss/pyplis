@@ -14,7 +14,7 @@ Official code documentation web page of pyplis. Apart from the documentation, th
    :maxdepth: 3
    
    intro
-   camdef
+   tutorials
    examples
    code_lib
 

@@ -623,8 +623,7 @@ class Img(object):
             if head["CAMTYPE"] == 'EC2':
                 self.import_ec2_header(head)
         except:
-            from traceback import format_exc
-            print format_exc()
+            pass
         editkeys = self.edit_log.keys()
         metakeys = self.meta.keys()
         for key, val in head.iteritems():
@@ -694,10 +693,14 @@ class Img(object):
         self.meta["pix_width"] = self.meta["pix_height"] = 4.65e-6 #m
     
     """PLOTTING AND VISUALSATION FUNCTIONS"""  
-    def get_cmap(self):
+    def get_cmap(self, vmin=None, vmax=None, **kwargs):
         """Determine and return default cmap for current image"""
         if self.is_tau or self.is_aa:
-            return shifted_color_map(self.min(), self.max(), cmaps.RdBu)
+            if vmin is None:
+                vmin = self.min()
+            if vmax is None:
+                vmax = self.max()
+            return shifted_color_map(vmin, vmax, cmaps.RdBu)
         return cmaps.gray
         
     def show(self, zlabel=None, tit=None,**kwargs):
@@ -707,7 +710,7 @@ class Img(object):
     def show_img(self, zlabel=None, tit=None, cbar=True, ax=None, **kwargs):
         """Show image using plt.imshow"""
         if not "cmap" in kwargs.keys():
-            kwargs["cmap"] = self.get_cmap()
+            kwargs["cmap"] = self.get_cmap(**kwargs)
         try:
             fig = ax.figure
             ax = ax

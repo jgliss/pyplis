@@ -1,11 +1,8 @@
-Changelog
-=========
-
 This file keeps track of major changes applied to the code after the first 
 release (version 0.9.2)
 
 28/02/2017 - 01/03/2017
------------------------
+=======================
 
   1. Allowing for defining custom image import method (file custom_image_import.py)
   2.  Fixed bug regarding assignment of dark / offset lists for HD-Custom camera: if multiple type dark (and / or offset) image lists exist (based on camera file naming convention after file separation in Dataset), then the list with the shortest difference in the exposure time is set (using the first image of the respective image lists for intercomparison)
@@ -18,7 +15,7 @@ release (version 0.9.2)
     2. Customised assignment of dark / offset lists in image lists for cameras where meas type is specified in own filename substring (e.g. HD cam). 
     
 02/03/2017
-----------
+==========
 
   1. Included new default camera type "hd_new" (2. camera from group in Heidelberg, Germany). Currently missing detector and optics specs
   #. Expanded flexibility for meta information access via filename for acquisition time, meas_type and filter_id in Camera class: now, the conversion / identification strings can also include the actual delimiter (e.g. delim="_", time_info_pos = 0, time_info_str="%Y%m%d_%H%M%S_%f" or filter_id_pos=3 and filter.acronym="A_dark"). This is for instance required for file naming convention of new default SO2 camera type "hd_new".
@@ -26,7 +23,7 @@ release (version 0.9.2)
   #. Improved data import speed in Dataset -> search of master_dark image is only applied to lists that actually include image data
   
 03/03/2017
-----------
+==========
 
   1. Included image check for negative numbers or zeros after dark image correction and before tau / AA image calculation: correction is directly applied to images (no warning), i.e. pixels <= 0 are set to smallest positive float of system.
   2. Removed bugs regarding image time stamps in MeasSetup and image match search in Dataset (when specifying start / stop time stamps are provided as time object and not as datetime object). These two bugs resulted from changes applied in 0.9.3.dev1 (1/3/2017) and are irrelevant for previous versions.

@@ -31,7 +31,7 @@ class CameraBaseInfo(object):
             
         """
         self.cam_id = None
-        self.delim = None #""
+        self.delim = "." #""
         self.time_info_pos = None # nan
         self.time_info_str = "" #""
         self._time_info_subnum = 1
@@ -85,6 +85,25 @@ class CameraBaseInfo(object):
         if self.meas_type_pos is None:
             self.meas_type_pos = self.filter_id_pos
         self._init_access_substring_info()
+    
+    @property
+    def acronym_pos(self):
+        """Wrapper for filter_id_pos"""
+        return self.filter_id_pos
+    
+    @acronym_pos.setter
+    def acronym_pos(self, val):
+        self.filter_id_pos = val
+    
+    @property
+    def meas_type_acro_pos(self):
+        """Wrapper getter / setter for ``meas_type_pos``"""
+        return self.meas_type_pos
+    
+    @meas_type_acro_pos.setter
+    def meas_type_acro_pos(self, val):
+        """Wrapper getter / setter for ``meas_type_pos``"""
+        self.meas_type_pos = val
         
     def _init_access_substring_info(self):
         """Check number of sub strings for specific access values after split"""
