@@ -404,3 +404,8 @@ def setup(app):
     app.connect("autodoc-skip-member", skip)
     
 autodoc_member_order = 'bysource'
+
+images_config = {
+    'default_image_width' : '800px',
+    'default_group'       : 'default'
+}
