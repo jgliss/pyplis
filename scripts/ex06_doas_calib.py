@@ -49,7 +49,7 @@ RELOAD_STACK = 0
 #the result from pyrlevel=2, another stack is determined at pyrlevel = 0 
 #(i.e. in full resolution) within ROI around the center position from 
 #pyrlevel=2
-DO_FINE_SEARCH = 1
+DO_FINE_SEARCH = 0
 PYRLEVEL_ROUGH_SEARCH = 2
 
 ### RELEVANT DIRECTORIES AND PATHS

@@ -1100,7 +1100,7 @@ class ImgList(BaseImgList):
         from pyplis.doascalib import DoasCalibData as dc
         if not any([isinstance(val, x) for x in [cc, dc]]):
             raise TypeError("Could not set calibration data in imglist %s: "
-            "need CellCalibEngine obj or DoasCalibData obj" %self.list_id)
+            "need CellCalibData obj or DoasCalibData obj" %self.list_id)
         try:
             val(0.1) #try converting a fake tau value into a gas column
         except ValueError:

@@ -25,6 +25,7 @@ Click `here to watch an animated video of the emissions <https://www.youtube.com
    tutorials
    examples
    code_lib
+   supplemental
 
 Indices and tables
 ==================

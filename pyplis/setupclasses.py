@@ -24,22 +24,38 @@ from .utils import Filter, CameraBaseInfo
 from .geometry import MeasGeometry
 
 class Source(object):
-    """Object containing information about emission source"""
+    """Object containing information about emission source
+    
+    Attributes
+    ----------
+    name : str
+        string ID of source 
+    lon : float
+        longitude of source
+    lat : float
+        latitude of source
+    altitude : float
+        altitude of source
+    suppl_info : dict
+        dictionary containing supplementary information (e.g. source type,
+        region, country)
+        
+    Parameters
+    ----------
+    name : str
+        string ID of source (default is "")
+    info_dict : dict 
+        dictionary contatining source information (is only loaded if 
+        all necessary parameters are available and in the right format)
+    
+    Note
+    ----
+    
+    If input param ``name`` is a valid default ID (e.g. "Etna") then 
+    the source information is extracted from the database and the 
+    parameter ``info_dict`` is ignored.
+    """
     def __init__(self, name="", info_dict={}):
-        """Class initialisation
-        
-        :param str name: string ID of source (default is "")
-        :param dict info_dict: dictionary contatining source information (is 
-            only loaded if all necessary parameters are available and in the 
-            right format)
-        
-        .. note:: 
-        
-            if input param ``name`` is a valid default ID (e.g. "Etna") then 
-            the source information is extracted from the database and the 
-            input param ``info_dict`` is ignored
-            
-        """
         self.name = name
         self.lon = nan
         self.lat = nan
@@ -60,7 +76,14 @@ class Source(object):
         
     @property
     def source_id(self):
-        """Returns ``self.name``"""
+        """Get ID of source
+        
+        Returns
+        -------
+        str
+            ``self.name``
+        
+        """
         return self.name
         
     @property
@@ -70,7 +93,10 @@ class Source(object):
     
     @property
     def geo_data(self):
-        """Return dictionary containing lon, lat and altitude"""
+        """Returns dictionary containing lon, lat and altitude
+        
+        :rtype: dict
+        """
         return od([("lon"          ,   self.lon),
                    ("lat"          ,   self.lat),
                    ("altitude"     ,   self.altitude)])
@@ -89,7 +115,10 @@ class Source(object):
                    ("last_eruption" ,   str)])
     
     def to_dict(self):
-        """Returns dictionary of all parameters"""
+        """Returns dictionary of all parameters
+        
+        :return: dictionary representation of class
+        """
         d = self.geo_data
         d["name"] = self.name
         d.update(self.suppl_info)
@@ -98,9 +127,10 @@ class Source(object):
     def load_source_info(self, info_dict):
         """Try access default information of source
         
-        :param dict info_dict: dictonary containing source information (valid
-            keys are keys of dictionary ``self._type_dict``, e.g. ``lon``, 
-            ``lat``, ``altitude``)        
+        :param dict info_dict: dictonary containing source information 
+            (valid keys are keys of dictionary ``self._type_dict``, e.g. 
+            ``lon``, ``lat``, ``altitude``) 
+        :return: bool, success
         """
         types = self._type_dict
         if not isinstance(info_dict, dict):
@@ -120,12 +150,26 @@ class Source(object):
         
         return self.info_available
     
-    def get_info(self, name, **kwargs):
-        """Load info dict from database (includes online search)
+    def get_info(self, name, try_online=True):
+        """Load info dict from database 
         
-        :param str name: source ID
+        This method also includes the option of searching the online 
+        source database
+        
+        Parameters
+        ----------
+        name :  str
+            source ID
+        try_online : bool
+            if True, also search online database
+        
+        Returns
+        -------
+        dict
+            Dictionary containing source information
+        
         """
-        res = get_source_info(name, **kwargs)
+        res = get_source_info(name, try_online)
         num = len(res)
         if num == 0:
             return {}

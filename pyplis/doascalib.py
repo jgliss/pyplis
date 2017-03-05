@@ -18,7 +18,7 @@ from matplotlib.pyplot import subplots
 from matplotlib.patches import Circle, Ellipse
 from matplotlib.cm import RdBu
 
-from .glob import SPECIES_ID, _CALIB_ID_STRINGS
+from .glob import SPECIES_ID, CALIB_ID_STRINGS
 from .processing import ImgStack
 from .helpers import shifted_color_map, mesh_from_img, get_img_maximum,\
         sub_img_to_detector_coords, map_coordinates_sub_img, exponent
@@ -78,7 +78,7 @@ class DoasCalibData(object):
     def calib_id_str(self):
         """Return plot string for calibration ID"""
         try:
-            return _CALIB_ID_STRINGS[self.calib_id.split("_")[0]]
+            return CALIB_ID_STRINGS[self.calib_id.split("_")[0]]
         except:
             return self.calib_id.split("_")[0]
             
