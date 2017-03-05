@@ -5,7 +5,7 @@ Module containing features related to plume velocity analysis
 from time import time
 from numpy import mgrid,vstack,int32,sqrt,arctan2,rad2deg, asarray, sin, cos,\
     logical_and, histogram, ceil, ones, roll, argmax, arange, ndarray,\
-    deg2rad, nan, inf, dot
+    deg2rad, nan, inf, dot, mean
 from numpy.linalg import norm
 from traceback import format_exc
 from warnings import warn
@@ -92,13 +92,19 @@ def find_signal_correlation(first_data_vec, next_data_vec,
                 freq_unit = "S"
                 
         delt_str = "%d%s" %(reg_grid_tres, freq_unit)
-        ax = Series(first_data_vec, time_stamps).plot()
         print "Delta t string for resampling: %s" %delt_str
-        s1 = Series(first_data_vec, time_stamps).resample(delt_str).\
-                                        interpolate(itp_method).dropna()
-        s2 = Series(next_data_vec, time_stamps).resample(delt_str).\
-                                        interpolate(itp_method).dropna()
-        s1.plot(ax=ax)
+        
+        s1 = Series(first_data_vec, time_stamps)
+        s2 = Series(next_data_vec, time_stamps)
+        # this try except block was inserted due to bug when using code in 
+        # exception statement with pandas > 0.19, it worked, though with 
+        # pandas v0.16
+        try:
+            s1 = s1.resample(delt_str).agg(mean).interpolate(itp_method).dropna()
+            s2 = s2.resample(delt_str).agg(mean).interpolate(itp_method).dropna()
+        except:
+            s1 = s1.resample(delt_str).interpolate(itp_method).dropna()
+            s2 = s2.resample(delt_str).interpolate(itp_method).dropna()
         lag_fac = (s1.index[10] - s1.index[9]).total_seconds()
     else:
         s1 = Series(first_data_vec)

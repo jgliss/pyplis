@@ -28,4 +28,11 @@ release (version 0.9.2)
   1. Included image check for negative numbers or zeros after dark image correction and before tau / AA image calculation: correction is directly applied to images (no warning), i.e. pixels <= 0 are set to smallest positive float of system.
   2. Removed bugs regarding image time stamps in MeasSetup and image match search in Dataset (when specifying start / stop time stamps are provided as time object and not as datetime object). These two bugs resulted from changes applied in 0.9.3.dev1 (1/3/2017) and are irrelevant for previous versions.
   
+05/03/2017
+==========
+
+.. note::
+
+  Detected and fixed bug related to signal cross correlation based plume velocity retrievals after pandas updgrade from 0.16.2 -> 0.19.2.
+  
   

@@ -131,8 +131,8 @@ def apply_cross_correlation(prof_pic1, prof_pic2, dist_img, **kwargs):
     :param prof_pic2: second profile time series picture
     """
     # Integrate the profiles for each image (y axis in profile images)
-    icas1 = np.sum(prof_pic1.img, axis = 0)
-    icas2 = np.sum(prof_pic2.img, axis = 0)
+    icas1 = np.sum(prof_pic1.img, axis=0)
+    icas2 = np.sum(prof_pic2.img, axis=0)
     times = prof_pic1.time_stamps
     
     res = find_signal_correlation(icas1, icas2, times, **kwargs)
@@ -227,27 +227,18 @@ if __name__ == "__main__":
         prof_pic1, prof_pic2 = reload_profile_tseries_from_aa_list(aa_list,
                                                                    pcs1, pcs2,
                                                                    dist_img)
-    
-    from pandas import Series
-    icas1=np.sum(prof_pic1.img, axis = 0)
-    ts=prof_pic1.time_stamps
-    s0 = Series(icas1, ts)
-    s1 = Series(icas1, ts).resample("100L").interpolate("linear").dropna()
-    
+
     # Apply cross correlation analysis between the signals retrieved
     # between the two cross section lines which are stored as profile images           
     v, result = apply_cross_correlation(prof_pic1, prof_pic2, dist_img,
                                         cut_border_idx=10, 
                                         reg_grid_tres=100, 
                                         freq_unit="L", sigma_smooth=2,
-                                        plot=1) 
+                                        plot=0) 
     
     axes = plot_result(result, pcs1, pcs2, img)
     print "Retrieved plume velocity of v = %.2f m/s" %v
     
-    fig, ax = subplots(1,1)
-    s0.plot(ax=ax)
-    s1.plot(ax=ax)
     ### IMPORTANT STUFF FINISHED    
     if SAVEFIGS:
         for k in range(len(axes)):
