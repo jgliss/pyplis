@@ -102,7 +102,7 @@ Let's start off with defining the different image access types for on and off-ba
   off = pyplis.Filter(type="off", acronym="F02",
                       meas_type_acro="F02", center_wavelength=330)
     
-Now add the two filters to the camera the two filter into a list and assign  them to the camera::
+Now add the two filters to the camera (i.e. put them into a list and assign  it to the camera)::
 
     filters = [on, off]
     
