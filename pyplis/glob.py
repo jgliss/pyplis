@@ -7,7 +7,7 @@ pyplis module containing global settings
 SPECIES_ID = r"SO2"
 
 #map of internal calibration access keys to string repr. for plots
-_CALIB_ID_STRINGS = {"on" :  "On",
-                     "off":  "Off",
-                     "aa" :  "AA"}
+CALIB_ID_STRINGS = {"on" : "On",
+                    "off":  "Off",
+                    "aa" :  "AA"}
 

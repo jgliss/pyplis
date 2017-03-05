@@ -26,10 +26,10 @@ from .helpers import bytescale, check_roi, map_roi, roi2rect
 from .optimisation import MultiGaussFit
 from .image import Img
 
-def find_signal_correlation(first_data_vec, next_data_vec, time_stamps=None,
-                            reg_grid_tres=None, freq_unit="S",
-                            itp_method="linear", cut_border_idx=0,
-                            sigma_smooth=1, plot=False):
+def find_signal_correlation(first_data_vec, next_data_vec, 
+                            time_stamps=None, reg_grid_tres=None, 
+                            freq_unit="S", itp_method="linear", 
+                            cut_border_idx=0, sigma_smooth=1, plot=False):
     """Determines cross correlation from two ICA time series
     
     :param ndarray first_data_vec: first data vector (i.e. left or before 
@@ -76,8 +76,10 @@ def find_signal_correlation(first_data_vec, next_data_vec, time_stamps=None,
                     and all([isinstance(x, datetime) for x in time_stamps]):
         print "Input is time series data"
         if not itp_method in ["linear", "quadratic", "cubic"]:
-            print ("Invalid interpolation method %s: setting default (linear)" 
-                                                                %itp_method)
+            warn("Invalid interpolation method %s: setting default (linear)" 
+                 %itp_method)
+            itp_method = "linear"
+            
         if reg_grid_tres is None:
             delts = asarray([delt.total_seconds() for delt in\
                             (time_stamps[1:] - time_stamps[:-1])])
@@ -90,12 +92,13 @@ def find_signal_correlation(first_data_vec, next_data_vec, time_stamps=None,
                 freq_unit = "S"
                 
         delt_str = "%d%s" %(reg_grid_tres, freq_unit)
+        ax = Series(first_data_vec, time_stamps).plot()
         print "Delta t string for resampling: %s" %delt_str
         s1 = Series(first_data_vec, time_stamps).resample(delt_str).\
                                         interpolate(itp_method).dropna()
         s2 = Series(next_data_vec, time_stamps).resample(delt_str).\
                                         interpolate(itp_method).dropna()
-                                        
+        s1.plot(ax=ax)
         lag_fac = (s1.index[10] - s1.index[9]).total_seconds()
     else:
         s1 = Series(first_data_vec)

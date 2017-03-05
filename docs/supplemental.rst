@@ -1,3 +1,6 @@
-Supplementary information
-##########################
+*********
+Changelog
+*********
+
+.. include:: ../CHANGELOG.rst
 

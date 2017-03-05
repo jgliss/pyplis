@@ -99,15 +99,15 @@ def download_test_data(save_path = None):
     print "installing test data at %s" %save_path
     
     filename = mktemp('.zip')
-    name, hdrs = urlretrieve(url, filename, reporthook = dl_progress)
+    urlretrieve(url, filename, reporthook = dl_progress)
     pbar.finish()
     thefile = ZipFile(filename)
     print "Extracting data at: %s (this may take a while)" %save_path
     thefile.extractall(save_path)
     thefile.close()
     remove(filename)
-    print ("Download successfully finished, deleting temporary data file at: %s"
-        %filename)
+    print ("Download successfully finished, deleting temporary data file"
+           "at: %s" %filename)
 
 def load_img_dummy():
     """Load image dummy as numpy array"""
@@ -321,7 +321,7 @@ def get_source_ids():
                 ids.append(spl[1].split("#")[0].strip())
     return ids
     
-def get_source_info(source_id, try_online = True):
+def get_source_info(source_id, try_online=True):
     """Try access source information from file "my_sources.txt" 
     
     File is part of package data

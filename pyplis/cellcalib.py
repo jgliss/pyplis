@@ -20,20 +20,24 @@ from .image import Img
 from .helpers import subimg_shape, map_coordinates_sub_img, exponent
 from .doascalib import DoasFOV
 from .optimisation import PolySurfaceFit
-from .glob import SPECIES_ID, _CALIB_ID_STRINGS
+from .glob import SPECIES_ID, CALIB_ID_STRINGS
       
 class CellSearchInfo(object):
-    """Class for for storage cell search from automatic cell search engine"""
-    def __init__(self, filter_id, id, y_max):
-        """Class initialisation
+    """Class for for storage cell search from automatic cell search engine
+    
+    Parameters
+    ----------
+    filter_id : str 
+        string ID of filter / Image type 
+    add_id : str 
+        additional identifier (e.g. "bg", "cell1")
+    y_max : float 
+        a reference intensity
         
-        :param str filter_id: string ID of filter 
-        :param str id: additional identifier (e.g. "bg", "cell1")
-        :param float y_max: a reference intensity
-        
-        """
+    """
+    def __init__(self, filter_id, add_id, y_max):
         self.filter_id = filter_id
-        self.id = id
+        self.add_id = add_id
         #self.abbr = None
         self.y_max = y_max
         self.mean_vals = []
@@ -46,44 +50,95 @@ class CellSearchInfo(object):
         
     @property
     def start(self):
-        """Returns first time stamp of ``start_acq``"""
+        """Get time stamp of first detected image
+        
+        Returns
+        -------
+        datetime
+            First time stamp, i.e. ``start_acq[0]``
+            
+        Raises
+        ------
+        IndexError
+            if ``start_acq`` is empty
+            
+        """
         return self.start_acq[0]
         
     @property
     def stop(self):
-        """Returns last time stamp of ``start_acq``"""
+        """Get time stamp of last detected image
+        
+        Returns
+        -------
+        datetime
+            Last time stamp, i.e. ``self.start_acq[-1]``
+            
+        Raises
+        ------
+        IndexError
+            if ``start_acq`` is empty
+            
+        """
         return self.start_acq[-1]
         
     @property
     def tot_num(self):
-        """Returns number of datapoints in ``self.mean_vals``"""
+        """Get total number of detected images
+        
+        Returns
+        -------
+        int
+            length of ``self.mean_vals``
+        """
         return len(self.mean_vals)
     
     def from_img_list(self, img_list):
         """Fill values using all images from a specific image list
         
-        :param ImgList img_list: load all values from an image list by 
-            determining the mean value time series (in the full image)        
+        Note
+        ----
+        
+        Old beta version, not tested, currently not in use
+        
+        Parameters
+        ----------
+        img_list : ImgList
+            image list from which pixel mean value time series is supposed
+            to be determined
+            
         """
         if not isinstance(img_list, ImgList):
             raise TypeError("Wrong input type")
         dat = img_list.get_mean_value()        
-        self.start = dat.index[0]
-        self.stop = dat.index[-1]
+
         self.file_paths = img_list.files
-        self.mean_vals = dat.values
-        self.mean_vals_err = dat.std
-        self.start_acq = dat.index
+        self.mean_vals = asarray(dat.values)
+        self.mean_vals_err = asarray(dat.std)
+        self.start_acq = asarray(dat.index)
         self.y_max = max(dat.values)
     
     @property
     def mean_err(self):
-        """Returns average std of mean value time series"""
+        """Returns average std of mean value time series
+        
+        Returns
+        -------
+        float
+            Error of mean value
+            
+        """
         return mean(self.mean_vals_err)
     
     @property
     def mid_point_val(self):
-        """Returns the mean value in the middle of the time series"""
+        """Get mean value of middle image of the time series
+        
+        Returns
+        -------
+        float
+            Mean intensity of middle image
+        """
         num = len(self.mean_vals)
         if num < 1:
             raise Exception ("No data available in CellSearchInfo")
@@ -97,8 +152,20 @@ class CellSearchInfo(object):
             
     def point_ok(self, idx):
         """Checks data point at given index
-    
-        :param int idx: index of datapoint
+        
+        Checks if intensity value at given index is within acceptance 
+        intensity range with respect to the middle intensity value of 
+        the time series
+        
+        Parameters
+        ----------
+        idx : int 
+            index of datapoint
+        
+        Returns
+        -------
+        bool
+            True, if ok, False if not
         """
         try:
             val = self.mean_vals[idx]
@@ -107,23 +174,35 @@ class CellSearchInfo(object):
             return False
         except IndexError as e:
             print repr(e)
+            return False
         except:
             raise
     
     def create_image_list(self, camera):
         """Create image list containing all valid cell images 
         
-        :param Camera camera: the camera used
-        :returns CellImgList: image list containing all (valid) cell images
+        Creates a :class:`CellImgList` which includes all detected data
+        points that fulfill condition :func:`point_ok`.
         
-        The validity of one specific image file is checked by analysing 
-        its mean intensity values with respect to the intensity value of 
-        the midpoint of this dataset (must be smaller than ``self.mean_err``)
-        and by ensuring the intensity decrease of this point (offs) exceeds
-        ``self.mean_err``
+        Note
+        ----
+        
+        If successful, the list is assigned to :attr:`img_list`
+        
+        Parameters
+        ----------
+        camera : Camera 
+            the camera used
+        
+        Returns
+        -------
+        CellImgList 
+            image list containing all (valid) cell images
+        
+        
         
         """
-        lst = CellImgList(list_id=self.filter_id, cell_id=self.id,
+        lst = CellImgList(list_id=self.filter_id, cell_id=self.add_id,
                           camera=camera)
         for idx in range(len(self.mean_vals)):
             if self.point_ok(idx):
@@ -132,37 +211,71 @@ class CellSearchInfo(object):
         self.img_list = lst
         if lst.nof < 1:
             raise CellSearchError("No suitable %s images found on creation of "
-                "image list for cell %s" %(self.filter_id, self.id))
+                "image list for cell %s" %(self.filter_id, self.add_id))
         print ("Succesfully created image list %s for cell with ID %s from cell "
-            " search results" %(self.filter_id, self.id))
+            " search results" %(self.filter_id, self.add_id))
+        return lst
             
     @property
     def offs(self):
+        """Get array containing offset values
+        
+        The offset values are determined from :attr:`mean_vals`` with 
+        respect to :attr:`y_max`.
+        
+        Returns
+        -------
+        ndarray
+            array containing offset values for each intensity in 
+            :attr:`mean_vals`
+        """
         return self.y_max - self.mean_vals
 
 class CellAutoSearchResults(object):
-    """Helper class collecting results from automatic cell detection algorithm 
+    """Helper class collecting results from auto-cell detection algorithm 
     
     This object is included in :class:`CellCalibEngine` object and will be 
-    filled with :class:`CellSearchInfo` objects in case, the cell autodetection 
-    is used
+    filled with :class:`CellSearchInfo` objects if the cell autodetection 
+    is used (:func:`find_cells`)
+    
+    Attributes
+    ----------
+    cell_info : OrderedDict
+        Ordered dictionary containing dictionaries for all filter_ids for 
+        which cell search was performed (e.g. on, off). These dictionaries
+        contain :class:`CellSearchInfo` ordered based on the acq. time of
+        the detected cell dip
+    bg_info : OrderedDict
+        Ordered dictionary containing :class:`CellSearchInfo` objects 
+        that include detected background images for each filter (e.g. on
+        off)
+    rest_info : OrderedDict
+        Ordered dictionary containing all images for each filter (e.g. on
+        off) that could not be identified as Cell or BG image
+        
     """
     def __init__(self):
         self.cell_info = od()
         self.bg_info = od()
         self.rest_info = od()
     
-    def add_cell_search_result(self, filter_id, cell_info, bg_info, rest_info):
+    def add_cell_search_result(self, filter_id, cell_info, bg_info, 
+                               rest_info):
         """Adds a collection of :class:`CellSearchInfo` objects
         
-        :param filter_id: image type ID (e.g. on, off)
-        :param dict cell_info: dictonary containing :class:`CellSearchInfo`
-            objects containing information about images belonging to one cell
-        :param dict bg_info: dictonary containing :class:`CellSearchInfo`
-            objects containing information about detected background images
-        :param dict rest_info: dictonary containing :class:`CellSearchInfo`
-            objects containing information about images which do not match any
-            of the two other criteria
+        Parameters
+        ----------
+        filter_id : str
+            image type ID (e.g. on, off)
+        cell_info : dictlike
+            dictonary containing :class:`CellSearchInfo` objects containing 
+            information about images belonging to one cell
+        bg_info : CellSearchInfo
+            object containing information about detected background images
+            for image type specified by ``filter_id``
+        rest_info : CellSearchInfo
+            object containing information about images that could not be 
+            assigned to a detected cell nor to the background images
         
         """
         self.cell_info[filter_id] = od()
@@ -177,31 +290,38 @@ class CellAutoSearchResults(object):
 class CellCalibData(object):
     """Object representing cell calibration data
     
-    The object mainly consists of a stack containing tau images (e.g. on band
-    off band or AA images) and information about the corresponding gas column
-    densities of the cells used. 
+    The object mainly consists of a stack containing tau images (e.g. 
+    on-band, off-band or AA images) and information about the corresponding 
+    gas column densities of the cells used. 
     
-    This object can be used to retrieve cell calibration curves (on a pixel 
+    It can be used to retrieve cell calibration curves (on a pixel 
     basis) and / or tau / AA sensitivity correction masks
     
-    .. todo::
+    Parameters
+    ----------
+    tau_stack : ImgStack
+        image stack containing optical density images (e.g. 
+        :math:`\\tau_{on}`, :math:`\\tau_{off}`, :math:`\\tau_{AA}`)
+    calib_id : str 
+        calibration ID (e.g. on, off, aa)
+    gas_cds : 
+        optional, array containing gas column densities (this is only 
+        required in case the gas CDs are not already stored within
+        the ``add_data`` attribute of the image stack)
+    gas_cds_errs : 
+        optional, array containing gas column densitiy errors (if the gas
+        CD errors are not specified they will be set to 20% of the gas
+        CD values)
+        
+    Todo
+    ----
     
-        1. remove stack dependency
+    Remove stack dependency
         
     """
     _calib_id = ""
     def __init__(self, tau_stack=None, calib_id="", gas_cds=None,
                  gas_cd_errs=None):
-        """Class initialisation
-
-        :param ImgStack tau_stack: image stack containing optical density 
-            images (e.g. :math:`\\tau_{on}`, :math:`\\tau_{off}`, 
-            :math:`\\tau_{AA}`)
-        :param str calib_id: calibration ID (e.g. on, off, aa)
-        :param gas_cds: optional, array containing gas column densities (this 
-            is only required in case the gas CDs are not already stored within
-            the ``add_data`` attribute of the image stack)
-        """
         
         self.tau_stack = None
         self.gas_cds = None
@@ -212,25 +332,38 @@ class CellCalibData(object):
         self.set_data(tau_stack, gas_cds, gas_cd_errs)
     
     def set_data(self, tau_stack, gas_cds, gas_cd_errs):
-        """This function reads and sets the relevant Data
+        """This function checks and sets the relevant calibration data
         
         The data includes a stack containing cell tau images (e.g. 
-        :math:`\\tau_{on}\,\\tau_{off}`\,\\tau_{AA}`) a list of corresponding
-        cell gas CDs and a list of corresponding gas CD errors. If the latter 
-        are unspecified they will be set to 20% of the corresponding CD.
+        :math:`\\tau_{on}\,\\tau_{off}`\,\\tau_{AA}`) specification of 
+        gas CDs including uncertainties. If the latter are unspecified they 
+        will be set to 20% of the corresponding CD.
         
-        :param ImgStack tau_stack: stack containing Cell tau images
-        :param list gas_cds: Gas column densities for the Cell images in the 
-            stack (if unspecified, attempt to read them from the stack
-            variable ``add_data``). They need to be in the same order as the 
-            images in the stack, i.e. the first Cell CD (i.e.``gas_cds[0]``) 
-            must correspond to the first cell image in the stack 
-            (``tau_stack.stack[0]``) (input can also be ``ndarray``)
-        :param list gas_cd_errs: Uncertainties in gas column densities (see
-            input param ``gas_cds``). If input invalid (i.e. None, or length
-            mismatch with list ``gas_cds``) then, the values are set to 20%
-            of the corresponding CDs (input can also be ``ndarray``)
+        Parameters
+        ----------
+        
+        tau_stack : ImgStack 
+            stack containing Cell tau images
+        gas_cds : arraylike
+            Gas column densities of the cell images in the stack (if 
+            unspecified, attempt to read them from the stack variable 
+            ``add_data``). They need to be in the same order as the 
+            images in the stack, i.e. the first Cell CD (i.e.
+            ``gas_cds[0]``) must correspond to the first cell image in the 
+            stack (``tau_stack.stack[0]``)         
+        gas_cd_errs : arraylike
+            Gas column density uncertainties. If invalid (i.e. None, or 
+            length mismatch with list ``gas_cds``) then, the values are set 
+            to 20% of the corresponding CDs
         """
+        try:
+            gas_cds = asarray(gas_cds)
+        except:
+            pass
+        try:
+            gas_cd_errs = asarray(gas_cd_errs)
+        except:
+            pass
         try:
             has_cds = False
             if ndim(gas_cds) == 1 and len(gas_cds) > 0:
@@ -248,8 +381,8 @@ class CellCalibData(object):
             has_cd_errs = False
             
         if not isinstance(tau_stack, ImgStack):
-            warn("Image stack could not be set in CellCalibData: invalid input"
-                "type %s" %type(tau_stack))
+            warn("Image stack could not be set in CellCalibData: invalid "
+                 "input type %s" %type(tau_stack))
         else:
             self.tau_stack = tau_stack
             if not has_cds or tau_stack.num_of_imgs != len(self.gas_cds):
@@ -263,12 +396,12 @@ class CellCalibData(object):
                     pass
                 
         if has_cds and not has_cd_errs or sum(self.gas_cd_errs) == 0:
-            warn ("Cell gas CD errors not defined, assuming 20% of Cell CDs")
+            warn ("Cell gas CD errors undefined, assuming 20% of cell CDs")
             self.gas_cd_errs = self.gas_cds * 0.2
         
     @property
     def calib_id(self):
-        """Get / set calibration ID"""
+        """Calibration ID"""
         return self._calib_id
     
     @calib_id.setter
@@ -283,20 +416,20 @@ class CellCalibData(object):
     
     @property
     def calib_id_str(self):
-        """Return plot string for calibration ID"""
+        """Plot string for calibration ID"""
         try:
-            return _CALIB_ID_STRINGS[self.calib_id]
+            return CALIB_ID_STRINGS[self.calib_id]
         except:
             return self.calib_id
         
     @property
     def cell_gas_cds(self):
-        """return vector containing cell gas CDs"""
+        """Vector containing cell gas CDs"""
         return self.gas_cds
     
     @property
     def cell_gas_cd_errs(self):
-        """return vector containing cell gas CD errors"""
+        """Vector containing cell gas CD errors"""
         return self.gas_cd_errs
    
     @property
@@ -307,9 +440,16 @@ class CellCalibData(object):
         ``self.tau_stack`` using a provided confidence interval of the 
         standard deviation of tau values of all image pixels.
         
-        :param int sigma: confidence interval for uncertainty estimate
-        :return: 
-            - ndarray, vector containing tau uncertainties for all cell images
+        Parameters
+        ----------
+        sigma : int
+            confidence interval for uncertainty estimate
+        
+        Returns
+        -------
+        ndarray 
+            vector containing tau uncertainties for all cell images
+            
         """  
         vals = []
         for k in range(self.tau_stack.shape[0]):
@@ -318,20 +458,33 @@ class CellCalibData(object):
             
     def poly(self, pos_x_abs=None, pos_y_abs=None, radius_abs=1, mask=None, 
              polyorder=1):
-        """Retrieve calibration polynomial within a certain pixel neighbourhood
+        """Retrieve calibration polynomial within pixel neighbourhood
         
-        :param int pos_x_abs: detector x position (col) in absolute detector 
-                                                                    coords
-        :param int pos_y_abs: detector y position (row) in absolute detector 
-                                                                    coords
-        :param float radius_abs: radius of pixel disk on detector (centered
-            around pos_x_abs, pos_y_abs, default: 1)
-        :param ndarray mask: boolean mask for image pixel access, 
-            default is None, if the mask is specified and valid (i.e. same
-            shape than images in stack) then the other three input parameters
-            are ignored
-        :param int polyorder: order of polynomial for fit (1)
-        :returns:
+        Extracts tau value of all cells within a certain image area and
+        fits calibration polynomial using :attr:`gas_cds`.
+        
+        Parameters
+        ----------
+        pos_x_abs : int 
+            detector x position (col) in absolute detector coords
+        pos_y_abs : int
+            detector y position (row) in absolute detector coords
+        radius_abs : float
+            radius of pixel disk on detector (centered around pos_x_abs, 
+            pos_y_abs, default: 1)
+        mask : ndarray 
+            boolean mask specifying pixel region for determination of
+            calibration curve (default is None), if the mask is specified 
+            and valid (i.e. same shape than images in stack) then the other 
+            three input parameters are ignored    
+        polyorder : int
+            order of polynomial for fit (default is 1)
+        
+        Returns
+        -------
+        tuple
+            3-element tuple containing
+            
             - poly1d, fitted polynomial
             - ndarray, array with tau values 
             - ndarray, array with corresponding gas CDs
@@ -353,8 +506,9 @@ class CellCalibData(object):
         except:
             print "Using radius of 3"
             rad_rel = 3
-        tau_arr = stack.get_time_series(x_rel, y_rel, rad_rel, mask)[0].values
-        cd_arr = stack.add_data
+        tau_arr = stack.get_time_series(x_rel, 
+                                        y_rel, rad_rel, mask)[0].values
+        cd_arr = self.gas_cds
         return poly1d(polyfit(tau_arr, cd_arr, polyorder)), tau_arr, cd_arr
     
     def get_sensitivity_corr_mask(self, doas_fov=None, cell_cd=1e16,
@@ -362,27 +516,26 @@ class CellCalibData(object):
         """Get sensitivity correction mask 
         
         Prepares a sensitivity correction mask to corrector for filter 
-        transmission shifts. These shifts result in increaing optical densities
-        towards the image edges for a given gas column density.
+        transmission shifts. These shifts result in increaing optical 
+        densities towards the image edges for a given gas column density.
         
         The mask is determined for original image resolution, i.e. pyramid 
-        level 0.
+        level 0 and for a specific cell optical density image 
+        (aa, tau_on, tau_off). THe latter is normalised either with respect 
+        to the pixel position of a DOAS field of view within the images, 
+        or, alternatively with respect to the image center coordinate.
         
-        The mask is determined from a specified cell optical density image 
-        (aa, tau_on, tau_off) which is normalised either
-        with respect to the pixel position of a DOAS field of view within the
-        images, or, alternatively with respect to the image center coordinate.
-        
-        Plume AA (or tau_on, tau_off) images can then be corrected for these
-        sensitivity variations by division with the mask. If DOAS calibration 
-        is used, the calibration polynomial can then be used for all image 
-        pixels. If only cell calibration is used, the mask is normalised with
-        respect to the image center, the corresponding cell calibration 
-        polynomial should then be retrieved in the center coordinate which
-        is the default polynomial when using :func:`get_calibration_polynomial` 
-        or func:`__call__`) if not explicitely specified. You may then 
-        calibrate a given aa image (``aa_img``) as follows with using a 
-        :class:`CellCalibData` object (denoted with ``cellcalib``)::
+        Plume AA (or tau_on, tau_off) images can then be corrected for 
+        sensitivity variations by division with the mask. If DOAS 
+        calibration is used, the calibration polynomial can then be used 
+        for all image pixels. If only cell calibration is used, the mask is 
+        normalised with respect to the image center, the corresponding cell 
+        calibration polynomial should then be retrieved in the center 
+        coordinate which is the default polynomial when using 
+        :func:`get_calibration_polynomial` or func:`__call__`) if not 
+        explicitely specified. You may then calibrate a given aa image 
+        (``aa_img``) as follows with using a :class:`CellCalibData` object 
+        (denoted with ``cellcalib``)::
         
             mask, cell_cd = cellcalib.get_sensitivity_corr_mask()
             aa_corr = aa_img.duplicate()
@@ -390,22 +543,33 @@ class CellCalibData(object):
             #this is retrieved in the image center if not other specified
             gas_cd_img = cellcalib(aa_corr)
             gas_cd_img.show()
+        
+        Parameters
+        ----------
+        doas_fov : DoasFOV
+            DOAS field of view, if unspecified, the correction mask is 
+            determined with respect to the image center
+        filter_id : str
+            mask is determined from the corresponding calib data (e.g. 
+            "on", "off", "aa")
+        cell_cd : float 
+            use the cell which is closest to this column
+        surface_fit_pyrlevel : int
+            additional downscaling factor for 2D polynomial surface fit
+        
+        Returns
+        -------
+        tuple
+            2-element tuple containing
             
-        :param DoasFov doas_fov: DOAS field of view class, if unspecified, the
-            correction mask is determined with respect to the image center
-        :param str filter_id: mask is determined from the corresponding calib
-            data (e.g. "on", "off", "aa")
-        :param float cell_cd: use the cell which is closest to this column
-        :param int surface_fit_pyrlevel: additional downscaling factor for 
-            2D polynomial surface fit
-        :return: 
             - ndarray, correction mask
             - float, column density of corresponding cell image
         
-        .. note::
+        Note
+        ----
         
-            This function was only tested for AA images and not for on / off
-            cell tau images
+        This function was only tested for AA images and not for on / off
+        cell tau images
             
         """
         stack = self.tau_stack
@@ -441,18 +605,29 @@ class CellCalibData(object):
         
     def plot(self, pos_x_abs, pos_y_abs, radius_abs=1, mask=None,
              ax=None, **kwargs):
-        """Plot all available calibration curves in a certain pixel region
+        """Plot all calibration curve in a certain pixel region
         
-        :param int pos_x_abs (None): x position of center pixel on detector
-        :param int pos_y_abs (None): y position of center pixel on detector
-        :param float radius_abs (1): radius of pixel disk on detector (centered
-            around pos_x_abs, pos_y_abs)
-        :param ndarray mask (None): boolean mask for image pixel access, 
-            default is None, if the mask is specified and valid (i.e. same
-            shape than images in stack) then the other three input parameters
-            are ignored
-        :param ax (None): matplotlib axes (if None, a new figure with axes
+        Parameters
+        ----------
+        pos_x_abs : int 
+            x position of center pixel on detector
+        pos_y_abs : int 
+            y position of center pixel on detector
+        radius_abs : float 
+            radius of pixel neighbourhood (default=1)
+            
+        mask : 
+            optional, boolean mask for image pixel access (default=None)
+            If the mask is specified and valid (i.e. same shape than images 
+            in stack) then the other three input parameters are ignored
+        ax : axes
+            matplotlib axes instance (if None, a new figure with axes
             will be created)
+        
+        Returns
+        -------
+        axes
+            matplotlib axes object
             
         """
         add_to = True
@@ -531,6 +706,12 @@ class CellCalibEngine(Dataset):
     Is initialised as :class:`pyplis.Datasets.Dataset` object, i.e. normal
     setup is like plume data using a :class:`MeasSetup` object (make sure 
     that ``cell_info_dict`` is set in the setup class).
+    
+    Parameters
+    ----------
+    setup : MeasSetup
+        see :class:`Dataset` for details
+        
     """
     def __init__(self, setup=None, init=1):
         print 
@@ -559,14 +740,28 @@ class CellCalibEngine(Dataset):
         print "FILELISTS IN CALIB DATASET OBJECT INITIALISED"
         print
     
-    def set_cell_images(self, img_paths, cell_gas_cd, cell_id, filter_id):
-        """Set images corresponding to one cell and image type
+    @property
+    def cell_lists_ready(self):
+        """Calls :func:`check_all_lists``"""
+        return self.check_all_lists()
         
-        :param list img_paths: list containing image file paths (can also be
-            a single image)
-        :param float cell_gas_cd: column amount of gas in cell
-        :param str cell_id: string identification of cell
-        :param str filter_id: filter ID for images (e.g. "on", "off")
+    def set_cell_images(self, img_paths, cell_gas_cd, cell_id, filter_id):
+        """Add cell images corresponding to one cell and image type
+        
+        Creates :class:`CellImgList` containing input cell images and
+        adds them calling :func:`add_cell_img_list`
+        
+        Parameters
+        ----------
+        img_paths : list 
+            list containing image file paths (can also be a single image
+            path)
+        cell_gas_cd : float 
+            column amount of gas in cell
+        cell_id : str 
+            string identification of cell
+        filter_id : str
+            filter ID for images (e.g. "on", "off")
             
         """
         try:
@@ -587,9 +782,16 @@ class CellCalibEngine(Dataset):
     def set_bg_images(self, img_paths, filter_id):
         """Set background images for a certain filter type
         
-        :param list img_paths: list containing image file paths of bg images (
-            can also be a single image)
-        :param str filter_id: image type (e.g. "on", "off")
+        Creates :class:`CellImgList` containing input background images and
+        adds them calling :func:`add_bg_img_list`
+        
+        Parameters
+        ----------
+        img_paths : list 
+            list containing image file paths of bg images (can also be a 
+            single image file path)
+        filter_id : str
+            image type (e.g. "on", "off")
             
         """
         try:
@@ -607,10 +809,13 @@ class CellCalibEngine(Dataset):
         self.add_bg_img_list(lst)
         
     def add_cell_img_list(self, lst):
-        """Add a :class:`CellImgList` object in ``self.cell_lists``
+        """Add a cell image list for calibration
         
-        :param CellImgList lst: if, valid input, the list is added to dictionary
-            ``self.cell_lists`` with it's filter ID as first key and its cell_id as 
+        Parameters
+        ----------
+        lst :  CellImgList
+            if, valid, the list is added to :attr:`cell_lists` using it's 
+            ID (``lst.list_id``) as first key and ``lst.cell_id`` as 
             second, e.g. ``self.cell_lists["on"]["a53"]``
         """
         if not isinstance(lst, CellImgList):
@@ -618,7 +823,7 @@ class CellCalibEngine(Dataset):
                 "object, got %s" %type(lst))
         elif not lst.nof > 0:
             raise IOError("No files available in cell ImgList %s, %s" 
-            %(lst.id, lst.cell_id))
+            %(lst.list_id, lst.cell_id))
         elif any([lst.gas_cd == x for x in [0, None]]) or isnan(lst.gas_cd):
             raise ValueError("Error adding cell image list, invalid value encountered for"
                 "attribute gas_cd: %s" %lst.gas_cd)
@@ -627,10 +832,13 @@ class CellCalibEngine(Dataset):
         self.cell_lists[lst.list_id][lst.cell_id] = lst
     
     def add_bg_img_list(self, lst):
-        """Add a :class:`ImgList` object in ``self.bg_lists``
+        """Add an image list containing background images for calibration
         
-        :param ImgList lst: if, valid input, the list is added to dictionary
-            ``self.bg_lists`` with it's ID as key
+        Parameters
+        ----------
+        lst :  CellImgList
+            if valid input, the list is added to dictionary
+            ``self.bg_lists`` using ``lst.list_id`` as key
         """
         if not isinstance(lst, CellImgList):
             raise TypeError("Error adding bg image list, background image list"
@@ -644,15 +852,25 @@ class CellCalibEngine(Dataset):
     def det_bg_mean_pix_timeseries(self, filter_id):
         """Determine (or get) pixel mean values of background image list
         
-        :param str filter_id: ID of background image list
-        
         Gets the average pixel intenisty (considering the whole image) for 
-        all images in specified background image list and loads it as 
-        :class:`PixelMeanTimeSeries` object, which is then stored in 
-        ``self.bg_tseries`` and can be used to interpolate background 
+        all images in specified background image list and stores it within
+        a :class:`PixelMeanTimeSeries` object. The latter is then stored in 
+        :attr:`bg_tseries` and can be used to interpolate background 
         intensities for cell image time stamps (this might be important for
         large SZA measurements where the background radiance changes 
-        fastly).
+        fastly, cf. :func:`prepare_tau_calib`).
+        
+        Parameters
+        ----------
+        filter_id : str
+            ID of background image list (must be valid key of dict
+            :attr:`bg_lists`
+            
+        Returns
+        -------
+        PixelMeanTimeSeries
+            time series object containing background mean intensities
+            
         """
         ts = self.bg_lists[filter_id].get_mean_value()
         ts.fit_polynomial()
@@ -664,24 +882,28 @@ class CellCalibEngine(Dataset):
                    accept_last_in_dip=False):
         """Autodetection of cell images and bg images using mean value series
         
-        :param str filter_id: filter ID (mean value series is determined from 
-            corresponding :class:`ImgList` object)
-        :param float threshold: threshold in percent by which intensity 
-            decreases are identified
-        :param bool accept_last_in_dip (False): if true, also the last image in 
-            one of the Cell intensity dips is considered a valid cell image
-            (by default, the first and the last images of one dip are not 
-            considered)
-            
-        This algorithm tries to separate individual cell images and background 
-        images by analysing the 1st derivative of the mean pixel intensity of 
-        each image in the time span specified in this object (``self.start``,
-        ``self.stop``). 
+        This algorithm tries to separate individual cell images and 
+        background images by analysing the 1st derivative of the mean pixel 
+        intensity of each image in the time span specified in this object 
+        (``self.start``, ``self.stop``). 
         
         The separation of the individual cell images is performed by 
         identifying dips in the mean intensity evolution and assignment of 
-        all image files belonging to each dip. 
-    
+        all image files belonging to each dip.
+        
+        Parameters
+        ----------
+        filter_id : str
+            filter ID (e.g. on, off, uses :func:`get_list` with 
+            ``filter_id`` as input)
+        threshold : float
+            threshold in percent by which intensity decreases are 
+            identified
+        accept_last_in_dip : bool
+            if True, also the last image in one of the Cell intensity dips 
+            is considered a valid cell image (by default, the first and the 
+            last images of a dip are not considered)
+            
         """
         print 
         print "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++"
@@ -753,7 +975,7 @@ class CellCalibEngine(Dataset):
                 result.file_paths.append(l.files[k])
                 result.start_acq.append(x[k])
                 result.texps.append(texps[k])
-                cell_info[result.id] = result
+                cell_info[result.add_id] = result
                 #onFilter=0
             elif bg_cond:
                 print "Found BG candidate at %s, %s" %(k,x[k])
@@ -777,10 +999,12 @@ class CellCalibEngine(Dataset):
                     rest.texps.append(texps[k])
             k += 1
         
-        if not len(self._cell_info_auto_search.keys()) == len(cell_info.keys()):
-            raise CellSearchError("Number of detected cells (%s) is different "
-                "from number of cells specified in cellSpecInfo (%s) " 
-                %(len(self._cell_info_auto_search.keys()), len(cell_info.keys())))
+        if not len(self._cell_info_auto_search.keys())==len(cell_info.keys()):
+            raise CellSearchError("Number of detected cells (%s) is "
+                                  "different from number of cells "
+                                  "specified in cellSpecInfo (%s) " 
+                                  %(len(self._cell_info_auto_search.keys()), 
+                                    len(cell_info.keys())))
         
         #Create new image lists from search results for background images
         #and one list for each cell that was detected
@@ -798,27 +1022,36 @@ class CellCalibEngine(Dataset):
     def _assign_calib_specs(self, filter_id=None):
         """Assign the gas CD amounts to search results for all filter lists
         
-        :param str filter_id: ID of filter used (e.g. "on") for assignment. Uses 
-            default onband filter if input is unspecified (None) or if imagelist 
-            for this filter key does not exist
+        This function assigns gas CD amounts (stored in
+        ``self._cell_info_auto_search`` to the individual cells detected 
+        using the automatic cell search routine (:func:`find_cells`)
+        and which are stored in ``self.search_results``. The latter object 
+        is of type :class:`CellAutoSearchResults` and contains image lists 
+        for all *filter_ids* for which the search was performed (e.g. "on",
+        "off"). These are seperated by detected background images 
+        (``self.search_results.bg_info``) and individual cells 
+        (``self.search_results.cell_info``).
+        
+        The gas amounts (in ``self._cell_info_auto_search``) are assigned 
+        based on the magnitude of the corrseponding intensity decrease of 
+        the cell (in the pixel mean time series).
+        
+        Parameters
+        ----------
+        filter_id : str
+            ID of filter which is supposed used for assignment (e.g. "on"). 
+            Uses default on-band filter if input is unspecified (None) or 
+            if the imagelist for this filter key does not exist
           
-        This function assigns gas amounts to the results of a cell search
-        stored in ``self.search_results``, which is a 
-        :class:`CellAutoSearchResults` object which contains image lists for
-        all filters for which search was performed (e.g. "on", "off") 
-        separated by background images (``self.search_results.bg_info``) and
-        individual cells (``self.search_results.cell_info``).
-        This function access the latter and assigns the gas amounts by measure
-        of the magnitude of the corrseponding intensity decrease. 
+        Note
+        ----
         
-        .. note::
-        
-            1. In order for this to work, the automatic cell search must have 
-                been performed
-            2. This function does not change class attributes which are
-                actually used for calibration. These are stored in 
-                ``self.cell_lists`` and ``self.bg_lists`` and have to be 
-                assigned specifically
+            1. In order for this to work, the automatic cell search must 
+            have been performed
+            2. This function does not change class attributes which are 
+            actually used for calibration. The latter are stored in 
+            ``self.cell_lists`` and ``self.bg_lists`` and have to be 
+            assigned specifically
             
         """
         # check input list ID and set default if invalid
@@ -833,7 +1066,7 @@ class CellCalibEngine(Dataset):
         #the results of the cell search
         res = self.search_results.cell_info
         for val in res[filter_id].values():
-            offs_dict[val.id] = val.offs.mean()
+            offs_dict[val.add_id] = val.offs.mean()
         
         #read the gas column amounts
         for key, val in cell_info.iteritems():
@@ -848,7 +1081,7 @@ class CellCalibEngine(Dataset):
             cell_id = s1[k]
             gas_cd, gas_cd_err = cell_info[s1[k]][0], cell_info[s1[k]][1]
             print ("Search key: %s\nDel I: %s\nCell abbr: %s\nGasCol %s +/- %s"
-                        %(s0[k], offs_dict[s0[k]], cell_id, gas_cd, gas_cd_err))
+                   %(s0[k], offs_dict[s0[k]], cell_id, gas_cd, gas_cd_err))
             #now add gas column to corresponding list in search result object
             for filter_id in filter_ids:
                 res[filter_id][s0[k]].img_list.update_cell_info(cell_id, gas_cd,\
@@ -857,8 +1090,9 @@ class CellCalibEngine(Dataset):
     def add_search_results(self):
         """Add results from automatic cell detection to calibration
         
-        This method analyses ``self.search_results`` for valid cell image lists
-        (i.e. lists that contain images and have the gas column assigned)
+        This method analyses ``self.search_results`` for valid cell image 
+        lists (i.e. lists that contain images and have the gas column 
+        assigned)
                 
         """
         # Add all cell image lists that were found for each filter
@@ -877,10 +1111,12 @@ class CellCalibEngine(Dataset):
     def set_bg_closest(self, cell_id=None):
         """Set the current background image closest to one of the cells
         
-        :param str cell_id: cell ID supposed to be used, if None, then the 
-            first cell is used, i.e.::
+        Parameters
+        ----------
+        cell_id : str
+            cell ID supposed to be used, if None, then the first cell list
+            in :attr:`cell_lists` is used
             
-                cell_id = self.cell_lists[self.filters.default_key_on].keys()[0]
         """
         if cell_id is None:
             cell_id = self.cell_lists[self.filters.default_key_on].keys()[0]
@@ -889,7 +1125,23 @@ class CellCalibEngine(Dataset):
             self.cell_lists[filter_id][cell_id].link_imglist(lst)
             
     def find_and_assign_cells_all_filter_lists(self, threshold=0.10):
-        """High level function for automatic cell and background image search"""
+        """High level function for automatic cell and BG image search
+        
+        This method basically calls the following functions:
+            
+            1. :func:`find_cells` (for all filter IDs, e.g. on/off)
+            #. :func:`_assign_calib_specs` 
+            #. :func:`add_search_results` 
+            #. :func:`check_all_lists`
+            
+        and sets flag ``cell_search_performed=True``.
+        
+        Parameters
+        ----------
+        threshold : float
+            percentage threshold for identification of regions of 
+            decreased intensity in time series
+        """
         for filter_id in self.filters.filters.keys():
             try:
                 self.find_cells(filter_id, threshold, False)
@@ -904,7 +1156,10 @@ class CellCalibEngine(Dataset):
     def bg_img_available(self, filter_id):
         """Checks if a background image is available
         
-        :param str filter_id: filter ID of image list
+        Parameters
+        ----------
+        filter_id : str
+            filter ID of image list (e.g. on / off)
         """
         try:
             if isinstance(self.bg_lists[filter_id], Img):
@@ -916,23 +1171,40 @@ class CellCalibEngine(Dataset):
                 return True
             return False
     
-    def check_image_list(self, l):
+    def check_image_list(self, lst):
         """Check if image list contains files and has images ready (loaded)
         
-        :param ImgList l: image list object
+        Parameters
+        ----------
+        lst : ImgList
+            image list object
+            
+        Raises
+        ------
+        IndexError
+            If list does not contain images
+        Exception
+            If images cannot be loaded in list (unexpected error) or if
+            ``lst.gas_cd`` is not a float 
+            
         """
-        if not l.nof > 0:
+        if not lst.nof > 0:
             raise IndexError("Error, image list %s does not contain images" 
-                            %l.list_id)
-        if not isinstance(l.current_img(), Img):
-            if not l.load():
+                            %lst.list_id)
+        if not isinstance(lst.current_img(), Img):
+            if not lst.load():
                 raise Exception("Unexpected error...")
         #raises Exception is gas column is not a number
-        float(l.gas_cd)
+        float(lst.gas_cd)
         
     def check_all_lists(self):
-        """Check if image lists for a given filter contain images and if images 
-        are loaded if not, load images
+        """Check if all image lists are ready for analysis
+        
+        Returns
+        -------
+        bool
+            True (if it makes it to the return statement)
+            
         """
         filter_ids = self.cell_lists.keys()
         cell_ids = self.cell_lists[filter_ids[0]].keys()
@@ -955,11 +1227,20 @@ class CellCalibEngine(Dataset):
         return True
         
     def check_cell_info_dict_autosearch(self, cell_info_dict):
-        """Checks if dictionary including cell gas column info is right format
+        """Checks if dict including cell gas column info is right format
         
-        :param dict cell_info_dict: keys: cell ids (e.g. "a57"), 
-            values: list of gas column density and uncertainty in cm-2:
-            ``[value, error]``
+        Parameters
+        ----------
+        cell_info_dict : dict
+            keys: cell ids (e.g. "a57"), 
+            values: list of gas column density and uncertainty in cm-2,
+            format: ``[value, error]``
+        
+        Raises
+        ------
+        Exception 
+            If any of the specs in ``cell_info_dict`` is invalid
+            
         """
         for key, val in cell_info_dict.iteritems():
             if not isinstance(key, str) and not isinstance(key, unicode):
@@ -981,27 +1262,36 @@ class CellCalibEngine(Dataset):
     def set_cell_info_dict_autosearch(self, cell_info_dict):
         """Set attribute ``self._cell_info_auto_search`` (dictionary)
         
-        :param dict cell_info_dict: dictionary containing cell information        
+        Parameters
+        ----------
+        cell_info_dict : dict
+            dictionary containing cell information
+            
         """
         self.check_cell_info_dict_autosearch(cell_info_dict)
         self._cell_info_auto_search = cell_info_dict
     
-    @property
-    def cell_lists_ready(self):
-        """Checks if all current cell lists contain images and gas CD info"""
-        return self.check_all_lists()
-    
     def prepare_calib_data(self, on_id, off_id, darkcorr=True, blurring=1,
                            pyrlevel=0):
-        """High level function to prepare all calibration stacks (on, off, aa)
+        """High level function to prepare calib data 
         
-        :param str on_id: ID of onband filter used to determine calib curve
-        :param str off_id: ID of offband filter
-        :param bool darkcorr: perform dark correction before determining tau
-            images
-        :param int blurring: width of gaussian filter applied to tau images
-        :param int pyrlevel: downscale factor
-        :returns bool: success
+        Parameters
+        ----------
+        on_id : str
+            ID of onband filter used to determine calib curve
+        off_id : str
+            ID of offband filter used for calibration
+        darkcorr : bool
+            perform dark correction before determining cell tau images
+        blurring : int
+            apply gaussian blurring to cell tau images
+        pyrlevel : int
+            downscale factor (Gauss pyramid)
+        
+            Returns
+        -------
+        bool
+            success
         """
         ids = [on_id, off_id]
         self.check_all_lists()
@@ -1019,19 +1309,26 @@ class CellCalibEngine(Dataset):
     
     def prepare_tau_calib(self, filter_id, darkcorr=True, blurring=1,
                           pyrlevel=0):
-        """Prepare a stack of tau images for input filter images
+        """Prepare a stack of tau images from cell and BG images
         
-        Prepares a stack of tau images with each layer corresponding to one
-        calibration cell image. The tau images are all prepared using the 
-        same background image (self.bg_info[filter_id].img_list.current_img())
-        
-        :param str filter_id: ID of image lists used for tau calc 
-            (e.g. "on", "off")
-        :param bool darkcorr: bool specifying whether dark correction is
-            supposed to be applied to data (True)
-        :param int blurring: Specify amount of gaussian blurring (1)
-        :param int pyrlevel: Specify size reduction factor using gaussian 
-            pyramide
+        Parameters
+        ----------
+        filter_id : str
+            ID of image lists used for tau calc (e.g. "on", "off")
+        darkcorr : bool
+            bool specifying whether dark correction is supposed to be 
+            applied to data (default=True)
+        blurring : int 
+            Specify amount of gaussian blurring (1)
+        pyrlevel : int 
+            Specify size reduction factor using Gauss pyramid
+            
+        Returns
+        -------
+        ImgStack
+            Stack containing tau images for specified filter and all 
+            available cells
+            
         """
         
         bg_list = self.bg_lists[filter_id]
@@ -1057,14 +1354,15 @@ class CellCalibEngine(Dataset):
             lst.darkcorr_mode = darkcorr
             cell_img = lst.current_img()            
             try:
-                bg_mean_now = bg_mean_tseries.get_poly_vals(cell_img.meta[\
-                                                                "start_acq"])
+                bg_mean_now = bg_mean_tseries.get_poly_vals(cell_img.meta[
+                                                            "start_acq"])
                 offset = bg_mean - bg_mean_now
             except:
                 warn("Warning in tau image stack calculation for filter "
-                " %s: Time series data for background list (background poly) "
-                " is not available. Calculating tau image for cell image  %s, "
-                " %s based on unchanged background image recorded at %s"
+                " %s: Time series data for background list (background "
+                "poly) is not available. Calculating tau image for cell "
+                " image  %s, %s based on unchanged background image "
+                " recorded at %s"
                 %(filter_id, cell_id, cell_img.meta["start_acq"],\
                                                 bg_img.meta["start_acq"]))
                     
@@ -1093,16 +1391,27 @@ class CellCalibEngine(Dataset):
     def prepare_aa_calib(self, on_id="on", off_id="off", calib_id="aa"):
         """Prepare stack containing AA images
         
-        :param str on_id ("on"): ID of on band filter
-        :param str off_id ("off"): ID of offband filter
-        :param str calib_id ("aa"): ID of AA image stack
+        The image data is retrieved from :attr:`calib_data` so, before 
+        calling this function, make sure, the corresponding on and offband 
+        stacks were created using :func:`prepare_tau_calib`
         
-        The imagery data is retrieved from ``self.calib_data`` so, before calling
-        this function, make sure, the corresponding on and offband stacks were
-        created using :func:`prepare_tau_calib`
+        The AA stack is added to :attr:`calib_data` dictionary
         
-        The new AA stack is added to ``self.calib_data`` dictionary
         
+        Parameters
+        ----------
+        on_id : str
+            ID of on band filter ("on")
+        off_id : str
+            ID of offband filter ("off")
+        calib_id : str
+            ID of AA image stack ("aa")
+            
+        Returns
+        -------
+        CellCalibData
+            AA calibration data
+            
         """
         try:
             aa_calib = self.calib_data[on_id] - self.calib_data[off_id]
@@ -1121,25 +1430,48 @@ class CellCalibEngine(Dataset):
         
         For a detailed description see corresponding method in 
         :class:`CellCalibData`.
-            
-        :param str calib_id: mask is determined from the corresponding calib
-            data (e.g. "on", "off", "aa")
-        :param **kwargs: keyword args (see corresponding method in 
+        
+        Parameters
+        ----------
+        calib_id : str
+            the mask is determined from the corresponding calib data 
+            (e.g. "on", "off", "aa")
+        **kwargs : 
+            additional keyword args (see corresponding method in 
             :class:`CellCalibData`)
             
-    
+        Returns
+        -------
+        tuple
+            2-element tuple containing
+            
+            - ndarray, correction mask
+            - float, column density of corresponding cell image
+        
         """
         if not calib_id in self.calib_data.keys():
             raise ValueError("%s calibration data is not available" %calib_id)
         return self.calib_data[calib_id].get_senitivity_corr_mask(**kwargs)
           
     def get_calibration_polynomial(self, calib_id="aa", **kwargs):
-        """Retrieve calibration polynomial within a certain pixel neighbourhood
+        """Retrieve calibration polynomial 
         
-        :param str calib_id: image type ID (e.g. "on", "off")
-        :param **kwargs: additional keyword arguments passed to :func:`poly`
-            of :class:`CellCalibData` object corresponding to ``calib_id``.
-        :returns: tuple containing 
+        The calibration polyonmial is retrieved within a specified pixel 
+        neighbourhood
+        
+        Parameters
+        ----------
+        calib_id : str
+            image type ID (e.g. "on", "off")
+        **kwargs : 
+            additional keyword arguments passed to :func:`poly` of 
+            :class:`CellCalibData` object corresponding to ``calib_id``
+        
+        Returns
+        -------
+        tuple
+            3-element tuple containing
+            
             - poly1d, fitted polynomial
             - ndarray, array with tau values 
             - ndarray, array with corresponding gas CDs
@@ -1151,18 +1483,28 @@ class CellCalibEngine(Dataset):
     Redefinitions
     """
     def get_list(self, list_id, cell_id=None):
-        """Expanding funcionality of this method from :class:`Dataset` object
+        """Expanding functionality of this method from :class:`Dataset` 
         
-        :param str list_id: filter ID of list (e.g. on, off). If parameter 
+        Parameters
+        ----------
+        
+        list_id : str 
+            filter ID of list (e.g. on, off). If parameter 
             ``cell_id`` is None, then this function returns the initial
             Dataset list (containing all images, not the ones separated by 
             cells / background).
-        :param cell_id: if input is specified (type str) and valid (available
-            cell img list), then the corresponding list is returned which only
-            contains images from this cell. The string "bg" might be used to 
-            access the background image list of the filter specified with 
-            parameter ``list_id``
-        :return: - ImgList, the actual list object
+        cell_id : str 
+            if input is specified (type str) and valid (available
+            cell img list), then the corresponding list is returned which 
+            only contains images from this cell. The string "bg" might be 
+            used to access the background image list of the filter 
+            specified with parameter ``list_id``
+            
+        Returns
+        -------
+        ImgList
+            the actual list object
+            
         """
         if cell_id is not None and isinstance(cell_id, str):
             if cell_id in self.cell_lists[list_id].keys():
@@ -1176,14 +1518,23 @@ class CellCalibEngine(Dataset):
     """           
     def plot_cell_search_result(self, filter_id="on", for_app=False,
                                 include_tit=True, ax=None):
-        """High level plotting function for results from automatic cell search
+        """High level plotting function for results from auto-cell search
         
-        :param str filter_id: filter ID (e.g. "on", "off")
-        :param bool for_app: currently irrelevant (default is False)
-        :param bool include_tit: include default title
-        :param ax: matplotlib axes object
-        :return:
-            - matplotlib axes object
+        Parameters
+        ----------
+        filter_id : str
+            filter ID (e.g. "on", "off")
+        for_app : bool
+            currently irrelevant (default is False)
+        include_tit : bool
+            if True, include default title
+        ax :
+            matplotlib axes object
+        
+        Returns
+        -------
+        axes
+            matplotlib axes object
             
         """
         # get stored time series (was automatically saved in :func:`find_cells`)
@@ -1239,9 +1590,18 @@ class CellCalibEngine(Dataset):
     def plot_calib_curve(self, calib_id, **kwargs):
         """Plot calibration curve 
         
-        :param str filter_id: image type ID (e.g. "aa")
-        :param **kwargs: plotting keyword arguments passed to :func:`plot` of
+        Parameters
+        ----------
+        filter_id : str
+            image type ID (e.g. "aa")
+        **kwargs : 
+            additional keyword arguments for plot passed to :func:`plot` of
             corresponding :class:`CellCalibData` object
+        
+        Returns
+        -------
+        axes
+            matplotlib axes object
             
         """
         return self.calib_data[calib_id].plot(**kwargs)
@@ -1250,9 +1610,20 @@ class CellCalibEngine(Dataset):
     def plot_all_calib_curves(self, ax=None, **kwargs):
         """Plot all available calibration curves in a certain pixel region
         
-        :param **kwargs: plotting keyword arguments passed to 
+        Parameters
+        ----------
+        ax : axes
+            matplotlib axes instance
+            
+        **kwargs : 
+            additional keyword arguments passed to  
             :func:`get_calibration_polynomial` of corresponding 
             :class:`CellCalibData` objects
+     
+        Returns
+        -------
+        axes
+            matplotlib axes object
             
         """
         if ax is None:
@@ -1293,16 +1664,37 @@ class CellCalibEngine(Dataset):
     def __call__(self, value, calib_id="aa", **kwargs):
         """Apply calibration to input value (i.e. convert into gas CD)
         
-        :param float value: tau or AA value
-        :param str calib_id: ID of calibration data supposed to be used
-        :param **kwargs: keyword arguments to extract calibration information
+        Parameters
+        ----------
+        
+        value : float
+            tau or AA value
+        calib_id : str
+            ID of calibration data supposed to be used
+        **kwargs : 
+            additional keyword arguments to extract calibration information
             (e.g. pos_x_abs, pos_y_abs, radius_abs)
-        :return: corresponding column density
+        
+        Returns
+        -------
+        float
+            corresponding column density
         """
         return self.calib_data[calib_id](value, **kwargs)
         
 def poly_str(poly):
-    """Return custom string representation of polynomial"""
+    """Return custom string representation of polynomial
+    
+    Parameters
+    ----------
+    poly : poly1d
+        Polynomial object
+        
+    Returns
+    -------
+    str
+        Custom poly string
+    """
     exp = exponent(poly.coeffs[0])
     p = poly1d(round(poly / 10**(exp - 2))/10**2)
     return "%s E%+d" %(p, exp)

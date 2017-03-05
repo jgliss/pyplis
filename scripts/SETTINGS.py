@@ -11,7 +11,7 @@ SAVEFIGS = 1 # save plots from this script in SAVE_DIR
 DPI = 150 #pixel resolution for saving
 FORMAT = "png" #format for saving
 
-SCREENPRINT = 0 #show images on screen when executing script
+SCREENPRINT = 1 #show images on screen when executing script
 
 # Image directory
 IMG_DIR = join(find_test_data(), "images")

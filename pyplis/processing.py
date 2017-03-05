@@ -302,14 +302,32 @@ class LineOnImage(object):
             
     @property
     def start(self):
-        """Returns start coordinates ``[x0, y0]``"""
+        """Get / set start coordinates ``[x0, y0]``"""
         return [self.x0, self.y0]
-        
+
+    @start.setter
+    def start(self, val):
+        try:
+            if len(val) == 2:
+                self.x0 = val[0]
+                self.y0 = val[1]
+        except:
+            warn("Start coordinates could not be set")
+
     @property
     def stop(self):
-        """Returns stop coordinates ``[x1, y1]``"""
+        """Get / set stop coordinates ``[x1, y1]``"""
         return [self.x1, self.y1]
-    
+
+    @stop.setter
+    def stop(self, val):
+        try:
+            if len(val) == 2:
+                self.x1 = val[0]
+                self.y1 = val[1]
+        except:
+            warn("Stop coordinates could not be set")
+
     @property
     def center_pix(self):
         """Returns coordinate of center pixel"""

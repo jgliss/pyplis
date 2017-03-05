@@ -452,7 +452,7 @@ class Dataset(object):
                 for key, dark_list in lists.iteritems():
                     if dark_list.nof < 1:
                         try:
-                            dark_list = self.find_master_dark(dark_list)
+                            self.find_master_dark(dark_list)
                         except:
                             rm.append(key)
                 for key in rm:
@@ -670,13 +670,11 @@ class Dataset(object):
             val = lst.update_img_prep_settings(**settings)
             print "list %s updated (0 / 1): %s" %(list_id, val)
     
-    def update_times(self, start, stop, reload=False):
+    def update_times(self, start, stop):
         """Update start and stop times of this dataset and reload
         
         :param datetime start: new start time
         :param datetime stop: new stop time
-        :param bool reload (True): if True, re-init this dataset object
-            (previous information is lost)
         """
         if not all([isinstance(x, datetime) for x in [start, stop]]):
             raise TypeError("Times could not be changed in Dataset, "

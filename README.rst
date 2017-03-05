@@ -57,7 +57,7 @@ In case the installation fails make sure that all dependencies (see above) are i
 Code documentation
 ==================
 
-The code documentation of pyplis is hosted on `Read the Docs <http://pyplis.readthedocs.io/en/latest/>`__
+The code documentation of pyplis is hosted on `Read the Docs <http://pyplis.readthedocs.io/en/latest/code_lib.html>`__
 
 Getting started
 ===============

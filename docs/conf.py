@@ -66,6 +66,7 @@ extensions = [
     'sphinx.ext.inheritance_diagram',
     'sphinxcontrib.bibtex',
     'sphinxcontrib.images',
+    'sphinxcontrib.napoleon',
     #'sphinxcontrib.exceltable'
 ]
 
