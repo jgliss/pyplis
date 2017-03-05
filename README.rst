@@ -11,6 +11,10 @@ pyplis is a Python toolbox for the analysis of UV SO2 camera data. It includes a
 
   The software was renamed from **piscope** to **pyplis** on 17.02.2017 
 
+.. warn::
+
+  Detected problem with latest pandas versions (> 0.16) when resampling and interpolating data (for cross correlation based plume velocity analysis). Working on fix ...
+  
 Requirements
 ============
 
@@ -27,7 +31,7 @@ Requirements are listed in the order of likelyhood to run into problems when usi
     - srtm.py >= 0.3.2
     - pyproj  >= 1.9.5.1
     
-  - pandas >= 0.16.2
+  - pandas == 0.16.2
   - matplotlib >= 1.4.3
 
 **Optional dependencies (to use extra features)**
