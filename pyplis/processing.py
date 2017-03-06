@@ -1135,7 +1135,7 @@ class ImgStack(object):
         if method == "average":
             try:
                 return self._merge_tseries_average(time_series, **kwargs)
-            except ValueError:
+            except:
                 print ("Failed to merge data using method average, trying "
                        "method nearest instead")
                 method = "nearest"

@@ -35,4 +35,11 @@ release (version 0.9.2)
 
   Detected and fixed bug related to signal cross correlation based plume velocity retrievals after pandas updgrade from 0.16.2 -> 0.19.2.
   
+06/03/2017
+==========
+
+  1. Removed bug in :class:`ImgStack` method ``merge_with_time_series``: generalised catch of first exception (applies if ``doas_series`` is pandas ``Series`` object and not pydoas ``DoasResults``).
+  
+  
+  
   
