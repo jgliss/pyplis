@@ -691,7 +691,7 @@ class BaseSetup(object):
         try:
             self._start = to_datetime(val)
         except:
-            warn("Start time stamp was not set in Setup class")
+            warn("Input %s could not be assigned to start time in setup" %val)
     
     @property
     def stop(self):
@@ -703,7 +703,7 @@ class BaseSetup(object):
         try:
             self._stop = to_datetime(val)
         except:
-            warn("Stop time stamp was not set in Setup class")
+            warn("Input %s could not be assigned to stop time in setup" %val)
             
     def check_timestamps(self):
         """Check if timestamps are valid and set to current time if not"""
