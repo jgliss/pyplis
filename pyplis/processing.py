@@ -26,7 +26,8 @@ from json import loads, dumps
 from copy import deepcopy
 from datetime import datetime, timedelta
 from matplotlib.pyplot import subplot, subplots, tight_layout, draw
-from matplotlib.dates import date2num
+from matplotlib.dates import date2num, DateFormatter
+
 from pandas import Series, concat, DatetimeIndex
 from cv2 import cvtColor, COLOR_BGR2GRAY, pyrDown, pyrUp
 from os import getcwd, remove
@@ -204,12 +205,39 @@ class PixelMeanTimeSeries(Series):
             ax[1].legend(loc='best', fancybox=True, framealpha=0.5, fontsize=10)
         return diff.std()
     
-    def plot(self, include_tit = True, **kwargs):
-        """Plot"""
+    def plot(self, include_tit=True, date_fmt=None, **kwargs):
+        """Plot time series
+        
+        Parameters
+        ----------
+        include_tit : bool
+            Include a title
+        date_fmt : str
+            Date / time formatting string for x labels, passed to 
+            :class:`DateFormatter` instance (optional)
+        **kwargs
+            Additional keyword arguments passed to pandas Series plot method
+            
+        Returns
+        -------
+        axes
+            matplotlib axes instance
+        
+        """
+        try:
+            self.index = self.index.to_pydatetime()
+        except:
+            pass
         try:
             if not "style" in kwargs:
-                kwargs["style"] = "--x"    
+                kwargs["style"] = "--x"  
+        
             ax = super(PixelMeanTimeSeries, self).plot(**kwargs)
+            try:
+                if date_fmt is not None:
+                    ax.xaxis.set_major_formatter(DateFormatter(date_fmt))
+            except:
+                pass
             if include_tit:
                 ax.set_title("Mean value (%s), roi_abs: %s" 
                                 %(self.name, self.roi_abs))
@@ -219,7 +247,7 @@ class PixelMeanTimeSeries(Series):
         except Exception as e:
             print repr(e)
             fig, ax = subplots(1,1)
-            ax.text(.1,.1, "Plot failed...")
+            ax.text(.1,.1, "Plot of PixelMeanTimeSeries failed...")
             fig.canvas.draw()
             return ax
             

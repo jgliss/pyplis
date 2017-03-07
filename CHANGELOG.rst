@@ -40,6 +40,20 @@ release (version 0.9.2)
 
   1. Removed bug in :class:`ImgStack` method ``merge_with_time_series``: generalised catch of first exception (applies if ``doas_series`` is pandas ``Series`` object and not pydoas ``DoasResults``).
   
+07/03/2017
+==========
+
+  1. Improved performance in long for loops (e.g. :func:`make_stack`, :func:`get_mean_value` in :class:`BaseImgList` or file searching methods in :class:`Dataset`  by removing ``self.`` operations within the loops)
+  2. :class:`EmissionRateResults` can now be saved as text file and has some new methods, the most important ones are: 
+  
+    - :func:`__str__`: informative string representation
+    - :func:`to_dict`: converts results to dictionary
+    - :func:`to_pandas_dataframe`: converts object into pandas :class:`DataFrame` class
+    - :func:`from_pandas_dataframe`: imports data from pandas :class:`DataFrame` class
+    - :func:`save_txt`: save results as text file
+    
+  2. Updated options for xlabel formatting when plotting time series
+  
   
   
   

@@ -455,10 +455,10 @@ class BaseImgList(object):
         h, w = self.current_img().shape
         stack = ImgStack(h, w, self.nof, dtype, stack_id, camera=self.camera,
                          img_prep=self.current_img().edit_log)
-        
-        for k in range(self.nof):
-            print "Building stack... current index %s (%s)" %(k,\
-                                                        self.nof - 1)
+        nof = self.nof
+        lid = self.list_id
+        for k in range(nof):
+            print "Building img-stack from list %s (%s | %s)" %(lid, k, nof-1)
             img = self.loaded_images["this"]
             #print im.meta["start_acq"]
             stack.append_img(img.img, img.meta["start_acq"],\
@@ -500,7 +500,10 @@ class BaseImgList(object):
         num = self.nof
         vals, stds, texps, acq_times = [],[],[],[]
         self.goto_img(0)
+        lid=self.list_id
         for k in range(num):
+            print ("Calc pixel mean t-series in list %s (%d | %d)" 
+                                            %(lid,(k+1),num))
             img = self.loaded_images["this"]
             texps.append(img.meta["texp"])
             acq_times.append(img.meta["start_acq"])

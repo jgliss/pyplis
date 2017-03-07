@@ -117,7 +117,3 @@ docs/code_gui.rst
 
 # Image files for video
 scripts/scripts_out/all_cd_imgs
-
-# Script output
-scripts/scripts_out/*.png
-

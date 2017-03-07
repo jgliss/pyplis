@@ -40,6 +40,9 @@ PYRLEVEL = 1
 PLUME_VEL_GLOB = 4.14 #m/s
 MMOL = 64.0638 #g/mol
 CD_MIN = 2.5e17
+
+START_INDEX = 0
+STOP_INDEX = None
 DO_EVAL = 1
 
 #the following ROI is in the upper right image corner, where no gas occurs in
@@ -56,7 +59,7 @@ CALIB_FILE = join(SAVE_DIR,
 CORR_MASK_FILE = join(SAVE_DIR, "aa_corr_mask.fts")
 
 ### SCRIPT FUNCTION DEFINITIONS        
-def plot_results(ana, line_id = "1. PCS"):
+def plot_and_save_results(ana, line_id = "1. PCS"):
     fig, ax = subplots(2, 1, figsize = (7, 9), sharex = True)
     
     #Get emission rate results for the PCS line 
@@ -64,8 +67,12 @@ def plot_results(ana, line_id = "1. PCS"):
     res1 = ana.get_results(line_id=line_id, velo_mode="farneback_raw")
     res2 = ana.get_results(line_id=line_id, velo_mode="farneback_histo")
     
+    res0.save_txt(join(SAVE_DIR, "emission_rates_velo_glob.txt"))
+    res1.save_txt(join(SAVE_DIR, "emission_rates_velo_farneback_raw.txt"))
+    res2.save_txt(join(SAVE_DIR, "emission_rates_velo_farneback_histo.txt"))
+    
     #Plot emission rates for the different plume speed retrievals
-    res0.plot(yerr=False, ax=ax[0], color="r")
+    res0.plot(yerr=False, date_fmt="%H:%M", ax=ax[0], color="r")
     res1.plot(yerr=False, ax=ax[0], color="b")
     res2.plot(yerr=True, ax=ax[0], color="g")
     #ax[0].set_title("Retrieved emission rates")
@@ -86,7 +93,8 @@ def plot_results(ana, line_id = "1. PCS"):
     tight_layout()
     
     fig2, ax2 = subplots(1,1)
-    ax2 = ana.plot_bg_roi_vals(ax = ax2)
+    ax2 = ana.plot_bg_roi_vals(ax = ax2, date_fmt="%H:%M")
+    
     ax2.set_title("SO2 CD time series in scale_rect")
     return ax, ax2
     
@@ -133,9 +141,13 @@ if __name__ == "__main__":
         ana.imglist.optflow_mode = True
         ana.imglist.optflow.plot_flow_histograms()
     else:
-        ana.calc_emission_rate(start_index=1)
+        ana.calc_emission_rate(start_index=START_INDEX, 
+                               stop_index=STOP_INDEX)
         
-        ax0, ax1 = plot_results(ana)
+        ax0, ax1 = plot_and_save_results(ana)
+        
+        # the EmissionRateResults class has an informative string representation
+        print ana.get_results("1. PCS", "farneback_histo")
         
         if SAVEFIGS:
             ax0[0].figure.savefig(join(SAVE_DIR, "ex12_out_1.%s" %FORMAT),

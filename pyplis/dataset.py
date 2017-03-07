@@ -104,7 +104,8 @@ class Dataset(object):
         print "\nSEARCHING VALID FILE PATHS IN\n%s\n" %self.base_dir
         
         p = self.base_dir
-        if not isinstance(self.camera.file_type, str):
+        ftype = self.file_type
+        if not isinstance(ftype, str):
             print ("file_type not specified in Dataset..."
                 "Using all files and file_types")
             self.setup.options["USE_ALL_FILES"] = True
@@ -124,7 +125,7 @@ class Dataset(object):
             else:
                 print "Using only %s files" %self.file_type
                 all_paths = [join(p, f) for f in listdir(p) if
-                             isfile(join(p, f)) and f.endswith(self.file_type)]
+                             isfile(join(p, f)) and f.endswith(ftype)]
             
         else:
             print "Include files from subdirectories"
@@ -135,10 +136,10 @@ class Dataset(object):
                    for filename in files:
                        all_paths.append(join(path, filename))
             else:
-                print "Using only %s files" %self.file_type
+                print "Using only %s files" %ftype
                 for path, subdirs, files in walk(p):
                     for filename in files:
-                        if filename.endswith(self.file_type):
+                        if filename.endswith(ftype):
                             all_paths.append(join(path, filename))
     
         all_paths.sort() 
@@ -186,10 +187,8 @@ class Dataset(object):
         if self.USE_ALL_FILES and flags["start_acq"]:
             #take all files in the basefolder (i.e. set start and stop date the 
             #first and last date of the files in the folder)
-            self.setup.start = self.camera.get_img_meta_from_filename(
-                                                                paths[0])[0]
-            self.setup.stop = self.camera.get_img_meta_from_filename(
-                                                                paths[-1])[0]        
+            self.setup.start = cam.get_img_meta_from_filename(paths[0])[0]
+            self.setup.stop = cam.get_img_meta_from_filename(paths[-1])[0]        
         
         #: Set option to use all files in case acquisition time stamps cannot
         #: be accessed from filename
@@ -315,17 +314,15 @@ class Dataset(object):
         :param list all_paths: list of image filepaths
         """
         paths = []   
-        start = self.start.time()
-        stop = self.stop.time()
+        i, f = self.start.time(), self.stop.time()
+        func = self.camera.get_img_meta_from_filename
         for path in all_paths:    
-            acq_time = self.camera.get_img_meta_from_filename(path)[0].time()
-            if start <= acq_time <= stop:
+            acq_time = func(path)[0].time()
+            if i <= acq_time <= f:
                 paths.append(path) 
                 
         return paths
         
-        
-    
     def _find_files_ival_datetime(self, all_paths):
         """Extracts all files belonging to specified time interval
         
@@ -336,9 +333,11 @@ class Dataset(object):
         :param list all_paths: list of image filepaths
         """
         paths = []   
+        func = self.camera.get_img_meta_from_filename
+        i, f = self.start, self.stop
         for path in all_paths:    
-            acq_time = self.camera.get_img_meta_from_filename(path)[0]
-            if self.start <= acq_time <= self.stop:
+            acq_time = func(path)[0]
+            if i <= acq_time <= f:
                 paths.append(path)         
 
         if not bool(paths):
@@ -360,12 +359,12 @@ class Dataset(object):
             searched (e.g. an acronym for a dark image as specified in 
             camera)
         """   
-        t0 = self.camera.get_img_meta_from_filename(filename)[0]
+        get_meta = self.camera.get_img_meta_from_filename
+        t0 = get_meta(filename)[0]
         del_t = inf
         idx = -1
         for k in range(len(in_list)):
-            t1, f1, tp1, _, _ = self.camera.get_img_meta_from_filename(\
-                                                                in_list[k])
+            t1, f1, tp1, _, _ = get_meta(in_list[k])
             if f1 == acronym and abs(t1 - t0).total_seconds() < del_t and\
                         meas_type_acro == tp1:
                 del_t = abs(t1 - t0).total_seconds()

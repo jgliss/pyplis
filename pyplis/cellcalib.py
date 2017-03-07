@@ -204,9 +204,10 @@ class CellSearchInfo(object):
         """
         lst = CellImgList(list_id=self.filter_id, cell_id=self.add_id,
                           camera=camera)
+        paths = self.file_paths
         for idx in range(len(self.mean_vals)):
             if self.point_ok(idx):
-                lst.files.append(self.file_paths[idx])
+                lst.files.append(paths[idx])
         lst.init_filelist()
         self.img_list = lst
         if lst.nof < 1:
@@ -825,8 +826,8 @@ class CellCalibEngine(Dataset):
             raise IOError("No files available in cell ImgList %s, %s" 
             %(lst.list_id, lst.cell_id))
         elif any([lst.gas_cd == x for x in [0, None]]) or isnan(lst.gas_cd):
-            raise ValueError("Error adding cell image list, invalid value encountered for"
-                "attribute gas_cd: %s" %lst.gas_cd)
+            raise ValueError("Error adding cell image list, invalid value "
+                "encountered for attribute gas_cd: %s" %lst.gas_cd)
         if not self.cell_lists.has_key(lst.list_id):
             self.cell_lists[lst.list_id] = od()
         self.cell_lists[lst.list_id][lst.cell_id] = lst
