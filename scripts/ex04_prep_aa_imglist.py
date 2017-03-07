@@ -101,7 +101,7 @@ if __name__ == "__main__":
     aa_list.crop = False
     ax1 = aa_list.bg_model.plot_sky_reference_areas(aa_list.current_img())
     fig = aa_list.bg_model.plot_tau_result(aa_list.current_img())
-    
+
     ### IMPORTANT STUFF FINISHED    
     
     if SAVEFIGS:

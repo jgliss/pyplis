@@ -40,6 +40,7 @@ PYRLEVEL = 1
 PLUME_VEL_GLOB = 4.14 #m/s
 MMOL = 64.0638 #g/mol
 CD_MIN = 2.5e17
+OPTFLOW_LEN_ESTIM_MODE = "argmax" #multigauss
 
 START_INDEX = 0
 STOP_INDEX = None
@@ -121,6 +122,8 @@ if __name__ == "__main__":
     
     #set DOAS calibration data in image list
     aa_list.calib_data = doascalib
+    
+    aa_list.optflow.settings.hist_len_how = "argmax"
     
     pcs = PCS.convert(pyrlevel=PYRLEVEL)
                                              

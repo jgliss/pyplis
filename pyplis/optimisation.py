@@ -163,9 +163,9 @@ class MultiGaussFit(object):
     quality of the result.
     
     """
-    def __init__(self, data = None , index = None, noise_amp = None,\
-            max_num_gaussians = 20, max_iter = 10, auto_bounds = True,\
-                                do_fit = True, horizontal_baseline = True):
+    def __init__(self, data=None , index=None, noise_amp=None,
+                 max_num_gaussians=20, max_iter=10, auto_bounds=True,
+                 do_fit=True, horizontal_baseline=True):
         """
         :param array data: data array 
         :param array index (None): x-index array (if None, then one is created)
@@ -403,9 +403,9 @@ class MultiGaussFit(object):
         amp = dat[idx]
         #print "Estimating peak width at peak, index: " + str(idx)
         #print "x,y:" + str(self.index[idx]) + ", " + str(amp)
-        maxInd = len(self.index) - 1  
+        max_ind = len(self.index) - 1  
         try:
-            ind = next(val[0] for val in enumerate(dat[idx:maxInd])\
+            ind = next(val[0] for val in enumerate(dat[idx:max_ind])\
                                                 if val[1] < amp/2)
             #print "Width (index units): " + str(abs(ind))
             
@@ -415,7 +415,7 @@ class MultiGaussFit(object):
             try:
                 inv = dat[::-1]
                 idx = len(inv)-1-idx
-                ind = next(val[0] for val in enumerate(inv[idx:maxInd])\
+                ind = next(val[0] for val in enumerate(inv[idx:max_ind])\
                                                 if val[1] < amp/2)
                 #print "Width (index units): " + str(abs(ind))
                 return ind
