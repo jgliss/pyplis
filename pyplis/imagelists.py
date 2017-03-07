@@ -23,7 +23,7 @@ Image list objects of pyplis library
         mainly used in the :class:`pyplis.Calibration.CellCalib` object.
 
 """
-from numpy import asarray, zeros, argmin, arange, ndarray, float32, ceil, nan,\
+from numpy import asarray, zeros, argmin, arange, ndarray, float32, ceil,\
     isnan
 from ntpath import basename
 from datetime import timedelta, datetime
@@ -171,6 +171,7 @@ class BaseImgList(object):
             warn("Activate gaussian blurring with kernel size exceeding 10, "
                 "this might significantly slow down things..")
         self.img_prep["blurring"] = val
+        self.load()
         
     @property
     def roi(self):
@@ -1624,7 +1625,7 @@ class ImgList(BaseImgList):
                     return lst
         raise AttributeError("No linked offband list was found")
     
-    def activate_optflow_mode(self, val = True):
+    def activate_optflow_mode(self, val=True):
         """Activate / deactivate optical flow calculation on image load"""
         if val is self.optflow_mode:
             return 
@@ -1632,7 +1633,12 @@ class ImgList(BaseImgList):
             raise ValueError("Optical flow analysis can only be applied to "
                 "uncropped images, please deactivate crop mode")
         if val:
-            self.set_flow_images()
+            try:
+                self.set_flow_images()
+            except IndexError:
+                raise IndexError("Optical flow mode cannot be activated in "
+                    "image list %s: list is at last index, please change list "
+                    "index and retry")
             self.optflow.calc_flow()
             self.optflow.draw_flow()
             if self.bg_model.scale_rect is None:
@@ -1718,9 +1724,14 @@ class ImgList(BaseImgList):
             self.loaded_images["next"] = self.loaded_images["this"]
         
         if self.optflow_mode:  
-            self.set_flow_images()
-            self.optflow.calc_flow()
-        ##self.prepare_additional_data()
+            try:
+                self.set_flow_images()
+                self.optflow.calc_flow()
+            except IndexError:
+                warn("Reached last index in image list, optflow_mode will be "
+                    "deactivated")
+                self.optflow_mode = 0
+        return True
     
     def update_index_linked_lists(self):
         """Update current index in all linked lists based on ``cfn``"""
@@ -1749,8 +1760,13 @@ class ImgList(BaseImgList):
 
         self.apply_current_edit("next")
         if self.optflow_mode:  
-            self.set_flow_images()
-            self.optflow.calc_flow()
+            try:
+                self.set_flow_images()
+                self.optflow.calc_flow()
+            except IndexError:
+                warn("Reached last index in image list, optflow_mode will be "
+                    "deactivated")
+                self.optflow_mode = 0
         return True
         #self.prepare_additional_data()
         
@@ -1775,8 +1791,13 @@ class ImgList(BaseImgList):
         
         self.apply_current_edit("prev")
         if self.optflow_mode:  
-            self.set_flow_images()
-            self.optflow.calc_flow()
+            try:
+                self.set_flow_images()
+                self.optflow.calc_flow()
+            except IndexError:
+                warn("Reached last index in image list, optflow_mode will be "
+                    "deactivated")
+                self.optflow_mode = 0
  
     def apply_current_edit(self, key):
         """Applies the current image edit settings to image
@@ -1816,11 +1837,22 @@ class ImgList(BaseImgList):
             
       
     def set_flow_images(self):  
-        """Update images for optical flow determination in `self.optflow` 
+        """Update images for optical flow determination 
+        
+        The images are updated in :attr:`optflow` 
+        (:class:`OpticalFlowFarneback` object) using method :func:`set_images`
+        
+        Raises
+        
         object, i.e. `self.loaded_images["this"]` and `self.loaded_images["next"]`
         """
-        self.optflow.set_images(self.loaded_images["this"],\
-                                 self.loaded_images["next"])
+        if self.cfn == self.nof - 1:
+            self.optflow.reset_flow()
+            raise IndexError("Optical flow images cannot be set in ImgList %s:"
+                " reached last image ..." %self.list_id)
+            
+        self.optflow.set_images(self.loaded_images["this"],
+                                self.loaded_images["next"])
 
     def change_index(self, idx):
         """Change current image based on index of file list

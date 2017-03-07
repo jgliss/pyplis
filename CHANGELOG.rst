@@ -44,7 +44,7 @@ release (version 0.9.2)
 ==========
 
   1. Improved performance in long for loops (e.g. :func:`make_stack`, :func:`get_mean_value` in :class:`BaseImgList` or file searching methods in :class:`Dataset`  by removing ``self.`` operations within the loops)
-  2. :class:`EmissionRateResults` can now be saved as text file and has some new methods, the most important ones are: 
+  #. :class:`EmissionRateResults` can now be saved as text file and has some new methods, the most important ones are: 
   
     - :func:`__str__`: informative string representation
     - :func:`to_dict`: converts results to dictionary
@@ -52,7 +52,18 @@ release (version 0.9.2)
     - :func:`from_pandas_dataframe`: imports data from pandas :class:`DataFrame` class
     - :func:`save_txt`: save results as text file
     
-  2. Updated options for xlabel formatting when plotting time series
+  #. Updated options for xlabel formatting when plotting time series
+  #. Improved optical flow histogram analysis
+    
+    - Renamed settings param ``sigma_tol_mean_dir`` to ``hist_dir_sigma``
+    - New: choose from two options for retrieval of average displacement length from length histogram (in :func:`get_main_flow_field_params` of :class:`OpticalFlowFarneback`):
+    
+      - "argmax": uses bin with largest count as mean displacement estimate (new)
+      - "multigauss": tries to perform :class:`MultiGaussFit` to data and if this fails, uses method "argmax"
+  
+      
+      
+    - new global settings parameters for maximum number
   
   
   
