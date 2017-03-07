@@ -43,7 +43,7 @@ release (version 0.9.2)
 07/03/2017
 ==========
 
-  1. Improved performance in long for loops (e.g. :func:`make_stack`, :func:`get_mean_value` in :class:`BaseImgList` or file searching methods in :class:`Dataset`  by removing ``self.`` operations within the loops)
+  1. Improved performance in long "for" loops (e.g. :func:`make_stack`, :func:`get_mean_value` in :class:`BaseImgList` or file searching methods in :class:`Dataset`  by removing ``self.`` operations within the loops)
   #. :class:`EmissionRateResults` can now be saved as text file and has some new methods, the most important ones are: 
   
     - :func:`__str__`: informative string representation
@@ -61,9 +61,8 @@ release (version 0.9.2)
       - "argmax": uses bin with largest count as mean displacement estimate (new)
       - "multigauss": tries to perform :class:`MultiGaussFit` to data and if this fails, uses method "argmax"
   
-      
-      
-    - new global settings parameters for maximum number
+    - new global settings parameters for maximum number of fitted gaussians in both orientation and length histogram, can now be set via :class:`OpticalFlowFarnebackSettings`
+    
   
   
   
