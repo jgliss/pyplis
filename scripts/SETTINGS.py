@@ -3,15 +3,14 @@
 Global settings for example scripts
 """
 from pyplis.inout import find_test_data
-from pyplis import _LIBDIR
-from os.path import join, abspath
+from os.path import join
 from optparse import OptionParser
 
 SAVEFIGS = 1 # save plots from this script in SAVE_DIR
 DPI = 150 #pixel resolution for saving
 FORMAT = "png" #format for saving
 
-SCREENPRINT = 1 #show images on screen when executing script
+SCREENPRINT = 0 #show images on screen when executing script
 
 # Image directory
 IMG_DIR = join(find_test_data(), "images")

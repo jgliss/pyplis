@@ -2,10 +2,15 @@
 """Module containing high level functionality for emission rate analysis
 """
 from warnings import warn
-from numpy import dot, sqrt, mean, nan, isnan, asarray
+from numpy import dot, sqrt, mean, nan, isnan, asarray, nanmean, nanmax,\
+    nanmin
+from matplotlib.dates import DateFormatter
 from collections import OrderedDict as od
 from matplotlib.pyplot import subplots
-from pandas import Series
+from os.path import join, isdir
+from os import getcwd
+
+from pandas import Series, DataFrame
 try:
     from scipy.constants import N_A
 except:
@@ -107,6 +112,120 @@ class EmissionRateResults(object):
         self.pix_dist_mean_err = None
         self.cd_err = None
     
+    
+    @property
+    def meta_header(self):
+        """Return string containing available meta information
+        
+        Returns
+        -------
+        str
+            string containing relevant meta information (e.g. for txt export)
+        """
+        
+        date, i, f = self.get_date_time_strings()
+        s = ("pcs_id=%s\ndate=%s\nstart=%s\nstop=%s\nvelo_mode=%s\n"
+             "pix_dist_mean=%s m\npix_dist_mean_err=%s m\ncd_err=%s cm-2"
+             %(self.pcs_id, date, i, f, self.velo_mode, self.pix_dist_mean, 
+               self.pix_dist_mean_err, self.cd_err))
+        return s
+    
+    def get_date_time_strings(self):
+        """Returns string reprentations of date and start / stop times
+        
+        Returns
+        -------
+        tuple
+            3-element tuple containing
+            
+            - date string
+            - start acq. time string
+            - stop acq. time string
+        """
+        try:
+            date = self.start.strftime("%d-%m-%Y")
+            start = self.start.strftime("%H:%M")
+            stop = self.stop.strftime("%H:%M")
+        except:
+            date, start, stop = "", "", ""
+        return date, start, stop
+        
+    def to_dict(self):
+        """Write all data attributes into dictionary 
+        
+        Keys of the dictionary are the private class names
+        
+        Returns
+        -------
+        dict
+            Dictionary containing results 
+        """
+        return dict(_phi            =   self.phi,
+                    _phi_err        =   self.phi_err,
+                    _velo_eff       =   self.velo_eff,
+                    _velo_eff_err   =   self.velo_eff_err,
+                    _start_acq      =   self.start_acq)
+            
+    def to_pandas_dataframe(self):
+        """Converts object into pandas dataframe
+        
+        This can, for instance be used to store the data as csv (cf.
+        :func:`from_pandas_dataframe`)        
+        """
+        d = self.to_dict()
+        del d["_start_acq"]
+        try:
+            df = DataFrame(d, index = self.start_acq)
+            return df
+        except:
+            warn("Failed to convert EmissionRateResults into pandas DataFrame")
+    
+    @property
+    def default_save_name(self):
+        """Returns default name for txt export"""
+        
+        try:
+            d = self.start.strftime("%Y%m%d")
+            i = self.start.strftime("%H%M")
+            f = self.stop.strftime("%H%M")
+        except:
+            d, i, f = "", "", ""    
+        return "pyplis_EmissionRateResults_%s_%s_%s.txt" %(d, i, f)
+        
+    def save_txt(self, path=None):
+        """Save this object as text file"""       
+        
+        try:
+            if isdir(path): # raises exception in case path is not valid loc
+                path = join(path, self.default_save_name)
+        except:
+            path = join(getcwd(), self.default_save_name)
+            
+        self.to_pandas_dataframe().to_csv(path)
+        
+    def from_pandas_dataframe(self, df):
+        """Import results from pandas :class:`DataFrame` object
+        
+        Parameters
+        ----------
+        df : DataFrame
+            pandas dataframe containing emisison rate results
+            
+        """
+        for key in df.keys():
+            if self.__dict__.has_key(key):
+                self.__dict__[key] = df[key].values
+    
+    @property
+    def start(self):
+        """Returns acquisistion time of first image"""
+        return self.start_acq[0]
+        
+    @property
+    def stop(self):
+        """Returns start acqusition time of last image"""
+        return self.start_acq[-1]
+        
     @property
     def start_acq(self):
         """Return array containing acquisition time stamps"""
@@ -137,8 +256,31 @@ class EmissionRateResults(object):
         """Return emission rate as pandas Series"""
         return Series(self.phi, self.start_acq)
     
-    def plot_velo_eff(self, yerr=True, label=None, ax=None, **kwargs):
-        """Plots emission rate time series"""
+    def plot_velo_eff(self, yerr=True, label=None, ax=None, date_fmt=None, 
+                      **kwargs):
+        """Plots emission rate time series
+                
+        Parameters
+        ----------
+        yerr : bool
+            Include uncertainties
+        label : str
+            optional, string argument specifying label 
+        ax
+            optional, matplotlib axes object
+        date_fmt : str
+            optional, x label datetime formatting string, passed to 
+            :class:`DateFormatter` (e.g. "%H:%M")
+        **kwargs
+            additional keyword args passed to plot function of :class:`Series`
+            object
+            
+        Returns
+        -------
+        axes
+            matplotlib axes object
+            
+        """
         if ax is None:
             fig, ax = subplots(1,1)
             
@@ -148,9 +290,20 @@ class EmissionRateResults(object):
             label = ("velo_mode: %s" %(self.velo_mode))
         
         v, verr = self.velo_eff, self.velo_eff_err
-        
+    
         s = Series(v, self.start_acq)
+        try:
+            s.index = s.index.to_pydatetime()
+        except:
+            pass
+        
         s.plot(ax=ax, label=label, **kwargs)
+        try:
+            if date_fmt is not None:
+                ax.xaxis.set_major_formatter(DateFormatter(date_fmt))
+        except:
+            pass
+        
         if yerr:
             phi_upper = Series(v + verr, self.start_acq)
             phi_lower = Series(v - verr, self.start_acq)
@@ -159,9 +312,32 @@ class EmissionRateResults(object):
                             **kwargs)
         ax.set_ylabel(r"$v_{eff}$ [m/s]", fontsize=16)
         ax.grid()
+        return ax
         
-    def plot(self, yerr=True, label=None, ax=None, **kwargs):
-        """Plots emission rate time series"""
+    def plot(self, yerr=True, label=None, ax=None, date_fmt=None, **kwargs):
+        """Plots emission rate time series
+        
+        Parameters
+        ----------
+        yerr : bool
+            Include uncertainties
+        label : str
+            optional, string argument specifying label 
+        ax
+            optional, matplotlib axes object
+        date_fmt : str
+            optional, x label datetime formatting string, passed to 
+            :class:`DateFormatter` (e.g. "%H:%M")
+        **kwargs
+            additional keyword args passed to plot function of :class:`Series`
+            object
+            
+        Returns
+        -------
+        axes
+            matplotlib axes object
+            
+        """
         if ax is None:
             fig, ax = subplots(1,1)
         if not "color" in kwargs:
@@ -171,7 +347,16 @@ class EmissionRateResults(object):
         
         phi, phierr = self.phi, self.phi_err
         s = self.as_series
-        s.plot(ax = ax, label=label, **kwargs)
+        try:
+            s.index = s.index.to_pydatetime()
+        except:
+            pass
+        s.plot(ax=ax, label=label, **kwargs)
+        try:
+            if date_fmt is not None:
+                ax.xaxis.set_major_formatter(DateFormatter(date_fmt))
+        except:
+            pass
         if yerr:
             phi_upper = Series(phi + phierr, self.start_acq)
             phi_lower = Series(phi - phierr, self.start_acq)
@@ -180,7 +365,19 @@ class EmissionRateResults(object):
                             **kwargs)
         ax.set_ylabel(r"$\Phi$ [g/s]", fontsize=16)
         ax.grid()
+        return ax
         
+    def __str__(self):
+        """String representation"""
+        s = "pyplis EmissionRateResults\n--------------------------------\n\n"
+        s += self.meta_header
+        s += ("\nphi_min=%.2f g/s\nphi_max=%.2f g/s\n"
+              %(nanmin(self.phi), nanmax(self.phi)))
+        s += "phi_err=%.2f g/s\n" %nanmean(self.phi_err)
+        s += ("v_min=%.2f m/s\nv_max=%.2f m/s\n"
+              %(nanmin(self.velo_eff), nanmax(self.velo_eff)))
+        s += "v_err=%.2f m/s" %nanmean(self.velo_eff_err)
+        return s
         
 class EmissionRateAnalysis(object):
     """Class to perform emission rate analysis
@@ -297,7 +494,7 @@ class EmissionRateAnalysis(object):
         """Return error of current global velocity"""
         return self.settings.velo_glob_err
      
-    def get_results(self, line_id, velo_mode):
+    def get_results(self, line_id=None, velo_mode=None):
         """Return emission rate results (if available)
         
         :param str line_id: ID of PCS line 
@@ -308,6 +505,18 @@ class EmissionRateAnalysis(object):
         :raises: - KeyError, if result for the input constellation cannot be
             found
         """
+        if line_id is None:
+            try:
+                line_id = self.results.keys()[0]
+                print "Input line ID unspecified, using: %s" %line_id
+            except IndexError:
+                raise IndexError("No emission rate results available...")
+        if velo_mode is None:
+            try:
+                velo_mode = self.results[line_id].keys()[0]
+                print "Input velo_mode unspecified, using: %s" %velo_mode
+            except:
+                raise IndexError("No emission rate results available...")
         if not self.results.has_key(line_id):
             raise KeyError("No results available for pcs with ID %s" %line_id)
         elif not self.results[line_id].has_key(velo_mode):
@@ -447,6 +656,8 @@ class EmissionRateAnalysis(object):
             cd_err = None
             
         self._write_meta(dists, dist_errs, cd_err)
+        
+        # init parameters for main loop
         mmol = self.settings.mmol    
         if self.settings.farneback_required:
             lst.optflow_mode = True
@@ -455,8 +666,11 @@ class EmissionRateAnalysis(object):
         vglob, vglob_err = self.velo_glob, self.velo_glob_err
         ts, bg_min, bg_mean, bg_max = [], [], [], []
         roi_bg = self.bg_roi
+        velo_modes = self.settings.velo_modes
+        min_cd = self.settings.min_cd
+        lines = self.pcs_lines
         for k in range(start_index, stop_index):
-            print "Progress: %d (%d)" %(k, lst.nof)
+            print "Progress: %d (%d)" %(k, stop_index)
             img = lst.current_img()
             t = lst.current_time()
             ts.append(t)
@@ -465,17 +679,17 @@ class EmissionRateAnalysis(object):
             bg_min.append(sub.min())
             bg_max.append(sub.max())
             bg_mean.append(sub.mean())
-            
-            for pcs_id, pcs in self.pcs_lines.iteritems():
+
+            for pcs_id, pcs in lines.iteritems():
                 res = results[pcs_id]
                 n = pcs.normal_vector
                 cds = pcs.get_line_profile(img)
-                cond = cds > self.settings.min_cd
+                cond = cds > min_cd
                 cds = cds[cond]
                 distarr = dists[pcs_id][cond]
                 disterr = dist_errs[pcs_id]
-    
-                if self.settings.velo_modes["glob"]:
+                
+                if velo_modes["glob"]:
                     phi, phi_err = det_emission_rate(cds, vglob, distarr,
                                                      cd_err, vglob_err, 
                                                      disterr, mmol)
@@ -493,7 +707,7 @@ class EmissionRateAnalysis(object):
                     lst.optflow.roi_abs = rois[pcs_id] #update ROI for flow analysis
                     delt = lst.optflow.del_t
 
-                    if self.settings.velo_modes["farneback_raw"]:
+                    if velo_modes["farneback_raw"]:
                         dx = pcs.get_line_profile(lst.optflow.flow[:,:,0])
                         dy = pcs.get_line_profile(lst.optflow.flow[:,:,1])
                         veff_arr = dot(n, (dx, dy))[cond] * distarr / delt
@@ -515,10 +729,10 @@ class EmissionRateAnalysis(object):
                         res["farneback_raw"]._velo_eff.append(veff)
                         res["farneback_raw"]._velo_eff_err.append(veff * .60)
                         
-                    if self.settings.velo_modes["farneback_histo"]:
+                    if velo_modes["farneback_histo"]:
                         props = plume_props[pcs_id]
                         mask = lst.optflow.prepare_intensity_condition_mask(
-                                                lower_val=self.settings.min_cd)
+                                                lower_val=min_cd)
                         props.get_and_append_from_farneback(lst.optflow,
                                                             cond_mask_flat=mask)
                         v, verr = props.get_velocity(-1, distarr.mean(),
@@ -567,15 +781,42 @@ class EmissionRateAnalysis(object):
         ax.legend(loc='best', fancybox=True, framealpha=0.5, fontsize=12)
         return ax
     
-    def plot_bg_roi_vals(self, ax=None, **kwargs):
-        """Plots emission rate time series"""
+    def plot_bg_roi_vals(self, ax=None, date_fmt=None, **kwargs):
+        """Plots emission rate time series
+        
+        Parameters
+        ----------
+        ax
+            optional, matplotlib axes object
+        date_fmt : str
+            optional, x label datetime formatting string, passed to 
+            :class:`DateFormatter` (e.g. "%H:%M")
+        **kwargs
+            additional keyword args passed to plot function of :class:`Series`
+            object
+            
+        Returns
+        -------
+        axes
+            ax, matplotlib axes object
+            
+        """
         if ax is None:
             fig, ax = subplots(1,1)
         if not "color" in kwargs:
             kwargs["color"] = "r" 
         
         s = self.bg_roi_info["mean"]
+        try:
+            s.index = s.index.to_pydatetime()
+        except:
+            pass
         s.plot(ax=ax, label="mean", **kwargs)
+        try:
+            if date_fmt is not None:
+                ax.xaxis.set_major_formatter(DateFormatter(date_fmt))
+        except:
+            pass
         lower, upper = self.bg_roi_info["min"], self.bg_roi_info["max"]
         ax.fill_between(s.index, lower, upper, alpha=0.1, **kwargs)
         ax.set_ylabel(r"CD [cm-2]", fontsize=16)

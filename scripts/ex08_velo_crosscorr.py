@@ -74,8 +74,9 @@ def reload_profile_tseries_from_aa_list(aa_list, pcs1, pcs2, dist_img):
 
     # loop over all images in list, extract profiles and write in the 
     # corresponding column of the profile picture
-    for k in range(aa_list.nof):
-        print "Loading AA profiles from list: %d (%d)" %(k, aa_list.nof)
+    num = aa_list.nof
+    for k in range(num):
+        print "Loading AA profiles from list: %d (%d)" %(k, num)
         aa = aa_list.current_img().img
         profiles1[:, k] = pcs1.get_line_profile(aa)
         profiles2[:, k] = pcs2.get_line_profile(aa)
