@@ -245,7 +245,7 @@ class MeasGeometry(object):
                 "MeasGeometry, check camera specs: %s" %self.cam)
             return False
     
-    def horizon_analysis(self, skip_cols = 30):
+    def horizon_analysis(self, skip_cols=30):
         """Searches pixel coordinates of horizon for image columns
         
         The algorithm performs a topography analysis for a number of image
@@ -266,18 +266,24 @@ class MeasGeometry(object):
         rows = arange(0, self.cam["pixnum_y"], 1)
         azims, elevs = self.get_azim_elev(cols, rows)
         dist = self.geo_len_scale() * 1.2
-        idx_x, idx_y = [], []
+        idx_x, idx_y, dists = [], [], []
         elev_min, elev_max = min(elevs), max(elevs)
         for k in range(len(azims)):
             azim = azims[k]
-            elev_profile = cam.get_elevation_profile(azimuth = azim,\
-                                                        dist_hor = dist)
-            elev, elev_secs, dist_secs = elev_profile.find_horizon_elev(\
-                elev_start = elev_min, elev_stop = elev_max, step_deg = 0.1,\
-                            view_above_topo_m = self.cam["alt_offset"])
+            elev_profile = cam.get_elevation_profile(azimuth=azim,
+                                                     dist_hor=dist)
+            (elev, 
+             elev_secs, 
+             dist_secs) = elev_profile.find_horizon_elev(elev_start=elev_min,
+                                                         elev_stop=elev_max, 
+                                                         step_deg=0.1,
+                                                         view_above_topo_m=
+                                                         self.cam["alt_offset"])
+                                                         
             idx_x.append(cols[k])
             idx_y.append(argmin(abs(elev - elevs)))
-        return idx_x, idx_y
+            dists.append(dist_secs[-1])
+        return idx_x, idx_y, dists
                         
     def get_viewing_directions_line(self, line):
         """Determine viewing direction coords for a line in an image
@@ -362,13 +368,13 @@ class MeasGeometry(object):
 
             d, d_err, p , l, _ = ep.get_first_intersection(elevs[k],\
                         view_above_topo_m = self.cam["alt_offset"])
-            if min_slope_angle > 0:
+            if d is not None and min_slope_angle > 0:
                 slope = ep.slope_angle(d)
                 if slope <  min_slope_angle:
                     print "Slope angle too small, remove point at dist %.1f" %d
                     d = None
             ok = True
-            if d == None: #then, the intersection could be found
+            if d is None: #then, the intersection could be found
                 ok = False
                 d, d_err = nan, nan
                 

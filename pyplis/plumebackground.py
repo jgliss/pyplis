@@ -16,7 +16,7 @@ from .exceptions import ImgMetaError
 from .image import Img
 from .processing import LineOnImage
 from .optimisation import PolySurfaceFit
-from .helpers import shifted_color_map
+from .helpers import shifted_color_map, _roi_coordinates
 
 class PlumeBackgroundModel(object):
     """Class for plume background modelling and tau image determination"""
@@ -783,13 +783,6 @@ def corr_tau_curvature_hor_line(tau0, pos_y, start_x=0, stop_x=None,
     poly_vals = hor_poly(xgrid)
     tau_mod = tau0 - poly_vals
     return (tau_mod, hor_poly)
-
-def _roi_coordinates(roi):
-    """Convert roi coordinates into start point, height and width
-
-    :param list roi: region of interest, i.e. ``[x0, y0, x1, y1]``
-    """
-    return roi[0], roi[1], roi[2] - roi[0], roi[3] - roi[1]
         
 def find_sky_reference_areas(plume_img, sigma_blur=2, plot=False):
     """Takes an input plume image and identifies suited sky reference areas"""

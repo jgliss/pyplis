@@ -83,6 +83,13 @@ def sub_img_to_detector_coords(img_arr, shape_orig, pyrlevel,
         img_arr = pyrUp(img_arr)
     new_arr[roi_abs[1]:roi_abs[3], roi_abs[0] : roi_abs[2]] = img_arr
     return new_arr
+ 
+def _roi_coordinates(roi):
+    """Convert roi coordinates into start point, height and width
+
+    :param list roi: region of interest, i.e. ``[x0, y0, x1, y1]``
+    """
+    return roi[0], roi[1], roi[2] - roi[0], roi[3] - roi[1]
     
 def check_roi(roi, shape=None):
     """Checks if input fulfills all criteria for a valid ROI

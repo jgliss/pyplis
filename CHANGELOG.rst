@@ -62,8 +62,17 @@ release (version 0.9.2)
       - "multigauss": tries to perform :class:`MultiGaussFit` to data and if this fails, uses method "argmax"
   
     - new global settings parameters for maximum number of fitted gaussians in both orientation and length histogram, can now be set via :class:`OpticalFlowFarnebackSettings`
+
+08/03/2017
+==========
+
+  1. New functions in ``Img`` class:
     
+    - ``to_binary`` and corresponding entry ``is_bin`` in ``edit_log``` dict. 
+    - ``dilate``: apply morphological transform *dilation* to image using method ``cv2.dilate``
+    - ``invert``: inverts an image object (added entry in edit_log)
   
+  #. New method ``get_mean_img`` in image list classes: determines average image based on start / stop index (or for all images in list)
   
-  
+  #. Removed bug in ``Img`` method ``to_pyrlevel`` for going up in pyramid
   

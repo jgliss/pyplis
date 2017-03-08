@@ -832,6 +832,8 @@ class OpticalFlowFarneback(object):
         
     def get_flow_in_roi(self):
         """Get the flow field in the current ROI"""
+        if self.flow is None:
+            raise ValueError("No flow field available..")
         x0, y0, x1, y1 = self.roi
         return self.flow[y0 : y1, x0 : x1, :]
     
@@ -904,6 +906,9 @@ class OpticalFlowFarneback(object):
         
     def get_flow_orientation_img(self, in_roi = False):
         """Returns image corresponding to flow orientation values in each pixel"""
+        if self.flow is None:
+            raise ValueError("No flow field available..")
+                
         if in_roi:
             fl = self.get_flow_in_roi()
         else:
@@ -911,8 +916,10 @@ class OpticalFlowFarneback(object):
         fx, fy = fl[:,:,0], fl[:,:,1]
         return rad2deg(arctan2(fx, -fy))
       
-    def get_flow_vector_length_img(self, in_roi = False):        
+    def get_flow_vector_length_img(self, in_roi=False):        
         """Returns image corresponding to displacement length in each pixel"""
+        if self.flow is None:
+            raise ValueError("No flow field available..")        
         if in_roi:
             fl = self.get_flow_in_roi()
         else:
@@ -1373,6 +1380,8 @@ class OpticalFlowFarneback(object):
             
             
         """
+        if self.flow is None:
+            raise ValueError("No flow field available..")
         #set up figure and axes
         if not for_app:
             fig = figure(figsize=(16,8))
