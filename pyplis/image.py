@@ -5,19 +5,20 @@ from matplotlib import gridspec
 import matplotlib.cm as cmaps
 from matplotlib.pyplot import imread, figure, tight_layout
 from numpy import ndarray, argmax, histogram, uint, nan, linspace,\
-    isnan, uint8, float32, finfo
+    isnan, uint8, float32, finfo, ones, invert
 from os.path import abspath, splitext, basename, exists, join
 from os import getcwd, remove
 from warnings import warn
 from datetime import datetime
 from decimal import Decimal
-from cv2 import pyrDown, pyrUp, addWeighted
+from cv2 import pyrDown, pyrUp, addWeighted, dilate
 from scipy.ndimage.filters import gaussian_filter, median_filter
 from collections import OrderedDict as od
 from copy import deepcopy
 
 from .helpers import shifted_color_map, bytescale, map_roi, check_roi
 from .exceptions import ImgMetaError
+from .optimisation import PolySurfaceFit
 
 class Img(object):
     """ Image base class
@@ -112,6 +113,8 @@ class Img(object):
                               ("senscorr"   ,   0), # boolean (correction for sensitivity changes due to filter shifts)
                               ("dilcorr"    ,   0), # light dilution corrected
                               ("gascalib"   ,   0), # image is gas CD image
+                              ("is_bin"     ,   0),
+                              ("is_inv"     ,   0),
                               ("others"     ,   0)])# boolean 
         
         self._roi_abs = [0, 0, 9999, 9999] #will be set on image load
@@ -347,7 +350,7 @@ class Img(object):
         if diff > 0:
             self.img = median_filter(self.img, diff)
             self.edit_log["median"] += diff
-
+        return self
         
     def add_gaussian_blurring(self, sigma_final=1):
         """Add blurring to image
@@ -367,14 +370,187 @@ class Img(object):
         self.img = gaussian_filter(self.img, sigma, **kwargs)
         self.edit_log["blurring"] += sigma   
     
+    def to_binary(self, threshold=None):
+        """Convert image to binary image using threshold
+        
+        Note
+        ----
+        
+        The changes are applied to this image object
+        
+        Parameters
+        ----------
+        threshold : float
+            threshold, if None, use mean value of image data
+            
+        Returns
+        -------
+        Img
+            the binary image
+        """
+        if threshold is None:
+            threshold = self.mean()
+        self.img = (self.img > threshold).astype(uint8)
+        self.edit_log["is_bin"] = True
+        return self
+    
+    
+        
+    def invert(self):
+        """Invert image
+        
+        Note
+        ----
+        
+        Does not yet work for tau images
+        
+        Returns
+        -------
+        Img
+            inverted image object
+        
+        """
+        if self.is_tau:
+            raise NotImplementedError("Tau images can not yet be inverted")
+        elif self.is_binary:
+            inv = ~self.img/255
+            self.img = (inv).astype(uint8)
+            
+            return self
+        else:
+            if not self.is_8bit:
+                self._to_8bit_int(new_img=False)
+            self.img = invert(self.img)
+        self.edit_log["is_inv"] = not self.edit_log["is_inv"]
+        return self
+            
+    def dilate(self, kernel=None):
+        """Apply morphological transformation Dilation to image
+        
+        Uses :func:`cv2.dilate` for dilation. The method requires specification
+        of a smoothing kernel, if unspecified, a 9x9 neighbourhood is used
+        
+        Note
+        ----
+        
+        This operation can only be performed to binary images, use 
+        :func:`to_binary` if applicable.
+        
+        Parameters
+        ----------
+        kernel : array
+            kernel used for :func:`cv2.dilate`, if None a 9x9 array is used::
+            
+                kernel = np.ones((9,9), dtype=np.uint8)
+        
+        Returns
+        -------
+        Img 
+            dilated binary image
+        """
+        if not self.is_binary:
+            raise AttributeError("Img needs to be binary, use method to_binary")
+        if kernel is None:
+            kernel = ones((9,9), dtype=uint8)
+        self.img = dilate(self.img, kernel=kernel)
+        self.edit_log["others"] = True
+        return self
+      
+    def fit_2d_poly(self, mask=None, polyorder=3, pyrlevel=4, **kwargs):
+        """Fit 2D surface poly to data
+        
+        Parameters
+        ----------
+        mask : array
+            mask specifying pixels considered for the fit (if None, then all 
+            pixels of the image data are considered
+        polyorder : int
+            order of polynomial for fit (default=3)
+        pyrlevel : int
+            level of Gauss pyramid at which the fit is performed (relative to
+            Gauss pyramid level of input data)
+        **kwargs :
+            additional optional keyword args passed to :class:`PolySurfaceFit`
+        
+        Returns
+        -------
+        Img
+            new image object corresponding to fit results
+        """
+        if mask is not None:
+            try:
+                if not mask.shape == self.shape:
+                    warn("Shape of input mask does not match image shape, "
+                        "trying to update pyrlevel in mask")
+                    try:
+                        mask.to_pyrlevel(self.pyrlevel)
+                        if not mask.shape == self.shape:
+                            raise Exception
+                    except:
+                        raise Exception
+            except:
+                warn("Failed to match shapes of input mask and image data, "
+                     "using all pixels for fit")
+                mask = None
+                                    
+        fit = PolySurfaceFit(self.img, mask, polyorder, pyrlevel)
+        try:
+            if fit.model.shape == self.shape:
+                print "Fit successful"
+                return Img(fit.model)
+            raise Exception
+        except:
+            raise Exception("Poly surface fit failed in Img object")
+    
+    def to_tau_img(self, bg_img=None, **kwargs):
+        """Convert into tau image
+        
+        Converts this image into a tau image either using a provided input 
+        background image (which is used without any modifications) or, if the 
+        former is not provided, by fitting the background using results of a 
+        2D poly surface fit as background estimate. The fit is automatically
+        applied if no background image is provided.
+        
+        Note
+        ----
+        
+        If you want to use the poly surface method, make sure to provide a 
+        corresponding mask specifying pixels used for the fit.
+        
+        Parameters
+        ----------
+        bg_img : Img
+            if valid, the tau image is determined using the background image
+            data. NOTE: no modelling of the background image is performed here
+        **kwargs 
+            input keyword arguments for 2d poly surface fit which is applied in
+            case the input for bg_img is invalid.
+        
+        Returns
+        -------
+        Img 
+            the tau image (this object remains unchanged)
+        """
+
+        if isinstance(bg_img, Img):
+            bg_img = bg_img.img
+        
+#==============================================================================
+#         r1 = bg_on.img/plume_on.img
+#         r1[r1<=0] = finfo(float).eps
+#         r2 = bg_off.img/plume_off.img
+#         r2[r2<=0] = finfo(float).eps
+#         aa_init = log(r1) - log(r2)
+#         
+#==============================================================================
     def to_pyrlevel(self, final_state=0):
         """Down / upscale image to a given pyramide level"""
         steps = final_state - self.edit_log["pyrlevel"]
         if steps > 0:
             return self.pyr_down(steps)
         elif steps < 0:
-            return self.pyr_up(steps)
-            
+            return self.pyr_up(-steps)
+     
     def pyr_down(self, steps=0):
         """Reduce the image size using gaussian pyramide 
         
@@ -445,7 +621,13 @@ class Img(object):
         img.meta["bit_depth"] = 8
         img.img = sc
         return img
-            
+    
+    def is_8bit(self):
+        """Flag specifying whether image is 8 bit"""
+        if self.meta["bit_depth"] == 8:
+            return True
+        return False
+        
     def print_meta(self):
         """Print current image meta information"""
         for key, val in self.meta.iteritems():
@@ -563,7 +745,7 @@ class Img(object):
         original size coordinates
         """
         return 2 ** self.edit_log["pyrlevel"]
-        
+    
     @property
     def is_tau(self):
         """Returns boolean whether image is a tau image or not"""
@@ -583,6 +765,16 @@ class Img(object):
             return False
         else:
             raise Exception("Unexpected image dimension %s..." %self.img.ndim)
+    
+    @property
+    def is_binary(self):
+        """Attribute specifying whether image is binary image"""
+        return self.edit_log["is_bin"]
+    
+    @property
+    def is_inverted(self):
+        """Flag specifying whether image was inverted or not"""
+        return self.edit_log["is_inv"]
             
     @property
     def modified(self):

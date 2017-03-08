@@ -1225,47 +1225,100 @@ class MultiGaussFit(object):
         return s
 
 class PolySurfaceFit(object):
-    """Fit a 2D polynomial to data (e.g. a blue sky background image)"""    
-    def __init__(self, im, mask=None, polyorder=3, pyrlevel = 4, do_fit=1):
-        """Fit a 2D polynomial to 2D array"""
+    """Fit a 2D polynomial to data (e.g. a blue sky background image)
+    
+    This class can be used to fit 2D polynomials to image data. It includes 
+    specifying pixels supposed to be used for the fit which have to be
+    provided using a mask. The fit can be performed at arbitrary Gauss pyramid
+    levels which can dramatically increase the performance.
+    
+    Note
+    ----
+
+    The fit result image can be accessed via the attribute ``model``
+        
+    Parameters
+    ----------
+    data_arr : array
+        image data to be fitted (NxM matrix)
+    mask : array
+        mask specifying pixels considered for the fit (if None, then all 
+        pixels of the image data are considered
+    polyorder : int
+        order of polynomial for fit (default=3)
+    pyrlevel : int
+        level of Gauss pyramid at which the fit is performed (relative to
+        Gauss pyramid level of input data)
+    do_fit : bool
+        if True, and if input data is valid, then the fit is performed on 
+        intialisation of the class
+        
+    """    
+    def __init__(self, data_arr, mask=None, polyorder=3, pyrlevel=4, do_fit=1):
         self.data = None
         self.mask = None
         
         self.pyrlevel = pyrlevel
         self.polyorder = polyorder
-        self.err_fun = models.Polynomial2D(degree = self.polyorder)
+        self.err_fun = models.Polynomial2D(degree=self.polyorder)
         self.fitter = LevMarLSQFitter()
         self.params = None
         self.model = None
         self.auto_update = 1
-        if self.set_data(im, mask) and do_fit:
+        if self.set_data(data_arr, mask) and do_fit:
             self.do_fit()
     
-    def set_data(self, arr, mask = None):
+    def set_data(self, data_arr, mask=None):
         """Set the data array (must be dimension 2)
         
         Create ``self.mask`` for array shape which can be used to exclude 
         picxel areas from the image
         
-        :param array arr: data array
-        :param array mask: boolean mask (must have same shape than arr) 
+        Parameters
+        ----------
+        data_arr: array
+            image data (can also be :class:`Img`)
+        mask : array
+            boolean mask specifying pixels considered for fit, if None, all
+            pixels are considered
+            
+        Returns
+        -------
+        bool
+            True if data is valid, False if not
         """
-        if not ndim(arr) == 2:
-            print "Could not set data, dimension mismatch..."
+        try:
+            data_arr = data_arr.img
+        except:
+            pass
+        try:
+            mask = mask.img
+        except:
+            pass
+        if not ndim(data_arr) == 2:
+            warn("Could not set data, dimension mismatch...")
             return 0
-        if mask is None or mask.shape != arr.shape:
-            mask = ones_like(arr)
-        self.data = arr
+        if mask is None or mask.shape != data_arr.shape:
+            mask = ones_like(data_arr)
+        self.data = data_arr
         self.mask = mask
         self.params = None #storage of fit results
         self.model = None
         return 1
     
-    def activate_auto_update(self, Bool=1):
-        """Activate or deactivate auto update mode. If active, the fit is 
-        reapplied each time some input parameter is changed
+    def activate_auto_update(self, val=1):
+        """Activate or deactivate auto update mode. 
+        
+        If active, the fit is reapplied each time some input parameter is 
+        changed
+        
+        Parameters
+        ----------
+        val : bool
+            new value for :attr:`auto_update` 
+            
         """
-        self.auto_update=Bool
+        self.auto_update = val
     
     def change_pyrlevel(self, newlevel):
         """Change the level in the gaussian pyramide where the fit is applied
@@ -1274,10 +1327,18 @@ class PolySurfaceFit(object):
         if self.auto_update:
             self.do_fit()
             
-    def change_polyorder(self, order):
+    def change_polyorder(self, new_order):
         """Change the order of the polynomial which is fitted
+        
+        Sets new poly order and re-applies fit in case ``auto_update == True``
+        
+        Parameters
+        ----------
+        new_order : int
+            new order of poly fit
+        
         """
-        self.polyorder=order
+        self.polyorder = int(new_order)
         if self.auto_update:
             self.do_fit()
             

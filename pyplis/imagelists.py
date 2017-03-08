@@ -24,7 +24,7 @@ Image list objects of pyplis library
 
 """
 from numpy import asarray, zeros, argmin, arange, ndarray, float32, ceil,\
-    isnan
+    isnan, ones, nan
 from ntpath import basename
 from datetime import timedelta, datetime
 #from bunch import Bunch
@@ -40,14 +40,13 @@ from traceback import format_exc
 from .image import Img
 from .inout import load_img_dummy
 from .exceptions import ImgMetaError
-from .helpers import _print_list
 from .setupclasses import Camera
 from .geometry import MeasGeometry
 from .processing import ImgStack, PixelMeanTimeSeries, LineOnImage,\
                                                             model_dark_image
 from .plumebackground import PlumeBackgroundModel
 from .plumespeed import OpticalFlowFarneback
-from .helpers import check_roi, map_roi
+from .helpers import check_roi, map_roi, _print_list
 
 class BaseImgList(object):
     """Basic image list object
@@ -479,7 +478,98 @@ class BaseImgList(object):
         self.auto_reload = True
         return stack
     
-
+    def get_mean_img(self, start_index=0, stop_index=None):
+        """Determines average image from list images
+        
+        Parameters
+        ----------
+        start_index : int
+            index of first considered image
+        stop_index : int
+            index of last considered image (if None, the last image in this 
+            list is used)
+            
+        Returns
+        -------
+        Img 
+            average image 
+        """
+        cfn = self.cfn
+        self.goto_img(start_index)
+        if stop_index is None or stop_index > self.nof:
+            print "Setting stop_index to last list index"
+            stop_index = self.nof
+        img = Img(zeros(self.current_img().shape))
+        img.edit_log = self.current_img().edit_log
+        img.meta["start_acq"] = self.current_time()
+        added = 0
+        texps = []
+        for k in range(start_index, stop_index):
+            try:
+                cim = self.current_img()
+                img.img += cim.img
+                try:
+                    texps.append(cim.texp)
+                except:
+                    pass
+                self.next_img()
+                added += 1
+            except:
+                warn("Failed to add image at index %d" %k)
+        img.img = img.img / added
+        img.meta["stop_acq"] = self.current_time()
+        if len(texps) == added:
+            img.meta["texp"] = asarray(texps).mean()
+        self.goto_img(cfn)
+        return img
+    
+    def get_mean_tseries_rects(self, *rois):
+        """Similar to :func:`get_mean_value` but for multiple rects
+        
+        Parameters
+        ----------
+        *rois
+            non keyword args specifying rectangles for data access
+        
+        Returns
+        -------
+        tuple
+            :class:`PixelMeanTimeSeries` objects for each ROI
+        """
+        if not self.data_available:
+            raise IndexError("No images available in ImgList object")
+        dat = []
+        num_rois = len(rois)
+        for roi in rois:
+            dat.append([[],[],[],[]])
+        cfn = self.cfn
+        num = self.nof
+        
+        self.goto_img(0)
+        lid=self.list_id
+        for k in range(num):
+            print ("Calc pixel mean t-series in list %s (%d | %d)" 
+                                            %(lid,(k+1),num))
+            img = self.loaded_images["this"]
+            for i in range(num_rois):
+                roi = rois[i]
+                d=dat[i]
+                d[0].append(img.meta["texp"])
+                d[1].append(img.meta["start_acq"])
+                sub = img.img[roi[1]:roi[3],roi[0]:roi[2]]
+                d[2].append(sub.mean())
+                d[3].append(sub.std())
+            
+            self.next_img()
+        
+        self.goto_img(cfn)
+        means = []
+        for i in range(num_rois):
+            d = dat[i]
+            mean = PixelMeanTimeSeries(d[2], d[1], d[3], d[0], rois[i],
+                                       img.edit_log)
+            means.append(mean)
+        return means
     def get_mean_value(self, roi=[0, 0, 9999, 9999], apply_img_prep=True):
         """Determine pixel mean value time series in ROI
         
@@ -1675,7 +1765,7 @@ class ImgList(BaseImgList):
         self.vign_mask = mask
         return mask
         
-    def activate_vigncorr(self, val = True):
+    def activate_vigncorr(self, val=True):
         """Activate / deactivate vignetting correction on image load
         
         :param bool val: new mode 
