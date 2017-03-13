@@ -2,7 +2,7 @@
 """Module containing optimisation and fitting algorithms"""
 from numpy import abs, linspace, random, asarray, ndarray, where, diff,\
     insert, argmax, average, gradient, arange,argmin, full, inf, sqrt, pi,\
-    nan, mod, mgrid, ndim, ones_like,ogrid, finfo, remainder, e, sum
+    nan, mod, mgrid, ndim, ones_like,ogrid, finfo, remainder, e, sum, uint8
     
 from warnings import catch_warnings, simplefilter, warn
 from matplotlib.pyplot import subplots
@@ -1301,7 +1301,7 @@ class PolySurfaceFit(object):
         if mask is None or mask.shape != data_arr.shape:
             mask = ones_like(data_arr)
         self.data = data_arr
-        self.mask = mask
+        self.mask = mask.astype(uint8)
         self.params = None #storage of fit results
         self.model = None
         return 1

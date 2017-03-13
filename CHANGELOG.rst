@@ -85,4 +85,17 @@ release (version 0.9.2)
     - ``get_ext_coeffs_imglist``: retrieve extinction coefficients for all images in an :class:`ImgList` object.
 
 13/03/2017
-==========  
+==========
+
+  1. New functions in ``ImgList``:
+  
+      - :func:`get_thresh_mask`: get mask based on intensity threshold (e.g. tau thresh)
+      - :func:`prepare_bg_fit_mask`: (BETA) for background modelling mode 0 (PolySurfaceFit). Determines a mask specifying background pixels based on intensities in reference rectangles and optical flow analysis (slow).
+      - :func:`correct_dilution`: correct current image for signal dilution
+      - :func:`set_bg_img_from_polyfit`: determines an *initial* background image in list using ``PolySurfaceFit`. The result is set as new ``bg_img`` attribute, i.e. is used for backrgound modelling in modes 1-6. This can be done if no measured sky radiance image is available.
+      - :func:`correct_dilution`: applies Dilution correction to current image if all requirements are fulfilled for that
+      - start / stop indices can now be set in :func:`make_stack`
+      
+  2. Removed automatic load of previous image in ``ImgList`` objects
+  3. Included AA image calculation for CORR_MODE == 0 in ``PlumeBackgroundModel``.
+  4. Removed dark corr check between plume and BG image in ``PlumeBackgroundModel`` when modelling tau images.

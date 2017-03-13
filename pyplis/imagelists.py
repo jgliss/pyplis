@@ -1,40 +1,20 @@
 # -*- coding: utf-8 -*-
 """
 Image list objects of pyplis library
-
-    1. :class:`BaseImgList` the base class for image list objects (includes 
-        functionality for file management and iteration and basic editing)
-    #. :class:`DarkImgList`: Inherits from :class:`BaseImgList` and was only 
-        extended by attribute "read_gain". Introducing a separate list object
-        for dark and offset images was also done to have a clearer structure 
-        (e.g. when using identifiers such as :func:`isinstance` or 
-        :func:`type`)
-    #. :class:`ImgList`: the central list object in pyplis, e.g. for
-        representing on and off band lists of plume image data. Inherits from
-        :class:`BaseImgList` and was extended by functionality for dark image
-        correction, optical flow calculations and background image modelling 
-        (tau image determination). Furthermore, it is possible to link other 
-        image lists which are then automatically updated based on acquisition
-        time (e.g. link a off and on band lists can make life easier).
-    #. :class:`CellImgList`: This list can be used to store images of one 
-        calibration cell (covering the whole camera FOV). It is extended by 
-        the attributes cell_id, gas_cd and gas_cd_err. It inherits
-        from :class:`ImgList` (to enable dark and offset correction) and is 
-        mainly used in the :class:`pyplis.Calibration.CellCalib` object.
-
 """
 from numpy import asarray, zeros, argmin, arange, ndarray, float32, ceil,\
-    isnan
+    isnan, logical_or, ones, uint8, finfo
 from ntpath import basename
 from datetime import timedelta, datetime
 #from bunch import Bunch
 from pandas import Series, DataFrame
-from matplotlib.pyplot import figure, draw
+from matplotlib.pyplot import figure, draw, subplots
 from copy import deepcopy
 from scipy.ndimage.filters import gaussian_filter
 from warnings import warn
 from os.path import exists
 from collections import OrderedDict as od
+from cv2 import dilate
 
 from traceback import format_exc
 
@@ -45,32 +25,45 @@ from .setupclasses import Camera
 from .geometry import MeasGeometry
 from .processing import ImgStack, PixelMeanTimeSeries, LineOnImage,\
                                                             model_dark_image
+from .optimisation import PolySurfaceFit                                                    
 from .plumebackground import PlumeBackgroundModel
 from .plumespeed import OpticalFlowFarneback
-from .helpers import check_roi, map_roi, _print_list
+from .helpers import check_roi, map_roi, _print_list, closest_index
 
 class BaseImgList(object):
     """Basic image list object
-    Basic image list object providing indexing and image loading functionality
     
-    In this, only the current image is loaded at a time while :class:`ImgList` 
-    loads previous, current and next image whenever the index is changed
+    Basic class for image list objects providing indexing and image loading 
+    functionality
+    
+    In this class, only the current image is loaded at a time while
+    :class:`ImgList` loads current and next image whenever the index is 
+    changed (e.g. required for :attr:`optflow_mode`)
     
     This object and all objects inheriting from this are fundamentally based 
-    on a list of image file paths, which are dynamically loaded during usage.
+    on a list of image file paths, which are dynamically loaded and processed
+    during usage.
     
+    Parameters
+    ----------
+    files : list
+        list with image file paths
+    list_id : str
+        a string used to identify this list (e.g. "my bad pics")
+    list_type : str
+        type of images in list (please use "on" or "off")
+    camera : Camera
+        camera specifications
+    init : bool
+        if True, list will be initiated and files loaded (given that image 
+        files are provided on input)
+    **img_prep_settings
+        additional keyword args specifying image preparation settings applied
+        on image load        
     """
     def __init__(self, files=[], list_id=None, list_type=None,
                  camera=None, geometry=None, init=True, **img_prep_settings):
-        """Init image list
         
-        :param list files: list with file names
-        :param str list_id: id of list (e.g. "my bad pics")
-        :param str list_type: type of images in list (e.g. "on")
-        :param Camera camera: camera setup
-        :param bool init: if True, list will be initiated and files loaded 
-            (given that image files are provided on input)
-        """
         #this list will be filled with filepaths
         self.files = []
         #id of this list
@@ -119,38 +112,19 @@ class BaseImgList(object):
             
         if self.data_available and init:
             self.load()
-            
-    def plume_dist_access(self):
-        """Checks if measurement geometry is available"""
-        if not isinstance(self.meas_geometry, MeasGeometry):
-            return False
-        try:
-            _, _, plume_dist_img = self.meas_geometry.get_all_pix_to_pix_dists()  
-            print "Plume distances available, dist_avg = %.2f" %plume_dist_img.mean()
-        except:
-            return False
-        
+                
     @property
     def meas_geometry(self):
-        """Get / set current measurement geometry"""
+        """Measurement geometry"""
         return self._meas_geometry
     
     @meas_geometry.setter
     def meas_geometry(self, val):
-        """Set :class:`pyplis.Utils.MeasGeometry` object"""
         if not isinstance(val, MeasGeometry):
             raise TypeError("Could not set meas_geometry, need MeasGeometry "
                 "object")
         self._meas_geometry = val
-        
-    def update_img_prep(self, **settings):
-        """Update image preparation settings and reload"""
-        for key, val in settings.iteritems():
-            if self.img_prep.has_key(key) and\
-                        isinstance(val, type(self.img_prep[key])):
-                self.img_prep[key] = val
-        self.load()
-        
+            
     @property
     def auto_reload(self):
         """Activate / deactivate automatic reload of images"""
@@ -158,7 +132,6 @@ class BaseImgList(object):
         
     @auto_reload.setter
     def auto_reload(self, val):
-        """Set mode"""
         self._auto_reload = val
         if bool(val):
             print "Reloading images..."
@@ -177,18 +150,27 @@ class BaseImgList(object):
     
     @property
     def pyrlevel(self):
-        """Activate / deactivate crop mode"""
+        """Current Gauss pyramid level
+        
+        Note
+        ----
+        images are reloaded on change
+        """
         return self.img_prep["pyrlevel"]
     
     @pyrlevel.setter
     def pyrlevel(self, value):
-        """Update pyrlevel and reload images"""
         self.img_prep["pyrlevel"] = int(value)
         self.load()
     
     @property
     def gaussian_blurring(self):
-        """Get / set current blurring level"""
+        """Current blurring level
+        
+        Note
+        ----
+        images are reloaded on change        
+        """
         return self.img_prep["blurring"]
     
     @gaussian_blurring.setter
@@ -203,44 +185,44 @@ class BaseImgList(object):
         
     @property
     def roi(self):
-        """Return current ROI (in relative coordinates)
+        """Current ROI (in relative coordinates)
         
-        The ROI is returned with respect to the current pyrlevel
+        The ROI is returned with respect to the current :attr:`pyrlevel`
         """
         return map_roi(self._roi_abs, self.pyrlevel)
     
     @roi.setter
     def roi(self):
-        """Raises Attribute Error with some information"""
         raise AttributeError("Please use roi_abs to set the current ROI in "
             "absolute image coordinates. :func:`roi` is used to access the "
             "current ROI for the actual pyramide level.")
+            
     @property 
     def roi_abs(self):
-        """Returns current roi (in consideration of current pyrlevel)"""
+        """Current roi in absolute detector coords (cf. :attr:`roi`)
+        """
         #return map_roi(self._roi_abs, self.img_prep["pyrlevel"])
         return self._roi_abs
         
     @roi_abs.setter
     def roi_abs(self, val):
-        """Updates current ROI"""
         if check_roi(val):
             self._roi_abs = val
             self.load()
             
     @property
     def cfn(self):
-        """Returns current file number"""
+        """Current index (file number in ``files``)"""
         return self.index
         
     @property
     def nof(self):
-        """Returns the number of files in this list"""
+        """Number of files in this list"""
         return len(self.files)
         
     @property
     def last_index(self):
-        """Returns index of last image"""
+        """Index of last image"""
         return len(self.files) - 1
     
     def has_files(self):
@@ -259,32 +241,81 @@ class BaseImgList(object):
         This function is overwritten in :class:`ImgList` where more states
         are allowed. It is, for instance used in :func:`make_stack`.
         
-        :return:
-            - "raw" (:class:`BaseImgList` does not support tau or aa image 
-                determination)
+        Returns
+        -------
+        str
+            string "raw" (:class:`BaseImgList` does not support tau or aa image 
+            determination)
         """
         return "raw"
+    
+    @property
+    def acq_times(self):
+        """List containing all image acq. time stamps of this list
+        
+        The time stamps are extracted from the file names
+        """
+        ts = self.get_img_meta_all_filenames()[0]
+        if ts is False:
+            raise ValueError("Image acquisition times could not be extracted"
+                " from file names")
+        return ts
+    
+    def plume_dist_access(self):
+        """Checks if measurement geometry is available"""
+        if not isinstance(self.meas_geometry, MeasGeometry):
+            return False
+        try:
+            _, _, plume_dist_img = self.meas_geometry.get_all_pix_to_pix_dists()  
+            print "Plume distances available, dist_avg = %.2f" %plume_dist_img.mean()
+        except:
+            return False
+            
+    def update_img_prep(self, **settings):
+        """Update image preparation settings and reload
+        
+        Parameters
+        ----------
+        **settings
+            key word args specifying settings to be updated (see keys of
+            ``img_prep`` dictionary)
+        """
+        for key, val in settings.iteritems():
+            if self.img_prep.has_key(key) and\
+                        isinstance(val, type(self.img_prep[key])):
+                self.img_prep[key] = val
+        self.load()
         
     def clear(self):
-        """Empty file list ``self.files``"""
+        """Empty this list (i.e. ``files``)"""
         self.files = []
     
     def separate_by_substr_filename(self, sub_str, sub_str_pos, delim="_"):
         """Separate this list by filename specifications
         
-        :param str sub_str: string identification used to identify the image 
-            type which is supposed to be kept within this list object
-        :param int sub_str_pos: position of sub string after filename was split 
-            (using input param delim)
-        :param str delim ("_"): filename delimiter
-        :returns: tuple 
-            - :class:`ImgList`, list contains images matching the requirement
-            - :class:`ImgList`, list containing all other images
-            
         The function checks all current filenames, and keeps those, which have
-        idStr at position idPos after splitting the file name using the input
-        delimiter. All other files are added to a new image list which is 
-        returned
+        a certain sub string at a certain position in the file name after 
+        splitting using a provided delimiter. All other files are added to a 
+        new image list which is returned.
+        
+        Parameters
+        ----------
+        sub_str : str
+            string identification used to identify the image type which is 
+            supposed to be kept within this list object
+        sub_str_pos : int
+            position of sub string after filename was split (using input 
+            param delim)
+        delim : str  
+            filename delimiter, defaults to "_"
+        
+        Returns
+        -------
+        tuple
+            2-element tuple containing
+            
+            - :obj:`ImgList`, list contains images matching the requirement
+            - :obj:`ImgList`, list containing all other images
         """
         match = []
         rest = []
@@ -300,15 +331,19 @@ class BaseImgList(object):
         return (lst_match, lst_rest)
         
     def add_files(self, file_list):
-        """Import a list with filepaths
-        
-        :param list file_list: list with file paths
-        
-        If input is okay, then this list is initiated using :func:`init_filelist`
+        """Add images to this list
+    
+        Parameters
+        ----------
+        file_list : list
+            list with file paths
+            
+        Returns
+        -------
+        bool
+            success / failed
         """
         if isinstance(file_list, str):
-            print ("Warning in add_files: import list is a string and"
-                    " will be converted into a list")
             file_list = [file_list]
         if not isinstance(file_list, list):
             print ("Error: file paths could not be added to image list,"
@@ -322,44 +357,54 @@ class BaseImgList(object):
     def init_filelist(self, num=0):
         """Initiate the filelist
         
-        :param int num (0): index of image which will be loaded (`self.index`)
-        """
-        print 
-        print "Init ImgList %s" %self.list_id
-        print "-------------------------"
-        self.index = num
+        Sets current list index and resets loaded images 
         
-        #self.selectedFilesIndex = zeros(self.nof)            
+        Parameters
+        ----------
+        num : int
+            desired image index, defaults to 0
+        """
+        self.index = num
+                   
         for key, val in self.loaded_images.iteritems():
             self.loaded_images[key] = None
-            
-        #self.load_images()  
-        print "Number of files: " + str(self.nof)
-        print "-----------------------------------------"
+        
+        if self.nof > 0:
+            print "\nInit ImgList %s" %self.list_id
+            print "-------------------------"
+            print "Number of files: " + str(self.nof)
+            print "-----------------------------------------"
         
     def set_dummy(self):
-        """Loads and sets the dummy image"""
+        """Load dummy image"""
         dummy = Img(load_img_dummy())
         for key in self.loaded_images:
             self.loaded_images[key] = dummy
             
-    def set_camera(self, camera = None, cam_id = None):
+    def set_camera(self, camera=None, cam_id=None):
         """Set the current camera
         
         Two options:
             
-            1. set :class:`pyplis.setup.Camera`directly
+            1. set :obj:`Camera` directly
             #. provide one of the default camera IDs (e.g. "ecII", "hdcam")
         
-        :param Camera camera: camera setup, or, alternatively
-        :param str cam_id: valid camera ID (None)
+        Parameters
+        ----------
+        camera : Camera
+            the camera used
+        cam_id : str
+            one of the default cameras (use 
+            :func:`pyplis.inout.get_all_valid_cam_ids` to get the default 
+            camera IDs)
+            
         """
         if not isinstance(camera, Camera):
             camera = Camera(cam_id)
         self.camera = camera
     
     def reset_img_prep(self):
-        """Init image pre edit settings"""
+        """Init image pre-edit settings"""
         self.img_prep = dict.fromkeys(self.img_prep, 0)
         self._roi_abs = [0, 0, 9999, 9999]
         if self.nof > 0:
@@ -368,37 +413,38 @@ class BaseImgList(object):
     def get_img_meta_from_filename(self, file_path):
         """Loads and prepares img meta input dict for Img object
         
-        :param str img_file: file path of image
-        :returns: dict, keys: "start_acq" and "texp"
+        Parameters
+        ----------
+        file_path : str 
+            file path of image
+        
+        Returns
+        -------
+        dict
+            dictionary containing retrieved values for ``start_acq`` and 
+            ``texp``
         """
         info = self.camera.get_img_meta_from_filename(file_path)
         return {"start_acq" : info[0], "texp": info[3]}
     
-    @property
-    def acq_times(self):
-        """Returns list of acquisition time stamps
-        
-        The time stamps are extracted from the file names
-        """
-        ts = self.get_img_meta_all_filenames()[0]
-        if ts is False:
-            raise ValueError("Image acquisition times could not be extracted"
-                " from file names")
-        return ts
+    
         
     def get_img_meta_all_filenames(self):   
         """Try to load acquisition and exposure times from filenames
         
-        :return: 
-            - list, containing img acquisition time stamps for all images in 
-                this list (if accessible, else False)
-            - list, containing all img exposure times 
-                (if accessible, else False)
+        Note
+        ----
+        Only works if relevant information is specified in ``self.camera`` and
+        can be accessed from the file names, missing 
+        
+        Returns
+        -------
+        tuple
+            2-element tuple containing
             
-        .. note:: 
-        
-            Only works if relevant information is specified in ``self.camera``
-        
+            - list, list containing all retrieved acq. time stamps
+            - list, containing all retrieved exposure times
+
         """
         times, texps = asarray([None] * self.nof), asarray([None] * self.nof) 
         
@@ -415,7 +461,15 @@ class BaseImgList(object):
     def assign_indices_linked_list(self, lst):
         """Create a look up table for fast indexing between image lists
         
-        :param BaseImgList lst: image list supposed to be linked
+        Parameters
+        ----------
+        lst : BaseImgList
+            image list supposed to be linked
+            
+        Returns
+        -------
+        array
+            array contining linked indices
         """
         idx_array = zeros(self.nof, dtype = int)
         times, _ = self.get_img_meta_all_filenames()
@@ -440,7 +494,15 @@ class BaseImgList(object):
     def same_preedit_settings(self, settings_dict):
         """Compare input settings dictionary with self.img_prep 
         
-        :returns bool: False if not the same, True else
+        Parameters
+        ----------
+        **settings_dict
+            keyword args specifying settings to be compared
+        
+        Returns
+        -------
+        bool
+            False if not the same, True else
         """
         sd = self.img_prep
         for key, val in settings_dict.iteritems():
@@ -450,15 +512,47 @@ class BaseImgList(object):
         return True
     
     def make_stack(self, stack_id=None, pyrlevel=None, roi_abs=None,
-                   dtype=float32):
+                   start_idx=0, stop_idx=None, dtype=float32):
         """Stack all images in this list 
         
         The stacking is performed using the current image preparation
         settings (blurring, dark correction etc). Only stack ROI and pyrlevel
         can be set explicitely.
+        
+        Note
+        ----
+        In case of ``MemoryError`` try stacking less images (specifying 
+        start / stop index) or reduce the size setting a different Gauss
+        pyramid level
+        
+        Parameters
+        ----------
+        stack_id : :obj:`str`, optional
+            identification string of the image stack
+        pyrlevel : :obj:`int`, optional
+            Gauss pyramid level of stack
+        roi_abs : list
+            build stack of images cropped in ROI
+        start_idx : int
+            index of first considered image, defaults to 0
+        stop_idx : :obj:`int`, optional
+            index of last considered image (if None, the last image in this 
+            list is used), defaults to last index
+        dtype 
+            data type of stack
+            
+        Returns
+        -------
+        ImgStack
+            result stack
+        
+        
         """
         self.activate_edit()
-        
+        if stop_idx is None:
+            stop_idx = self.nof
+            
+        num = stop_idx - start_idx
         #remember last image shape settings
         _roi = deepcopy(self._roi_abs)
         _pyrlevel = deepcopy(self.pyrlevel)
@@ -479,19 +573,17 @@ class BaseImgList(object):
         if stack_id in ["raw", "tau"]:
             stack_id += "_%s" %self.list_id
         #create a new settings object for stack preparation
-        self.goto_img(0)
+        self.goto_img(start_idx)
         self.auto_reload = True
         h, w = self.current_img().shape
-        stack = ImgStack(h, w, self.nof, dtype, stack_id, camera=self.camera,
+        stack = ImgStack(h, w, num, dtype, stack_id, camera=self.camera,
                          img_prep=self.current_img().edit_log)
-        nof = self.nof
         lid = self.list_id
-        for k in range(nof):
-            print "Building img-stack from list %s (%s | %s)" %(lid, k, nof-1)
+        for k in range(num):
+            print "Building img-stack from list %s (%s | %s)" %(lid, k, num-1)
             img = self.loaded_images["this"]
             #print im.meta["start_acq"]
-            stack.append_img(img.img, img.meta["start_acq"],\
-                                                     img.meta["texp"])
+            stack.append_img(img.img, img.meta["start_acq"], img.meta["texp"])
             self.next_img()  
         stack.start_acq = asarray(stack.start_acq)
         stack.texps = asarray(stack.texps)
@@ -507,14 +599,14 @@ class BaseImgList(object):
         self.auto_reload = True
         return stack
     
-    def get_mean_img(self, start_index=0, stop_index=None):
+    def get_mean_img(self, start_idx=0, stop_idx=None):
         """Determines average image from list images
         
         Parameters
         ----------
-        start_index : int
+        start_idx : int
             index of first considered image
-        stop_index : int
+        stop_idx : int
             index of last considered image (if None, the last image in this 
             list is used)
             
@@ -524,16 +616,16 @@ class BaseImgList(object):
             average image 
         """
         cfn = self.cfn
-        self.goto_img(start_index)
-        if stop_index is None or stop_index > self.nof:
-            print "Setting stop_index to last list index"
-            stop_index = self.nof
+        self.goto_img(start_idx)
+        if stop_idx is None or stop_idx > self.nof:
+            print "Setting stop_idx to last list index"
+            stop_idx = self.nof
         img = Img(zeros(self.current_img().shape))
         img.edit_log = self.current_img().edit_log
         img.meta["start_acq"] = self.current_time()
         added = 0
         texps = []
-        for k in range(start_index, stop_index):
+        for k in range(start_idx, stop_idx):
             try:
                 cim = self.current_img()
                 img.img += cim.img
@@ -563,7 +655,8 @@ class BaseImgList(object):
         Returns
         -------
         tuple
-            :class:`PixelMeanTimeSeries` objects for each ROI
+            N-element tuple containing :class:`PixelMeanTimeSeries` objects 
+            (one for each ROI specified on input)
         """
         if not self.data_available:
             raise IndexError("No images available in ImgList object")
@@ -599,18 +692,27 @@ class BaseImgList(object):
                                        img.edit_log)
             means.append(mean)
         return means
+        
     def get_mean_value(self, roi=[0, 0, 9999, 9999], apply_img_prep=True):
         """Determine pixel mean value time series in ROI
         
         Determines the mean pixel value (and standard deviation) for all images 
         in this list. Default ROI is the whole image and can be set via
-        input param roi, image preparation can be turned on or off as well as
-        tau mode (for which an background image must be available)
+        input param roi, image preparation can be turned on or off.
         
-        :param list roi: rectangular region of interest ``[x0, y0, x1, y1]``, 
-            default is [0, 0, 9999, 9999] (i.e. whole image)
-        :param bool apply_img_prep: if True, img preparation is performed
-            as set in ``self.img_prep`` dictionary  (True)        
+        Parameters
+        ----------
+        roi : list
+            rectangular region of interest ``[x0, y0, x1, y1]``, 
+            defaults to [0, 0, 9999, 9999] (i.e. whole image)
+        apply_img_prep : bool
+            if True, img preparation is performed as specified in 
+            ``self.img_prep`` dictionary, defaults to True
+            
+        Returns
+        -------
+        PixelMeanTimeSeries
+            time series of retrieved values
         """
         if not self.data_available:
             raise IndexError("No images available in ImgList object")
@@ -639,11 +741,7 @@ class BaseImgList(object):
                                    img.edit_log)
         
     def current_edit(self):
-        """Returns the current image preparation settings
-        
-        These are applied by default when images are loaded and if
-        ``self.edit_active == True`` (which is the default)
-        """
+        """Returns :attr:`edit_log` of current image"""
         return self.current_img().edit_log
         
     def edit_info(self):
@@ -655,8 +753,7 @@ class BaseImgList(object):
             print "%s: %s" %(key, val)
         
     def _make_header(self):
-        """Make header string for current image (using image meta information)            
-        """
+        """Make header for current image (based on image meta information)"""
         try:
             im = self.current_img()
             if not isinstance(im, Img):
@@ -687,7 +784,15 @@ class BaseImgList(object):
     Image loading functions 
     """
     def _merge_edit_states(self):
-        """Merges the current list edit state with the image state on load"""
+        """Merges the current list edit state with the image state on load
+        
+        Todo
+        ----
+        
+        This function needs revision and should in parts be moved to 
+        :class:`ImgList`.
+        
+        """
         onload = self._load_edit
         if onload["blurring"] > 0:
             print "Image was already blurred (on load)"
@@ -792,7 +897,7 @@ class BaseImgList(object):
         self.loaded_images[key] = img
     
     """List modes"""    
-    def activate_edit(self, val = True):
+    def activate_edit(self, val=True):
         """Activate / deactivate image edit mode
         
         :param bool val: new mode
@@ -855,6 +960,16 @@ class BaseImgList(object):
         self.index = num
         self.load()
         return self.loaded_images["this"]
+    
+    @property
+    def this(self):
+        """Current image"""
+        return self.loaded_images["this"]
+    
+    @property
+    def next(self):
+        """Next image"""
+        return self.next_img()
         
     def next_img(self):
         """Go to next image 
@@ -914,33 +1029,54 @@ class BaseImgList(object):
     """
     Plotting etc
     """
-    def plot_mean_value(self, roi = [0, 0, 9999, 9999], apply_img_prep = True,\
-                                    yerr = False, ax = None):
+    def plot_mean_value(self, roi=[0, 0, 9999, 9999], yerr=False, ax=None):
         """Plot mean value of image time series
         
-        :param list roi: rectangular ROI in which mean is determined (default
+        Parameters
+        ----------
+        roi : list
+            rectangular ROI in which mean is determined (default is
             ``[0, 0, 9999, 9999]``, i.e. whole image)
-        :param bool yerr: include errorbars (std)
-        :param ax: matplotlib axes object
+        yerr : bool
+            include errorbars (std), defaults to False
+        ax : :obj:`Axes`, optional
+            matplotlib axes object
+            
+        Returns
+        -------
+        Axes
+            matplotlib axes object
         """
         if ax is None:
             fig = figure()#figsize=(16, 6))
             ax = fig.add_subplot(1, 1, 1)
+
         mean = self.get_mean_value()
-        ax = mean.plot(yerr = yerr, ax = ax)
+        ax = mean.plot(yerr=yerr, ax=ax)
         return ax
     
-    def plot_tseries_vert_profile(self, pos_x, start_y = 0, stop_y = None,\
-                                                step_size = 0.1, blur = 4):
+    def plot_tseries_vert_profile(self, pos_x, start_y=0, stop_y=None,
+                                  step_size=0.1, blur=4):
         """Plot the temporal evolution of a line profile
         
-        :param int pos_x: number of pixel column
-        :param int start_y: Start row of profile (y coordinate, default: 10)
-        :param int stop_y: Stop row of profile (is set to rownum - 10pix if
-            input is None)
-        :param float step_size: stretch between different line profiles of
-            the evolution (0.1)
-        :param int blur: blurring of individual profiles (4)
+        Parameters
+        ----------
+        pos_x : int 
+            number of pixel column
+        start_y : int
+            Start row of profile (y coordinate, default: 10)
+        stop_y : int
+            Stop row of profile (is set to rownum - 10pix if input is None)
+        step_size : float
+            stretch between different line profiles of the evolution (0.1)
+        blur : int
+            blurring of individual profiles (4)
+            
+        Returns
+        -------
+        Figure
+            figure containing result plot
+            
         """
         cfn = deepcopy(self.index)
         self.goto_img(0)
@@ -995,7 +1131,7 @@ class BaseImgList(object):
         l.plot_line_on_grid(self.loaded_images["this"].img,ax = ax2)
         ax2.set_title(self.loaded_images["this"].meta["start_acq"].strftime(\
             "%d.%m.%Y %H:%M:%S"))
-        return fig, ax1, ax2
+        return fig
 
     """
     Magic methods
@@ -1078,8 +1214,7 @@ class ImgList(BaseImgList):
         super(ImgList, self).__init__(files, list_id, list_type, camera, 
                                       geometry, init=False)
                                       
-        self.loaded_images.update({"prev": None, 
-                                   "next": None})
+        self.loaded_images.update({"next": None})
     
         #: List modes (currently only tau) are flags for different list states
         #: and need to be activated / deactivated using the corresponding
@@ -1153,22 +1288,23 @@ class ImgList(BaseImgList):
             print ("Could not set background image in ImgList %s: "
                 ": wrong input type, need Img object" %self.list_id)
             return False
-        if self.vign_mask is None:
+        vign_mask = self.vign_mask
+        if vign_mask is None:
             if bg_img.edit_log["vigncorr"]:
                 raise AttributeError("Input background image is vignetting "
                     "corrected and cannot be used to calculate vignetting corr"
                     "mask.")
         
             self._bg_imgs[0] = bg_img
-            mask = self.det_vign_mask_from_bg_img()
-            self._bg_imgs[1] = bg_img.duplicate().correct_vignetting(mask.img)
+            vign_mask = self.det_vign_mask_from_bg_img()
+            self._bg_imgs[1] = bg_img.duplicate().correct_vignetting(vign_mask)
         else:
             if not bg_img.edit_log["vigncorr"]:
                 bg = bg_img
-                bg_vigncorr = bg_img.duplicate().correct_vignetting(mask.img)
+                bg_vigncorr = bg_img.duplicate().correct_vignetting(vign_mask)
             else:
                 bg_vigncorr = bg_img
-                bg = bg_img.duplicate().correct_vignetting(mask.img,
+                bg = bg_img.duplicate().correct_vignetting(vign_mask,
                                                            new_state=0)
             self._bg_imgs = [bg, bg_vigncorr]
     
@@ -1186,11 +1322,36 @@ class ImgList(BaseImgList):
     @property
     def bg_img(self):
         """Return background image based on current vignetting corr setting"""
-        return self._bg_imgs[self.loaded_images["this"].edit_log["vigncorr"]]
+        try:
+            img = self._bg_imgs[self.loaded_images["this"].edit_log["vigncorr"]]
+        except:
+            warn("No background image available in list")
+            img = None
+        return img
     
     @bg_img.setter
     def bg_img(self, val):
         self.set_bg_img(val)
+        
+    def get_thresh_mask(self, thresh=None, this_and_next=True):
+        """Get bool mask based on intensity threshold
+        
+        Parameters
+        ----------
+        thresh : :obj:`float`, optional
+            intensity threshold
+        this_and_next : bool
+            if True, uses the current AND next image to determine mask
+            
+        Returns
+        -------
+        array
+            mask specifying pixels that exceed the threshold
+        """
+        mask = self.this.duplicate().to_binary(thresh).img
+        if this_and_next and not self.cfn == self.nof - 1:
+            mask = logical_or(mask, self.next.duplicate().to_binary(thresh).img)
+        return mask
         
     @property
     def aa_corr_mask(self):
@@ -1300,9 +1461,7 @@ class ImgList(BaseImgList):
         :class:`pyplis.Processing.OpticalFlowFarneback`)
         """
         self.optflow = optflow
-    
-    
-                
+          
     def link_imglist(self, other_list):
         """Link another image list to this list
         
@@ -1662,8 +1821,132 @@ class ImgList(BaseImgList):
                 "exceeds that of list" %self.list_id)    
         if not log["vigncorr"] == bg.edit_log["vigncorr"]:
             raise ValueError("Check vignette")
+    
+    def prepare_bg_fit_mask(self, dilation=False, dilate_kernel=None,
+                            optflow_blur=1, optflow_median=10, 
+                            plot_masks=False, **flow_settings):
+        """Prepare mask for background fit based on analysis of current image
         
-    def activate_tau_mode(self, val = 1):
+        The mask is determined based on intensities in the 3 reference 
+        recangular areas in the plume background model (if they are not 
+        assigned then they are retrieved using :func:`guess_missing_settings`
+        in :attr:`bg_model`). Furthermore, an optical flow analysis is 
+        performed in order to exclude image pixels where movement could be 
+        detected.
+        
+        Note
+        ----
+        
+        This is a beta version
+        
+        Parameters
+        ----------
+        dilation : bool
+            if True, the mask is dilated
+        dilate_kernel : array
+            if None, uses 30x30 pix kernel
+        optflow_blur : int
+            amount of Gaussian blurring applied to images before optical flow
+            is determined
+        optflow_median : int
+            apply median filter of specified size to length image of optical 
+            flow vectors (can be useful in order to remove artifacts and only
+            mask out movement areas spanning a reasonable pixel neighbourhood)
+        plot_masks : bool
+            if True, creates subplot showing indidivual masks used to determine
+            the background mask (1. is based on intensity thresh, second based
+            on detected movement)
+        **flow_settings 
+            keyword arguments for optical flow settings
+            
+        Returns
+        -------
+        array 
+            mask specifying detected background pixels
+            
+        """
+        # remember some settings
+        fl_mode = self.optflow_mode
+        bl = self.gaussian_blurring
+        s_temp = self.optflow.settings.duplicate()
+        
+        img = self.current_img().duplicate()
+        mask = ones(img.shape)
+        
+        self.bg_model.guess_missing_settings(img)
+    
+        mean, low, high = self.bg_model.mean_in_rects(img)
+        thresh = mean - mean * 0.1
+    
+        cond_low = (img.img < thresh).astype(uint8)
+        
+        s = self.optflow.settings
+        s.auto_update = False
+        keys = flow_settings.keys()
+        if not "i_min" in keys:
+            flow_settings["i_min"] = low
+        elif not "i_max" in keys:
+            flow_settings["i_max"] = img.max()
+        
+        s.update(**flow_settings)
+        self.gaussian_blurring = optflow_blur
+        print "I MIN: %s" %self.optflow.settings.i_min
+        print "I MAX: %s" %self.optflow.settings.i_max
+        self.optflow_mode = True
+        len_im = Img(self.optflow.get_flow_vector_length_img())
+        if optflow_median > 0:
+            len_im = len_im.apply_median_filter(optflow_median)
+        cond_movement = (len_im.img > s.min_length).astype(uint8)
+        
+        if dilate:
+            if dilate_kernel is None:
+                dilate_kernel = ones((30, 30), dtype=uint8)   
+            cond_low = dilate(cond_low, dilate_kernel)
+            cond_movement = dilate(cond_movement, dilate_kernel)
+        
+        mask = mask * (1 - cond_low) * (1 - cond_movement)
+        
+        if plot_masks:
+            fig, ax = subplots(1,2, figsize=(18,8))
+            
+            ax[0].imshow(cond_low, cmap="gray")
+            ax[0].set_title("Below intensity thresh %.1f" %thresh)
+            ax[1].imshow(cond_movement, cmap="gray")
+            ax[1].set_title("Movement detected")
+        self.optflow.settings = s_temp
+        self.optflow_mode = fl_mode
+        self.gaussian_blurring = bl
+        self.bg_model.surface_fit_mask = mask
+        return mask.astype(bool)
+    
+    def set_bg_img_from_polyfit(self, mask=None, **kwargs):
+        """Sets background image from results of a poly surface fit
+        
+        Parameters
+        ----------
+        mask : array
+            mask specifying sky background pixels, if None (default) then this
+            mask is determined automatically using :func:`prepare_bg_fit_mask`
+        **kwargs:
+            additional keyword arguments for :class:`PolySurfaceFit
+        Returns
+        -------
+        Img
+            fitted background image
+        """
+        if mask is None:
+            mask = self.prepare_bg_fit_mask(dilation=True)
+        fit = PolySurfaceFit(self.current_img(), mask, **kwargs)
+        bg = fit.model
+        try:
+            low = self.get_dark_image().mean()
+        except:
+            low = finfo(float).eps
+        print "LOW: %s" %low
+        bg [bg <= low] = low
+        self.bg_img = Img(bg)
+        
+    def activate_tau_mode(self, val=1):
         """Activate tau mode
         
         In tau mode, images will be loaded as tau images (if background image
@@ -1672,14 +1955,28 @@ class ImgList(BaseImgList):
         if val is self.tau_mode: #do nothing
             return
         if val:
-            if not self.has_bg_img():
-                raise AttributeError("no background image available in list %s"
-                ", please set suitable background image using method "
-                "set_bg_img" %self.list_id)
-            #self._update_prep_bg_image()
+            bg_img = None
             self.bg_model.guess_missing_settings(self.loaded_images["this"])
-            self.bg_model.get_tau_image(self.loaded_images["this"],\
-                                                            self.bg_img)
+            if self.bg_model.CORR_MODE == 0:
+                print ("Background correction mode is 0, initiating settings "
+                    "for poly surface fit")
+                try:
+                    mask = self.prepare_bg_fit_mask(dilation=True)
+                    self.bg_model.surface_fit_mask = mask
+                except:
+                    warn("Background access mask could not be retrieved for "
+                        "PolySurfaceFit in background model of image list %s"
+                        %self.list_id)
+                
+            else:
+                if not self.has_bg_img():
+                    raise AttributeError("no background image available in "
+                        "list %s, please set a suitable background image "
+                        "using method set_bg_img, or change current bg " 
+                        "modelling mode to 0 using self.bg_model.CORR_MODE=0)" 
+                        %self.list_id)
+                bg_img = self.bg_img
+            self.bg_model.get_tau_image(self.loaded_images["this"], bg_img)
         self._list_modes["tau"] = val
         self.load()
     
@@ -1709,12 +2006,16 @@ class ImgList(BaseImgList):
                 raise Exception("Linked off band list could not be found")
             if not offlist.nof / float(self.nof) > 0.25:
                 raise IndexError("Off band list does not have enough images...")
-            if not self.has_bg_img():
-                raise AttributeError("no background image available, please set "
-                    "suitable background image using method set_bg_img")
-            if not offlist.has_bg_img():
-                raise AttributeError("no background image available in off "
-                    "band list")
+            if self.bg_model.CORR_MODE != 0:
+                if not self.has_bg_img():
+                    raise AttributeError("no background image available, "
+                        "please set suitable background image using method "
+                        "set_bg_img or set background modelling mode = 0")
+                if not offlist.has_bg_img():
+                    raise AttributeError("no background image available in "
+                        "off band list. Please set suitable background image "
+                        "using method set_bg_img or set background modelling "
+                        "mode = 0")
             #offlist.update_img_prep(**self.img_prep)
             #offlist.init_bg_model(CORR_MODE = self.bg_model.CORR_MODE)
             self.tau_mode = 0
@@ -1722,7 +2023,7 @@ class ImgList(BaseImgList):
     
             aa_test = self._aa_test_img(offlist)
         self._list_modes["aa"] = val
-
+        
         self.load()
 
         return aa_test
@@ -1749,8 +2050,18 @@ class ImgList(BaseImgList):
                     return lst
         raise AttributeError("No linked offband list was found")
     
-    def activate_optflow_mode(self, val=True):
-        """Activate / deactivate optical flow calculation on image load"""
+    def activate_optflow_mode(self, val=True, draw=False):
+        """Activate / deactivate optical flow calculation on image load
+        
+        Parameters
+        ----------
+        val : bool
+            activate / deactivate
+        draw : bool
+            if True, flow field is plotted into current image
+            
+
+        """
         if val is self.optflow_mode:
             return 
         if self.crop:
@@ -1764,7 +2075,6 @@ class ImgList(BaseImgList):
                     "image list %s: list is at last index, please change list "
                     "index and retry")
             self.optflow.calc_flow()
-            self.optflow.draw_flow()
             if self.bg_model.scale_rect is None:
                 if self.current_img().edit_log["is_tau"]:
                     raise Exception("Fatal: scale rectangle is not set in "
@@ -1776,7 +2086,9 @@ class ImgList(BaseImgList):
             sub = len_im[roi[1]:roi[3], roi[0]:roi[2]]
             min_len = ceil(sub.mean() + 3 * sub.std()) + 1
             self.optflow.settings.min_length = min_len
-                
+            
+            if draw:
+                self.optflow.draw_flow()
         self._list_modes["optflow"] = val
     
     def det_vign_mask_from_bg_img(self):
@@ -1826,17 +2138,19 @@ class ImgList(BaseImgList):
     Image loading functions 
     """
     def load(self):
-        """Try load current image and previous and next image"""
+        """Try load current and next image"""
         self.update_index_linked_lists() #based on current index in this list
         if not super(ImgList, self).load():
             print ("Image load aborted...")
             return False
         if self.nof > 1:
-            prev_file = self.files[self.prev_index]
-            self.loaded_images["prev"] = Img(prev_file,
-                            import_method=self.camera.image_import_method,
-                            **self.get_img_meta_from_filename(prev_file))
-            self.apply_current_edit("prev")
+#==============================================================================
+#             prev_file = self.files[self.prev_index]
+#             self.loaded_images["prev"] = Img(prev_file,
+#                             import_method=self.camera.image_import_method,
+#                             **self.get_img_meta_from_filename(prev_file))
+#             self.apply_current_edit("prev")
+#==============================================================================
             
             next_file = self.files[self.next_index]
             self.loaded_images["next"] = Img(next_file,
@@ -1844,7 +2158,7 @@ class ImgList(BaseImgList):
                             **self.get_img_meta_from_filename(next_file))
             self.apply_current_edit("next")
         else:
-            self.loaded_images["prev"] = self.loaded_images["this"]
+            #self.loaded_images["prev"] = self.loaded_images["this"]
             self.loaded_images["next"] = self.loaded_images["this"]
         
         if self.optflow_mode:  
@@ -1873,7 +2187,7 @@ class ImgList(BaseImgList):
         
         self.update_index_linked_lists() #loads new images in all linked lists
         
-        self.loaded_images["prev"] = self.loaded_images["this"]
+        #self.loaded_images["prev"] = self.loaded_images["this"]
         self.loaded_images["this"] = self.loaded_images["next"]
         
         next_file = self.files[self.next_index]
@@ -1894,35 +2208,37 @@ class ImgList(BaseImgList):
         return True
         #self.prepare_additional_data()
         
-    def load_prev(self):   
-        """Load previous image in list"""
-        if self.nof < 2 or not self._auto_reload:
-            print ("Could not load previous image, number of files in list: " +
-                str(self.nof))
-            return
-        self.index = self.prev_index
-        self.update_prev_next_index()
-        
-        self.update_index_linked_lists() #loads new images in all linked lists
-    
-        self.loaded_images["next"] = self.loaded_images["this"]
-        self.loaded_images["this"] = self.loaded_images["prev"]
-        
-        prev_file = self.files[self.prev_index]
-        self.loaded_images["prev"] = Img(prev_file,
-                        import_method=self.camera.image_import_method,
-                        **self.get_img_meta_from_filename(prev_file))
-        
-        self.apply_current_edit("prev")
-        if self.optflow_mode:  
-            try:
-                self.set_flow_images()
-                self.optflow.calc_flow()
-            except IndexError:
-                warn("Reached last index in image list, optflow_mode will be "
-                    "deactivated")
-                self.optflow_mode = 0
- 
+#==============================================================================
+#     def load_prev(self):   
+#         """Load previous image in list"""
+#         if self.nof < 2 or not self._auto_reload:
+#             print ("Could not load previous image, number of files in list: " +
+#                 str(self.nof))
+#             return
+#         self.index = self.prev_index
+#         self.update_prev_next_index()
+#         
+#         self.update_index_linked_lists() #loads new images in all linked lists
+#     
+#         self.loaded_images["next"] = self.loaded_images["this"]
+#         self.loaded_images["this"] = self.loaded_images["prev"]
+#         
+#         prev_file = self.files[self.prev_index]
+#         self.loaded_images["prev"] = Img(prev_file,
+#                         import_method=self.camera.image_import_method,
+#                         **self.get_img_meta_from_filename(prev_file))
+#         
+#         self.apply_current_edit("prev")
+#         if self.optflow_mode:  
+#             try:
+#                 self.set_flow_images()
+#                 self.optflow.calc_flow()
+#             except IndexError:
+#                 warn("Reached last index in image list, optflow_mode will be "
+#                     "deactivated")
+#                 self.optflow_mode = 0
+#==============================================================================
+
     def apply_current_edit(self, key):
         """Applies the current image edit settings to image
         
@@ -1932,17 +2248,26 @@ class ImgList(BaseImgList):
             warn("Edit not active in img_list %s: no image preparation will "
                 "be performed" %self.list_id)
             return
+        if key == "this":
+            upd_bgmodel = True
+        else:
+            upd_bgmodel = False
         img = self.loaded_images[key]
         if self.darkcorr_mode:
             dark = self.get_dark_image(key)
             img.subtract_dark_image(dark)
         img.correct_vignetting(self.vign_mask, new_state=self.vigncorr_mode)
         if self.tau_mode:
-            img = self.bg_model.get_tau_image(img, self.bg_img)
+            img = self.bg_model.get_tau_image(plume_img=img, 
+                                              bg_img=self.bg_img,
+                                              update_imgs=upd_bgmodel)
         elif self.aa_mode:
             off = self.get_off_list()
-            img = self.bg_model.get_aa_image(img, off.current_img(),
-                                             self.bg_img, off.bg_img)
+            img = self.bg_model.get_aa_image(plume_on=img, 
+                                             plume_off=off.current_img(),
+                                             bg_on=self.bg_img, 
+                                             bg_off=off.bg_img,
+                                             update_imgs=upd_bgmodel)
             if self.sensitivity_corr_mode:
                 img = img / self.aa_corr_mask
                 img.edit_log["senscorr"] = 1
@@ -2009,8 +2334,51 @@ class ImgList(BaseImgList):
         self.goto_img(idx)
 
         return self.loaded_images["this"]
+    
+    def correct_dilution(self, tau_thresh=0.05, add_off_list=False, 
+                         save_dir=None):
+        """Correct current image for signal dilution
         
+        Requires measurement geometry (:attr:`meas_geometry`) and extinction
+        coefficients (:attr:`ext_coeffs`) to be available in this list.
+        Further, the list needs to be prepared such that :attr:`tau_mode` can
+        be activated
+        
+        """
+        from .dilutioncorr import correct_img
+        if add_off_list:
+            off = self.get_off_list()
+            raise NotImplementedError("coming soon...")
+        
+        try:
+            _, _, plume_dist_img = self.meas_geometry.get_all_pix_to_pix_dists() 
+        except:
+            raise ValueError("Measurement geometry not ready for access "
+                "of plume distances in image list %s" %self.list_id)
+        ext_coeff = self.ext_coeff #raises AttributeError if not available
+        tm = self.tau_mode
+        
+        self.vigncorr_mode = True        
+        self.tau_mode = True
+        mask = self.get_thresh_mask(tau_thresh)
+        bg_on = self.bg_model.current_plume_background
+        bg_on.edit_log["vigncorr"] = True
+        self.tau_mode = False
+        on_corr = correct_img(self.current_img(), ext_coeff, bg_on,
+                              plume_dist_img, mask)
+                                  
+        bad_on = on_corr.img <= 0
+        on_corr.img[bad_on] = self.current_img().img[bad_on]
+            
+        self.tau_mode = tm
+        return on_corr, mask, bg_on
+   
     """Helpers"""
+    @property
+    def next(self):
+        """Next image"""
+        return self.loaded_images["next"]
+        
     @property
     def DARK_CORR_OPT(self):
         """Return the current dark correction mode
@@ -2143,7 +2511,20 @@ class ImgList(BaseImgList):
         if not isinstance(self.bg_img, Img):
             return False
         return True
-
+    
+    @property
+    def ext_coeff(self):
+        """Current extinction coefficient"""
+        if not isinstance(self.ext_coeffs, Series):
+            raise AttributeError("Extinction coefficients not available in "
+                "image list %s" %self.list_id)
+        elif len(self.ext_coeffs) == self.nof:
+            #assuming that time stamps correspond to list time stamps
+            return self.ext_coeffs[self.cfn]
+        else:
+            idx = closest_index(self.current_time(), self.ext_coeffs.index)
+            return self.ext_coeffs[idx]
+            
     """I/O"""
     def import_ext_coeffs_csv(self, file_path, header_id, **kwargs):
         """Import extinction coefficients from csv 

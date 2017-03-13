@@ -6,10 +6,10 @@ Module containing all sorts of helper methods
 import matplotlib.cm as colormaps
 import matplotlib.colors as colors
 from datetime import datetime, time, date
-
+from warnings import warn
 from matplotlib.pyplot import draw
 from numpy import mod, linspace, hstack, vectorize, uint8, cast, asarray,\
-    unravel_index, nanargmax, meshgrid, int, floor, log10, isnan
+    unravel_index, nanargmax, meshgrid, int, floor, log10, isnan, argmin
 from scipy.ndimage.filters import gaussian_filter
 from cv2 import pyrUp
 
@@ -17,6 +17,29 @@ exponent = lambda num: int(floor(log10(abs(num))))
 
 time_delta_to_seconds = vectorize(lambda x: x.total_seconds())
 
+def closest_index(time_stamp, time_stamps):
+    """Find index of time stamp in array to other time stamp
+    
+    Parameters
+    ----------
+    time_stamp : datetime
+        time stamp for which closest match is searched
+    time_stamps : iterable
+        ordered list of time stamps to be searched (i.e. first index is 
+        earliest, last is latest)
+    
+    Returns
+    -------
+    int
+        index of best match
+    """
+    if time_stamp < time_stamps[0]:
+        warn("Time stamp is earlier than first time stamp in array")
+        return 0
+    elif time_stamp > time_stamps[-1]:
+        warn("Time stamp is later than last time stamp in array")
+        return len(time_stamps) - 1
+    return argmin([abs((time_stamp - x).total_seconds()) for x in time_stamps])
 def to_datetime(value):
     """Method to evaluate time and / or date input and convert to datetime"""
     if isinstance(value, datetime):

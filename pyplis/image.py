@@ -307,6 +307,10 @@ class Img(object):
         :param bool reverse: if False, the inverse correction is applied (img
             needs to be corrected)
         """
+        try:
+            mask = mask.img
+        except:
+            pass
         if new_state == self.edit_log["vigncorr"]:
             return self
         try:
