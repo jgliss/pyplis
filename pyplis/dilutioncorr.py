@@ -2,7 +2,8 @@
 """
 pyplis module for image based light dilution correction
 """
-from numpy import asarray, linspace, exp, ones, nan
+from numpy import asarray, linspace, exp, ones, nan, polyfit, poly1d
+from scipy.ndimage.filters import median_filter
 from matplotlib.pyplot import subplots
 from collections import OrderedDict as od
 from warnings import warn
@@ -223,7 +224,8 @@ class DilutionCorr(object):
                                       **kwargs)
         return ext, i0, fit_res, ax
     
-    def get_ext_coeffs_imglist(self, lst, roi_ambient=None, **kwargs):
+    def get_ext_coeffs_imglist(self, lst, roi_ambient=None, apply_median=5,
+                               **kwargs):
         """Apply dilution fit to all images in an :class:`ImgList`
         
         Parameters
@@ -234,6 +236,9 @@ class DilutionCorr(object):
             region of interest used to estimage ambient intensity, if None
             (default), usd :attr:`scale_rect` of :class:`PlumeBackgroundModel`
             of the input list
+        apply_median : int
+            if > 0, then a median filter of provided width is applied to 
+            the result time series (ext. coeffs and initial intensities)
         **kwargs :
             additional keyword args passed to dilution fit method
             :func:`apply_dilution_fit`.
@@ -268,8 +273,8 @@ class DilutionCorr(object):
         nof = lst.nof
         times = lst.acq_times
         coeffs = []
-        init_rads= []
-        ambient_rads = []
+        i0s= []
+        ias = []
         for k in range(nof):
             img = lst.current_img()
             try:
@@ -280,16 +285,19 @@ class DilutionCorr(object):
                                                         plot=False,
                                                         **kwargs)
                 coeffs.append(ext)                            
-                init_rads.append(i0)
-                ambient_rads.append(ia)
+                i0s.append(i0)
+                ias.append(ia)
             except:
                 coeffs.append(nan)                            
-                init_rads.append(nan)
-                ambient_rads.append(nan)
+                i0s.append(nan)
+                ias.append(nan)
             lst.next_img()
         lst.goto_img(cfn)
-        return DataFrame(dict(coeffs=coeffs, i0=init_rads, ia=ambient_rads), 
-                         index=times)
+        if apply_median > 0:
+            coeffs = median_filter(coeffs, apply_median)
+            i0s = median_filter(i0s, apply_median)
+            ias = median_filter(ias, apply_median)
+        return DataFrame(dict(coeffs=coeffs, i0=i0s, ia=ias), index=times)
         
     def correct_img(self, plume_img, ext, plume_bg_img, plume_dist_img,
                     plume_pix_mask):

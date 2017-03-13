@@ -4,15 +4,15 @@ Module containing features related to plume background analysis and tau
 image determination
 """
 from numpy import polyfit, poly1d, linspace, logical_and, log, full, argmin,\
-    gradient, nan, exp, ndarray, arange, ones, finfo
+    gradient, nan, exp, ndarray, arange, ones, finfo, asarray
 from matplotlib.patches import Rectangle
 from matplotlib.pyplot import GridSpec, figure, subplots_adjust, subplot,\
     subplots, setp
 import matplotlib.colors as colors
 from collections import OrderedDict as od
 from scipy.ndimage.filters import gaussian_filter
+from warnings import warn
 
-from .exceptions import ImgMetaError
 from .image import Img
 from .processing import LineOnImage
 from .optimisation import PolySurfaceFit
@@ -80,8 +80,7 @@ class PlumeBackgroundModel(object):
 
         if isinstance(plume_init, Img):
             self.guess_missing_settings(plume_init.img)
-            self.surface_fit_mask = ones(plume_init.img.shape,\
-                                                         dtype = bool)
+            self.surface_fit_mask = ones(plume_init.img.shape, dtype=bool)
                 
     def get_current(self, key = "tau"):
         """Returns current image, specify type via input key
@@ -96,15 +95,40 @@ class PlumeBackgroundModel(object):
         plume image, i.e::
 
             bg_img = Img(exp(tau_img) * plume_img)
+            
         """
-        return Img(exp(self._current_imgs["tau"]) *\
-                                self._current_imgs["plume"])
+        return Img(exp(self._current_imgs["tau"].img) * 
+                    self._current_imgs["plume"].img)
         
     def check_settings(self):
         for value in self.__dict__.values():
             if value is None:
                 return False
         return True
+        
+    def mean_in_rects(self, img):
+        """Determine ``(mean, min, max)`` intensity in all reference rectangles
+        
+        Parameters
+        ----------
+        img : array
+            image data array (can also be :class:`Img`)
+          
+        Returns
+        -------
+        tuple
+            2-element tuple containing mean value and error
+        """
+        try:
+            img = img.img
+        except:
+            pass
+        a = []
+        a.append(_mean_in_rect(img, self.scale_rect)[0])
+        a.append(_mean_in_rect(img, self.ygrad_rect)[0])
+        a.append(_mean_in_rect(img, self.xgrad_rect)[0])
+        a = asarray(a)
+        return (a.mean(), a.min(), a.max())
         
     
     def update(self, **kwargs):
@@ -156,7 +180,7 @@ class PlumeBackgroundModel(object):
         if self.check_settings():
             return
         if self.surface_fit_mask is None:
-            self.surface_fit_mask = full(plume.shape, True, dtype = bool)
+            self.surface_fit_mask = full(plume.shape, True, dtype=bool)
         h, w = plume.shape
         
         res = find_sky_reference_areas(plume)
@@ -212,25 +236,7 @@ class PlumeBackgroundModel(object):
             e.g. 4 => image size for fit is reduced by factor 2^4 = 16)
         :return tuple: 1st entry: fitted background image
             second: ``PolySurfaceFit`` object 
-        
-        Example::
-        
-            from pyplis.PlumeBackground import ModelPlumeBackground as bgModel
-            from numpy import ones, full, log
-            from matplotlib.pyplot import imshow
-            
-            boringExampleImg = ones((512,512)) 
-            boringExampleImg[100:200,150:250] = 15
-            
-            testMask = full((512,512), True, dtype = bool)
-            testMask[boringExampleImg > 2] = False #exclude values exceeding 2
-            
-            m = bgModel()
-            bg = m.bg_from_poly_surface_fit(boringExampleImg,\
-                mask = testMask, polyorder = 1,\
-                pyrlevel = 3)
-            #plot tau image
-            imshow(log(bg/plume))
+    
         """
         #update settings from input keyword args
         if mask is None or not mask.shape == plume.shape:
@@ -238,8 +244,8 @@ class PlumeBackgroundModel(object):
                     " considering all image pixels for retrieval")
             mask = full(plume.shape, True, dtype = bool)   
     
-        fit = PolySurfaceFit(plume, mask.astype(float), polyorder = polyorder,\
-                                                pyrlevel = pyrlevel)
+        fit = PolySurfaceFit(plume, mask.astype(float), polyorder=polyorder,
+                             pyrlevel=pyrlevel)
         return (fit.model, fit)
         
     def subtract_tau_offset(self, tau0, rect):
@@ -254,15 +260,28 @@ class PlumeBackgroundModel(object):
         offs,_ = _mean_in_rect(tau0, rect)
         return tau0 - offs
     
-    def get_tau_image(self, plume_img, bg_img=None, **kwargs):
+    def get_tau_image(self, plume_img, bg_img=None, update_imgs=False, 
+                      **kwargs):
         """Determine current tau image for input plume image
         
-        :param Img plume_img: plume image 
-        :param Img bg_img: sky radiance image (for ``self.CORR_MODE = 1 - 5``)
-        :param **kwargs: keyword arguments for updating current settings
+        Parameters
+        ----------
+        plume_img : Img
+            plume image in intensity space
+        bg_img : :obj:`Img`, optional
+            sky radiance image (for ``self.CORR_MODE = 1 - 6``)
+        update_imgs : bool
+            if True, the internal images within this class are updated 
+            (stored in priv. attr :attr:`_current_imgs`)
+        **kwargs : 
+            additional keyword arguments for updating current settings
             (valid input keywords (strings): CORR_MODE, ygrad_rect, 
             ygrad_line_colnum, ygrad_line_startrow, ygrad_line_stoprow
-        :returns: - :class:`Img`, plume tau image    
+        
+        Returns
+        -------
+        Img
+            plume tau image    
           
         """
         if not isinstance(plume_img, Img):
@@ -271,17 +290,13 @@ class PlumeBackgroundModel(object):
         for k, v in kwargs.iteritems():
             self.__setitem__(k, v)
         if not plume_img.edit_log["darkcorr"]:
-            print ("Warning in PlumeBackgroundModel: plume image is not "
-             " corrected for dark current" )
+            warn("plume image is not corrected for dark current")
         if plume_img.is_tau:
             raise AttributeError("Input image is already tau image")
         plume = plume_img.img
         if self.CORR_MODE != 0:
             if not isinstance(bg_img, Img):
                 bg_img = self.get_current("bg_raw")
-            if not bg_img.edit_log["darkcorr"] == plume_img.edit_log["darkcorr"]:
-                raise ImgMetaError("Error in PlumeBackgroundModel: plume and"
-                    " background image have different dark corr states")
             bg = bg_img.img
 
         tau = None
@@ -309,10 +324,86 @@ class PlumeBackgroundModel(object):
         tau_img.meta["bit_depth"] = nan
         tau_img.edit_log["is_tau"] = 1
         tau_img.img = tau
-        self.set_current_images(plume_img, bg_img, tau_img)
+        if update_imgs:
+            self.set_current_images(plume_img.duplicate(), 
+                                    bg_img.duplicate(), tau_img)
         
         return tau_img
     
+    def get_aa_image(self, plume_on, plume_off, bg_on=None, bg_off=None, 
+                     update_imgs=False, **kwargs):
+        """Method to retrieve apparent absorbance image from on and off imgs
+          
+        Determines an initial AA image based on input plume and background 
+        images and
+        
+        Parameters
+        ----------
+        plume_on : Img
+            on-band plume image
+        plume_off : Img
+            off-band plume image
+        bg_on : :obj:`Img`, optional
+            on-band sky radiance image (for ``self.CORR_MODE = 1 - 6``)
+        bg_off : :obj:`Img`, optional
+            off-band sky radiance image (for ``self.CORR_MODE = 1 - 6``)
+        update_imgs : bool
+            if True, the internal images within this class are updated 
+            (stored in priv. attr :attr:`_current_imgs`), defaults to False
+        **kwargs : 
+            additional keyword arguments for updating current settings
+            (valid input keywords (strings), e.g. ``surface_fit_mask`` if
+            ``CORR_MODE == 0``
+        
+        Returns
+        -------
+        Img
+            plume AA image
+        
+        """ 
+        for k, v in kwargs.iteritems():
+            self.__setitem__(k, v)          
+        if self.CORR_MODE == 0:
+            mask = self.surface_fit_mask
+            po = self.surface_fit_polyorder
+            pyr = self.surface_fit_pyrlevel
+            (bg_on, fit_on) = self.bg_from_poly_surface_fit(plume_on, 
+                                                            mask, po, pyr)
+            (bg_off, fit_off) = self.bg_from_poly_surface_fit(plume_off,
+                                                              mask, po, pyr)
+            r_on = bg_on / plume_on.img
+            #make sure no 0 values or neg. numbers are in the image
+            r_on[r_on <= 0] = finfo(float).eps
+            
+            r_off = bg_off / plume_off.img
+            #make sure no 0 values or neg. numbers are in the image
+            r_off[r_off <= 0] = finfo(float).eps
+            aa = log(r_on) - log(r_off)
+        else:
+            r1 = bg_on.img / plume_on.img
+            r1[r1<=0] = finfo(float).eps
+            r2 = bg_off.img / plume_off.img
+            r2[r2<=0] = finfo(float).eps
+            aa_init = log(r1) - log(r2)
+                            
+            aa = self.correct_tau_curvature_ref_areas(aa_init)
+        
+        aa_img = plume_on.duplicate()
+        aa_img.meta["bit_depth"] = nan
+        aa_img.edit_log["is_tau"] = 1
+        aa_img.edit_log["is_aa"] = 1
+        aa_img.img = aa
+        if update_imgs:
+            try:
+                self.set_current_images(plume_on.duplicate(), 
+                                    bg_on.duplicate(), aa_img)
+            except:
+                self.set_current_images(plume_on.duplicate(), 
+                                        Img(bg_on), aa_img)
+        #self.set_current_images(plume_img, bg_img, tau_img)
+        
+        return aa_img#, Img(aa2)
+        
     def correct_tau_curvature_ref_areas(self, tau_init):
         """Correct an initial tau image such that tau is zero in sky reference
         areas
@@ -379,33 +470,7 @@ class PlumeBackgroundModel(object):
                                                  self.xgrad_line_mask,
                                                  self.xgrad_line_polyorder)
         return tau
-        
-    def get_aa_image(self, plume_on, plume_off, bg_on, bg_off):
-        """Method to retrieve apparent absorbance image from on and off imgs
-                
-        :param Img plume_on: on band plume image
-        :param Img plume_off: off band plume image
-        :param Img bg_on: on band sky radiance image
-        :param Img bg_off: off band sky radiance image
-        
-        """           
-        r1 = bg_on.img/plume_on.img
-        r1[r1<=0] = finfo(float).eps
-        r2 = bg_off.img/plume_off.img
-        r2[r2<=0] = finfo(float).eps
-        aa_init = log(r1) - log(r2)
-                        
-        aa = self.correct_tau_curvature_ref_areas(aa_init)
-        
-        aa_img = plume_on.duplicate()
-        aa_img.meta["bit_depth"] = nan
-        aa_img.edit_log["is_tau"] = 1
-        aa_img.edit_log["is_aa"] = 1
-        aa_img.img = aa
-        #self.set_current_images(plume_img, bg_img, tau_img)
-        
-        return aa_img#, Img(aa2)
-        
+            
     def _prep_img_type(self, img):
         """Checks input images and converts them into ndarrays if they are Img"""
         if isinstance(img, Img):
@@ -615,7 +680,7 @@ class PlumeBackgroundModel(object):
     def __call__(self, plume, bg, **kwargs):
         return self.get_model(plume, bg, **kwargs)
 
-def _mean_in_rect(img_array, rect = None):
+def _mean_in_rect(img_array, rect=None):
     """Helper to get mean and standard deviation of pixels within rectangle
     
     :param ndarray imgarray: the image data

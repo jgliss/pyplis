@@ -8,6 +8,7 @@ from numpy import mgrid,vstack,int32,sqrt,arctan2,rad2deg, asarray, sin, cos,\
     deg2rad, nan, inf, dot, mean, e
 from numpy.linalg import norm
 from traceback import format_exc
+from copy import deepcopy
 from warnings import warn
 from datetime import datetime
 from collections import OrderedDict as od
@@ -397,6 +398,17 @@ class OpticalFlowFarnebackSettings(object):
                             ("disp_len_thresh"      ,   3)])
         
         
+        self.update(**settings)
+    
+    def update(self, **settings):
+        """Update current settings 
+        
+        Parameters
+        ----------
+        **settings 
+            keyword args specifying new settings (only valid keys are
+            considered, i.e. class attributes)
+        """
         for k, v in settings.iteritems():
             self[k] = v # see __setitem__ method
             
@@ -431,9 +443,10 @@ class OpticalFlowFarnebackSettings(object):
         return self._contrast["auto_update"]
     
     @auto_update.setter
-    def auto_update(self):
+    def auto_update(self, val):
         """Upper intensity limit for image contrast preparation"""
-        return self._contrast["auto_update"]
+        if val in [0, 1]:
+            self._contrast["auto_update"] = val
         
     @property
     def pyr_scale(self):
@@ -596,6 +609,10 @@ class OpticalFlowFarnebackSettings(object):
     def disp_len_thresh(self):
         """Return current pixel skip value for displaying flow field"""
         return self._display["disp_len_thresh"]    
+    
+    def duplicate(self):
+        """Returns deepcopy of this object"""
+        return deepcopy(self)
         
     def __str__(self):
         """String representation"""
