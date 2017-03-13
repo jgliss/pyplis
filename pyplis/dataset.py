@@ -21,6 +21,7 @@ from .imagelists import ImgList, DarkImgList
 from .helpers import shifted_color_map
 from .setupclasses import MeasSetup
 from .exceptions import ImgMetaError
+
 class Dataset(object):
     """Class for data import management
     
@@ -32,9 +33,10 @@ class Dataset(object):
     
     This object finds all images in the 
     """
-    def __init__(self, input=None, init=1):
+    def __init__(self, input=None, lst_type=ImgList, init=1):
         self.setup = None
-    
+        
+        self.lst_type = lst_type
         self._lists_intern = od()
         self.lists_access_info = od()
     
@@ -72,11 +74,12 @@ class Dataset(object):
             return 1
         return 0
         
-    def reset_all_img_lists(self):
+    def init_all_img_lists(self):
         """Initialisation of all image lists, old lists are deleted"""
         self._lists_intern = od()
         for key, f in self.filters.filters.iteritems():
-            l = ImgList(list_id=key, list_type=f.type, camera=self.camera)
+            l = self.lst_type(list_id=key, list_type=f.type, 
+                              camera=self.camera, geometry=self.meas_geometry)
             l.filter = f
             if not self._lists_intern.has_key(f.meas_type_acro):
                 self._lists_intern[f.meas_type_acro] = od()
@@ -146,8 +149,13 @@ class Dataset(object):
         print ("Total number of files found %s" %len(all_paths))
         
         return all_paths
-        
+    
+
     def init_image_lists(self):
+        """"Wrapper for :func:`fill_image_lists`"""
+        return self.fill_image_lists()
+        
+    def fill_image_lists(self):
         """Import all images and create image list objects"""
         
         print "\n+++++++++++++++++++++++++++++++++++++++++++++++++"
@@ -158,7 +166,7 @@ class Dataset(object):
         cam = self.camera
         
         #: create img list objects for each filter and for dark / offset lists
-        self.reset_all_img_lists() 
+        self.init_all_img_lists() 
         #: check if image filetype is specified and if not, set option to use 
         #: all file types
         self._check_file_type() 

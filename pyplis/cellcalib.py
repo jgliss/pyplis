@@ -718,7 +718,8 @@ class CellCalibEngine(Dataset):
         print 
         print "INIT CALIB DATASET OBJECT"
         print
-        super(CellCalibEngine, self).__init__(setup, init)
+        super(CellCalibEngine, self).__init__(setup, lst_type=CellImgList, 
+                                              init=init)
                         
         self.type = "cell_calib"
         

@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
 from os.path import abspath, dirname
 from pkg_resources import get_distribution
+from matplotlib import rcParams
+
+rcParams["mathtext.default"] = u"regular"
 
 __version__ = get_distribution('pyplis').version
 
@@ -45,9 +48,7 @@ import helpers
 import exceptions
 import glob
 
-from matplotlib import rcParams
 
-rcParams["mathtext.default"] = u"regular"
 
 
 #import gui_features as gui_features

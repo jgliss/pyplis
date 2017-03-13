@@ -24,10 +24,11 @@ Image list objects of pyplis library
 
 """
 from numpy import asarray, zeros, argmin, arange, ndarray, float32, ceil,\
-    isnan, ones, nan
+    isnan
 from ntpath import basename
 from datetime import timedelta, datetime
 #from bunch import Bunch
+from pandas import Series, DataFrame
 from matplotlib.pyplot import figure, draw
 from copy import deepcopy
 from scipy.ndimage.filters import gaussian_filter
@@ -60,7 +61,7 @@ class BaseImgList(object):
     
     """
     def __init__(self, files=[], list_id=None, list_type=None,
-                 camera=None, init=True, **img_prep_settings):
+                 camera=None, geometry=None, init=True, **img_prep_settings):
         """Init image list
         
         :param list files: list with file names
@@ -77,6 +78,8 @@ class BaseImgList(object):
         self.list_type = list_type
         
         self.filter = None #can be used to store filter information
+        self._meas_geometry = None
+        
         
         self.set_camera(camera)
         
@@ -110,10 +113,36 @@ class BaseImgList(object):
                 
         if bool(files):
             self.add_files(files)
+        
+        if isinstance(geometry, MeasGeometry):
+            self.meas_geometry = geometry
             
         if self.data_available and init:
             self.load()
-         
+            
+    def plume_dist_access(self):
+        """Checks if measurement geometry is available"""
+        if not isinstance(self.meas_geometry, MeasGeometry):
+            return False
+        try:
+            _, _, plume_dist_img = self.meas_geometry.get_all_pix_to_pix_dists()  
+            print "Plume distances available, dist_avg = %.2f" %plume_dist_img.mean()
+        except:
+            return False
+        
+    @property
+    def meas_geometry(self):
+        """Get / set current measurement geometry"""
+        return self._meas_geometry
+    
+    @meas_geometry.setter
+    def meas_geometry(self, val):
+        """Set :class:`pyplis.Utils.MeasGeometry` object"""
+        if not isinstance(val, MeasGeometry):
+            raise TypeError("Could not set meas_geometry, need MeasGeometry "
+                "object")
+        self._meas_geometry = val
+        
     def update_img_prep(self, **settings):
         """Update image preparation settings and reload"""
         for key, val in settings.iteritems():
@@ -1033,7 +1062,7 @@ class ImgList(BaseImgList):
     
     """
     def __init__(self, files=[], list_id=None, list_type=None, camera=None,
-                 init=True):
+                 geometry=None, init=True):
         """
             
         Extended version of :class:`BaseImgList` object, additional
@@ -1046,12 +1075,12 @@ class ImgList(BaseImgList):
             #. Include
             
         """
-        super(ImgList, self).__init__(files, list_id, list_type,\
-                                                camera, init = False)
+        super(ImgList, self).__init__(files, list_id, list_type, camera, 
+                                      geometry, init=False)
+                                      
         self.loaded_images.update({"prev": None, 
                                    "next": None})
     
-        self._meas_geometry = None
         #: List modes (currently only tau) are flags for different list states
         #: and need to be activated / deactivated using the corresponding
         #: method (e.g. :func:`activate_tau_mode`) to be changed, dont change
@@ -1063,6 +1092,11 @@ class ImgList(BaseImgList):
                                  "aa"        :  0,
                                  "senscorr"  :  0,
                                  "gascalib"  :  0})
+                                 
+        self.dil_corr_thresh = {"on"    :   0.0,
+                                "off"   :   0.0,
+                                "aa"    :   0.0}
+        self._ext_coeffs = None
         
         self._bg_imgs = [None, None] #sets bg images, 
         self.bg_model = PlumeBackgroundModel()
@@ -1138,6 +1172,17 @@ class ImgList(BaseImgList):
                                                            new_state=0)
             self._bg_imgs = [bg, bg_vigncorr]
     
+    @property
+    def ext_coeffs(self):
+        """Dilution extinction coefficients"""
+        return self._ext_coeffs
+        
+    @ext_coeffs.setter
+    def ext_coeffs(self, val):
+        if not isinstance(val, Series):
+            raise ValueError("Need pandas Series object")
+        self._ext_coeffs = val
+        
     @property
     def bg_img(self):
         """Return background image based on current vignetting corr setting"""
@@ -1256,18 +1301,7 @@ class ImgList(BaseImgList):
         """
         self.optflow = optflow
     
-    @property
-    def meas_geometry(self):
-        """Get / set current measurement geometry"""
-        return self._meas_geometry
     
-    @meas_geometry.setter
-    def meas_geometry(self, val):
-        """Set :class:`pyplis.Utils.MeasGeometry` object"""
-        if not isinstance(val, MeasGeometry):
-            raise TypeError("Could not set meas_geometry, need MeasGeometry "
-                "object")
-        self._meas_geometry = val
                 
     def link_imglist(self, other_list):
         """Link another image list to this list
@@ -1673,7 +1707,7 @@ class ImgList(BaseImgList):
             offlist = self.get_off_list()
             if not isinstance(offlist, ImgList):
                 raise Exception("Linked off band list could not be found")
-            if not offlist.nof / float(self.nof) > 0.5:
+            if not offlist.nof / float(self.nof) > 0.25:
                 raise IndexError("Off band list does not have enough images...")
             if not self.has_bg_img():
                 raise AttributeError("no background image available, please set "
@@ -2109,6 +2143,38 @@ class ImgList(BaseImgList):
         if not isinstance(self.bg_img, Img):
             return False
         return True
+
+    """I/O"""
+    def import_ext_coeffs_csv(self, file_path, header_id, **kwargs):
+        """Import extinction coefficients from csv 
+        
+        The text file requires datetime information in the first column and
+        a header which can be used to identify the column. The import is 
+        performed using :func:`pandas.DataFrame.from_csv` 
+        
+        Parameters
+        ----------
+        file_path : str
+            the csv data file
+        header_id : str
+            header string for column containing ext. coeffs
+        **kwargs :
+            additionald keyword args passed to :func:`pandas.DataFrame.from_csv`
+            
+        Returns
+        -------
+        Series
+            pandas Series containing extinctinction coeffs
+            
+        Todo
+        ----
+        
+        This is a Beta version, insert try / except block after testing
+        
+        """
+        df = DataFrame.from_csv(file_path, **kwargs)
+        self.ext_coeffs = df[header_id]
+        return self.ext_coeffs
         
     """Private methods"""        
     def _aa_test_img(self, off_list):
@@ -2133,9 +2199,10 @@ class CellImgList(ImgList):
     density) in this cell.
     """
     def __init__(self, files=[], list_id=None, list_type=None, camera=None,
-                 cell_id="", gas_cd=0.0, gas_cd_err=0.0):
+                 geometry=None, cell_id="", gas_cd=0.0, gas_cd_err=0.0):
         
-        super(CellImgList, self).__init__(files, list_id, list_type, camera)
+        super(CellImgList, self).__init__(files, list_id, list_type, camera,
+                                          geometry)
         self.cell_id = cell_id
         self.gas_cd = gas_cd
         self.gas_cd_err = gas_cd_err

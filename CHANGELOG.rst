@@ -73,6 +73,14 @@ release (version 0.9.2)
     - ``invert``: inverts an image object (added entry in edit_log)
   
   #. New method ``get_mean_img`` in image list classes: determines average image based on start / stop index (or for all images in list)
-  
   #. Removed bug in ``Img`` method ``to_pyrlevel`` for going up in pyramid
+  
+09/03/2017
+==========
+
+  1. Class ``Dataset`` objects can now initiated with differnt ``ImgList`` types (e.g. ``CellCalibEngine`` is now initiated with ``CellImgList`` objects)
+  #. implementation of method to apply dilution correction to an plume image ``correct_img`` moved as global method in ``dilutioncorr.py`` and is now a wrapper in ``DilutionCorr`` class.
+  #. New methods in ``DilutionCorr`` class:
+  
+    - ``get_ext_coeffs_imglist``: retrieve extinction coefficients for all images in an :class:`ImgList` object.
   
