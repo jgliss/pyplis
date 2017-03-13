@@ -78,9 +78,11 @@ release (version 0.9.2)
 09/03/2017
 ==========
 
-  1. Class ``Dataset`` objects can now initiated with differnt ``ImgList`` types (e.g. ``CellCalibEngine`` is now initiated with ``CellImgList`` objects)
+  1. Class ``Dataset`` objects can now be initiated with differnt ``ImgList`` types (e.g. ``CellCalibEngine`` is now initiated with ``CellImgList`` objects)
   #. implementation of method to apply dilution correction to an plume image ``correct_img`` moved as global method in ``dilutioncorr.py`` and is now a wrapper in ``DilutionCorr`` class.
   #. New methods in ``DilutionCorr`` class:
   
     - ``get_ext_coeffs_imglist``: retrieve extinction coefficients for all images in an :class:`ImgList` object.
-  
+
+13/03/2017
+==========  
