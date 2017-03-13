@@ -6,13 +6,15 @@ from numpy import asarray, linspace, exp, ones, nan
 from matplotlib.pyplot import subplots
 from collections import OrderedDict as od
 from warnings import warn
-from pandas import Series
+from pandas import Series, DataFrame
 
 from .processing import LineOnImage
 from .image import Img
 from .optimisation import dilution_corr_fit
 from .model_functions import dilutioncorr_model
 from .geometry import MeasGeometry
+from .helpers import check_roi
+from .imagelists import ImgList
 
 class DilutionCorr(object):
     """Class for management of dilution correction
@@ -23,25 +25,38 @@ class DilutionCorr(object):
     coefficients) and to apply the dilution correction.
     
     This class does not store any results related to individual images.
-    """
-    def __init__(self, lines, meas_geometry, **settings):
-        """Class initialisation
+    
+    Parameters
+    ----------
+    lines : list
+        optional, list containing :class:`LineOnImage` objects used to 
+        retrieve terrain distances for the dilution fit
+    meas_geometry : MeasGeometry
+        optional, measurement geometry (required for terrain distance
+        retrieval)
+    **settings :
+        settings for terrain distance retrieval:
+            
+            - skip_pix: specify pixel step on line for which topo \
+                intersections are searched
+            - min_slope_angle: minimum slope of topography in order to be \
+                considered for topo distance retrieval
+            - topo_res_m: interpolation resolution applied to \
+                :class:`ElevationProfile` objects used to find intersections \
+                of pixel viewing direction with topography
         
-        :param lines: can be :class:`LineOnImage` or a list containing 
-            such objects. Pixels on these lines are used to retrieve distances 
-            to topography and radiances from plume images, respectively
-        :param MeasGeometry meas_geometry: the measurement geometry
-        :param **settings: settings for topo distance retrievals
-        """
-        if isinstance(lines, LineOnImage):
+    """
+    def __init__(self, lines=None, meas_geometry=None, **settings):
+        if lines is None:
+            lines = []
+        elif isinstance(lines, LineOnImage):
             lines = [lines]
         if not isinstance(lines, list):
             raise TypeError("Invalid input type for parameter lines, need "
                 "LineOnGrid class or a python list containing LineOnGrid "
                 "objects")
         if not isinstance(meas_geometry, MeasGeometry):
-            raise TypeError("Invalid input type for parameter meas_geometry, "
-                "need MeasGeometry class")
+            meas_geometry = MeasGeometry()
         self.meas_geometry = meas_geometry
         self.lines = od()
 
@@ -61,11 +76,11 @@ class DilutionCorr(object):
      
     @property
     def line_ids(self):
-        """Return IDs of all LineOnImage objects attached to this class"""
+        """IDs of all :class:`LineOnImage` objects for distance retrieval"""
         return self.lines.keys()
         
     def update_settings(self, **settings):
-        """Update settings dict"""
+        """Update settings dict for topo distance retrieval"""
         for k, v in settings.iteritems():
             if self.settings.has_key(k):
                 self.settings[k] = v
@@ -77,8 +92,18 @@ class DilutionCorr(object):
         ``self.lines`` using ``self.meas_geometry`` (i.e. camera position
         and viewing direction).
         
-        :param **settings: update ``self.settings`` dict before search is 
-            applied
+        Parameters
+        ----------
+        line_id : str
+            ID of line
+        **settings :
+            additional key word args used to update search settings
+            
+        Returns
+        -------
+        array
+            retrieved distances
+            
         """     
         if not line_id in self.lines.keys():
             raise KeyError("No line with ID %s available" %line_id)
@@ -93,13 +118,23 @@ class DilutionCorr(object):
         self._skip_pix[line_id] = self.settings["skip_pix"]
         return dists
             
-    def get_data(self, img, line_ids=[]):
-        """Returns array with all available distances
+    def get_radiances(self, img, line_ids=[]):
+        """Get radiances for dilution fit along terrain lines
         
-        :param Img img: vignetting corrected plume image
-        :param list line_ids: if desired, the data can also be accessed for
-            specified line ids, which have to be provided in a list. If empty
-            (default), all lines are considered
+        The data is only extracted along specified input lines. The terrain 
+        distance retrieval :func:`det_topo_dists_line` must have been performed 
+        for that.
+        
+        Parameters
+        ----------
+        img : Img 
+            vignetting corrected plume image from which the radiances are 
+            extracted
+        line_ids : list 
+            if desired, the data can also be accessed for specified line ids, 
+            which have to be provided in a list. If empty (default), all lines
+            assigned to this class are considered
+        
         """
         if not isinstance(img, Img) or not img.edit_log["vigncorr"]:
             raise ValueError("Invalid input, need Img class and Img needs to "
@@ -122,8 +157,8 @@ class DilutionCorr(object):
         return asarray(dists), asarray(rads)
     
     def apply_dilution_fit(self, img, rad_ambient, i0_guess=None,
-                      i0_min=0, i0_max=None, ext_guess=1e-4, ext_min=0,
-                      ext_max=1e-3, line_ids =[], plot=True, **kwargs):
+                           i0_min=0, i0_max=None, ext_guess=1e-4, ext_min=0,
+                           ext_max=1e-3, line_ids =[], plot=True, **kwargs):
         """Perform dilution correction fit to retrieve extinction coefficient
         
         Uses :func:`dilution_corr_fit` of :mod:`optimisation` which is a 
@@ -134,26 +169,50 @@ class DilutionCorr(object):
             I_{meas}(\lambda) = I_0(\lambda)e^{-\epsilon(\lambda)d} + 
             I_A(\lambda)(1-e^{-\epsilon(\lambda)d})
         
-        :param Img img: vignetting corrected image for radiance extraction
-        :param float rad_ambient: ambient intensity (:math:`I_A` in model)
-        :param i0_guess: guess value for initial intensity of topographic 
+        Parameters
+        ----------
+        img : Img
+            vignetting corrected image for radiance extraction
+        rad_ambient : float
+            ambient intensity (:math:`I_A` in model)
+        i0_guess : float
+            optional: guess value for initial intensity of topographic 
             features, i.e. the reflected radiation before entering scattering 
             medium (:math:`I_0` in model, if None, then it is set 5% of the 
             ambient intensity ``rad_ambient``)
-        :param float i0_min: minimum initial intensity of topographic features
-        :param float i0_max: maximum initial intensity of topographic features
-        :param float ext_guess: guess value for atm. extinction coefficient
+        i0_min : float
+            optional: minimum initial intensity of topographic features
+        i0_max : float
+            optional: maximum initial intensity of topographic features
+        ext_guess : float
+            guess value for atm. extinction coefficient
             (:math:`\epsilon` in model)
-        :param float ext_min: minimum value for atm. extinction coefficient
-        :param float ext_max: maximum value for atm. extinction coefficient
-        :param list line_ids: if desired, the data can also be accessed for
-            specified line ids, which have to be provided in a list. If empty
-            (default), all lines are considered        
-        :param bool plot: if True, the result is plotted
-        :param **kwargs: keyword args passed to plotting function (e.g. to 
+        ext_min : float
+            minimum value for atm. extinction coefficient
+        ext_max : float
+            maximum value for atm. extinction coefficient
+        line_ids : list
+            if desired, the data can also be accessed for specified line ids, 
+            which have to be provided in a list. If empty (default), all lines 
+            are considered        
+        plot : bool 
+            if True, the result is plotted
+        **kwargs : 
+            additional keyword args passed to plotting function (e.g. to 
             pass an axes object)
+        
+        Returns
+        -------
+        tuple
+            4-element tuple containing
+            
+            - retrieved extinction coefficient
+            - retrieved initial intensity
+            - fit result object
+            - axes instance or None (dependent on :param:`plot`)
+            
         """    
-        dists, rads = self.get_data(img, line_ids)
+        dists, rads = self.get_radiances(img, line_ids)
         fit_res = dilution_corr_fit(rads, dists, rad_ambient, i0_guess,
                                     i0_min, i0_max, ext_guess,
                                     ext_min, ext_max)
@@ -164,42 +223,90 @@ class DilutionCorr(object):
                                       **kwargs)
         return ext, i0, fit_res, ax
     
+    def get_ext_coeffs_imglist(self, lst, roi_ambient=None, **kwargs):
+        """Apply dilution fit to all images in an :class:`ImgList`
+        
+        Parameters
+        ----------
+        lst : ImgList
+            image list for which the coefficients are supposed to be retrieved
+        roi_ambient : list
+            region of interest used to estimage ambient intensity, if None
+            (default), usd :attr:`scale_rect` of :class:`PlumeBackgroundModel`
+            of the input list
+        **kwargs :
+            additional keyword args passed to dilution fit method
+            :func:`apply_dilution_fit`.
+        
+        Returns
+        -------
+        DataFrame
+            pandas data frame containing time series of retrieved extinction
+            coefficients and initial intensities as well as the ambient 
+            intensities used, access keys are:
+            
+                - ``coeffs``: retrieved extinction coefficients
+                - ``i0``: retrieved initial intensities
+                - ``ia``: retrieved ambient intensities
+            
+        """
+        if not isinstance(lst, ImgList):
+            raise ValueError("Invalid input type for param lst, need ImgList")
+        lst.vigncorr_mode = True
+        
+        if not check_roi(roi_ambient):
+            try:
+                roi_ambient = lst.bg_model.scale_rect
+            except:
+                pass
+            if not  check_roi(roi_ambient):
+                raise ValueError("Input parameter roi_ambient is not a valied"
+                    "ROI and neither is scale_rect in background model of "
+                    "input image list...")
+        cfn=lst.cfn
+        lst.goto_img(0)
+        nof = lst.nof
+        times = lst.acq_times
+        coeffs = []
+        init_rads= []
+        ambient_rads = []
+        for k in range(nof):
+            img = lst.current_img()
+            try:
+                ia= img.crop(roi_ambient, True).mean()
+    
+                ext, i0, _, _ = self.apply_dilution_fit(img=img,
+                                                        rad_ambient=ia, 
+                                                        plot=False,
+                                                        **kwargs)
+                coeffs.append(ext)                            
+                init_rads.append(i0)
+                ambient_rads.append(ia)
+            except:
+                coeffs.append(nan)                            
+                init_rads.append(nan)
+                ambient_rads.append(nan)
+            lst.next_img()
+        lst.goto_img(cfn)
+        return DataFrame(dict(coeffs=coeffs, i0=init_rads, ia=ambient_rads), 
+                         index=times)
+        
     def correct_img(self, plume_img, ext, plume_bg_img, plume_dist_img,
                     plume_pix_mask):
         """Perform dilution correction for a plume image
+       
+        Note
+        -----
         
-        Corresponds to Eq. 4 in in `Campion et al., 2015 <http://
-        www.sciencedirect.com/science/article/pii/S0377027315000189>`_.
+        See :func:`correct_img` for description
         
-        :param Img plume_img: vignetting corrected plume image
-        :param float ext: atmospheric extinction coefficient
-        :param Img plume_bg_img: vignetting corrected plume background image
-            (can be, for instance retrieved using :mod:`plumebackground`)
-        :param ndarray plume_dist_img: plume distance image (pixel values
-            correspond to plume distances in m), can also be type :class:`Img`
-        :param ndarray plume_pix_mask: mask specifying plume pixels (only those are
-            corrected), can also be type :class:`Img`
+        Returns
+        -------
+        Img
+            dilution corrected image
         """
-        for im in [plume_img, plume_bg_img]:
-            if not isinstance(im, Img) or im.edit_log["vigncorr"] == False:
-                raise ValueError("Plume and background image need to Img objects"
-                " and vignetting corrected")
-        
-        try:
-            plume_dist_img = plume_dist_img.img
-        except:
-            pass
-        try:
-            plume_pix_mask = plume_pix_mask.img
-        except:
-            pass
-
-        dists = plume_pix_mask.astype(float) * plume_dist_img 
-        corr_img = plume_img.duplicate()
-        corr_img.img = ((corr_img.img - plume_bg_img.img *
-                        (1 - exp(-ext * dists))) / exp(-ext * dists))
-        corr_img.edit_log["dilcorr"] = True
-        return corr_img
+        return correct_img(plume_img, ext, plume_bg_img, plume_dist_img,
+                           plume_pix_mask)
         
     def plot_fit_result(self, dists, rads, rad_ambient, i0, ext, ax=None):
         """Plot result of dilution fit"""
@@ -287,7 +394,56 @@ class DilutionCorr(object):
         if axis_off:
             map3d.ax.set_axis_off()
         return map3d
+
+def correct_img(plume_img, ext, plume_bg_img, plume_dist_img, plume_pix_mask):
+    """Perform dilution correction for a plume image
+    
+    Corresponds to Eq. 4 in in `Campion et al., 2015 <http://
+    www.sciencedirect.com/science/article/pii/S0377027315000189>`_.
+    
+    Parameters
+    ----------
+    plume_img : Img
+        vignetting corrected plume image
+    ext : float 
+        atmospheric extinction coefficient
+    plume_bg_img : Img
+        vignetting corrected plume background image (can be, for instance, 
+        retrieved using :mod:`plumebackground`)
+    plume_dist_img : array 
+        plume distance image (pixel values correspond to plume distances in m), 
+        can also be type :class:`Img`
+    plume_pix_mask : ndarray 
+        mask specifying plume pixels (only those are corrected), can also be 
+        type :class:`Img`
         
+    Returns
+    -------
+    Img
+        dilution corrected image
+        
+    """
+    for im in [plume_img, plume_bg_img]:
+        if not isinstance(im, Img) or im.edit_log["vigncorr"] == False:
+            raise ValueError("Plume and background image need to Img objects"
+            " and vignetting corrected")
+    
+    try:
+        plume_dist_img = plume_dist_img.img
+    except:
+        pass
+    try:
+        plume_pix_mask = plume_pix_mask.img
+    except:
+        pass
+
+    dists = plume_pix_mask.astype(float) * plume_dist_img 
+    corr_img = plume_img.duplicate()
+    corr_img.img = ((corr_img.img - plume_bg_img.img *
+                    (1 - exp(-ext * dists))) / exp(-ext * dists))
+    corr_img.edit_log["dilcorr"] = True
+    return corr_img   
+    
 def get_topo_dists_lines(lines, geom, img=None, skip_pix=5, topo_res_m=5.0, 
                          min_slope_angle=5.0, plot=False, line_color="lime"):
 

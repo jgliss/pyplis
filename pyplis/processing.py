@@ -464,56 +464,97 @@ class LineOnImage(object):
         return LineOnImage(x0, y0, x1, y1, roi_abs=roi_abs, pyrlevel=pyrlevel,
                            normal_orientation=self.normal_orientation,
                            line_id=self.line_id)
-            
+    
+    @property
+    def coords(self):
+        """Return coordinates as ROI list"""
+        return [self.x0, self.y0, self.x1, self.y1]
+        
     def check_coordinates(self):
-        """Check if coordinates are in the right order and exchange start/stop
-        points if necessary
+        """Check line coordinates
+        
+        Checks if coordinates are in the right order and exchanges start / stop
+        points if not
+        
+        Raises
+        ------
+        ValueError
+            if any of the current coordinates is smaller than zero
         """
-        if any([x < 0 for x in self.start]):
-            raise ValueError("Invalid value encountered, start coordinates of "
-                "line must be bigger than 0")
+        if any([x < 0 for x in self.coords]):
+            raise ValueError("Invalid value encountered, all coordinates of "
+                "line must exceed zero, current coords: %s" %self.coords)
         if self.start[0] > self.stop[0]:
             print ("x coordinate of start point is larger than of stop point: "
                     "start and stop will be exchanged")
             self.start, self.stop = self.stop, self.start
      
     def in_image(self, img_array):
-        """Check if this line is within the coordinates of an image array"""
+        """Check if this line is within the coordinates of an image array
+        
+        Parameters        
+        ----------
+        img_array : array
+            image data
+            
+        Returns
+        -------
+        bool
+            True if point is in image, False if not
+        """
         if not all(self.point_in_image(p, img_array)\
                                     for p in [self.start, self.stop]):
-            return 0
-        return 1
+            return False
+        return True
         
     def point_in_image(self, x, y, img_array):
         """
         Check, if input x and y coordinates are within an image array. It is
         assumed that y direction is first dimension of image array-
         
-        :param int x: x coordinate of point
-        :param int y: y coordinate of point
+        Parameters
+        ----------
+        x : int
+            x coordinate of point
+        y : int
+            y coordinate of point
+        img_array : array
+            image data
         
-        :return bool val: True or false
+        Returns
+        -------
+        bool
+            True if point is in image, False if not
         
         """
         h, w = img_array.shape[:2]
         if not 0 < x < w:
             print "x coordinate out of image"
-            return 0
+            return False
         if not 0 < y < h:
             print "y coordinate out of image"
-            return 0
-        return 1
+            return False
+        return True
     
     def get_roi_abs_coords(self, img_array, add_left=80, add_right=80,
                            add_bottom=80, add_top=80):
         """Get a rectangular ROI covering this line 
-                
-        :param int add_left: expand range to left of line (in pix)
-        :param int add_right: expand range to right of line (in pix)
-        :param int add_bottom: expand range to bottom of line (in pix)
-        :param int add_top: expand range to top of line (in pix)
         
-        :returns list: rectangle specifying the ROI ``[x0,y0,x1,y1]``
+        Parameters
+        ----------
+        add_left : int
+            expand range to left of line (in pix)
+        add_right : int
+            expand range to right of line (in pix)
+        add_bottom : int
+            expand range to bottom of line (in pix)
+        add_top : int
+            expand range to top of line (in pix)
+        
+        Returns
+        -------
+        list
+            ROI around this line
         
         """
         
@@ -529,10 +570,18 @@ class LineOnImage(object):
     def check_roi_borders(self, roi, img_array):
         """ Check if all points of ROI are within image borders
         
-        :param list roi: list specifying ROI rectangle: ``[x0,y0,x1,y1]``
-        :param ndarray img_array: the image to which the ROI is applied
-        :return: roi within image coordinates (unchanged, if input is ok, else
-            image borders)
+        Parameters
+        ----------
+        roi : list 
+            ROI rectangle ``[x0,y0,x1,y1]``
+        img_array : array
+            exemplary image data for which the ROI is checked
+            
+        Returns
+        -------
+        list        
+            roi within image coordinates (unchanged, if input is ok, else image 
+            borders)
         """
         x0, y0 = roi[0], roi[1]
         x1, y1 = roi[2], roi[3]
@@ -548,9 +597,12 @@ class LineOnImage(object):
         return [x0, y0, x1, y1]
             
     def prepare_profile_coordinates(self):
-        """Prepare the evaluation coordinates
+        """Prepare the analysis mesh
         
-        The number analysis points on this object correponds to the physical 
+        Note
+        ----
+        
+        The number of analysis points on this object correponds to the physical 
         length of this line in pixel coordinates. 
         """
         length = self.length()
@@ -566,11 +618,19 @@ class LineOnImage(object):
         return int(round(hypot(*self._delx_dely())))
         
     def get_line_profile(self, array):
-        """Retrieve the line profile on input input grid
+        """Retrieve the line profile along pixels in input array
+         
+        Parameters
+        ----------
+        array : array
+            2D data array (e.g. image data). Color images are converted into
+            gray scale using :func:`cv2.cvtColor`.
         
-        :param ndarray array: the image array (color images are converted into
-                            gray scale using :func:`cv2.cvtColor`) 
-        :return
+        Returns
+        -------
+        array
+            profile
+            
         """
         try:
             array = array.img #if input is Img object
@@ -596,16 +656,28 @@ class LineOnImage(object):
     """
     def plot_line_on_grid(self, img_arr=None, ax=None, include_normal=False, 
                           **kwargs):
-        """Draw the line on the image
+        """Draw this line on the image
         
-        :param ndarray img_arr: if specified, the array is plotted using 
-            :func:`imshow` and onto that axes, the line is drawn
-        :param ax: matplotlib axes object. Is created if unspecified. Leave 
+        Parameters
+        ----------
+        
+        img_arr : ndarray 
+            if specified, the array is plotted using :func:`imshow` and onto 
+            that axes, the line is drawn
+        ax : 
+            matplotlib axes object. Is created if unspecified. Leave 
             :param:`img_arr` empty if you want the line to be drawn onto an
             already existing image (plotted in ax)
-        :param **kwargs: additional keyword arguments for plotting of line
-            (please use following keys: marker for marker style, mec for marker 
+        **kwargs : 
+            additional keyword arguments for plotting of line (please use 
+            following keys: marker for marker style, mec for marker 
             edge color, c for line color and ls for line style)
+            
+        Returns
+        -------
+        Axes
+            matplotlib axes instance
+            
         """
         new_ax = False
         keys = kwargs.keys()
@@ -639,7 +711,7 @@ class LineOnImage(object):
             epx, epy = n[0], n[1]
             c = p[0].get_color()
             ax.arrow(xm, ym, epx, epy, head_width=mag/2, head_length=mag,
-                     fc=c, ec=c, label="Scaled normal")
+                     fc=c, ec=c)
             
         #axis('image')
         if new_ax:
@@ -657,22 +729,29 @@ class LineOnImage(object):
         p = self.get_line_profile(img_arr)
         ax.set_xlim([0,self.length()])
         ax.grid()
-        ax.plot(p)
+        ax.plot(p, label=self.line_id)
         ax.set_title("Profile")
         return ax
     
     def plot(self, img_arr):
-        """Basically calls
+        """Creates two subplots showing line on image and corresponding profile
         
-            1. self.plot_line_on_grid() and
-            #. self.plot_line_profile()
+        Parameters
+        ----------
+        img_arr : array
+            the image data
+        
+        Returns
+        -------
+        Figure
+            figure containing the supblots
             
-        and puts them next to each other in a subplot
         """
         fig, axes = subplots(1,2)
         self.plot_line_on_grid(img_arr,axes[0])
         self.plot_line_profile(img_arr,axes[1])
         tight_layout()
+        return fig
         
     def _delx_dely(self):
         """Length of x and y range covered by line"""
