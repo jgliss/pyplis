@@ -1,12 +1,24 @@
 # -*- coding: utf-8 -*-
 """
-pyplis example script no. 11 - Image based light dilution correction
+pyplis example script no. 11 - Image based signal dilution correction
+
+This script illustrates how extinction coefficients can be retrieved from 
+image data using the DilutionCorr class and by specifying suitable terrain
+features in the images. 
+
+The extinction coefficients are retrieved from one on an from one off band 
+image recorded ~15 mins before the dataset used in the other examples. The 
+latter data is less suited for illustrating the feature since it contains 
+less terrain (therfore more sky background). 
+
+The two example images are then corrected for dilution and the results are 
+plotted (as comparison of the retrieved emission rate along an exemplary 
+plume cross section)
 """
 import pyplis as pyplis
 from geonum.base import GeoPoint
 from matplotlib.pyplot import show, close, subplots, Rectangle
 from datetime import datetime
-import numpy as np
 from os.path import join, exists
 
 from pyplis.dilutioncorr import DilutionCorr
@@ -14,13 +26,13 @@ from pyplis.doascalib import DoasCalibData
 
 ### IMPORT GLOBAL SETTINGS
 from SETTINGS import IMG_DIR, SAVEFIGS, SAVE_DIR, FORMAT, DPI, OPTPARSE
-
 ### IMPORTS FROM OTHER EXAMPLE SCRIPTS
 from ex10_bg_imglists import get_bg_image_lists
 
 ### SCRIPT OPTONS  
 # lower boundary for I0 value in dilution fit
 I0_MIN = 0.0 
+AA_THRESH = 0.03
 
 # exemplary plume cross section line for emission rate retrieval (is also used
 # for full analysis in ex12)
@@ -52,10 +64,8 @@ AMBIENT_ROI = [1240, 10, 1300, 70]
 
 # Specify plume velocity (for emission rate estimate)
 PLUME_VELO = 4.14 #m/s (result from ex8)
-SO2_MMOL = pyplis.fluxcalc.MOL_MASS_SO2
 
 ### RELEVANT DIRECTORIES AND PATHS
-
 CALIB_FILE = join(SAVE_DIR, "pyplis_doascalib_id_aa_avg_20150916_0706_0721.fts")
 
 ### SCRIPT FUNCTION DEFINITIONS        
@@ -143,17 +153,18 @@ def prepare_lists(dataset):
     offlist = dataset.get_list("off")
     bg_onlist, bg_offlist = get_bg_image_lists() #dark_corr_mode already active
     
-    #prepare img pre-edit
+    # prepare img pre-edit
     onlist.darkcorr_mode = True
-    onlist.add_gaussian_blurring(2)
+    onlist.gaussian_blurring = 2
     offlist.darkcorr_mode = True
-    offlist.add_gaussian_blurring(2)
+    offlist.gaussian_blurring = 2
     
-    #prepare background images in lists
+    # prepare background images in lists (when assigning a background image 
+    # to a ImgList, then the blurring amount of the BG image is automatically
+    # set to the current blurring level of the list, and if the latter is 
+    # zero, then the BG image is blurred using filter width=1)
     onlist.bg_img = bg_onlist.current_img()
     offlist.bg_img = bg_offlist.current_img()
-    onlist.bg_img.add_gaussian_blurring(2)
-    offlist.bg_img.add_gaussian_blurring(2)
     
     #prepare plume background modelling setup in both lists
     onlist.bg_model.CORR_MODE = 6
@@ -162,60 +173,9 @@ def prepare_lists(dataset):
     offlist.bg_model.update(**onlist.bg_model.settings_dict())
     
     return onlist, offlist
-
-def prepare_images(onlist, offlist):
-    """Prepare all relevant images for dilution correction
     
-    :param ImgList onlist: on band image list (prepared, see 
-                                                    :func:`prepare_lists`)
-    :param ImgList offlist: off band image list (prepared, see 
-                                                    :func:`prepare_lists`)     
-    :return:
-        - Img, vignetting corrected on band image
-        - Img, vignetting corrected off band image
-        - Img, plume background image on band
-        - Img, plume background image off band
-        - Img, plume pixel mask
-        - Img, tau on band image
-        - Img, tau off band image
-        
-    """
-    # Determine and store a tau image for on band and off band. This is used
-    # to retrieve the plume background map
-    onlist.tau_mode = True
-    offlist.tau_mode = True
-    
-    tau_on = onlist.current_img().duplicate()
-    tau_off = offlist.current_img().duplicate()
-    
-    # plot the tau images
-    onlist.bg_model.plot_tau_result(onlist.current_img())#.suptitle(r"$\tau_{on}$")
-    offlist.bg_model.plot_tau_result(offlist.current_img())#.suptitle(r"$\tau_{off}$")
-    
-    # now activate AA mode to determine a pixel mask for the dilution correction
-    onlist.aa_mode = True
-    tau_mask = pyplis.Img(onlist.current_img().img > 0.03)
-    tau_mask.img[840:,:] = 0 #remove tree in lower part of the image
-    tau_mask.show()
-    # deactivate AA mode
-    onlist.aa_mode = False
-    
-    # activate vignetting correction mode in lists and load the two vignetting
-    # corrected plume images
-    onlist.vigncorr_mode = True
-    offlist.vigncorr_mode = True
-    
-    on_vigncorr= onlist.current_img()
-    off_vigncorr = offlist.current_img()
-    
-    # retrieve plume background intensity map from the two vignetting corrected
-    # images (and from the two tau images determined above)
-    bg_on = onlist.current_img() * np.exp(tau_on.img)
-    bg_off = offlist.current_img() * np.exp(tau_off.img)
-    
-    return on_vigncorr, off_vigncorr, bg_on, bg_off, tau_mask, tau_on, tau_off
-
 def plot_lines_into_image(img):
+    """Helper method plotting terrain distance retrieval lines into an image"""
     ax = img.show(zlabel=r"$S_{SO2}$ [cm$^{-2}$]")
     ax.set_title("Retrieval lines")
     for line in USE_LINES:
@@ -223,6 +183,7 @@ def plot_lines_into_image(img):
                                lw=2, ls=line.linestyle) 
     return ax
 
+    
 ### SCRIPT MAIN FUNCTION       
 if __name__ == "__main__":
     if not exists(CALIB_FILE):
@@ -239,15 +200,8 @@ if __name__ == "__main__":
     geom = find_view_dir(ds.meas_geometry)
     
     #get plume distance image    
-    pix_dists, _, plume_dist_img = geom.get_all_pix_to_pix_dists()  
-    
-    #prepare on and offband list
-    onlist, offlist = prepare_lists(ds)
-    
-    #prepare all relevant images for dilution correction
-    on_vigncorr, off_vigncorr, bg_on, bg_off, tau_mask, tau_on, tau_off =\
-                                                prepare_images(onlist, offlist)
-    
+    pix_dists, _, plume_dists = geom.get_all_pix_to_pix_dists()  
+        
     # Create dilution correction class
     dil = DilutionCorr(USE_LINES, geom, skip_pix=SKIP_PIX_LINES)
     
@@ -268,73 +222,116 @@ if __name__ == "__main__":
     # ... and get uncertainty in plume distance estimate for the column
     pix_dist_err = geom.pix_dist_err(col)
     
+    # Prepare on and off-band list for retrieval of extinction coefficients
+    onlist, offlist = prepare_lists(ds)
+    
+    # Activate vignetting correction in both lists (required to extract
+    # measured intensities along the terrain features)
+    onlist.vigncorr_mode = True
+    offlist.vigncorr_mode = True
+    
+    # get the vignetting corrected images 
+    on_vigncorr = onlist.current_img()
+    off_vigncorr = offlist.current_img()
+    
+    # estimate ambient intensity for both filters
     ia_on = on_vigncorr.crop(AMBIENT_ROI, True).mean()
     ia_off = off_vigncorr.crop(AMBIENT_ROI, True).mean()
     
-    ext_on, i0_on, _, ax0 = dil.apply_dilution_fit(img=on_vigncorr,
-                                                 rad_ambient=ia_on, 
-                                                 i0_min=I0_MIN,
-                                                 plot=True)
+    # perform dilution anlysis and retrieve extinction coefficients (on-band)
+    ext_on, _, _, ax0 = dil.apply_dilution_fit(img=on_vigncorr,
+                                               rad_ambient=ia_on, 
+                                               i0_min=I0_MIN,
+                                               plot=True)
+                                               
     ax0.set_ylabel("Terrain radiances (on band)", fontsize=14)
-    ax0.set_ylim([0, 2500])                                             
-    #ax[0, 0].set_title(r"On: $I_A$ = %.1f DN" %(ia_on))        
+    ax0.set_ylim([0, 2500])                                                  
     
+    # perform dilution anlysis and retrieve extinction coefficients (off-band)
     ext_off, i0_off, _, ax1 = dil.apply_dilution_fit(img=off_vigncorr,
                                                    rad_ambient=ia_off,
                                                    i0_min=I0_MIN,
                                                    plot=True)
     ax1.set_ylabel("Terrain radiances (off band)", fontsize=14)     
     ax1.set_ylim([0, 2500])
-    #ax[0, 1].set_title(r"Off: $I_A$ = %.1f DN" %(ia_off), fontsize = 12)        
     
+    #determine plume pixel mask from AA image
+    onlist.aa_mode = True
+    plume_pix_mask = onlist.get_thresh_mask(AA_THRESH)
+    plume_pix_mask[840:, :] = 0 #remove tree in lower part of the image
+    onlist.aa_mode = False
     
-    #determine uncorrected so2-CD image by calibrating the AA image 
-    so2_img_uncorr = calib(tau_on - tau_off)
+    # this method checks relevant parameters for dilution correction and 
+    # gets those missing, e.g. the mask specifying plume pixels
+    _, _, bg_on, _, _ =\
+        onlist.prep_data_dilutioncorr(plume_pix_mask=plume_pix_mask,
+                                      plume_dists=plume_dists, 
+                                      ext_coeff=ext_on)
     
-    so2_cds_uncorr = pcs_line.get_line_profile(so2_img_uncorr)
-    
-    # Calculate flux and uncertainty
-    phi_uncorr, phi_uncorr_err =\
-        pyplis.fluxcalc.det_emission_rate(cds=so2_cds_uncorr,
-                                           velo=PLUME_VELO,
-                                           pix_dists=pix_dists_line,
-                                           cds_err=calib.slope_err,
-                                           pix_dists_err=pix_dist_err)
-                                           
+    # do the same for the off band. Here, the plume pixel mask from the on band
+    # is used and is therefore provided as input of the method
+    _, _, bg_off, _, _ =\
+        offlist.prep_data_dilutioncorr(plume_pix_mask=plume_pix_mask,
+                                       plume_dists=plume_dists, 
+                                       ext_coeff=ext_off)
+                                         
+    #get dilution corrected on and off-band image
     on_corr = dil.correct_img(on_vigncorr, ext_on, bg_on,
-                              plume_dist_img, tau_mask)
-                              
-    tau_on_corr = pyplis.Img(np.log(bg_on.img / on_corr.img))
-    
+                              plume_dists, plume_pix_mask)
+
     off_corr = dil.correct_img(off_vigncorr, ext_off, bg_off,
-                              plume_dist_img, tau_mask)
+                              plume_dists, plume_pix_mask)
                               
-    tau_off_corr = pyplis.Img(np.log(bg_off.img / off_corr.img))
+    # convert the corrected images into tau images
+    tau_on_corr = on_corr.to_tau(bg_on)
+    tau_off_corr = off_corr.to_tau(bg_off)
     
+    # determine corrected SO2-CD image from the image lists
     so2_img_corr = calib(tau_on_corr - tau_off_corr)
     so2_img_corr.edit_log["is_tau"] = True #for plotting
     so2_cds_corr = pcs_line.get_line_profile(so2_img_corr)
     
-    phi_corr, phi_corr_err =\
-        pyplis.fluxcalc.det_emission_rate(cds=so2_cds_corr,
-                                           velo=PLUME_VELO,
-                                           pix_dists=pix_dists_line,
-                                           cds_err=calib.slope_err,
-                                           pix_dists_err=pix_dist_err)
+    (phi_corr, 
+     phi_corr_err) = pyplis.fluxcalc.det_emission_rate(cds=so2_cds_corr,
+                                                       velo=PLUME_VELO,
+                                                       pix_dists=
+                                                       pix_dists_line,
+                                                       cds_err=
+                                                       calib.slope_err,
+                                                       pix_dists_err=
+                                                       pix_dist_err)
     
-                                           
+    # determine uncorrected so2-CD image from the image lists
+    onlist.tau_mode=True
+    offlist.tau_mode=True
+    # the "this" attribute returns the current list image (same as 
+    # method "current_img()")
+    so2_img_uncorr = calib(onlist.this - offlist.this)
+    
+    # Retrieve column density profile along PCS in uncorrected image
+    so2_cds_uncorr = pcs_line.get_line_profile(so2_img_uncorr)    
+    # Calculate flux and uncertainty
+    (phi_uncorr, 
+     phi_uncorr_err) = pyplis.fluxcalc.det_emission_rate(cds=so2_cds_uncorr,
+                                                         velo=PLUME_VELO,
+                                                         pix_dists=
+                                                         pix_dists_line,
+                                                         cds_err=
+                                                         calib.slope_err,
+                                                         pix_dists_err=
+                                                         pix_dist_err)    
+    
+    ### IMPORTANT STUFF FINISHED (below follow some plots)
     ax2 = plot_lines_into_image(so2_img_corr)
-    pcs_line.plot_line_on_grid(ax = ax2, ls="-", color = "g")
+    pcs_line.plot_line_on_grid(ax=ax2, ls="-", color="g")
     ax2.legend(loc="best", framealpha=0.5, fancybox=True, fontsize=20)   
     ax2.set_title("Dilution corrected AA image", fontsize = 12)
     ax2.get_xaxis().set_ticks([])
     ax2.get_yaxis().set_ticks([])
     
     x0, y0, w, h = pyplis.helpers.roi2rect(AMBIENT_ROI)
-    ax2.add_patch(Rectangle((x0, y0), w, h, fc = "none", ec = "c"))
+    ax2.add_patch(Rectangle((x0, y0), w, h, fc="none", ec="c"))
     
-    
-    # Calculate flux and uncertainty   
     fig, ax3 = subplots(1,1)                                 
     ax3.plot(so2_cds_uncorr, "--b", label=r"Uncorr: $\Phi_{SO2}=$"
         "%.2f (+/- %.2f) kg/s" %(phi_uncorr/1000.0, phi_uncorr_err/1000.0))
@@ -349,10 +346,11 @@ if __name__ == "__main__":
     ax3.set_xlabel("PCS", fontsize=14)
     ax3.grid()
     
-    ### IMPORTANT STUFF FINISHED
+    # also plot plume pixel mask
+    ax4 = pyplis.Img(plume_pix_mask).show(cmap="gray", tit="Plume pixel mask")
     
     if SAVEFIGS:
-        ax = [ax0, ax1, ax2, ax3]
+        ax = [ax0, ax1, ax2, ax3, ax4]
         for k in range(len(ax)):
             ax[k].set_title("") #remove titles for saving
             ax[k].figure.savefig(join(SAVE_DIR, "ex11_out_%d.%s" %(k, FORMAT)),

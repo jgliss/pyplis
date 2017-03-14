@@ -5,7 +5,7 @@ from matplotlib import gridspec
 import matplotlib.cm as cmaps
 from matplotlib.pyplot import imread, figure, tight_layout
 from numpy import ndarray, argmax, histogram, uint, nan, linspace,\
-    isnan, uint8, float32, finfo, ones, invert
+    isnan, uint8, float32, finfo, ones, invert, log
 from os.path import abspath, splitext, basename, exists, join
 from os import getcwd, remove
 from warnings import warn
@@ -367,7 +367,9 @@ class Img(object):
         return self
                 
     def apply_gaussian_blurring(self, sigma, **kwargs):
-        """Add gaussian blurring using :class:`scipy.ndimage.filters.gaussian_filter`
+        """Add gaussian blurring 
+        
+        Uses :class:`scipy.ndimage.filters.gaussian_filter`
         
         :param int sigma: amount of blurring
         """
@@ -506,47 +508,34 @@ class Img(object):
         except:
             raise Exception("Poly surface fit failed in Img object")
     
-    def to_tau_img(self, bg_img=None, **kwargs):
+    def to_tau(self, bg):
         """Convert into tau image
         
-        Converts this image into a tau image either using a provided input 
-        background image (which is used without any modifications) or, if the 
-        former is not provided, by fitting the background using results of a 
-        2D poly surface fit as background estimate. The fit is automatically
-        applied if no background image is provided.
-        
-        Note
-        ----
-        
-        If you want to use the poly surface method, make sure to provide a 
-        corresponding mask specifying pixels used for the fit.
+        Converts this image into a tau image using a provided input 
+        background image (which is used without any modifications).
         
         Parameters
         ----------
-        bg_img : Img
-            if valid, the tau image is determined using the background image
-            data. NOTE: no modelling of the background image is performed here
-        **kwargs 
-            input keyword arguments for 2d poly surface fit which is applied in
-            case the input for bg_img is invalid.
+        bg : Img
+            background image used to determin tau image (REMAINS UNCHANGED, NO
+            MODELLING PERFORMED HERE)
         
         Returns
         -------
         Img 
-            the tau image (this object remains unchanged)
+            new Img object containing tau image data 
+            (this object remains unchanged)
         """
-
-        if isinstance(bg_img, Img):
-            bg_img = bg_img.img
+        tau = self.duplicate()
+        if isinstance(bg, Img):
+            bg = bg.img
         
-#==============================================================================
-#         r1 = bg_on.img/plume_on.img
-#         r1[r1<=0] = finfo(float).eps
-#         r2 = bg_off.img/plume_off.img
-#         r2[r2<=0] = finfo(float).eps
-#         aa_init = log(r1) - log(r2)
-#         
-#==============================================================================
+        r = bg / tau.img
+        r[r <= 0] = finfo(float).eps
+        tau.img = log(r)
+        tau.edit_log["is_tau"] = True
+        return tau
+        
     def to_pyrlevel(self, final_state=0):
         """Down / upscale image to a given pyramide level"""
         steps = final_state - self.edit_log["pyrlevel"]
@@ -839,7 +828,22 @@ class Img(object):
             pass
             
     def save_as_fits(self, save_dir=None, save_name=None):
-        """Save stack as FITS file"""
+        """Save this image as FITS file
+        
+        Parameters
+        ----------
+        save_dir : str
+            optional, if None (default), then the current working directory is
+            used
+        save_name : str
+            opional, if None (default), try to use file name of this object
+            (if set) or use default name
+        
+        Returns
+        -------
+        str 
+            name of saved file
+        """
         try:
             save_name = save_name.split(".")[0]
         except:
@@ -870,6 +874,7 @@ class Img(object):
             print "Image already exists at %s and will be overwritten" %path
             remove(path)
         hdulist.writeto(path)
+        return save_name
         
     def import_ec2_header(self, ec2header):
         """Import image meta info for ECII camera type from FITS file header"""

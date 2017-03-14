@@ -5,7 +5,9 @@ from matplotlib import rcParams
 
 rcParams["mathtext.default"] = u"regular"
 
+__dir__ = abspath(dirname(__file__))
 __version__ = get_distribution('pyplis').version
+_LIBDIR = __dir__ #from older version
 
 URL_TESTDATA = ("https://folk.nilu.no/~gliss/pyplis_testdata/"
                 "pyplis_etna_testdata.zip")
@@ -22,14 +24,13 @@ try:
 except:
     GEONUMAVAILABLE = 0
 
-_LIBDIR = abspath(dirname(__file__))
-
 from inout import download_test_data, find_test_data
 from geometry import MeasGeometry
 from utils import Filter, DarkOffsetInfo
 from image import Img
 import custom_image_import
 from dataset import Dataset
+from imagelists import ImgList, CellImgList
 from plumebackground import PlumeBackgroundModel
 from cellcalib import CellCalibData, CellCalibEngine
 from doascalib import DoasCalibData, DoasFOV, DoasFOVEngine
@@ -40,13 +41,16 @@ from processing import LineOnImage, ImgStack, ProfileTimeSeriesImg,\
 from dilutioncorr import DilutionCorr
 from fluxcalc import EmissionRateAnalysis, EmissionRateResults,\
     EmissionRateSettings
-import optimisation
-import model_functions
+from optimisation import PolySurfaceFit, MultiGaussFit
+
 from setupclasses import MeasSetup, Camera, Source
- 
-import helpers
-import exceptions
-import glob
+
+#==============================================================================
+# import model_functions 
+# import helpers
+# import exceptions
+# import glob
+#==============================================================================
 
 
 

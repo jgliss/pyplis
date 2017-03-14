@@ -667,7 +667,7 @@ class MeasGeometry(object):
         pix_dists_m = dists * ratio
         return pix_dists_m, dists
     
-    def pix_dist_err(self, col_num, pyrlevel = 0):
+    def pix_dist_err(self, col_num, pyrlevel=0):
         """Get uncertainty measure for pixel distance of a pixel column
         
         ..todo::
@@ -679,7 +679,7 @@ class MeasGeometry(object):
         return self.plume_dist_err(az) *1000 * self.cam["pix_width"] /\
                         self.cam["focal_length"] * 2**pyrlevel
                                         
-    def get_all_pix_to_pix_dists(self, pyrlevel = 0, roi_abs = None):
+    def get_all_pix_to_pix_dists(self, pyrlevel=0, roi_abs=None):
         """Determine images containing pixel and plume distances
         
         :param int pyrlevel: returns images at a given gauss pyramid level

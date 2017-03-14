@@ -82,7 +82,7 @@ Gallery
   
   Result of signal dilution correction fit to retrieve atmospheric extinction coefficients (on-band)
   
-.. thumbnail::  ../scripts/scripts_out/ex11_out_0.png
+.. thumbnail::  ../scripts/scripts_out/ex11_out_1.png
   :title:
   
   Result of signal dilution correction fit to retrieve atmospheric extinction coefficients (off-band)

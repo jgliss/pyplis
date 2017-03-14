@@ -99,3 +99,12 @@ release (version 0.9.2)
   2. Removed automatic load of previous image in ``ImgList`` objects
   3. Included AA image calculation for CORR_MODE == 0 in ``PlumeBackgroundModel``.
   4. Removed dark corr check between plume and BG image in ``PlumeBackgroundModel`` when modelling tau images.
+  
+14/03/2017
+==========
+
+  1. Image dilution correction method (:func:`correct_img`, :mod:`dilutioncorr`) can now also be called with a single floating point number specifying a constant plume distance (less accurate, but may be required for a fast check or if measurement geometry is not available)
+  2. New methods in :class:`ImgList`:
+  
+    - :func:`prep_data_dilutioncorr`: prepares relevant data for dilution correction (used e.g. in :func:`correct_dilution`)
+    - :func:`correct_dilution_all`: corrects and saves all images in list for signal dilution (optionally also attached off band list)
