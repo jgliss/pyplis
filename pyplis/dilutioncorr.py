@@ -299,7 +299,7 @@ class DilutionCorr(object):
             ias = median_filter(ias, apply_median)
         return DataFrame(dict(coeffs=coeffs, i0=i0s, ia=ias), index=times)
         
-    def correct_img(self, plume_img, ext, plume_bg_img, plume_dist_img,
+    def correct_img(self, plume_img, ext, plume_bg_img, plume_dists,
                     plume_pix_mask):
         """Perform dilution correction for a plume image
        
@@ -313,7 +313,7 @@ class DilutionCorr(object):
         Img
             dilution corrected image
         """
-        return correct_img(plume_img, ext, plume_bg_img, plume_dist_img,
+        return correct_img(plume_img, ext, plume_bg_img, plume_dists,
                            plume_pix_mask)
         
     def plot_fit_result(self, dists, rads, rad_ambient, i0, ext, ax=None):
@@ -403,7 +403,7 @@ class DilutionCorr(object):
             map3d.ax.set_axis_off()
         return map3d
 
-def correct_img(plume_img, ext, plume_bg_img, plume_dist_img, plume_pix_mask):
+def correct_img(plume_img, ext, plume_bg_img, plume_dists, plume_pix_mask):
     """Perform dilution correction for a plume image
     
     Corresponds to Eq. 4 in in `Campion et al., 2015 <http://
@@ -418,9 +418,9 @@ def correct_img(plume_img, ext, plume_bg_img, plume_dist_img, plume_pix_mask):
     plume_bg_img : Img
         vignetting corrected plume background image (can be, for instance, 
         retrieved using :mod:`plumebackground`)
-    plume_dist_img : array 
-        plume distance image (pixel values correspond to plume distances in m), 
-        can also be type :class:`Img`
+    plume_dists : :obj:`array`, :obj:`Img`, :obj:`float`
+        plume distance(s) in m. If input is numpy array or :class:`Img` then, 
+        it must have the same shape as :param:`plume_img`
     plume_pix_mask : ndarray 
         mask specifying plume pixels (only those are corrected), can also be 
         type :class:`Img`
@@ -437,7 +437,7 @@ def correct_img(plume_img, ext, plume_bg_img, plume_dist_img, plume_pix_mask):
             " and vignetting corrected")
     
     try:
-        plume_dist_img = plume_dist_img.img
+        plume_dists = plume_dists.img
     except:
         pass
     try:
@@ -445,7 +445,7 @@ def correct_img(plume_img, ext, plume_bg_img, plume_dist_img, plume_pix_mask):
     except:
         pass
 
-    dists = plume_pix_mask.astype(float) * plume_dist_img 
+    dists = plume_pix_mask.astype(float) * plume_dists
     corr_img = plume_img.duplicate()
     corr_img.img = ((corr_img.img - plume_bg_img.img *
                     (1 - exp(-ext * dists))) / exp(-ext * dists))

@@ -3,7 +3,7 @@
 Image list objects of pyplis library
 """
 from numpy import asarray, zeros, argmin, arange, ndarray, float32, ceil,\
-    isnan, logical_or, ones, uint8, finfo
+    isnan, logical_or, ones, uint8, finfo, exp
 from ntpath import basename
 from datetime import timedelta, datetime
 #from bunch import Bunch
@@ -12,7 +12,8 @@ from matplotlib.pyplot import figure, draw, subplots
 from copy import deepcopy
 from scipy.ndimage.filters import gaussian_filter
 from warnings import warn
-from os.path import exists
+from os.path import exists, abspath, dirname, join
+from os import mkdir
 from collections import OrderedDict as od
 from cv2 import dilate
 
@@ -869,7 +870,7 @@ class BaseImgList(object):
     """
     Functions related to image editing and edit management
     """ 
-    def add_gaussian_blurring(self, sigma = 1):
+    def add_gaussian_blurring(self, sigma=1):
         """Increase amount of gaussian blurring on image load
         
         :param int sigma (1): Add width gaussian blurring kernel
@@ -1281,14 +1282,34 @@ class ImgList(BaseImgList):
     def set_bg_img(self, bg_img):
         """Update the current background image object
         
-        :param Img bg_img: the background image object used for plume 
-            background modelling (modes 1 - 6 in :class:`PlumeBackgroundModel`)        
+        Check input background image and, in case a vignetting mask is not 
+        available in this list, determine a vignetting mask from the background
+        image. Furthermore, if the input image is not blurred it is blurred 
+        using current list blurring factor and in case the latter is 0, then 
+        it is blurred with a Gaussian filter of width 1.
+        
+        The image is then stored twice, 1. as is and 2. corrected for 
+        vignetting.
+        
+        Parameters
+        ----------
+        bg_img : Img
+            the background image object used for plume background modelling 
+            (modes 1 - 6 in :class:`PlumeBackgroundModel`)        
         """
         if not isinstance(bg_img, Img):
             print ("Could not set background image in ImgList %s: "
                 ": wrong input type, need Img object" %self.list_id)
             return False
         vign_mask = self.vign_mask
+#==============================================================================
+#         bl = bg_img.edit_log["blurring"]
+#         if bl == 0 or bl < self.gaussian_blurring:
+#             blur = self.gaussian_blurring - bl
+#             if blur == 0:
+#                 blur += 1
+#             bg_img.add_gaussian_blurring(blur)
+#==============================================================================
         if vign_mask is None:
             if bg_img.edit_log["vigncorr"]:
                 raise AttributeError("Input background image is vignetting "
@@ -1800,28 +1821,6 @@ class ImgList(BaseImgList):
         self._list_modes["darkcorr"] = val
         self.load()
     
-    def _update_prep_bg_image(self):
-        """Update image preparation status of BG image"""
-        cim = self.current_img()
-        bg = self.bg_img
-        log = cim.edit_log
-        if bg.edit_log["blurring"] < log["blurring"]:
-            print ("Update blurring of BG image in img list %s, new val: %d" 
-                %(self.list_id, log["blurring"]))
-            bg.add_gaussian_blurring(sigma_final = log["blurring"])
-        elif bg.edit_log["blurring"] > log["blurring"]:
-            warn("Blurring factor of current background image in list %s "
-                "exceeds current list blurring" %self.list_id)
-        if bg.edit_log["median"] < log["median"]:
-            print ("Update median filtering of BG image in img list %s, "
-                "new val: %d" %(self.list_id, log["median"]))
-            bg.apply_median_filter(log["median"])
-        elif bg.edit_log["median"] > log["median"]:
-            warn("Median filter kernel of current background image in list %s "
-                "exceeds that of list" %self.list_id)    
-        if not log["vigncorr"] == bg.edit_log["vigncorr"]:
-            raise ValueError("Check vignette")
-    
     def prepare_bg_fit_mask(self, dilation=False, dilate_kernel=None,
                             optflow_blur=1, optflow_median=10, 
                             plot_masks=False, **flow_settings):
@@ -2099,8 +2098,10 @@ class ImgList(BaseImgList):
         
         The mask is stored in ``self.vign_mask``
         
-        :return: 
-            - Img, vignetting mask
+        Returns
+        -------
+        Img
+            vignetting mask
         """
         if not self.has_bg_img():
             raise AttributeError("Please set a background image first")
@@ -2122,6 +2123,8 @@ class ImgList(BaseImgList):
             to be available (from which ``self.vign_mask`` is then determined)
             
         """
+        if val is self.vigncorr_mode: #do nothing
+            return
         if isinstance(self.vign_mask, Img):
             self.vign_mask = self.vign_mask.img
         if not isinstance(self.vign_mask, ndarray):
@@ -2256,6 +2259,7 @@ class ImgList(BaseImgList):
         if self.darkcorr_mode:
             dark = self.get_dark_image(key)
             img.subtract_dark_image(dark)
+        
         img.correct_vignetting(self.vign_mask, new_state=self.vigncorr_mode)
         if self.tau_mode:
             img = self.bg_model.get_tau_image(plume_img=img, 
@@ -2274,14 +2278,16 @@ class ImgList(BaseImgList):
             if self.calib_mode:
                 img.img = self.calib_data(img.img)
                 img.edit_log["gascalib"] = True
-       
+    
         img.to_pyrlevel(self.img_prep["pyrlevel"])
         if self.img_prep["crop"]:
             img.crop(self.roi_abs)
-        img.add_gaussian_blurring(self.img_prep["blurring"])
-        img.apply_median_filter(self.img_prep["median"])
         if self.img_prep["8bit"]:
             img._to_8bit_int(new_im = False)
+        # do this at last, since it can be time consuming and is therfore much
+        # faster in case pyrlevel > 0 or crop applied
+        img.add_gaussian_blurring(self.img_prep["blurring"])
+        img.apply_median_filter(self.img_prep["median"])
         self.loaded_images[key] = img
             
       
@@ -2335,44 +2341,251 @@ class ImgList(BaseImgList):
 
         return self.loaded_images["this"]
     
-    def correct_dilution(self, tau_thresh=0.05, add_off_list=False, 
-                         save_dir=None):
+    def prep_data_dilutioncorr(self, tau_thresh=0.05, plume_pix_mask=None, 
+                               plume_dists=None, ext_coeff=None):
+        """Get parameters relevant for dilution correction
+        
+        Relevant parameters are:
+        
+            1. Current plume background
+            #. Plume distance estimate (either global or on a pixel basis)
+            #. Plume pixel mask (only plume pixels are corrected)
+           
+        Note
+        ----
+        This method changes the current image preparation state such that tau
+        mode is deactivated and vigncorr mode is activated. 
+        
+        Parameters
+        ----------
+        tau_thresh : float
+            tau threshold for retrieval of plume pixel mask. Is only used in
+            case next :param:`plume_mask` is unspecified or invalid. In this
+            case the plume mask is retrieved using :func:`get_thresh_mask`.
+        plume_pix_mask : :obj:`array`, :obj:`Img`, optional
+            mask specifying plume pixels. If valid, it will be passed through 
+            and no threshold mask will retrieved (see :param:`tau_thresh`)
+        plume_dists : :obj:`array`, :obj:`Img`, :obj:`float`, optional
+            plume distance(s) in m. If input is numpy array or :class:`Img` 
+            then, it must have the same shape as the current image
+        ext_coeff : :obj:`float`, optional
+            atmospheric extinction coefficient. If unspecified, try access 
+            via :attr:`ext_coeff` which returns the current extinction 
+            coefficient and raise :obj:`AttributeError` in case, no coeffs are
+            assigned to this list
+            
+        Returns
+        -------
+        tuple
+            5-element tuple containing input for dilution correction
+            
+            - :obj:`Img`, current vignetting corrected image 
+            - :obj:`float`, current extinction coefficient 
+            - :obj:`Img`, current plume background
+            - (:obj:`array`, :obj:`float`), plume distance(s)
+            - :obj:`array`, mask specifying plume pixels
+        """
+        # check input distance and if invalid try retrieve using measurement
+        # geometry
+        try:
+            try:
+                plume_pix_mask = plume_pix_mask.img
+            except:
+                pass
+            
+            if plume_pix_mask.shape == self.current_img().shape:
+                mask_ok = True
+            else:
+                mask_ok = False
+        except:
+            mask_ok = False
+        
+        
+        dists = plume_dists
+        if dists is None:
+            try:
+                _, _, dists = self.meas_geometry.get_all_pix_to_pix_dists() 
+                dists = dists.img
+            except:
+                raise ValueError("Measurement geometry not ready for access "
+                    "of plume distances in image list %s. Please provide "
+                    "plume distance using input parameter plume_dist_m" 
+                    %self.list_id)
+        # get current extinction coefficient, raises AttributeError if not 
+        # available
+        try:
+            ext_coeff = float(ext_coeff)
+        except:
+            ext_coeff = self.ext_coeff 
+        self.vigncorr_mode = False
+        self.tau_mode = True
+        tau0 = self.current_img().duplicate()
+        self.vigncorr_mode = True
+        #bg = self.bg_model.current_plume_background
+        #bg.edit_log["vigncorr"] = True
+        if not mask_ok:
+            print "Retrieving plume pixel mask in list %s" %self.list_id
+            plume_pix_mask = self.get_thresh_mask(tau_thresh)    
+        self.tau_mode = False
+        bg = self.current_img() * exp(tau0.img)
+        return (self.current_img(), ext_coeff, bg, dists, plume_pix_mask)
+    
+    def correct_dilution(self, tau_thresh=0.05, plume_pix_mask=None,
+                         plume_dists=None):
         """Correct current image for signal dilution
         
         Requires measurement geometry (:attr:`meas_geometry`) and extinction
         coefficients (:attr:`ext_coeffs`) to be available in this list.
         Further, the list needs to be prepared such that :attr:`tau_mode` can
-        be activated
+        be activated since the correction requires an accurate estimation of
+        the current plume background. The latter can be retrieved from
+        :attr:`bg_model` (:class:`PlumeBackgroundModel`) after 
+        :func:`get_tau_image` was called therein.
         
-        """
-        from .dilutioncorr import correct_img
-        if add_off_list:
-            off = self.get_off_list()
-            raise NotImplementedError("coming soon...")
-        
-        try:
-            _, _, plume_dist_img = self.meas_geometry.get_all_pix_to_pix_dists() 
-        except:
-            raise ValueError("Measurement geometry not ready for access "
-                "of plume distances in image list %s" %self.list_id)
-        ext_coeff = self.ext_coeff #raises AttributeError if not available
-        tm = self.tau_mode
-        
-        self.vigncorr_mode = True        
-        self.tau_mode = True
-        mask = self.get_thresh_mask(tau_thresh)
-        bg_on = self.bg_model.current_plume_background
-        bg_on.edit_log["vigncorr"] = True
-        self.tau_mode = False
-        on_corr = correct_img(self.current_img(), ext_coeff, bg_on,
-                              plume_dist_img, mask)
-                                  
-        bad_on = on_corr.img <= 0
-        on_corr.img[bad_on] = self.current_img().img[bad_on]
+        Parameters
+        ----------
+        tau_thresh : :obj:`float`, optional
+            tau threshold applied to determine plume pixel mask (retrieved 
+            using :attr:`tau_mode`, not :attr:`aa_mode`)
+        plume_pix_mask : :obj:`float`, optional
+            mask specifying plume pixels. If valid, it will be passed through 
+            and no threshold mask will retrieved (see :param:`tau_thresh`)
+        plume_dists : :obj:`array`, :obj:`Img`, :obj:`float`
+            plume distance(s) in m. If input is numpy array or :class:`Img` 
+            then, it must have the same shape as the current image
             
-        self.tau_mode = tm
-        return on_corr, mask, bg_on
+        Returns
+        -------
+        tuple
+            3-element tuple containing input for dilution correction
+            
+            - :obj:`Img`, vignetting and dilution corrected image
+            - :obj:`Img`, corresponding plume background
+            - :obj:`array`, mask specifying plume pixels
+
+        """
+        from .dilutioncorr import correct_img        
+        (img, 
+         ext_coeff, 
+         bg, 
+         plume_dists, 
+         plume_pix_mask) = self.prep_data_dilutioncorr(tau_thresh,
+                                                       plume_pix_mask, 
+                                                       plume_dists)
+                                                       
+        corr = correct_img(img, ext_coeff, bg, plume_dists, plume_pix_mask)
+                                  
+        bad_pix = corr.img <= 0
+        corr.img[bad_pix] = self.current_img().img[bad_pix]
+            
+        return (corr, bg, plume_pix_mask)
    
+    def correct_dilution_all(self, tau_thresh=0.05, add_off_list=True, 
+                             save_dir=None, save_masks=False, 
+                             save_bg_imgs=False, **kwargs):
+        """Correct all images for signal dilution
+        
+        Correct and save all images in this list for the signal dilution 
+        effect. See :func:`correct_dilution` and :func:`prep_data_dilutioncorr` 
+        for details about requirements and additional input options.
+        
+        Note
+        ----
+        The vignetting and dilution corrected images are stored with all 
+        additional image preparation settings applied (e.g. dark correction, 
+        blurring)
+        
+        Parameters        
+        ----------
+        tau_thresh : :obj:`float`, optional
+            tau threshold applied to determine plume pixel mask (retrieved 
+            using :attr:`tau_mode`, not :attr:`aa_mode`)
+        add_off_list : bool
+            if True, also the images in a linked off-band image list 
+            (using :func:`get_off_list`) are corrected as well. For the 
+            correction of the off-band images, the current plume pixel mask 
+            of this list is used.
+        save_dir : :obj:`str`, optional
+            base directory for saving the corrected images. If None (default),
+            then a new directory ``dilcorr`` is created at the storage location 
+            of the first image in this list
+        save_masks : bool
+            if True,  a folder *plume_pix_masks* is created within 
+            :param:`save_dir` in which all plume pixel masks are stored as
+            FITS
+        save_bg_imgs : bool 
+            if True, a folder *bg_imgs* is created which is used to store all
+            retrieved plume background images (this folder can be used on 
+            re-import of the data in order to save background modelling time)
+            
+        **kwargs 
+            additional keyword args for dilution correction functions
+            :func:`correct_dilution` and :func:`prep_data_dilutioncorr`
+        """
+        if save_dir is None or not exists(save_dir):
+            save_dir = abspath(join(dirname(self.files[0]), "..", 
+                                    "dilutioncorr"))
+            if not exists(save_dir):
+                mkdir(save_dir)
+        if save_masks:
+            mask_dir = join(save_dir, "plume_pix_masks")
+            if not exists(mask_dir):
+                mkdir(mask_dir)
+        if save_bg_imgs:
+            bg_dir = join(save_dir, "bg_imgs")
+            if not exists(bg_dir):
+                mkdir(bg_dir)
+        # initiate settings
+        self.goto_img(0)
+        try:
+            (img, 
+             ext_coeff, 
+             bg, 
+             plume_dists, 
+             plume_pix_mask) = self.prep_data_dilutioncorr(tau_thresh,
+                                                           **kwargs)
+            if add_off_list:
+                off = self.get_off_list()
+                (img_off, 
+                 ext_coeff_off, 
+                 bg_off, 
+                 plume_dists, 
+                 plume_pix_mask) = off.prep_data_dilutioncorr(plume_pix_mask=
+                                                              plume_pix_mask,
+                                                              plume_dists=
+                                                              plume_dists)
+        except:
+            raise Exception("Failed to initiate dilution correction with "
+                "error:\n%s" %format_exc())
+        saved_off = []
+        num = self.nof
+        for k in range(num):
+            (corr, 
+             bg, 
+             plume_pix_mask) = self.correct_dilution(tau_thresh=tau_thresh,
+                                                     plume_dists=plume_dists)
+            corr.save_as_fits(save_dir)
+            fname = corr.meta["file_name"]
+            if save_masks:
+                Img(plume_pix_mask, dtype=uint8, 
+                    file_name=fname).save_as_fits(mask_dir)
+            if save_bg_imgs:
+                bg.save_as_fits(bg_dir, fname)
+            if not off.current_img().meta["file_name"] in saved_off:
+                # use on band plume pixel mask
+                (corr_off, 
+                 bg_off, 
+                 _) = off.correct_dilution(plume_pix_mask=plume_pix_mask,
+                                           plume_dists=plume_dists)
+                saved_off.append(corr_off.save_as_fits(save_dir))
+                if save_bg_imgs:
+                    bg_off.save_as_fits(bg_dir, corr_off.meta["file_name"])    
+            
+            self.next_img()
+        
+        return (img, img_off, ext_coeff, ext_coeff_off, bg, bg_off,
+                plume_dists, plume_pix_mask)
+        
     """Helpers"""
     @property
     def next(self):
