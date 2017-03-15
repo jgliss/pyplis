@@ -165,6 +165,11 @@ class Img(object):
     def img(self, val):
         """Setter for image data"""
         self._img = val
+    
+    @property
+    def is_vigncorr(self):
+        """Bool specifying whether or not image is vignetting corrected"""
+        return bool(self.edit_log["vigncorr"])
         
     def set_data(self, input):
         """Try load input"""

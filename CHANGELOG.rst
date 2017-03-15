@@ -108,3 +108,17 @@ release (version 0.9.2)
   
     - :func:`prep_data_dilutioncorr`: prepares relevant data for dilution correction (used e.g. in :func:`correct_dilution`)
     - :func:`correct_dilution_all`: corrects and saves all images in list for signal dilution (optionally also attached off band list)
+    
+15/03/2017
+==========
+
+  1. NEW background correction mode (VALUE = 99) in :class:`PlumeBackgroundModel`. In this mode, plume and background image are used as they are without any modifications. This mode may be used in case a plume background image
+  
+  #. :class:`PlumeBackgroundModel` raises ``AttributeError`` in case plume and background image have different vignetting correction states.
+  
+  #. Changed scaling of plume background (mode=0) to plume image such that it is done for an initial tau image fulfilling tau=0 in ``scale_rect`` (little faster)
+  
+  #. Additional features in ``ImgList`` objects:
+  
+    - Background modellind mode can now be set directly using :attr:`BG_MODEL_MODE` which takes care of changing the mode and directly reloads the images in the list.
+    - New mode for background correction in lists: now, also a background list can be linked and assigned using :attr:`bg_list`. The background image access mode (from list vs. global BG image) can be set via :attr:`which_bg` 

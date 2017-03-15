@@ -102,11 +102,10 @@ if __name__ == "__main__":
     ax1 = aa_list.bg_model.plot_sky_reference_areas(aa_list.current_img())
     fig = aa_list.bg_model.plot_tau_result(aa_list.current_img())
 
-    ### IMPORTANT STUFF FINISHED    
-    
+    ### IMPORTANT STUFF FINISHED
     if SAVEFIGS:
-        ax.figure.savefig(join(SAVE_DIR, "ex04_out_1.%s" %FORMAT), format=FORMAT,
-                    dpi=DPI)
+        ax.figure.savefig(join(SAVE_DIR, "ex04_out_1.%s" %FORMAT), 
+                          format=FORMAT, dpi=DPI)
 
     # Display images or not    
     (options, args)   =  OPTPARSE.parse_args()
