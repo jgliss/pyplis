@@ -170,26 +170,26 @@ if __name__=="__main__":
     
     ### First method: retrieve tau image using poly surface fit
     tau0 = bg_model.get_tau_image(plume_vigncorr,
-                                  CORR_MODE = BG_CORR_MODES[0],
-                                  surface_fit_mask = mask,
-                                  surface_fit_polyorder = 1)
+                                  mode = BG_CORR_MODES[0],
+                                  surface_fit_mask=mask,
+                                  surface_fit_polyorder=1)
     
     #Plot the result and append the figure to _tau_figs                                 
     _tau_figs.append(bg_model.plot_tau_result(tau0, PCS = pcs_line))
     
     ### Second method: scale background image to plume image in "scale" rect
-    tau1 = bg_model.get_tau_image(plume, bg, CORR_MODE = BG_CORR_MODES[1])
-    _tau_figs.append(bg_model.plot_tau_result(tau1, PCS = pcs_line))
+    tau1 = bg_model.get_tau_image(plume, bg, mode=BG_CORR_MODES[1])
+    _tau_figs.append(bg_model.plot_tau_result(tau1, PCS=pcs_line))
     
     ### Third method: Linear correction for radiance differences based on two 
     ### rectangles (scale, ygrad)
-    tau2 = bg_model.get_tau_image(plume, bg, CORR_MODE = BG_CORR_MODES[2])
-    _tau_figs.append(bg_model.plot_tau_result(tau2, PCS = pcs_line))
+    tau2 = bg_model.get_tau_image(plume, bg, mode=BG_CORR_MODES[2])
+    _tau_figs.append(bg_model.plot_tau_result(tau2, PCS=pcs_line))
     
     ### 4th method: 2nd order polynomial fit along vertical profile line
     ### For this method, determine tau on tau off and AA image
-    tau3 = bg_model.get_tau_image(plume, bg, CORR_MODE = BG_CORR_MODES[3])
-    _tau_figs.append(bg_model.plot_tau_result(tau3, PCS = pcs_line))
+    tau3 = bg_model.get_tau_image(plume, bg, mode=BG_CORR_MODES[3])
+    _tau_figs.append(bg_model.plot_tau_result(tau3, PCS=pcs_line))
     
     fig6 = plot_pcs_profiles_4_tau_images(tau0, tau1, tau2, tau3, pcs_line)
     
@@ -197,7 +197,7 @@ if __name__=="__main__":
         fig0.savefig(join(SAVE_DIR, "ex03_out_1.%s" %FORMAT), format=FORMAT,
                     dpi=DPI)
         for k in range(len(_tau_figs)):
-            _tau_figs[k].suptitle("")
+            #_tau_figs[k].suptitle("")
             _tau_figs[k].savefig(join(SAVE_DIR, "ex03_out_%d.%s" 
                                  %((k+2), FORMAT)), format=FORMAT, dpi=DPI)
         

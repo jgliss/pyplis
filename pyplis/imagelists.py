@@ -113,7 +113,13 @@ class BaseImgList(object):
             
         if self.data_available and init:
             self.load()
-                
+            
+    """ATTRIBUTES / DECORATORS""" 
+    @property
+    def this(self):
+        """Current image"""
+        return self.current_img()         
+        
     @property
     def meas_geometry(self):
         """Measurement geometry"""
@@ -225,10 +231,6 @@ class BaseImgList(object):
     def last_index(self):
         """Index of last image"""
         return len(self.files) - 1
-    
-    def has_files(self):
-        """Returns boolean whether or not images are available in list"""
-        return bool(self.nof)
         
     @property
     def data_available(self):
@@ -261,7 +263,28 @@ class BaseImgList(object):
             raise ValueError("Image acquisition times could not be extracted"
                 " from file names")
         return ts
-    
+
+    def activate_edit(self, val=True):
+        """Activate / deactivate image edit mode
+        
+        If inactive, images will be loaded raw without any editing or 
+        further calculations (e.g. determination of optical flow, or updates of
+        linked image lists). Images will be reloaded.
+        
+        Parameters
+        ----------
+        val : bool
+            new mode
+        """
+        if val == self.edit_active:
+            return
+        self.edit_active = val
+        self.load()
+        
+    def has_files(self):
+        """Returns boolean whether or not images are available in list"""
+        return bool(self.nof)
+        
     def plume_dist_access(self):
         """Checks if measurement geometry is available"""
         if not isinstance(self.meas_geometry, MeasGeometry):
@@ -285,7 +308,10 @@ class BaseImgList(object):
             if self.img_prep.has_key(key) and\
                         isinstance(val, type(self.img_prep[key])):
                 self.img_prep[key] = val
-        self.load()
+        try:
+            self.load()
+        except IndexError:
+            pass
         
     def clear(self):
         """Empty this list (i.e. ``files``)"""
@@ -327,8 +353,8 @@ class BaseImgList(object):
             else:
                 rest.append(p)
         
-        lst_match = ImgList(match, list_id = "match", camera = self.camera)
-        lst_rest = ImgList(rest, list_id = "rest", camera = self.camera)
+        lst_match = ImgList(match, list_id="match", camera=self.camera)
+        lst_rest = ImgList(rest, list_id="rest", camera=self.camera)
         return (lst_match, lst_rest)
         
     def add_files(self, file_list):
@@ -811,13 +837,24 @@ class BaseImgList(object):
             self._list_modes["vigncorr"]
             
     def load(self):
-        """Load current image"""
+        """Load current image
+        
+        Try to load the current file ``self.files[self.cfn]`` and if remove the 
+        file from the list if the import fails
+        Raises
+        ------
+        
+        Returns
+        -------
+        bool
+            if True, image was loaded, if False not        
+        """
         if not self._auto_reload:
             print ("Automatic image reload deactivated in image list %s"\
                                                                 %self.list_id)
-            return False
-        img_file = self.files[self.index]
+            return False        
         try:
+            img_file = self.files[self.index]
             img = Img(img_file,
                       import_method=self.camera.image_import_method,
                       **self.get_img_meta_from_filename(img_file))
@@ -829,9 +866,9 @@ class BaseImgList(object):
             
             self.update_prev_next_index()
             self.apply_current_edit("this")
-            
+                    
         except IOError:
-            print ("Invalid file encountered at list index %s, file will"
+            warn("Invalid file encountered at list index %s, file will"
                 " be removed from list" %self.index)
             self.pop()
             if self.nof == 0:
@@ -896,21 +933,6 @@ class BaseImgList(object):
         if self.img_prep["8bit"]:
             img._to_8bit_int(new_im = False)
         self.loaded_images[key] = img
-    
-    """List modes"""    
-    def activate_edit(self, val=True):
-        """Activate / deactivate image edit mode
-        
-        :param bool val: new mode
-        
-        If inactive, images will be loaded raw without any editing or 
-        further calculations (e.g. determination of optical flow, or updates of
-        linked image lists). Images will be reloaded.
-        """
-        if val == self.edit_active:
-            return
-        self.edit_active = val
-        self.load()
         
     def cam_id(self):
         """Get the current camera ID (if camera is available)"""
@@ -920,37 +942,44 @@ class BaseImgList(object):
     def current_time(self):
         """Get the acquisition time of the current image from image meta data
         
-        :returns datetime:
+        Raises
+        ------
+        IndexError
+            if list does not contain images
+        
+        Returns
+        -------
+        datetime
+            start acquisition time of currently loaded image
+            
         """
         return self.current_img().meta["start_acq"]
         
     def current_time_str(self, format='%H:%M:%S'):
         """Returns a string of the current acq time"""
-        return self.loaded_images["this"].meta["start_acq"].strftime(format)
+        return self.current_img().meta["start_acq"].strftime(format)
         
     def current_img(self, key="this"):
         """Get the current image object
         
-        :param str key ("this"): "prev", "this" or "next"
+        Parameters
+        -----------
+        key : this" or "next"
+        
+        Returns
+        -------
         :returns Img:
         """
         img = self.loaded_images[key]
         if not isinstance(img, Img):
-            try:
-                self.load()
-                img = self.loaded_images[key]
-            except IndexError:
-                raise IndexError("Image list %s does not contain images" 
-                            %self.list_id)
-            except:
-                raise
+            self.load()
+            img = self.loaded_images[key]
         return img
         
     def show_current(self, **kwargs):
         """Show the current image"""
         return self.current_img().show(**kwargs)
-        
-            
+                 
     def goto_img(self, num):
         """Go to a specific image
         
@@ -961,16 +990,6 @@ class BaseImgList(object):
         self.index = num
         self.load()
         return self.loaded_images["this"]
-    
-    @property
-    def this(self):
-        """Current image"""
-        return self.loaded_images["this"]
-    
-    @property
-    def next(self):
-        """Next image"""
-        return self.next_img()
         
     def next_img(self):
         """Go to next image 
@@ -1234,7 +1253,10 @@ class ImgList(BaseImgList):
                                 "aa"    :   0.0}
         self._ext_coeffs = None
         
-        self._bg_imgs = [None, None] #sets bg images, 
+        self._bg_imgs = [None, None] #sets bg images
+        self._bg_list_id = None #ID of linked background list
+        self._which_bg = "img" #change using :attr:`which_bg` either, img or list
+        
         self.bg_model = PlumeBackgroundModel()
         
         self._aa_corr_mask = None
@@ -1270,6 +1292,148 @@ class ImgList(BaseImgList):
         
         if self.data_available and init:
             self.load()
+    
+    @property
+    def next(self):
+        """Next image"""
+        return self.loaded_images["next"]
+        
+    @property
+    def DARK_CORR_OPT(self):
+        """Return the current dark correction mode
+        
+        The following modes are available:
+
+            0   =>  no dark correction possible (is e.g. set if camera is 
+                    unspecified)
+            1   =>  individual correction with separate dark and offset 
+                    (e.g. ECII data)
+            2   =>  one dark image which is subtracted (including the offset, 
+                    e.g. HD cam data)
+        
+        For details see documentation of :class:`CameraBaseInfo` 
+        """
+        return self._dark_corr_opt
+        
+    
+    @DARK_CORR_OPT.setter
+    def DARK_CORR_OPT(self, val):
+        try:
+            val = int(val)
+            if not val in [0, 1, 2]:
+                raise ValueError
+            self._dark_corr_opt = val
+        except:
+            warn("Failed to update dark correction option")
+    
+    @property
+    def BG_MODEL_MODE(self):
+        """Current background image modelling mode"""
+        return self.bg_model.mode
+        
+    @BG_MODEL_MODE.setter
+    def BG_MODEL_MODE(self, val):
+        self.bg_model.mode = val
+        self.load()
+            
+    @property
+    def darkcorr_mode(self):
+        """Returns current list darkcorr mode"""
+        return self._list_modes["darkcorr"]
+        
+    @darkcorr_mode.setter
+    def darkcorr_mode(self, value):
+        """Change current list darkcorr mode
+        
+        Wrapper for :func:`activate_darkcorr`        
+        """
+        return self.activate_darkcorr(value)
+    
+    @property
+    def optflow_mode(self):
+        """Activate / deactivate optical flow calc on image load"""
+        return self._list_modes["optflow"]
+    
+    @optflow_mode.setter
+    def optflow_mode(self, val):
+        self.activate_optflow_mode(val)
+    
+    @property
+    def vigncorr_mode(self):
+        """Activate / deactivate optical flow calc on image load"""
+        return int(self._list_modes["vigncorr"])
+    
+    @vigncorr_mode.setter
+    def vigncorr_mode(self, val):
+        self.activate_vigncorr(val)
+    
+    @property
+    def sensitivity_corr_mode(self):
+        """Activate / deactivate AA sensitivity correction mode"""
+        return self._list_modes["senscorr"]
+        
+    @sensitivity_corr_mode.setter 
+    def sensitivity_corr_mode(self, val):
+        """Activate / deactivate AA sensitivity correction mode"""
+        if val == self._list_modes["senscorr"]:
+            return
+        if val:    
+            self.aa_corr_mask #raises AttributeError if mask is not available
+            if not self.aa_mode:
+                raise AttributeError("AA sensitivity correction mode can only "
+                    "be activated in list aa_mode, please activate aa_mode "
+                    "first...")
+   
+        self._list_modes["senscorr"] = val
+        self.load()
+        
+    @property
+    def tau_mode(self):
+        """Returns current list tau mode"""
+        return self._list_modes["tau"]
+        
+    @tau_mode.setter
+    def tau_mode(self, value):
+        """Change current list tau mode
+        
+        Wrapper for :func:`activate_tau_mode`        
+        """
+        self.activate_tau_mode(value)
+     
+    @property
+    def aa_mode(self):
+        """Returns current list AA mode"""
+        return self._list_modes["aa"]
+        
+    @aa_mode.setter
+    def aa_mode(self, value):
+        """Change current list AA mode
+        
+        Wrapper for :func:`activate_aa_mode`        
+        """
+        self.activate_aa_mode(value)
+        
+    @property
+    def calib_mode(self):
+        """Acitivate / deactivate current list gas calibration mode"""
+        return self._list_modes["gascalib"]
+        
+    @calib_mode.setter
+    def calib_mode(self, val):
+        """Change current list calibration mode"""
+        if val == self._list_modes["gascalib"]:
+            return
+        if val:    
+            if not self.aa_mode:
+                self.aa_mode = True
+                print "Activated AA mode in image list"
+            if not self.sensitivity_corr_mode:
+                warn("AA sensitivity correction mode is deactivated. This "
+                    "may yield erroneous results at the image edges")
+            self.calib_data(self.current_img())
+            
+        self._list_modes["gascalib"] = val
+        self.load()
         
     def init_filelist(self):
         """Adding functionality to filelist init"""
@@ -1330,12 +1494,27 @@ class ImgList(BaseImgList):
             self._bg_imgs = [bg, bg_vigncorr]
     
     @property
+    def ext_coeff(self):
+        """Current extinction coefficient"""
+        if not isinstance(self.ext_coeffs, Series):
+            raise AttributeError("Extinction coefficients not available in "
+                "image list %s" %self.list_id)
+        elif len(self.ext_coeffs) == self.nof:
+            #assuming that time stamps correspond to list time stamps
+            return self.ext_coeffs[self.cfn]
+        else:
+            idx = closest_index(self.current_time(), self.ext_coeffs.index)
+            return self.ext_coeffs[idx]
+            
+    @property
     def ext_coeffs(self):
         """Dilution extinction coefficients"""
         return self._ext_coeffs
         
     @ext_coeffs.setter
     def ext_coeffs(self, val):
+        if isinstance(val, float):
+            val = Series(val, self.acq_times[0])
         if not isinstance(val, Series):
             raise ValueError("Need pandas Series object")
         self._ext_coeffs = val
@@ -1343,16 +1522,64 @@ class ImgList(BaseImgList):
     @property
     def bg_img(self):
         """Return background image based on current vignetting corr setting"""
-        try:
-            img = self._bg_imgs[self.loaded_images["this"].edit_log["vigncorr"]]
-        except:
-            warn("No background image available in list")
-            img = None
+        img = None
+        if self.which_bg == "img":
+            try:
+                img = self._bg_imgs[self.loaded_images["this"].\
+                    edit_log["vigncorr"]]
+            except:
+                warn("No background image assigned to list %s" %self.list_id)
+        else:
+            lst = self.bg_list
+            try:
+                img = lst.current_img()
+            except:
+                pass
         return img
     
     @bg_img.setter
     def bg_img(self, val):
         self.set_bg_img(val)
+        
+    @property
+    def bg_list(self):
+        """Returns background image list (if assigned)"""
+        try:
+            return self.linked_lists[self._bg_list_id]
+        except KeyError:
+            warn("No linked list with ID %s found in list %s. " 
+                            %(self._bg_list_id, self.list_id))
+                
+    @bg_list.setter
+    def bg_list(self, val):
+        if isinstance(val, str):
+            if not self.linked_lists.has_key(val):
+                raise AttributeError("No linked list with ID %s found in image"
+                    " list %s" %(self.list_id, val))
+            self._bg_list_id = val
+        elif isinstance(val, ImgList):
+            lid = "bg_" + self.list_id
+            self.link_imglist(val, list_id=lid)
+            self._bg_list_id = lid
+        else:
+            raise ValueError("Invalid input for assignment of background image"
+                " list. Please provide either a string of one of the image "
+                "lists already linked to this list or provide an ImgList object"
+                "containing BG images")
+                
+    @property
+    def which_bg(self):
+        """Specifies from where background images are accessed"""
+        return self._which_bg
+        
+    @which_bg.setter
+    def which_bg(self, val):
+        if val in ["img", "list"]:
+            self._which_bg = val
+            #warns if no background image is available for this access method
+            self.bg_img 
+        else:
+            raise ValueError("Invalid input: choose from img or list")
         
     def get_thresh_mask(self, thresh=None, this_and_next=True):
         """Get bool mask based on intensity threshold
@@ -1452,30 +1679,179 @@ class ImgList(BaseImgList):
             return "aa"
         else:
             return "raw"
+    
+        
+    """LIST MODE MANAGEMENT METHODS"""
+    def activate_darkcorr(self, val=True):
+        """Activate or deactivate dark and offset correction of images
+        
+        If dark correction turned on, dark image access is attempted, if that
+        fails, Exception is raised including information what did not work 
+        out.
+        
+        Parameters
+        ----------
+        val : bool
+            new mode
+        """
+        if val is self.darkcorr_mode: #do nothing
+            return
+        if not val and self._load_edit["darkcorr"]:
+            raise ImgMetaError("Cannot deactivate dark correction, original"
+                "image file was already dark corrected")
+        if val:
+            if self.this.edit_log["darkcorr"]:
+                warn("Cannot activate dark correction in image list %s: "
+                     "current image is already corrected for dark current"
+                     %self.list_id)
+                return
+            self.get_dark_image()
+            self.update_index_dark_offset_lists()
+                    
+        self._list_modes["darkcorr"] = val
+        self.load()
+        
+    def activate_vigncorr(self, val=True):
+        """Activate / deactivate vignetting correction on image load
+        
+        Note
+        ----
+        
+        Requires ``self.vign_mask`` to be set or an background image 
+        to be available (from which ``self.vign_mask`` is then determined)
+        
+        Parameters
+        ----------
+        val : bool
+            new mode
+        """
+        if val is self.vigncorr_mode: #do nothing
+            return
+        elif val:
+            if self.this.edit_log["vigncorr"]:
+                warn("Cannot activate vignetting correction in image list %s: "
+                     "current image is already corrected for vignetting"
+                     %self.list_id)
+                return 
+            if isinstance(self.vign_mask, Img):
+                self.vign_mask = self.vign_mask.img
+            if not isinstance(self.vign_mask, ndarray):
+                self.det_vign_mask_from_bg_img() 
+            shape_orig = Img(self.files[self.cfn]).img.shape
+            if not self.vign_mask.shape == shape_orig:
+                raise ValueError("Shape of vignetting mask %s deviates from "
+                            "raw img shape %s" %(list(self.vign_mask.shape),
+                            list(shape_orig)))
+        self._list_modes["vigncorr"] = val
+        self.load()
+    
+    def activate_tau_mode(self, val=1):
+        """Activate tau mode
+        
+        In tau mode, images will be loaded as tau images (if background image
+        data is available). 
+        
+        Parameters
+        ----------
+        val : bool
+            new mode
             
+        """
+        if val is self.tau_mode: #do nothing
+            return
+        if val:
+            if self.this.edit_log["is_tau"]:
+                warn("Cannot activate tau mode in image list %s: "
+                     "current image is already a tau image"
+                     %self.list_id)
+                return
+            bg_img = None
+            self.bg_model.set_missing_ref_areas(self.loaded_images["this"])
+            if self.bg_model.mode == 0:
+                print ("Background correction mode is 0, initiating settings "
+                    "for poly surface fit")
+                try:
+                    mask = self.prepare_bg_fit_mask(dilation=True)
+                    self.bg_model.surface_fit_mask = mask
+                except:
+                    warn("Background access mask could not be retrieved for "
+                        "PolySurfaceFit in background model of image list %s"
+                        %self.list_id)
+                
+            else:
+                if not self.has_bg_img():
+                    raise AttributeError("no background image available in "
+                        "list %s, please set a suitable background image "
+                        "using method set_bg_img, or change current bg " 
+                        "modelling mode to 0 using self.bg_model.mode=0)" 
+                        %self.list_id)
+                bg_img = self.bg_img
+            self.bg_model.get_tau_image(self.loaded_images["this"], bg_img)
+        self._list_modes["tau"] = val
+        self.load()
+    
+    def activate_aa_mode(self, val=True):
+        """Activates AA mode (i.e. images are loaded as AA images)
+        
+        In order for this to work, the following prerequisites need to be
+        fulfilled:
+        
+            1. This list needs to be an on band list 
+            (``self.list_type = "on"``)
+            #. At least one offband list must be linked to this list (if more
+            offband lists are linked and input param off_id is unspecified, 
+            then the first offband list found is used)
+            #. The number of images in the off band list must exceed a minimum
+            of 50% of the images in this list
+            
+        """
+        if val is self.aa_mode:
+            return
+        if not self.list_type == "on":
+            raise TypeError("This list is not an on band list")
+        aa_test = None
+        if val:
+            offlist = self.get_off_list()
+            if not isinstance(offlist, ImgList):
+                raise Exception("Linked off band list could not be found")
+            if not offlist.nof / float(self.nof) > 0.25:
+                raise IndexError("Off band list does not have enough images...")
+            if self.bg_model.mode != 0:
+                if not self.has_bg_img():
+                    raise AttributeError("no background image available, "
+                        "please set suitable background image using method "
+                        "set_bg_img or set background modelling mode = 0")
+                if not offlist.has_bg_img():
+                    raise AttributeError("no background image available in "
+                        "off band list. Please set suitable background image "
+                        "using method set_bg_img or set background modelling "
+                        "mode = 0")
+            #offlist.update_img_prep(**self.img_prep)
+            #offlist.init_bg_model(mode = self.bg_model.mode)
+            self.tau_mode = 0
+            offlist.tau_mode = 0
+    
+            aa_test = self._aa_test_img(offlist)
+        self._list_modes["aa"] = val
+        
+        self.load()
+
+        return aa_test
+        
     def set_bg_corr_mode(self, mode=1):
         """Update the current background correction mode in ``self.bg_model``
         
-        :param int mode (1): one of the default background correction modes of
-            the background model. Valid input is 0 - 6, call::
-            
-                self.bg_model.print_mode_info()
-                
-            for more information.
-            
+        Parameters
+        ----------
+        mode : int
+            valid bakground modelling mode
         """
-        if not (0 <= mode <= 6):
-            raise ValueError("Invalid background correction mode")
-        elif (1 <= mode <= 6) and not isinstance(self.bg_img, Img):
-            raise TypeError("Could not set mode %s, this mode requires an "
-                "additional sky background image which is not set in ImgList: "
-                "please set a background image first, using ``set_bg_img``")
-        self.bg_model.CORR_MODE = mode
+        self.BG_MODEL_MODE = mode
         
     def init_bg_model(self, **kwargs):
         """Init clear sky reference areas in background model"""
         self.bg_model.update(**kwargs)
-        self.bg_model.guess_missing_settings(self.current_img())
+        self.bg_model.set_missing_ref_areas(self.current_img())
         
     def set_optical_flow(self, optflow):
         """Set the current optical flow object (type 
@@ -1483,14 +1859,15 @@ class ImgList(BaseImgList):
         """
         self.optflow = optflow
           
-    def link_imglist(self, other_list):
+    def link_imglist(self, other_list, list_id=None):
         """Link another image list to this list
         
         :param other_list: another image list object
         
         """
+        if list_id is None:
+            list_id = other_list.list_id
         self.current_img(), other_list.current_img()
-        list_id = other_list.list_id            
         self.linked_lists[list_id] = other_list
         self.linked_indices[list_id] = {}
         idx_array = self.assign_indices_linked_list(other_list)
@@ -1680,13 +2057,6 @@ class ImgList(BaseImgList):
         offset.meta["read_gain"] = read_gain
         self.master_offset = offset
         
-    @property
-    def dark_info(self):
-        """Print information about current dark image access"""
-        s = "Dark image info list %s\n------------------------------+n"
-        s += "DARK_CORR_OPT=%d\n" 
-        raise NotImplementedError
-        
     def get_dark_image(self, key="this"):
         """Prepares the current dark image dependent on ``DARK_CORR_OPT``
         
@@ -1802,25 +2172,6 @@ class ImgList(BaseImgList):
             return False
         return True   
         
-    def activate_darkcorr(self, val=True):
-        """Activate or deactivate dark and offset correction of images
-        
-        :param bool val: Active / Inactive
-        
-        If dark correction turned on, dark image access is attempted, if that
-        fails, Exception is raised including information what did not work 
-        out.
-        """
-        if not val and self._load_edit["darkcorr"]:
-            raise ImgMetaError("Cannot deactivate dark correction, original"
-                "image file was already dark corrected")
-        if val:
-            self.get_dark_image()
-            self.update_index_dark_offset_lists()
-                    
-        self._list_modes["darkcorr"] = val
-        self.load()
-    
     def prepare_bg_fit_mask(self, dilation=False, dilate_kernel=None,
                             optflow_blur=1, optflow_median=10, 
                             plot_masks=False, **flow_settings):
@@ -1828,7 +2179,7 @@ class ImgList(BaseImgList):
         
         The mask is determined based on intensities in the 3 reference 
         recangular areas in the plume background model (if they are not 
-        assigned then they are retrieved using :func:`guess_missing_settings`
+        assigned then they are retrieved using :func:`set_missing_ref_areas`
         in :attr:`bg_model`). Furthermore, an optical flow analysis is 
         performed in order to exclude image pixels where movement could be 
         detected.
@@ -1872,7 +2223,7 @@ class ImgList(BaseImgList):
         img = self.current_img().duplicate()
         mask = ones(img.shape)
         
-        self.bg_model.guess_missing_settings(img)
+        self.bg_model.set_missing_ref_areas(img)
     
         mean, low, high = self.bg_model.mean_in_rects(img)
         thresh = mean - mean * 0.1
@@ -1944,88 +2295,6 @@ class ImgList(BaseImgList):
         print "LOW: %s" %low
         bg [bg <= low] = low
         self.bg_img = Img(bg)
-        
-    def activate_tau_mode(self, val=1):
-        """Activate tau mode
-        
-        In tau mode, images will be loaded as tau images (if background image
-        data is available). 
-        """
-        if val is self.tau_mode: #do nothing
-            return
-        if val:
-            bg_img = None
-            self.bg_model.guess_missing_settings(self.loaded_images["this"])
-            if self.bg_model.CORR_MODE == 0:
-                print ("Background correction mode is 0, initiating settings "
-                    "for poly surface fit")
-                try:
-                    mask = self.prepare_bg_fit_mask(dilation=True)
-                    self.bg_model.surface_fit_mask = mask
-                except:
-                    warn("Background access mask could not be retrieved for "
-                        "PolySurfaceFit in background model of image list %s"
-                        %self.list_id)
-                
-            else:
-                if not self.has_bg_img():
-                    raise AttributeError("no background image available in "
-                        "list %s, please set a suitable background image "
-                        "using method set_bg_img, or change current bg " 
-                        "modelling mode to 0 using self.bg_model.CORR_MODE=0)" 
-                        %self.list_id)
-                bg_img = self.bg_img
-            self.bg_model.get_tau_image(self.loaded_images["this"], bg_img)
-        self._list_modes["tau"] = val
-        self.load()
-    
-    def activate_aa_mode(self, val=True):
-        """Activates AA mode (i.e. images are loaded as AA images)
-        
-        In order for this to work, the following prerequisites need to be
-        fulfilled:
-        
-            1. This list needs to be an on band list 
-            (``self.list_type = "on"``)
-            #. At least one offband list must be linked to this list (if more
-            offband lists are linked and input param off_id is unspecified, 
-            then the first offband list found is used)
-            #. The number of images in the off band list must exceed a minimum
-            of 50% of the images in this list
-            
-        """
-        if val is self.aa_mode:
-            return
-        if not self.list_type == "on":
-            raise TypeError("This list is not an on band list")
-        aa_test = None
-        if val:
-            offlist = self.get_off_list()
-            if not isinstance(offlist, ImgList):
-                raise Exception("Linked off band list could not be found")
-            if not offlist.nof / float(self.nof) > 0.25:
-                raise IndexError("Off band list does not have enough images...")
-            if self.bg_model.CORR_MODE != 0:
-                if not self.has_bg_img():
-                    raise AttributeError("no background image available, "
-                        "please set suitable background image using method "
-                        "set_bg_img or set background modelling mode = 0")
-                if not offlist.has_bg_img():
-                    raise AttributeError("no background image available in "
-                        "off band list. Please set suitable background image "
-                        "using method set_bg_img or set background modelling "
-                        "mode = 0")
-            #offlist.update_img_prep(**self.img_prep)
-            #offlist.init_bg_model(CORR_MODE = self.bg_model.CORR_MODE)
-            self.tau_mode = 0
-            offlist.tau_mode = 0
-    
-            aa_test = self._aa_test_img(offlist)
-        self._list_modes["aa"] = val
-        
-        self.load()
-
-        return aa_test
      
     def get_off_list(self, list_id=None):
         """Search off band list in linked lists
@@ -2079,7 +2348,7 @@ class ImgList(BaseImgList):
                     raise Exception("Fatal: scale rectangle is not set in "
                         "background model of list %s, but current image is "
                         "flagged tau image" %self.list_id)
-                self.bg_model.guess_missing_settings(self.current_img())
+                self.bg_model.set_missing_ref_areas(self.current_img())
             roi = map_roi(self.bg_model.scale_rect, self.pyrlevel)
             len_im = self.optflow.get_flow_vector_length_img() #is at pyrlevel
             sub = len_im[roi[1]:roi[3], roi[0]:roi[2]]
@@ -2112,34 +2381,7 @@ class ImgList(BaseImgList):
         self.vign_mask = mask
         return mask
         
-    def activate_vigncorr(self, val=True):
-        """Activate / deactivate vignetting correction on image load
-        
-        :param bool val: new mode 
-        
-        .. note::
-        
-            Requires ``self.vign_mask`` to be set or an background image 
-            to be available (from which ``self.vign_mask`` is then determined)
-            
-        """
-        if val is self.vigncorr_mode: #do nothing
-            return
-        if isinstance(self.vign_mask, Img):
-            self.vign_mask = self.vign_mask.img
-        if not isinstance(self.vign_mask, ndarray):
-            self.det_vign_mask_from_bg_img() 
-        shape_orig = Img(self.files[self.cfn]).img.shape
-        if not self.vign_mask.shape == shape_orig:
-            raise ValueError("Shape of vignetting mask %s deviates from raw "
-                "img shape %s" %(list(self.vign_mask.shape),
-                                 list(shape_orig)))
-        self._list_modes["vigncorr"] = val
-        self.load()
-
-    """
-    Image loading functions 
-    """
+    """INDEX AND IMAGE LOAD MANAGEMENT"""
     def load(self):
         """Try load current and next image"""
         self.update_index_linked_lists() #based on current index in this list
@@ -2198,7 +2440,6 @@ class ImgList(BaseImgList):
                             import_method=self.camera.image_import_method,                            
                             **self.get_img_meta_from_filename(next_file))
     
-
         self.apply_current_edit("next")
         if self.optflow_mode:  
             try:
@@ -2259,8 +2500,8 @@ class ImgList(BaseImgList):
         if self.darkcorr_mode:
             dark = self.get_dark_image(key)
             img.subtract_dark_image(dark)
-        
-        img.correct_vignetting(self.vign_mask, new_state=self.vigncorr_mode)
+        if self.vigncorr_mode:
+            img.correct_vignetting(self.vign_mask, new_state=True)
         if self.tau_mode:
             img = self.bg_model.get_tau_image(plume_img=img, 
                                               bg_img=self.bg_img,
@@ -2586,157 +2827,11 @@ class ImgList(BaseImgList):
         return (img, img_off, ext_coeff, ext_coeff_off, bg, bg_off,
                 plume_dists, plume_pix_mask)
         
-    """Helpers"""
-    @property
-    def next(self):
-        """Next image"""
-        return self.loaded_images["next"]
-        
-    @property
-    def DARK_CORR_OPT(self):
-        """Return the current dark correction mode
-        
-        The following modes are available:
-
-            0   =>  no dark correction possible (is e.g. set if camera is 
-                    unspecified)
-            1   =>  individual correction with separate dark and offset 
-                    (e.g. ECII data)
-            2   =>  one dark image which is subtracted (including the offset, 
-                    e.g. HD cam data)
-        
-        For details see documentation of :class:`CameraBaseInfo` 
-        """
-        return self._dark_corr_opt
-        
-    
-    @DARK_CORR_OPT.setter
-    def DARK_CORR_OPT(self, val):
-        try:
-            val = int(val)
-            if not val in [0, 1, 2]:
-                raise ValueError
-            self._dark_corr_opt = val
-        except:
-            warn("Failed to update dark correction option")
-    
-    @property
-    def darkcorr_mode(self):
-        """Returns current list darkcorr mode"""
-        return self._list_modes["darkcorr"]
-        
-    @darkcorr_mode.setter
-    def darkcorr_mode(self, value):
-        """Change current list darkcorr mode
-        
-        Wrapper for :func:`activate_darkcorr`        
-        """
-        return self.activate_darkcorr(value)
-    
-    @property
-    def optflow_mode(self):
-        """Activate / deactivate optical flow calc on image load"""
-        return self._list_modes["optflow"]
-    
-    @optflow_mode.setter
-    def optflow_mode(self, val):
-        self.activate_optflow_mode(val)
-    
-    @property
-    def vigncorr_mode(self):
-        """Activate / deactivate optical flow calc on image load"""
-        return int(self._list_modes["vigncorr"])
-    
-    @vigncorr_mode.setter
-    def vigncorr_mode(self, val):
-        self.activate_vigncorr(val)
-    
-    @property
-    def sensitivity_corr_mode(self):
-        """Activate / deactivate AA sensitivity correction mode"""
-        return self._list_modes["senscorr"]
-        
-    @sensitivity_corr_mode.setter 
-    def sensitivity_corr_mode(self, val):
-        """Activate / deactivate AA sensitivity correction mode"""
-        if val == self._list_modes["senscorr"]:
-            return
-        if val:    
-            self.aa_corr_mask #raises AttributeError if mask is not available
-            if not self.aa_mode:
-                raise AttributeError("AA sensitivity correction mode can only "
-                    "be activated in list aa_mode, please activate aa_mode "
-                    "first...")
-   
-        self._list_modes["senscorr"] = val
-        self.load()
-        
-    @property
-    def tau_mode(self):
-        """Returns current list tau mode"""
-        return self._list_modes["tau"]
-        
-    @tau_mode.setter
-    def tau_mode(self, value):
-        """Change current list tau mode
-        
-        Wrapper for :func:`activate_tau_mode`        
-        """
-        self.activate_tau_mode(value)
-     
-    @property
-    def aa_mode(self):
-        """Returns current list AA mode"""
-        return self._list_modes["aa"]
-        
-    @aa_mode.setter
-    def aa_mode(self, value):
-        """Change current list AA mode
-        
-        Wrapper for :func:`activate_aa_mode`        
-        """
-        self.activate_aa_mode(value)
-        
-    @property
-    def calib_mode(self):
-        """Acitivate / deactivate current list gas calibration mode"""
-        return self._list_modes["gascalib"]
-        
-    @calib_mode.setter
-    def calib_mode(self, val):
-        """Change current list calibration mode"""
-        if val == self._list_modes["gascalib"]:
-            return
-        if val:    
-            if not self.aa_mode:
-                self.aa_mode = True
-                print "Activated AA mode in image list"
-            if not self.sensitivity_corr_mode:
-                warn("AA sensitivity correction mode is deactivated. This "
-                    "may yield erroneous results at the image edges")
-            self.calib_data(self.current_img())
-            
-        self._list_modes["gascalib"] = val
-        self.load()
-    
     def has_bg_img(self):
         """Returns boolean whether or not background image is available"""
         if not isinstance(self.bg_img, Img):
             return False
         return True
-    
-    @property
-    def ext_coeff(self):
-        """Current extinction coefficient"""
-        if not isinstance(self.ext_coeffs, Series):
-            raise AttributeError("Extinction coefficients not available in "
-                "image list %s" %self.list_id)
-        elif len(self.ext_coeffs) == self.nof:
-            #assuming that time stamps correspond to list time stamps
-            return self.ext_coeffs[self.cfn]
-        else:
-            idx = closest_index(self.current_time(), self.ext_coeffs.index)
-            return self.ext_coeffs[idx]
             
     """I/O"""
     def import_ext_coeffs_csv(self, file_path, header_id, **kwargs):
