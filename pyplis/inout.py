@@ -6,12 +6,12 @@ from os.path import join, basename, exists, isfile, abspath
 from os import listdir, remove, walk
 
 from matplotlib.pyplot import imread
-from urllib2 import urlopen
 from collections import OrderedDict as od
 from progressbar import ProgressBar, Percentage, Bar, RotatingMarker,\
     ETA, FileTransferSpeed
 from zipfile import ZipFile
 from urllib import urlretrieve
+from urllib2 import urlopen
 from tempfile import mktemp, gettempdir
 from shutil import copy2
 

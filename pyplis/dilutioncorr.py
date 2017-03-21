@@ -2,7 +2,7 @@
 """
 pyplis module for image based light dilution correction
 """
-from numpy import asarray, linspace, exp, ones, nan, polyfit, poly1d
+from numpy import asarray, linspace, exp, ones, nan
 from scipy.ndimage.filters import median_filter
 from matplotlib.pyplot import subplots
 from collections import OrderedDict as od

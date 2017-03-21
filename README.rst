@@ -33,8 +33,6 @@ Requirements are listed in the order of likelyhood to run into problems when usi
 **Optional dependencies (to use extra features)**
 
   - pydoas >= 1.0.0
-  - scikit-image (skimage) >= 0.11.3 (for blob detection in optical flow analysis)
-  
 
 We recommend using `Anaconda <https://www.continuum.io/downloads>`_ as package manager since it includes most of the required dependencies and is updated on a regular basis. Moreover, it is probably the most comfortable way to postinstall and upgrade dependencies such as OpenCV (`see here <http://stackoverflow.com/questions/23119413/how-to-install-python-opencv-through-conda>`__) or the scipy stack.
 

@@ -4,7 +4,6 @@ Image list objects of pyplis library
 """
 from numpy import asarray, zeros, argmin, arange, ndarray, float32, ceil,\
     isnan, logical_or, ones, uint8, finfo, exp
-from ntpath import basename
 from datetime import timedelta, datetime
 #from bunch import Bunch
 from pandas import Series, DataFrame
@@ -12,7 +11,7 @@ from matplotlib.pyplot import figure, draw, subplots
 from copy import deepcopy
 from scipy.ndimage.filters import gaussian_filter
 from warnings import warn
-from os.path import exists, abspath, dirname, join
+from os.path import exists, abspath, dirname, join, basename
 from os import mkdir
 from collections import OrderedDict as od
 from cv2 import dilate
