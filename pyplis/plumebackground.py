@@ -88,7 +88,7 @@ class PlumeBackgroundModel(object):
 
         if isinstance(plume_init, Img):
             self.mode = 1
-            self.guess_missing_settings(plume_init.img)
+            self.guess_missing_settings(plume_init)
             self.surface_fit_mask = ones(plume_init.img.shape, dtype=bool)
     
     @property
@@ -664,7 +664,7 @@ class PlumeBackgroundModel(object):
                    label="vert profile")
         ax[1].yaxis.tick_right()   
         ax[1].set_ylim([h0 - 1, 0])
-        setp( ax[1].xaxis.get_majorticklabels(), rotation = 15)
+        setp(ax[1].xaxis.get_majorticklabels(), rotation = 15)
         ax[1].yaxis.tick_right()   
         
         #plot horizontal profile

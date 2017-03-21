@@ -4,27 +4,31 @@ Module containing features related to plume velocity analysis
 """
 from time import time
 from numpy import mgrid,vstack,int32,sqrt,arctan2,rad2deg, asarray, sin, cos,\
-    logical_and, histogram, ceil, ones, roll, argmax, arange, ndarray,\
-    deg2rad, nan, inf, dot, mean, e
+    logical_and, histogram, ceil, roll, argmax, arange, ndarray,\
+    deg2rad, nan, inf, dot, mean
 from numpy.linalg import norm
 from traceback import format_exc
 from copy import deepcopy
 from warnings import warn
 from datetime import datetime
 from collections import OrderedDict as od
-from matplotlib.pyplot import subplots, figure, Figure, Circle, Line2D
+from matplotlib.pyplot import subplots, figure, GridSpec
 from matplotlib.patches import Rectangle
+from matplotlib.dates import DateFormatter
 from scipy.ndimage.filters import median_filter, gaussian_filter
 from scipy.stats.stats import pearsonr
+from os.path import isdir, join, isfile
+from os import getcwd
     
-from pandas import Series
+from pandas import Series, DataFrame
 
 from cv2 import calcOpticalFlowFarneback, OPTFLOW_FARNEBACK_GAUSSIAN,\
     cvtColor,COLOR_GRAY2BGR,line,circle,VideoCapture,COLOR_BGR2GRAY,\
     waitKey, imshow
 
-from .helpers import bytescale, check_roi, map_roi, roi2rect
+from .helpers import bytescale, check_roi, map_roi, roi2rect, set_ax_lim_roi
 from .optimisation import MultiGaussFit
+from .processing import LineOnImage
 from .image import Img
 
 def find_signal_correlation(first_data_vec, next_data_vec, 
@@ -171,9 +175,12 @@ def find_signal_correlation(first_data_vec, next_data_vec,
 class LocalPlumeProperties(object):
     """Class to store results about local properties of plume displacement
     
-    This class is used to store statistical local plume displacment 
-    information, i.e. the predominant local displacement direction and the 
-    corresponding displacment length both with a given uncertainty. 
+    This class represents statistical (local) plume (gas) displacement 
+    information (e.g. retrieved using an optical flow algorithm). These 
+    include the predominant local displacement direction (orientation of 
+    displacement vectors) and the corresponding displacement length both 
+    including uncertainties (e.g. retrieved from Gauss fits applied to 
+    histogram distribution). 
     Further, the time difference between the two frames used to estimate the 
     displacement parameters is stored. This class is for instance used for
     plume displacement properties derived using 
@@ -181,26 +188,46 @@ class LocalPlumeProperties(object):
     which is based on a statistical analysis of histograms derived from 
     a dense optical flow algorithm.
     """
-    def __init__(self, **kwargs):
-        self._len_mu = []
-        self._len_sigma = []
+    def __init__(self, roi_id="", **kwargs):
+        self.roi_id = roi_id
+        self._len_mu_norm = []
+        self._len_sigma_norm = []
         self._dir_mu = []
         self._dir_sigma = []
         self._start_acq = []
         self._del_t = []
-        self._add_gauss_len = []
-        self._add_gauss_dir = []
+        self._significance = []
     
     @property
+    def start(self):
+        """Acquisistion time of first image"""
+        return self.start_acq[0]
+        
+    @property
+    def stop(self):
+        """Start acqusition time of last image"""
+        return self.start_acq[-1]
+        
+    @property
     def len_mu(self):
-        """Return current displacement length vector"""
-        return asarray(self._len_mu)
+        """Array containing displacement lengths (unit [pix/del_t])"""
+        return asarray(self._len_mu_norm) * self.del_t
     
     @property
     def len_sigma(self):
-        """Return current displacement length std vector"""
-        return asarray(self._len_sigma)
+        """Array with errors of displacement lengths (unit [pix/del_t])"""
+        return asarray(self._len_sigma_norm) * self.del_t
     
+    @property
+    def len_mu_norm(self):
+        """Array containing normalised displacement lengths (unit [pix/s])"""
+        return asarray(self._len_mu_norm) 
+    
+    @property
+    def len_sigma_norm(self):
+        """Array with errors of normalised displ. lens (unit [pix/s])"""
+        return asarray(self._len_sigma_norm)
+        
     @property
     def dir_mu(self):
         """Return current displacement orientation vector"""
@@ -210,6 +237,20 @@ class LocalPlumeProperties(object):
     def dir_sigma(self):
         """Return current displacement orientation std vector"""
         return asarray(self._dir_sigma)
+    
+    @property
+    def significance(self):
+        """Significancy of data point
+        
+        This array is filled in :func:`get_and_append_from_farneback`, which
+        calls :func:`get_main_flow_field_params` of 
+        :class:`OpticalFlowFarneback` object. The number corresponds to the 
+        fraction of pixels used to determine the displacement parameters, 
+        relative to the total number of pixels available in the corresponding
+        ROI used. The latter can, for instance, be a rotated ROI around 
+        a retrieval line (:class:`LineOnImage` class).
+        """
+        return asarray(self._significance)
         
     @property
     def del_t(self):
@@ -226,7 +267,85 @@ class LocalPlumeProperties(object):
         Corresponds to the start acquisition times of the time series         
         """
         return asarray(self._start_acq)
+    
+    @property
+    def displacement_vectors(self):
+        """All displacement vectors (unit [pix / del_t])"""
+        return (asarray([sin(deg2rad(self.dir_mu[:])),
+                        -cos(deg2rad(self.dir_mu[:]))])\
+                        * self.len_mu[:]).T
+    
+    def displacement_vector(self, idx=-1):
+        """Get displacement vector for given index (
         
+        The vector is returned in unit [pix / del_t].
+        
+        Parameters
+        ----------
+        idx : int
+            index 
+        
+        Returns
+        -------
+        array
+            2-element array containing displacement in x and y direction, i.e.
+            ``(dx, dy)``
+            
+        """
+        return asarray([sin(deg2rad(self.dir_mu[idx])),
+                        -cos(deg2rad(self.dir_mu[idx]))])\
+                        * self.len_mu[idx]
+                        
+    def dropna(self, **kwargs):
+        """Drop all indices containing nans
+        
+        Remove all indices for which any of the data arrays 
+        ``len_mu``, ``len_sigma``, ``dir_mu``, ``dir_sigma``, ``del_t`` 
+        contains NaN values using the method :func:`dropna` of pandas 
+        :class:`DataFrame` object.
+        
+        Parameters
+        ----------
+        **kwargs
+            additional keyword arguments passed to :func:`dropna` of pandas
+            :class:`DataFrame` object.
+            
+        Returns
+        -------
+        LocalPlumeProperties
+            new object excluding nan values in any of the data arrays
+        """
+        p = LocalPlumeProperties(self.roi_id)
+        df = self.to_pandas_dataframe()
+        df = df.dropna(**kwargs)
+        p.from_pandas_dataframe(df)
+        return p
+        
+    def interpolate(self, **kwargs):
+        """Interpolate missing
+        
+        Remove all indices for which any of the data arrays 
+        ``len_mu``, ``len_sigma``, ``dir_mu``, ``dir_sigma``, ``del_t`` 
+        contains NaN values using the method :func:`dropna` of pandas 
+        :class:`DataFrame` object.
+        
+        Parameters
+        ----------
+        **kwargs
+            additional keyword arguments passed to :func:`dropna` of pandas
+            :class:`DataFrame` object.
+            
+        Returns
+        -------
+        LocalPlumeProperties
+            new object excluding nan values in any of the data arrays
+        """
+        p = LocalPlumeProperties(self.roi_id)
+        df = self.to_pandas_dataframe()
+        df = df.interpolate(**kwargs)
+        p.from_pandas_dataframe(df)
+        return p
+            
     def get_and_append_from_farneback(self, optflow_farneback, **kwargs):
         """Retrieve main flow field parameters from Farneback engine
         
@@ -238,25 +357,35 @@ class LocalPlumeProperties(object):
         for key, val in res.iteritems():
             if self.__dict__.has_key(key):
                 self.__dict__[key].append(val)
-    
-    def displacement_vector(self, index = -1):
-        """Returns displacement vector for one of the data points in the series
         
-        :param int index: index of data point (default is -1, which means the
-            last index)
-        """
-        return asarray([sin(deg2rad(self.dir_mu[index])),
-                        -cos(deg2rad(self.dir_mu[index]))])\
-                        * self.len_mu[index]
-                        
-    def get_velocity(self, idx, pix_dist_m, pix_dist_m_err=None, 
+    def get_velocity(self, idx=-1, pix_dist_m=1.0, pix_dist_m_err=None, 
                      normal_vec=None):
         """Determine plume velocity from displacements
         
-        :param pix_dist_m: in plume distance between pixels (comes e.g.
-            from :class:`MeasGeometry` object)
-        :param pix_dist_m_err: uncertainty in pixel distance (if None, then
-            a default uncertainty of 10% is assumed)
+        Parameters
+        ----------
+        idx : int
+            index of results for which velocity is determined
+        pix_dist_m : float
+            pixel to pixel distance in m (default is 1.0), e.g.
+            determined using :class:`MeasGeometry` object
+        pix_dist_m_err : :obj:`float`, optional
+            uncertainty in pixel distance, if None (default), then 5% of the 
+            actual pixel distance is assumed
+        normal_vec : :obj:`tuple`, optional
+            normal vector used for scalar product to retrieve effective 
+            velocity (e.g. :attr:`normal_vector` of a :class:`LineOnImage`) 
+            object. If None (default), the normal direction is assumed to be 
+            aligned with the displacement direction, i.e. the absolute 
+            magnitude of the velocity is retrieved
+            
+        Returns
+        -------
+        tuple
+            2-element tuple containing
+            
+            - :obj:`float`: magnitude of effective velocity
+            - :obj:`float`: uncertainty of effective velocity
         """
         
         if pix_dist_m_err is None:
@@ -269,7 +398,230 @@ class LocalPlumeProperties(object):
         v =  len_mu_eff * pix_dist_m / dt
         verr = sqrt((pix_dist_m * self.len_sigma[idx] / dt)**2 +\
                     (pix_dist_m_err * len_mu_eff / dt)**2)
-        return v, verr
+        return (v, verr)
+    
+    def apply_median_filter(self, width=5):
+        """Apply median filter to data
+        
+        The filter is only applied to :attr:`len_mu` and :attr:`dir_mu`, 
+        and the corresponding uncertainty arrays :attr:`len_sigma` and 
+        :attr:`dir_sigma`
+        
+        Note
+        ----
+        Creates and returns new :class:`LocalPlumeProperties` instance, the 
+        data in this object remains unchanged
+        
+        Parameters
+        ----------
+        width : int
+            width of 1D median filter
+            
+        Returns
+        -------
+        LocalPlumeProperties
+            new data object
+        """
+        p = LocalPlumeProperties(self.roi_id)
+        p.from_dict(self.to_dict())
+        p._len_mu_norm = median_filter(self.len_mu_norm, width)
+        p._len_sigma_norm = median_filter(self.len_sigma_norm, width)
+        p._dir_mu = median_filter(self.dir_mu, width)
+        p._dir_sigma = median_filter(self.dir_sigma, width)
+        return p
+        
+    def apply_gauss_filter(self, width=5):
+        """Apply Gaussian blurring filter to data
+        
+        The filter is only applied to :attr:`len_mu` and :attr:`dir_mu`, 
+        and the corresponding uncertainty arrays :attr:`len_sigma` and 
+        :attr:`dir_sigma`
+        
+        Note
+        ----
+        Creates and returns new :class:`LocalPlumeProperties` instance, the 
+        data in this object remains unchanged
+        
+        Parameters
+        ----------
+        width : int
+            width of Gaussian blurring kernel 
+            
+        Returns
+        -------
+        LocalPlumeProperties
+            new data object
+        """
+        p = LocalPlumeProperties(self.roi_id)
+        p.from_dict(self.to_dict())
+        p._len_mu_norm = gaussian_filter(self.len_mu_norm, width)
+        p._len_sigma_norm = gaussian_filter(self.len_sigma_norm, width)
+        p._dir_mu = gaussian_filter(self.dir_mu, width)
+        p._dir_sigma = gaussian_filter(self.dir_sigma, width)
+        return p
+        
+    def get_orientation_tseries(self):   
+        """Get time series (and uncertainties) of movement direction
+        
+        Returns
+        -------
+        tuple 
+            3-element tuple containing
+            
+            - :obj:`Series`: time series of orientation angles
+            - :obj:`Series`: time series of lower vals (using ``dir_sigma``)
+            - :obj:`Series`: time series of upper vals (using ``dir_sigma``)
+            
+        """
+        s = Series(self.dir_mu, self.start_acq)
+        upper = Series(self.dir_mu + self.dir_sigma, self.start_acq)
+        lower = Series(self.dir_mu - self.dir_sigma, self.start_acq)
+        
+        return (s, upper, lower)
+        
+    def get_magnitude_tseries(self, normalised=True):
+        """Get time series (and uncertainties) of displacement lengths
+        
+                
+        Note
+        ----
+        The time series are absolute magnitudes of the retrived displacement 
+        lengths and are not considered relative to a certain normal direction.
+        
+        Parameters
+        ----------
+        normalised : bool
+            if True, the lengths are normalised to a time difference of 1s
+            
+        Returns
+        -------
+        tuple 
+            3-element tuple containing
+            
+            - :obj:`Series`: time series of displacement lengths
+            - :obj:`Series`: time series of lower vals (using ``len_sigma``)
+            - :obj:`Series`: time series of upper vals (using ``len_sigma``)
+            
+        """
+        if normalised:
+            l, err = self.len_mu_norm, self.len_sigma_norm
+        else:
+            l, err = self.len_mu, self.len_sigma
+        s = Series(l, self.start_acq)
+        upper = Series(l + err, self.start_acq)
+        lower = Series(l - err, self.start_acq)
+        
+        return (s, upper, lower)
+    
+    #: VISUALISATION ETC.
+
+    def plot_directions(self, ax=None, date_fmt=None, **kwargs):
+        """Plot time series of displacement orientation
+        
+        Parameters
+        ----------
+        ax
+            optional, matplotlib axes object
+        date_fmt : str
+            optional, x label datetime formatting string, passed to 
+            :class:`DateFormatter` (e.g. "%H:%M")
+        **kwargs
+            additional keyword args passed to plot function of :class:`Series`
+            object
+            
+        Returns 
+        -------
+        Axes
+            matplotlib axes object
+        """
+        if ax is None:
+            fig, ax = subplots(1,1)
+        if not "color" in kwargs:
+            kwargs["color"] = "b"
+        s, upper, lower = self.get_orientation_tseries()
+        s.index = s.index.to_pydatetime()
+        s.plot(ax=ax, **kwargs)
+        try:
+            if date_fmt is not None:
+                ax.xaxis.set_major_formatter(DateFormatter(date_fmt))
+        except:
+            pass
+        ax.fill_between(s.index, lower, upper, alpha=0.1, **kwargs)
+        ax.set_ylabel(r"$\Theta$ [degrees]", fontsize=14)
+        ax.grid()
+        return ax
+        
+    def plot_magnitudes(self, normalised=True, ax=None, 
+                        date_fmt=None, **kwargs):
+        """Plot time series of displacement magnitudes
+        
+        Parameters
+        ----------
+        normalised : bool
+            normalise magnitudes to time difference intervals of 1s
+        ax
+            optional, matplotlib axes object
+        date_fmt : str
+            optional, x label datetime formatting string, passed to 
+            :class:`DateFormatter` (e.g. "%H:%M")
+        **kwargs
+            additional keyword args passed to plot function of :class:`Series`
+            object
+            
+        Returns 
+        -------
+        Axes
+            matplotlib axes object
+        """
+        if ax is None:
+            fig, ax = subplots(1,1)
+        if not "color" in kwargs:
+            kwargs["color"] = "b"
+        s, upper, lower = self.get_magnitude_tseries(normalised=normalised)
+        if normalised:
+            unit = "pix/s"
+        else:
+            unit = "pix"
+        s.index = s.index.to_pydatetime()
+        s.plot(ax=ax, **kwargs)
+        try:
+            if date_fmt is not None:
+                ax.xaxis.set_major_formatter(DateFormatter(date_fmt))
+        except:
+            pass
+        ax.fill_between(s.index, lower, upper, alpha=0.1, **kwargs)
+        ax.set_ylabel(r"Magnitude [%s]" %unit, fontsize=14)
+        ax.grid()
+        return ax
+    
+    def plot(self, date_fmt=None, **kwargs):
+        """Plot showing detailed information about this time series"""
+        fig = figure()
+        gs = GridSpec(3, 1, height_ratios = [.4, .4, .2], hspace=0.05)
+        ax2 = fig.add_subplot(gs[2]) #for significance plot
+        ax0 = fig.add_subplot(gs[0])#, sharex=ax2) #for orientation plot
+        ax1 = fig.add_subplot(gs[1])#, sharex=ax2) #for displ. lens
+        ax1.yaxis.tick_right()
+        ax1.yaxis.set_label_position("right")
+        
+        sign = Series(self.significance, self.start_acq)
+        sign.index = sign.index.to_pydatetime()
+        sign.plot(ax=ax2,**kwargs)
+        ax2.set_ylabel("Significance")
+        ax2.set_ylim([0, 1])
+        ax2.set_yticks([0,.2,.4,.6,.8, 1])
+        ax2.grid()
+        try:
+            if date_fmt is not None:
+                ax2.xaxis.set_major_formatter(DateFormatter(date_fmt))
+        except:
+            pass
+        
+        self.plot_directions(ax=ax0, date_fmt=date_fmt, **kwargs)
+        self.plot_magnitudes(ax=ax1, date_fmt=date_fmt, **kwargs)
+        ax0.set_xticklabels([])
+        ax1.set_xticklabels([])
+        return fig
         
     def plot_velocities(self, pix_dist_m=None, pix_dist_m_err=None, ax=None,
                         **kwargs):
@@ -279,6 +631,7 @@ class LocalPlumeProperties(object):
             velocities are plotted in units of pix/s
         :param pix_dist_m_err: uncertainty in pixel to pixel distance in m
         """
+        raise NotImplementedError("Coming soon")
         velo_unit = "m/s"
         try:
             pix_dist_m = float(pix_dist_m)
@@ -301,21 +654,101 @@ class LocalPlumeProperties(object):
         ax.grid()
         return ax
         
-    def plot_directions(self, ax=None, **kwargs):
-        """Plot time series of displacement orientation"""
-        if ax is None:
-            fig, ax = subplots(1,1)
-        if not "color" in kwargs:
-            kwargs["color"] = "b"
-        angle = Series(self.dir_mu, self.start_acq)
-        angle_upper = Series(self.dir_mu + self.dir_sigma, self.start_acq)
-        angle_lower = Series(self.dir_mu - self.dir_sigma, self.start_acq)
-        ax.plot(angle.index, angle, **kwargs)
-        ax.fill_between(angle.index, angle_lower, angle_upper, alpha=0.1,
-                        **kwargs)
-        ax.set_ylabel(r"$\Theta$ [degrees]", fontsize=14)
-        #ax.grid()
-        return ax
+    #: I/O stuff
+    def to_dict(self):
+        """Write all data attributes into dictionary 
+        
+        Keys of the dictionary are the private class names
+        
+        Returns
+        -------
+        dict
+            Dictionary containing results 
+        """
+        return dict(_len_mu_norm        =   self.len_mu_norm,
+                    _len_sigma_norm     =   self.len_sigma_norm,
+                    _dir_mu             =   self.dir_mu,
+                    _dir_sigma          =   self.dir_sigma,
+                    _del_t              =   self.del_t,
+                    _start_acq          =   self.start_acq,
+                    _significance       =   self._significance)
+         
+    def from_dict(self, d):
+        """Read valid attributes from dictionary
+        
+        Parameters
+        ----------
+        d : dict
+            dictionary containing data
+            
+        Returns
+        -------
+        LocalPlumeProperties
+            this object
+        """
+        for k, v in d.iteritems():
+            if self.__dict__.has_key(k):
+                self.__dict__[k] = v
+                
+    def to_pandas_dataframe(self):
+        """Converts object into pandas dataframe
+        
+        This can, for instance be used to store the data as csv (cf.
+        :func:`from_pandas_dataframe`)        
+        """
+        d = self.to_dict()
+        del d["_start_acq"]
+        try:
+            df = DataFrame(d, index=self.start_acq)
+            return df
+        except:
+            warn("Failed to convert LocalPlumeProperties into pandas DataFrame")
+    
+    def from_pandas_dataframe(self, df):
+        """Import results from pandas :class:`DataFrame` object
+        
+        Parameters
+        ----------
+        df : DataFrame
+            pandas dataframe containing emisison rate results
+        
+        Returns
+        -------
+        LocalPlumeProperties
+            this object
+        """
+        self._start_acq = df.index.to_pydatetime()
+        for key in df.keys():
+            if self.__dict__.has_key(key):
+                self.__dict__[key] = df[key].values
+        return self
+                
+    @property
+    def default_save_name(self):
+        """Returns default name for txt export"""
+        try:
+            d = self.start.strftime("%Y%m%d")
+            i = self.start.strftime("%H%M")
+            f = self.stop.strftime("%H%M")
+        except:
+            d, i, f = "nan", "nan", "nan"    
+        return "plume_props_%s_%s_%s_%s.txt" %(self.roi_id, d, i, f)
+        
+    def save_txt(self, path=None):
+        """Save this object as text file"""       
+        try:
+            if isdir(path): # raises exception in case path is not valid loc
+                path = join(path, self.default_save_name)
+            elif not isfile:
+                raise Exception
+        except:
+            path = join(getcwd(), self.default_save_name)
+            
+        self.to_pandas_dataframe().to_csv(path)
+        
+    def load_txt(self, path):
+        df = DataFrame.from_csv(path)
+        return self.from_pandas_dataframe(df)
     
 class OpticalFlowFarnebackSettings(object):
     """Settings for optical flow Farneback calculations and visualisation
@@ -378,6 +811,7 @@ class OpticalFlowFarnebackSettings(object):
     def __init__(self, **settings):
         self._contrast = od([("i_min"       ,   0),
                              ("i_max"       ,   1e30),
+                             ("roi_rad"     ,   [0, 0, 9999, 9999]),
                              ("auto_update" ,   True)])
         
         self._flow_algo = od([("pyr_scale"  ,   0.5), 
@@ -389,10 +823,10 @@ class OpticalFlowFarnebackSettings(object):
                             
         self._analysis = od([("roi_abs"             ,   [0, 0, 9999, 9999]),
                              ("min_length"          ,   1.0),
-                             ("hist_dir_sigma"      ,   3),
-                             ("hist_dir_gnum_max"   ,   5),
-                             ("hist_len_how"        ,   "multigauss"),
-                             ("hist_len_gnum_max"   ,   3)]) #only applies is hist_len_how=="multigauss"
+                             ("min_count_frac"      ,   0.1),
+                             ("hist_dir_sigma"      ,   1),
+                             ("hist_dir_gnum_max"   ,   10),
+                             ("hist_dir_binres"     ,   10)])
         
         self._display = od([("disp_skip"            ,   10),
                             ("disp_len_thresh"      ,   3)])
@@ -429,6 +863,23 @@ class OpticalFlowFarnebackSettings(object):
     @i_max.setter
     def i_max(self, val):
         self._contrast["i_max"] = val
+    
+    @property
+    def roi_rad(self):
+        """ROI used for measuring min / max intensities for contrast settings
+        
+        ROI (in absolute image coords) for updating the intensity range 
+        ``i_min`` / ``i_max`` (only relevant if :attr:`auto_update` is True). 
+        
+        """
+        return self._contrast["roi_rad"]
+    
+    @roi_rad.setter
+    def roi_rad(self, val):
+        if not check_roi(val):
+            raise ValueError("Invalid ROI, need list [x0, y0, x1, y1], "
+                "got %s" %val)
+        self._contrast["roi_rad"] = val
         
     @property
     def auto_update(self):
@@ -542,7 +993,7 @@ class OpticalFlowFarnebackSettings(object):
             raise ValueError("Invalid ROI, need list [x0, y0, x1, y1], "
                 "got %s" %val)
         self._analysis["roi_abs"] = val
-    
+        
     @property
     def min_length(self):
         """Get / set minimum flow vector length for post analysis"""
@@ -557,13 +1008,25 @@ class OpticalFlowFarnebackSettings(object):
         self._analysis["min_length"] = val
     
     @property
+    def min_count_frac(self):
+        """Minimum fraction of significant vectors required for histo analysis"""
+        return self._analysis["min_count_frac"]
+        
+    @min_count_frac.setter
+    def min_count_frac(self, val):
+        if not val <= 1.0:
+            raise ValueError("Please use a fraction between 0 and 1")
+        print "Updating param min_count_frac: %.2f" %val
+        self._analysis["min_count_frac"] = val
+    
+    @property
     def hist_dir_sigma(self):
         """Sigma tolerance value for mean flow analysis"""
         return self._analysis["hist_dir_sigma"]
     
     @hist_dir_sigma.setter
     def hist_dir_sigma(self, val):
-        if not 1 <= val <= 4:
+        if not 1 <= val < 4:
             raise ValueError("Value must be between 1 and 4")
         self._analysis["hist_dir_sigma"] = val
     
@@ -579,27 +1042,17 @@ class OpticalFlowFarnebackSettings(object):
         self._analysis["hist_dir_gnum_max"] = val
     
     @property
-    def hist_len_gnum_max(self):
-        """Max number of gaussians for multigauss fit of length histo"""
-        return self._analysis["hist_len_gnum_max"]
+    def hist_dir_binres(self):
+        """Angular resolution of orientation histo (bin width, in deg)"""
+        return self._analysis["hist_dir_binres"]
     
-    @hist_len_gnum_max.setter
-    def hist_len_gnum_max(self, val):
-        if not val > 0:
-            raise ValueError("Value must be larger than 0")
-        self._analysis["hist_len_gnum_max"] = val
+    @hist_dir_binres.setter
+    def hist_dir_binres(self, val):
+        if not 1 <= val <= 180:
+            raise ValueError("Please choose an angular resolution between "
+                "1 and 180 degrees")
+        self._analysis["hist_dir_binres"] = val
         
-    @property
-    def hist_len_how(self):
-        """Method to estimate the mean displacement length from histo"""
-        return self._analysis["hist_len_how"]
-    
-    @hist_len_how.setter
-    def hist_len_how(self, val):
-        if not val in ["argmax", "multigauss"]:
-            raise ValueError("Invalid input: choose from argmax or multigauss")
-        self._analysis["hist_len_how"] = val
-      
     @property
     def disp_skip(self):
         """Return current pixel skip value for displaying flow field"""
@@ -657,27 +1110,40 @@ class OpticalFlowFarneback(object):
     
     Engine for autmatic optical flow calculation, for settings see
     :class:`OpticalFlowFarnebackSettings`. The calculation of the flow field
-    is performed for two consecut
-    Advanced post processing analysis of flow field in order to automatically
-    identify and distinguish reliable output from unreliable (the latter is 
-    mainly in low contrast regions).      
+    is performed for two consecutive images. 
     
-    .. note::
+    Includes features for histogram based post analysis of flow field which can
+    be used to estimate flow vectors in low contrast image regions.
     
-        Image handling withhin this object is kept on low level base, i.e. on 
-        numpy arrays. Input :class:`pyplis.Image.Img` also works on input but
-        this class does not provide any funcitonality based on the functionality
-        of :class:`pyplis.Image.Img` objects (i.e. access of meta data, etc).
-        As a result, this engine cannot perform any wind speed estimates (it
-        would need to know about image acquisition times for that and further
-        about the measurement geometry) but only provides functionality to 
-        calculate and analyse optical flow fields in detector pixel 
-        coordinates.
+    Parameters
+    ----------
+    first_img : :obj:`Img`, optional
+        first of two consecutive images
+    next_img : :obj:`Img`, optional
+        second of two consecutive images
+        
+    Attributes
+    ----------
+    images_input : dict
+        Dictionary containing the current images used to determine flow field.
+        The images can be updated using :func:`set_images`.
+        Keys: ``this``, ``next``
+    images_prep : dict
+        Dictionary containing modified input images prepared for determining 
+        the optical field using :func:`calcOpticalFlowFarneback` (e.g. 
+        contrast changed, converted to 8 bit).
+        Keys: ``this``, ``next``
+    flow : array
+        this attribute contains the flow field (i.e. raw output of 
+        :func:`calcOpticalFlowFarneback`).
+    settings : OpticalFlowFarnebackSettings
+        settings class including input specifications for flow calculation
+        (i.e. input args for :func:`calcOpticalFlowFarneback`) and further, 
+        settings for image preparation (before the flow field is calculated,
+        cf. :attr:`images_prep`) as well as settings for post analysis of the
+        optical flow field (e.g. for histogram analysis).
     """
-    def __init__(self, first_img=None, next_img=None, name="", **settings):        
-        """Initialise the Optical flow environment"""
-        self.name = name
-    
+    def __init__(self, first_img=None, next_img=None, **settings):
         #settings for determination of flow field
         self.settings = OpticalFlowFarnebackSettings(**settings)
 
@@ -756,7 +1222,7 @@ class OpticalFlowFarneback(object):
             raise AttributeError("No image available")
         return im.edit_log["pyrlevel"]
         
-    def set_mode_auto_update_contrast_range(self, value = True):
+    def set_mode_auto_update_contrast_range(self, value=True):
         """Activate auto update of image contrast range
         
         If this mode is active (the actual parameter is stored in 
@@ -785,13 +1251,15 @@ class OpticalFlowFarneback(object):
     def update_contrast_range(self):
         """Update contrast range using min/max vals of current images in ROI"""
         img = self.images_input["this"]
-        roi = map_roi(self.roi_abs, img.edit_log["pyrlevel"])
+        if self.settings.roi_rad == [0, 0, 9999, 9999]:
+            self.settings.roi_rad = self.settings.roi_abs
+        roi = map_roi(self.settings.roi_rad, img.edit_log["pyrlevel"])
         sub = img.img[roi[1]:roi[3], roi[0]:roi[2]]
         i_min, i_max = max([0, sub.min()]), sub.max()
         self.settings.i_min = i_min
         self.settings.i_max = i_max
-        print ("Updated contrast range in opt flow, i_min = %s, i_max = %s" 
-                                                            %(i_min, i_max))
+        print ("Updated contrast range in opt flow: ROI=%s\ni_min=%s\ni_max%s\n" 
+            %(roi, i_min, i_max))
     
     def set_images(self, this_img, next_img):
         """Update the current image objects 
@@ -806,6 +1274,8 @@ class OpticalFlowFarneback(object):
             warn("Input images for optical flow calculation are cropped")
         
         i_min, i_max = self.current_contrast_range() 
+        if self.roi_abs == [0, 0, 9999, 9999]:
+            self.roi_abs = this_img.roi_abs
         if i_max == 1e30 or self.auto_update_contrast:
             self.update_contrast_range()
          
@@ -820,20 +1290,27 @@ class OpticalFlowFarneback(object):
                                              cmin=i_min, cmax=i_max)
         
     
-    def calc_flow(self, this_img = None, next_img = None):
+    def calc_flow(self, this_img=None, next_img=None):
         """Calculate the optical flow field
         
         Uses :func:`cv2.calcOpticalFlowFarneback` to calculate optical
         flow field between two images using the input settings specified in
         ``self.settings``.
         
-        :param ndarray this_img (None): the first of two successive images (if 
-            unspecified, the current images in ``self.images_prep`` are used, 
-            else, they are updated)
-        :param ndarray next_img (None): the second of two successive images (if 
-            unspecified, the current images in ``self.images_prep`` are used, 
-            else, they are updated)
-            
+        Parameters
+        ----------
+        this_img : Img
+            the first of two successive images (if unspecified, the current 
+            images in ``self.images_prep`` are used, else, they are updated)
+        next_img : Img
+            the second of two successive images (if unspecified, the current 
+            images in ``self.images_prep`` are used, else, they are updated)
+        
+        Returns
+        -------
+        array 
+            3D numpy array containing flow displacement field (is also
+            assigned to :attr:`flow`)
         """
         if all([isinstance(x, Img) for x in [this_img, next_img]]):
             self.set_images(this_img, next_img)
@@ -841,54 +1318,100 @@ class OpticalFlowFarneback(object):
         settings = self.settings._flow_algo
         print "Calculating optical flow"
         t0 = time()
-        self.flow = calcOpticalFlowFarneback(self.images_prep["this"],\
-                self.images_prep["next"], flags = OPTFLOW_FARNEBACK_GAUSSIAN,\
-                **settings)
-        print "Elapsed time flow calculation: %s" %(time() - t0)
+        self.flow = calcOpticalFlowFarneback(self.images_prep["this"],
+                                             self.images_prep["next"], 
+                                             flags=OPTFLOW_FARNEBACK_GAUSSIAN,
+                                             **settings)
+        print "Elapsed time flow calculation: %.1f s" %(time() - t0)
         return self.flow 
         
-    def get_flow_in_roi(self):
-        """Get the flow field in the current ROI"""
+    def get_flow_in_roi(self, roi_rel=None):
+        """Get the flow field within in a ROI
+        
+        Parameters
+        ----------
+        roi_rel : list
+            rectangular ROI aligned with image axis (``[x0, y0, x1, y1]``).
+            
+            .. note::
+            
+                The ROI is used as is, i.e. it needs to be defined for 
+                current Gauss pyramid level.
+            
+        Returns
+        -------
+        array
+            3D numpy array containing flow displacement field in ROI
+            
+        """
         if self.flow is None:
             raise ValueError("No flow field available..")
-        x0, y0, x1, y1 = self.roi
+        try:
+            x0, y0, x1, y1 = roi_rel
+        except:
+            x0, y0, x1, y1 = self.roi
+            
         return self.flow[y0 : y1, x0 : x1, :]
     
-    def _prep_flow_for_analysis(self):
-        """Flatten the flow fields for analysis
+    def prep_flow_for_analysis(self, mask=None):
+        """Get flow field data from all pixels in a certain ROI
+        
+        This function provides access to the flow field in a certain region
+        of interest. In the default case the currently set roi
+        :attr:`roi` is used (which is a rectangle aligned with the image 
+        x / y axis). Alternatively, a pixel access mask can be provided 
+        (e.g. specifying pixels in a rotated rectangle) which is then be used.
+        Returns 
+        
+        Parameters
+        ----------
+        mask : array
+            boolean mask specifying all pixels used to retrieve displacement
+            information (True pixels in mask)
         
         Returns
         -------
         tuple
             2-element tuple containing
             
-            - ``ndarray``, vector containing all x displacement lengths
-            - ``ndarray``, vector containing all y displacement lenghts
+            - :obj:`array`, vector containing all x displacement lengths
+            - :obj:`array`, vector containing all y displacement lenghts
             
         """
-        fl = self.get_flow_in_roi()
-        return fl[:,:,0].flatten(), fl[:,:,1].flatten()
+        fl = self.flow
+        if fl is None:
+            raise ValueError("Optical flow field not available")
+        try:
+            if mask.shape == fl.shape[:2]:
+                return fl[:,:,0][mask], fl[:,:,1][mask]
+            raise Exception
+        except:
+            fl = self.get_flow_in_roi()
+        return fl[:, :, 0].flatten(), fl[:, :, 1].flatten()
+        
     
-    def prepare_intensity_condition_mask(self, lower_val=0.0, upper_val=1e30):
-        """Apply intensity threshold to input image in ROI and make mask vector
-        
-        Parameters
-        ----------
-        lower_val : float
-            lower intensity value, default is 0.0
-        upper_val : float 
-            upper intensity value, default is 1e30
-        
-        Returns
-        -------
-        ndarray
-            flattened mask which can be used e.g. in 
-            :func:`flow_orientation_histo` as additional input param
-            
-        """
-        x0, y0, x1, y1 = self.roi
-        sub = self.images_input["this"].img[y0 : y1, x0 : x1].flatten()
-        return logical_and(sub > lower_val, sub < upper_val)
+#==============================================================================
+#     def prepare_intensity_condition_mask(self, lower_val=0.0, upper_val=1e30):
+#         """Apply intensity threshold to input image in ROI and make mask vector
+#         
+#         Parameters
+#         ----------
+#         lower_val : float
+#             lower intensity value, default is 0.0
+#         upper_val : float 
+#             upper intensity value, default is 1e30
+#         
+#         Returns
+#         -------
+#         ndarray
+#             flattened mask which can be used e.g. in 
+#             :func:`flow_orientation_histo` as additional input param
+#             
+#         """
+#         x0, y0, x1, y1 = self.roi
+#         sub = self.images_input["this"].img[y0 : y1, x0 : x1].flatten()
+#         return logical_and(sub > lower_val, sub < upper_val)
+#==============================================================================
     
     def to_plume_speed(self, col_dist_img, row_dist_img=None):
         """Convert the current flow field to plume speed array
@@ -921,40 +1444,89 @@ class OpticalFlowFarneback(object):
         dy = row_dist_img.img * self.flow[:,:,1] / delt
         return sqrt(dx**2 + dy**2)
         
-    def get_flow_orientation_img(self, in_roi = False):
-        """Returns image corresponding to flow orientation values in each pixel"""
+    def get_flow_orientation_img(self, in_roi=False, roi_rel=None):
+        """Returns flow angle image
+        
+        The pixel values correspond to the orientation angles of the vectors of
+        the current flow field, where the values correspond to:
+        
+            - 0 -> upwards (**-y** direction)
+            - 90 -> to the right (**+x** direction)
+            - -90 -> to the left (**-x** direction)
+            - -180, 180 -> down (**+y** direction)
+            
+        Parameters
+        ----------
+        in_roi : bool
+            get the image for a certain ROI
+        roi_rel : :obj:`list`, optional,
+            the ROI supposed to be used if ``in_roi`` is True. If None 
+            (default) then the current ROI is used (:attr:`roi`).
+        
+        Returns
+        -------
+        array
+            2D numpy array corresponding to flow orientation image 
+            
+        """
         if self.flow is None:
             raise ValueError("No flow field available..")
                 
         if in_roi:
-            fl = self.get_flow_in_roi()
+            fl = self.get_flow_in_roi(roi_rel)
         else:
             fl = self.flow
         fx, fy = fl[:,:,0], fl[:,:,1]
         return rad2deg(arctan2(fx, -fy))
       
-    def get_flow_vector_length_img(self, in_roi=False):        
-        """Returns image corresponding to displacement length in each pixel"""
+    def get_flow_vector_length_img(self, in_roi=False, roi=None):        
+        """Returns flow vector length image
+        
+        The pixel values correspond to the magnitude of the vectors of the
+        current flow field.
+            
+        Parameters
+        ----------
+        in_roi : bool
+            get the image for a certain ROI
+        roi : :obj:`list`, optional,
+            the ROI supposed to be used if ``in_roi`` is True. If None 
+            (default) then the current ROI is used (:attr:`roi`).
+        
+        Returns
+        -------
+        array
+            2D numpy array corresponding to flow orientation image 
+        """
         if self.flow is None:
             raise ValueError("No flow field available..")        
         if in_roi:
-            fl = self.get_flow_in_roi()
+            fl = self.get_flow_in_roi(roi)
         else:
             fl = self.flow
         fx, fy = fl[:,:,0], fl[:,:,1]
         return sqrt(fx ** 2 + fy ** 2)
       
-    @property
-    def flow_len_and_angle_vectors(self):
-        """Returns vector containing all flow lengths
+    def all_len_angle_vecs_roi(self, mask=None):
+        """Get lengths and angles for all pixels in a ROI
         
-        :return:
-            - ndarray, all displacement lengths of current flow field 
-                (flattened)
-            -ndarray, all orientation angles of current flow field (flattened)
+        Parameters
+        ----------
+        mask : :obj:`array`, optional
+            boolean mask specifying all pixels supposed to be used for 
+            data access, defaults to None, in which case the current ROI is
+            used (i.e. :attr:`roi`)
+            
+        Returns
+        -------
+        tuple
+            2-element tuple containing
+            
+            - :obj:`array`, vector with all displacement lengths in ROI / mask
+            - :obj:`array`, vector with all displacement angles in ROI / mask
             
         """
-        fx, fy = self._prep_flow_for_analysis()
+        fx, fy = self.prep_flow_for_analysis(mask)
         angles = rad2deg(arctan2(fx, -fy))
         lens = sqrt(fx**2 + fy**2)
         return lens, angles        
@@ -987,51 +1559,116 @@ class OpticalFlowFarneback(object):
             return count, bins
         else:
             raise ValueError("Invalid input for histogram data")
-            
-    def _estimate_mean_len_argmax(self, count, bins):
-        """Estimate the mean displacement length and error for mode argmax
         
-        See :class:`OpticalFlowFarnebackSettings` and 
-        :func:`get_main_flow_field_params` for details
+    def flow_orientation_histo(self, pix_mask=None, bin_res_degrees=None,
+                               min_length=1.0, **kwargs):
+        """Get histogram of orientation distribution of current flow field
         
         Parameters
         ----------
-        count : array
-            array containing histogram counts
-        bins : array
-            array containing bins corresponding to counts
+        pix_mask : :obj:`array`, optional
+            boolean mask specifying image pixels supposed to be considered for
+            the analysis. Is passed to :func:`all_len_angle_vecs_roi`, i.e. if
+            this mask is unspecified the histogram data is retrieved using
+            the current ROI (:attr:`roi`) for specifying the considered image 
+            region. 
+            
+            .. note::
+            
+                This is ignored if two arrays containing lengths and angles are
+                provided using ``**kwargs`` (for details see below)
+                
+        bin_res_degrees : int
+            bin width of histogram (is rounded to nearest integer if not 
+            devisor of 360), if unspecified use :attr:`hist_dir_binres` of 
+            settings class
+        min_length : float
+            minimum length of vectors in order to be considered for histogram, 
+            defaults to 1.0
+        **kwargs : 
+            additional key word args that can be used to pass lens and angles
+            arrays (see e.g. :func:`get_main_flow_field_params`). Use keywords
+            ``lens`` and ``angles`` to pass this information. 
+            
+        Returns
+        -------
+        tuple
+            3-element tuple containing
+            
+            - :obj:`array`: histogram counts
+            - :obj:`array`: histogram bins
+            - :obj:`array`: all angles used to determine the histogram
+        """
+        try:
+            lens = kwargs["lens"]
+            angles = kwargs["angles"]
+        except:
+            lens, angles = self.all_len_angle_vecs_roi(pix_mask)
+        if bin_res_degrees is None:
+            bin_res_degrees = self.settings.hist_dir_binres
+        cond = lens > min_length
+        if sum(cond) == 0:
+            raise ValueError("No data left for determining orientation histo")
+        angs = angles[cond.astype(bool)]
+        num_bins = int(round(360 / float(bin_res_degrees)))
+        count, bins = histogram(angs, num_bins, range=(-180, 180))
+        return count, bins, angs
+    
+    def flow_length_histo(self, pix_mask=None, bin_res_pix=1, 
+                          min_length=1.0, **kwargs):
+        """Get histogram of displacement length distribution of flow field
+        
+        Parameters
+        ----------
+        pix_mask : :obj:`array`, optional
+            boolean mask specifying image pixels supposed to be considered for
+            the analysis. Is passed to :func:`all_len_angle_vecs_roi`, i.e. if
+            this mask is unspecified the histogram data is retrieved using
+            the current ROI (:attr:`roi`) for specifying the considered image 
+            region. 
+            
+            .. note::
+            
+                This is ignored if two arrays containing lengths and angles are
+                provided using ``**kwargs`` (for details see below)
+        
+        bin_res_pix : int
+            bin width in units of pixels, defaults to 2
+        min_length : float
+            minimum length of vectors in order to be considered for histogram, 
+            defaults to 1.0
+        **kwargs : 
+            additional key word args that can be used to pass lens and angles
+            arrays (see e.g. :func:`get_main_flow_field_params`). Use keywords
+            ``lens`` and ``angles`` to pass this information. 
+            
+        Returns
+        -------
+        tuple
+            3-element tuple containing
+            
+            - :obj:`array`: histogram counts
+            - :obj:`array`: histogram bins
+            - :obj:`array`: all lengths used to determine the histogram
             
         """
-        count, bins = self._prep_histo_data(count, bins)
-        
-        idx = argmax(count)
-        #amplitude value at max
-        amp = count[idx]
-        pos = bins[idx]
-        #print "Estimating peak width at peak, index: " + str(idx)
-        #print "x,y:" + str(self.index[idx]) + ", " + str(amp)
-        max_ind = len(bins) - 1  
         try:
-            ind = next(val[0] for val in enumerate(count[idx:max_ind])\
-                                                if val[1] < amp/e)
-            #print "Width (index units): " + str(abs(ind))
-            
-            return pos, abs(bins[ind] - pos)
+            lens = kwargs["lens"]
+            angles = kwargs["angles"]
         except:
-            #print "Trying to the left"#format_exc()
-            try:
-                inv = count[::-1]
-                idx = len(inv) - 1 - idx
-                ind = next(val[0] for val in enumerate(inv[idx:max_ind])\
-                                                if val[1] < amp/2)
-                #print "Width (index units): " + str(abs(ind))
-                return pos, abs(bins[ind] - pos)
-            except:
-                pass
-        warn("Failed to retrieve uncertainty in displacement length histo "
-            "using method argmax, setting error to 100 maximum detected length")
-        return pos, max(bins)
+            lens, angles = self.all_len_angle_vecs_roi(pix_mask)    
+        cond = lens > min_length
         
+        lens = lens[cond.astype(bool)]
+        if not len(lens) > 0:
+            raise ValueError("No data available...")
+        upper = int(ceil(lens.max())) + 1
+        upper = upper + upper%2
+        count, bins = histogram(lens, bins=int(upper/float(bin_res_pix)), 
+                                range=(0, upper))
+    
+        return count, bins, lens
+      
     def fit_multigauss_to_histo(self, count, bins, noise_amp=None,
                                 max_num_gaussians=None):
         """Fit multi gauss distribution to histogram
@@ -1069,173 +1706,185 @@ class OpticalFlowFarneback(object):
             ok = False
         return fit, ok
         
-    def flow_orientation_histo(self, bin_res_degrees=6, multi_gauss_fit=True,
-                               exclude_short_vecs=True, cond_mask_flat=None,
-                               noise_amp=None, max_num_gaussians=None,
-                               **kwargs):
-        """Get histogram of orientation distribution of current flow field
-        
-        :param int bin_res_degrees (6): bin width of histogram (is rounded to
-            nearest integer if not devisor of 360)
-        :param bool multi_gauss_fit (True): apply multi gauss fit to histo
-        :param bool exclude_short_vecs: don't include flow vectors which are 
-            shorter than ``self.settings.min_length``
-        :param ndarray cond_mask_flat: additional conditional boolean vector
-            applied to flattened orientation array (for instance all pixels
-            in original imaged that exceed a certain tau value, see also
-            :func:`prepare_intensity_condition_mask`)
-        :param **kwargs: can be used to pass lens and angles arrays (see e.g.
-            :func:`get_main_flow_field_params`)
-        """
-        try:
-            lens = kwargs["lens"]
-            angles = kwargs["angles"]
-        except:
-            lens, angles = self.flow_len_and_angle_vectors
-        cond = ones(len(lens))
-        if cond_mask_flat is not None:
-            cond = cond * cond_mask_flat
-        if exclude_short_vecs:
-            cond = cond * (lens > self.settings.min_length)
-        if max_num_gaussians is None:
-            max_num_gaussians = self.settings.hist_dir_gnum_max
-        angs = angles[cond.astype(bool)]
-        
-        num_bins = int(round(360 / bin_res_degrees))
-        count, bins = histogram(angs, num_bins)
-        if noise_amp is None:
-            noise_amp = max(count) * 0.05 #set minimum amplitude for multi gauss fit 5% of max amp
-        fit = None
-        if multi_gauss_fit:
-            try:
-                fit, ok = self.fit_multigauss_to_histo(count, bins, 
-                                                       noise_amp=noise_amp,
-                                                       max_num_gaussians=
-                                                       max_num_gaussians)
-                if not ok:
-                    raise Exception
-            except:
-                warn("MultiGaussFit failed in orientation histogram of optical"
-                    "flow field at %s" %self.current_time)
-        return count, bins, angs, fit
-    
-    def flow_length_histo(self, multi_gauss_fit=True, exclude_short_vecs=True,
-                          cond_mask_flat=None, noise_amp=None,
-                          max_num_gaussians=None, **kwargs):
-        """Get histogram of displacement length distribution of flow field
+    def fit_orientation_histo(self, count, bins, noise_amp=None, 
+                              max_num_gaussians=None, **kwargs):
+        """Fit multi gauss distribution to flow orientation histogram
         
         Parameters
         ----------
-        multi_gauss_fit : bool
-            apply multi gauss fit to histo
-        exclude_short_vecs : bool
-            don't include flow vectors which are shorter than 
-            ``self.settings.min_length``
-        cond_mask_flat : array
-            conditional boolean vector applied to flattened array of 
-            displacement lengths within current ROI (for instance all pixels
-            in original image that exceed a certain tau value, see also
-            :func:`prepare_intensity_condition_mask`)
-        **kwargs
-            can be used to pass lens and angles arrays (see e.g.
-            :func:`get_main_flow_field_params`)
+        count : array
+            histogram counts (see :func:`flow_orientation_histo`)
+        bins : array
+            histogram bins (see :func:`flow_orientation_histo`)
+        noise_amp : :obj:`float`, optional
+            minimum amplitude required for peaks in histogram in order to be 
+            considered for multi gauss fit, if None (default) use 5% of max
+            count
+        max_num_gaussians : :obj:`int`, optional
+            maximum number of Gaussians fitted to the distributions, if None
+            (default) then use ``self.settings.hist_dir_gnum_max``
             
         Returns
         -------
         tuple
+            2-element tuple containing
             
+            - :obj:`MultiGaussFit`, the fit object
+            - bool, fit success
         """
-        try:
-            lens = kwargs["lens"]
-            angles = kwargs["angles"]
-        except:
-            lens, angles = self.flow_len_and_angle_vectors    
-        cond = ones(len(lens))
-        if cond_mask_flat is not None:
-            cond = cond * cond_mask_flat
-        if exclude_short_vecs:
-            cond = cond * (lens > self.settings.min_length)
         if max_num_gaussians is None:
-            max_num_gaussians = self.settings.hist_len_gnum_max
-        lens = lens[cond.astype(bool)]
-        count, bins = histogram(lens, int(ceil(lens.max())))
-        fit = None
+            max_num_gaussians = self.settings.hist_dir_gnum_max
         if noise_amp is None:
-            noise_amp = max(count) * 0.05
-        if multi_gauss_fit:
-            try:
-                fit, ok = self.fit_multigauss_to_histo(count, bins, 
-                                                       noise_amp=noise_amp,
-                                                       max_num_gaussians=
-                                                       max_num_gaussians)
-                if not ok:
-                    raise Exception
-            except:
-                warn("MultiGaussFit failed in displacement length histogram "
-                    "of optical flow field at %s" %self.current_time)
-        return count, bins, lens, fit
+            #set minimum amplitude for multi gauss fit 5% of max amp
+            noise_amp = max(count) * 0.05 
+        
+        fit, ok = self.fit_multigauss_to_histo(count, bins, 
+                                               noise_amp=noise_amp,
+                                               max_num_gaussians=
+                                               max_num_gaussians)
+        return fit, ok
     
-    
-    def get_main_flow_field_params(self, cond_mask_flat=None, noise_amp=None):
-        """Histogram based statistical analysis of flow field in current ROI
+    def fit_length_histo(self, count, bins, noise_amp=None,
+                         max_num_gaussians=4, **kwargs):
+        """Apply multi gauss fit to length distribution histogram
         
-        This function analyses histograms of the current flow field within the 
-        current ROI (see :func:`roi`) in order to find the predominant 
-        movement direction and the corresponding predominant displacement 
-        length.
-        
-        Steps::
-        
-            1. Get main flow direction by fitting and analysing multi gauss
-            (see :class:`MultiGaussFit`) flow orientation histogram
-            using :func:`flow_orientation_histo`. The analysis yields mean 
-            direction plus standard deviation
-            
-            .. note::
-            
-                Not finished yet ...
-                
         Parameters
         ----------
-        cond_mask_flat 
-            optional, flattened mask specifying pixels used for statistical
-            analysis (e.g. determined from an optical density image using a 
-            tau threshold, i.e. only pixels exceeding a certain tau value.
-            .. note::
-                this mask must correspond to the sub image area specified by 
-                :attr:`roi_abs`.
-
-        
+        count : array
+            histogram counts (see :func:`flow_orientation_histo`)
+        bins : array
+            histogram bins (see :func:`flow_orientation_histo`)
+        noise_amp : :obj:`float`, optional
+            minimum amplitude required for peaks in histogram in order to be 
+            considered for multi gauss fit, if None (default) use 5% of max
+            count
+        max_num_gaussians : :obj:`int`, optional
+            maximum number of Gaussians fitted to the distributions, if None
+            (default) then use ``self.settings.hist_dir_gnum_max``
             
+        Returns
+        -------
+        tuple
+            2-element tuple containing
+            
+            - :obj:`MultiGaussFit`, the fit object
+            - bool, fit success
+        """
+        if noise_amp is None:
+            noise_amp = max(count) * 0.05
+            
+        fit, ok = self.fit_multigauss_to_histo(count, bins, 
+                                               noise_amp=noise_amp,
+                                               max_num_gaussians=
+                                               max_num_gaussians)
+        return fit, ok
+    
+    def get_main_flow_field_params(self, line=None, pix_mask=None, 
+                                   noise_amp=None, min_count_frac=None,
+                                   min_length=None):
+        """Histogram based statistical analysis of flow field in current ROI
+        
+        This function analyses histograms of the current flow field within
+        a  ROI in order to find the predominant movement direction (within the
+        ROI) and the corresponding predominant displacement length.
+        
+        Parameters
+        ----------
+        line : :obj:`LineOnImage`, optional
+            if provided, then the ROI corresponding to the line orientation 
+            is used (see :func:`get_rotated_roi_mask` in :class:`LineOnImage` 
+            objects). If unspecified the current roi (:attr:`roi`) is used.
+        pix_mask : :obj:`array`, optional
+            boolean mask specifying image pixels supposed to be considered for
+            the analysis, e.g. only plume pixels (determined applying a 
+            tau threshold to a tau image).
+        noise_amp : :obj:`float`, optional
+            this number specifies the minimum amplitude for individual peaks
+            in the histograms (for multiple Gaussian fit). If unspecified here
+            it will be set automatically in the corresponding methods
+            :func:`fit_length_histo` and :func:`fit_orientation_histo`.
+        min_count_frac : :obj:`float`, optional
+            determins the minimum required number of significant vectors in 
+            current ROI for histogram analysis (i.e. if ROI is NxM pixels and
+            ``min_count_frac=0.1``, then at least (MxN)*0.1 pixels need to 
+            remain after applying ``cond_mask_flat`` and exclusion of vectors
+            shorter than current minimum length ``self.settings.min_length``)
+        min_length : :obj:`float`, optional
+            minimum length of vectors required in order to be considered for 
+            historgram analysis
+            
+        Returns
+        -------
+        dict
+            dictionary containing results of the analysis
                 
         """
-        res = od([("_len_mu"        ,   nan), 
-                  ("_len_sigma"     ,   inf),
-                  ("_dir_mu"        ,   nan), 
-                  ("_dir_sigma"     ,   inf),
-                  ("_del_t"         ,   self.del_t), 
-                  ("_start_acq"     ,   self.current_time),
-                  ("_add_gauss_dir" ,   []),
-                  ("_add_gauss_len" ,   []),
-                  ("cond"           ,   cond_mask_flat),
-                  ("fit_dir"        ,   None),
-                  ("fit_len"        ,   None)])
-               
-        #vectors containing lengths and angles of flow field in ROI
-        lens, angles = self.flow_len_and_angle_vectors
+        del_t = self.del_t
+        res = od([("_len_mu_norm"   ,   nan), #normalised displ. len [s-1]
+                  ("_len_sigma_norm",   inf), #error norm. displ. len [s-1]
+                  ("_dir_mu"        ,   nan), #predominant displ. dir. [deg]
+                  ("_dir_sigma"     ,   inf), #error pred. displ. dir. [deg]
+                  ("_del_t"         ,   del_t), #time diff 'this' -> 'next'
+                  ("_start_acq"     ,   self.current_time), #time stamp 'this'
+                  ("_significance"  ,   0.0), #fraction of usable pixels in ROI
+                  ("_add_gauss_dir" ,   []), 
+                  ("pix_mask"       ,   None),
+                  ("fit_dir"        ,   None)])
+        # EVALUATE INPUT AND INIT PARAMETERS
         
-        #fit the orientation distribution histogram (excluding vectors shorter
-        #than self.settings.min_length)
-        _, _, _, fit = self.flow_orientation_histo(cond_mask_flat=
-            cond_mask_flat, lens=lens, angles=angles, noise_amp=noise_amp)
-        #in case the routine fails and you want to check the fit
-        res["fit_dir"] = fit 
+        # get current minimum length required to be included into statistics
+        if min_length is None:
+            min_length = self.settings.min_length
         
-        if fit is None or not fit.has_results():
-            warn("Could not retrieve main flow field parameters.. probably "
-            "due to failure of multi gaussian fit to angular distribution "
-            "histogram")
+        # minimum fraction of significant vectors required (relative to the 
+        # total number of vectors in ROI)                    
+        if min_count_frac is None:
+            min_count_frac = self.settings.min_count_frac
+    
+        #init pixel access mask 
+        mask = pix_mask
+        if isinstance(line, LineOnImage):
+            print "Using rotated ROI mask for pixel access"""
+            m = line.get_rotated_roi_mask(self.flow.shape[:2])
+            if mask is None:
+                mask = m
+            else:
+                mask = (mask * m).astype(bool)
+
+        res["pix_mask"] = mask
+        
+        # vectors containing lengths and angles of flow field in ROI (if None
+        # of the two input masks are specified, then the current ROI is used)
+        lens, angles = self.all_len_angle_vecs_roi(mask)
+        
+        # get histogram of data exceeding minimum length
+        try:
+            (count, 
+             bins, 
+             angs) = self.flow_orientation_histo(lens=lens,
+                                                 angles=angles,
+                                                 min_length=min_length)  
+        except:
+            warn("Retrieval of flow orientation histogram failed")
             return res
+        
+        # Check if enough vectors are left to go on with the analysis
+        frac = len(angs) / float(len(angles))
+        if frac < min_count_frac:
+            warn("Aborted retrieval of main flow field paramaters"
+                "only %d %% of the vectors in current ROI are longer than "
+                "minimum required length %.1f"
+                %(frac*100, min_length))
+            return res
+        # Now try to apply multi gauss fit to histogram distribution
+        fit, ok = self.fit_orientation_histo(count, bins, noise_amp)
+        res["fit_dir"] = fit 
+        if not fit.has_results():
+            warn("Could not retrieve main flow field parameters, multi gauss "
+                 "fit of orientation histogram failed")
+            raise Exception
+            return res
+        
         #analyse the fit result (i.e. find main gauss peak and potential other
         #significant peaks)
         dir_mu, dir_sigma, tot_num, add_gaussians = fit.analyse_fit_result()
@@ -1248,7 +1897,7 @@ class OpticalFlowFarneback(object):
         for g in add_gaussians:
             sign = int(fit.integrate_gauss(*g) * 100 / tot_num)
             if sign > 20: #other peak exceeds 20% of main peak
-                warn("Optical flow hisogram analysis:\n"
+                warn("Optical flow histogram analysis:\n"
                      "Detected additional gaussian in orientation histogram:\n"
                      "%sSignificany: %s %%\n" %(fit.gauss_str(g), sign))
         
@@ -1256,58 +1905,27 @@ class OpticalFlowFarneback(object):
         dir_low = dir_mu - dir_sigma * self.settings.hist_dir_sigma
         dir_high = dir_mu + dir_sigma * self.settings.hist_dir_sigma
         
-        #... and make a mask from it
-        cond = logical_and(angles > dir_low, angles < dir_high)
-        
-        # now exclude short vectors from statistics (add condition to mask)
-        cond = cond * (lens > self.settings.min_length)
-        
-        # and if a specified mask was provided at input, take that into account
-        # too
-        if cond_mask_flat is not None:
-            cond = cond * cond_mask_flat
-        
-        res["cond"] = cond
-        if sum(cond) < 0.01 * len(lens):
-            warn("Total number of vectors fulfilling criteria is less "
-                "insignificant (less than 1%), aborting retrieval of main"
-                "flow fiel parameters")
-        
+        #... and make a mask from it including min length condition
+        cond = logical_and(angles > dir_low, 
+                           angles < dir_high) * (lens > min_length)
+
+        # Check if enough vectors are left to go on with the analysis
+        frac = sum(cond) / float(len(lens))
+        if frac < min_count_frac:
+            warn("Aborted retrieval of main flow field parameters"
+                "only %d %% of the vectors in current ROI remain after "
+                "limiting angular range from fit result of orientation histo"
+                %(frac*100))
             return res
-        do_fit = False
-        if self.settings.hist_len_how == "multigauss":
-            do_fit = True
-        fit_res = self.flow_length_histo(multi_gauss_fit=do_fit,
-                                         cond_mask_flat=cond,
-                                         lens=lens, 
-                                         angles=angles, 
-                                         noise_amp=noise_amp)
-                                         
-        count, bins, lens, fit2 = fit_res
-        res["fit_len"] = fit2
-        if fit2 is None or not fit2.has_results():
-            
-            len_mu, len_sigma = self._estimate_mean_len_argmax(count, bins)
-            print("Estimating mean displacement length using method argmax")
-            print("Retrieved value: %.1f +/- %.1f" %(len_mu, len_sigma))
-            res["_len_mu"] = len_mu
-            res["_len_sigma"] = len_sigma
-            return res
-        print("Estimating mean displacement length using method multigauss")
-        len_mu, len_sigma, tot_num, add_gaussians = fit2.analyse_fit_result()
-        print("Retrieved value: %.1f +/- %.1f" %(len_mu, len_sigma))
-        for g in add_gaussians:
-            sign = int(fit.integrate_gauss(*g) * 100 / tot_num)
-            if sign > 20: #other peak exceeds 20% of main peak
-                warn("Optical flow hisogram analysis:\n"
-                     "Detected additional gaussian in length histogram:\n"
-                     "%sSignificany: %s %%\n" %(fit2.gauss_str(g), sign))
-        res["_len_mu"] = len_mu
-        res["_len_sigma"] = len_sigma
-        res["_add_gauss_len"] = add_gaussians
+        res["_significance"] = frac
+        lens = lens[cond]
+        len_mu, len_sigma = lens.mean(), lens.std()
+        print("Mean displacement length: %.1f +/- %.1f" %(len_mu, len_sigma))
+        res["_len_mu_norm"] = len_mu / del_t #normalise to 1s ival
+        res["_len_sigma_norm"] = len_sigma / del_t #normalise to 1s ival
         return res
-        
-    def apply_median_filter(self, shape = (3,3)):
+    
+    def apply_median_filter(self, shape=(3,3)):
         """Apply a median filter to flow field, i.e. to both flow images (dx, dy
         stored in self.flow) individually
         
@@ -1348,149 +1966,205 @@ class OpticalFlowFarneback(object):
             warn("Image acquisition times cannot be accessed in" 
                         " OpticalFlowFarneback")
             t0 = datetime(1900, 1, 1)
-            t1 = datetime(1900, 1, 1)
+            t1 = datetime(1900, 1, 1, 0, 0, 1)
         return t0, t1
     """
     Plotting / visualisation etc...
-    """        
-    def plot_flow_histograms(self, multi_gauss_fit=1, exclude_short_vecs=True,
-                             cond_mask_flat=None, for_app=0):
-        """Plot histograms of flow field within roi
+    """  
+    def plot_orientation_histo(self, pix_mask=None, min_length=None,
+                               apply_fit=True, ax=None, 
+                               tit="Orientation histo", color="b",
+                               **fit_settings):
+        """Plot flow orientation histogram
         
-        Analyses the flow field in current ROI and plots 6 subfigures 
-        containing:
+        Plots a histogram of the orientation angles of the flow vectors w
+        within a certain ROI. By default, vectors shorter then 
+        ``self.settings.min_length`` are excluded from the histogram, if you
+        want a histogram including the short vectors, provide input parameter
+        ``min_length=0.0``.
         
-            1. top left: flow field in the whole image, and
-            #. bottom left: in the current ROI
-            #. top middle: a color coded image showing the orientation of the \
-                retrieved vectors in degrees:
-                
-                    - 0 is top direction
-                    - 0 - 180: right orientation
-                    - -180 - 0: left orientation
-            
-            #. bottom middle: a color coded image showing the retrieved \
-                displacement lengths
-            #. top right: the orientation histogram determined based on input \
-                specifications (i.e. with multi gauss fit, considering short 
-                vectors)
-            #. bottom right: the length histogram determined based on input \
-                specifications (i.e. with multi gauss fit, considering short 
-                vectors
+        Param
+        
+        """
+        if ax is None:
+            fig, ax = subplots(1,1)
+        if min_length is None:
+            min_length = self.settings.min_length
+        lens, angles = self.all_len_angle_vecs_roi(pix_mask)
+        try:
+            (count, 
+             bins, 
+             angs) = self.flow_orientation_histo(lens=lens,
+                                                 angles=angles,
+                                                 min_length=min_length) 
+        except:
+            warn("Failed to retrieve orientation histogram: probably no vectors "
+                "left for retrieval of histogram. Current time: %s "
+                %self.current_time)
+            return (ax, None, None)
+        w = bins[1] - bins[0]
+        ax.bar(bins[:-1], count, width=w, color=color, ec="none", alpha=0.3,
+               label="Histogram")
+        
+        mu, sigma = 0, 180
+        if apply_fit:
+            fit, ok = self.fit_orientation_histo(count, bins, **fit_settings)
+            if fit.has_results():
+                mu, sigma,_,_ = fit.analyse_fit_result()
+                fit.plot_multi_gaussian(ax=ax, label="Multi-gauss fit",
+                                        color=color)
+                tit += (r": $\mu (+/-\sigma$) = %.1f (+/- %.1f)" 
+                    %(mu, sigma))
+                ax.plot([mu, mu], [0, count.max()*1.05], color=color, ls="-")
+                ax.plot([mu-sigma, mu-sigma], [0, count.max()*1.05], 
+                        color=color, ls="--")
+                ax.plot([mu+sigma, mu+sigma], [0, count.max()*1.05], 
+                        color=color, ls="--")
+            else:
+                tit += ": Fit failed..."
+        ax.set_title(tit, fontsize=11)      
+        ax.set_xlim([-180, 180])    
+        ax.legend(loc='best', fancybox=True, framealpha=0.5, fontsize=10) 
+        ax.grid()
+        return ax, mu, sigma
+    
+    def plot_length_histo(self, pix_mask=None, dir_low=-180, dir_high=180, 
+                          min_length=None, apply_fit=True, ax=None, 
+                          tit="Length histo", color="b", **fit_settings):
+        if ax is None:
+            fig, ax = subplots(1,1)
+        if min_length is None:
+            min_length = self.settings.min_length
+        lens, angles = self.all_len_angle_vecs_roi(pix_mask)
+        #... and make a mask from it including min length condition
+        cond = logical_and(angles > dir_low, angles < dir_high)
+        lens, angles = lens[cond], angles[cond]
+        try:
+            (count, 
+             bins, 
+             lens) = self.flow_length_histo(lens=lens, angles=angles,
+                                            min_length=min_length) 
+        except:
+            warn("Failed to retrieve length histogram: probably no vectors "
+                "left for retrieval of histogram. Current time: %s "
+                %self.current_time)
+        w = bins[1] - bins[0]
+        ax.bar(bins[:-1], count, width=w, color=color, ec="none", alpha=0.3,
+               label="Histogram")
+        
+        mu, sigma = lens.mean(), lens.std()
+        tit += (r": $\mu (+/-\sigma$) = %.1f (+/- %.1f)" %(mu, sigma))
+        if apply_fit:
+            fit, ok = self.fit_length_histo(count, bins, **fit_settings)
+            if fit.has_results():
+                fit.plot_multi_gaussian(ax=ax, label="Multi-gauss fit",
+                                        color=color)
+        ax.set_title(tit, fontsize=11)      
+        ax.set_xlim([0, int(bins.max()) + 1])    
+        ax.legend(loc='best', fancybox=True, framealpha=0.5, fontsize=10)
+        ax.grid()
+        return ax
+        
+    def plot_flow_histograms(self, line=None, pix_mask=None, apply_fits=True, 
+                             **kwargs):
+        """Plot detailed information about optical flow histograms
         
         Parameters
         ----------
-        multi_gauss_fit : bool
-            If True, try to fit multi gauss fit (:class:`MultiGaussFit`) to 
-            both histograms and include results 
-        exclude_short_vecs : bool
-            If True, exclude vectors shorter than ``self.settings.min_length``
-            in histograms
-        cond_mask_flat : array
-            optional, additional boolean array specifying pixels to be 
-            considered for retrieval of histograms
-                
-        Returns
-        -------
-        figure
-            matplotlib figure 
-            
-            
+        line : LineOnImage
+            retrieval line for which historgrams plotted, if None (default), 
+            then the curr
         """
         if self.flow is None:
             raise ValueError("No flow field available..")
+        roi_temp = self.roi_abs
+        
+        if isinstance(line, LineOnImage):
+            self.roi_abs = line.line_frame_abs
+    
+        aspect = self.images_input["this"].xy_aspect
         #set up figure and axes
-        if not for_app:
-            fig = figure(figsize=(16,8))
-        else:
-            fig = Figure(figsize=(16,8))
+        fig = figure(figsize=(16,8))
+
         #three strangely named axes for top row 
         ax1 = fig.add_subplot(2,3,1)
-        ax4 = fig.add_subplot(2,3,2)
-        ax2 = fig.add_subplot(2,3,3)
+        ax2 = fig.add_subplot(2,3,2)
+        ax3 = fig.add_subplot(2,3,3)
         
-        ax11 = fig.add_subplot(2,3,4)        
+        ax4 = fig.add_subplot(2,3,4)        
         ax5 = fig.add_subplot(2,3,5)
-        ax3 = fig.add_subplot(2,3,6)
+        ax6 = fig.add_subplot(2,3,6)
         
         #draw the optical flow image
         self.draw_flow(0, add_cbar=True, ax=ax1)
-        self.draw_flow(1, add_cbar=True, ax=ax11)
+        self.draw_flow(1, add_cbar=True, ax=ax4)
         
         #load and draw the length and angle image
-        angle_im = self.get_flow_orientation_img(True)#rad2deg(arctan2(fx,-fy))
-        len_im = self.get_flow_vector_length_img(True)#sqrt(fx**2+fy**2)
-        angle_im_disp = ax4.imshow(angle_im, interpolation='nearest',
+        angle_im = self.get_flow_orientation_img()
+        len_im = self.get_flow_vector_length_img()
+        angle_im_disp = ax2.imshow(angle_im, interpolation='nearest',
                                    vmin=-180, vmax=180, cmap="RdBu")
-        ax4.set_title("Displacement orientation", fontsize=11)        
-        fig.colorbar(angle_im_disp, ax = ax4)
+        ax2.set_title("Displacement orientation", fontsize=11)        
+        fig.colorbar(angle_im_disp, ax=ax2)
         
-        len_im_disp = ax5.imshow(len_im, interpolation='nearest',  cmap="Blues")
-        fig.colorbar(len_im_disp, ax = ax5)
+        len_im_disp = ax5.imshow(len_im, interpolation='nearest',  
+                                 cmap="Blues")
+        fig.colorbar(len_im_disp, ax=ax5)
         ax5.set_title("Displacement lengths", fontsize=11)        
         
-        #prepare the histograms
-        n1, bins1, angles1, fit1 = self.flow_orientation_histo(\
-            multi_gauss_fit = multi_gauss_fit, exclude_short_vecs =\
-                    exclude_short_vecs, cond_mask_flat = cond_mask_flat)
-        tit = "Flow angle histo"
-        if multi_gauss_fit and fit1.has_results():
-            mu, sigma,_,_ = fit1.analyse_fit_result()
-        
-            info_str=" mu (sigma) = %.1f (+/- %.1f)" %(mu, sigma)
-            tit += info_str
-        if exclude_short_vecs:
-            thresh = self.settings.min_length
-            ax3.axvline(thresh, linestyle="--", color="r")
-            tit += "\nOnly vectors longer than %d" %thresh
+        set_ax_lim_roi(self.roi, ax2, xy_aspect=aspect)
+        set_ax_lim_roi(self.roi, ax5, xy_aspect=aspect)
+        set_ax_lim_roi(self.roi, ax4, xy_aspect=aspect)
+        mask = pix_mask
+        c="g"
+        if isinstance(line, LineOnImage):
+            print "Using rotated ROI mask for pixel access"""
+            m = line.get_rotated_roi_mask(self.flow.shape[:2])
+            if mask is None:
+                mask = m
+            else:
+                mask = (mask * m).astype(bool)
+                
+            line.plot_line_on_grid(ax=ax1, include_roi_rot=1)
+            line.plot_line_on_grid(ax=ax2, include_roi_rot=1)
+            line.plot_line_on_grid(ax=ax4, include_roi_rot=1)
+            line.plot_line_on_grid(ax=ax5, include_roi_rot=1)
+            c=line.color
             
-        #n, bins,angles,m=self._ang_dist_histo(fx,fy,gaussFit=1)
-        w = bins1[1] - bins1[0]
-        ax2.bar(bins1[:-1], n1, width = w, label = "Histo")
-        ax2.set_title(tit, fontsize=11)
-        if multi_gauss_fit and fit1.has_results():
-            fit1.plot_multi_gaussian(ax=ax2, label="Multi-gauss fit")
-        ax2.set_xlim([-180, 180])    
-        ax2.legend(loc='best', fancybox=True, framealpha=0.5, fontsize=10)                
-        #now the length histogram
-        n2, bins2, lens2, fit2 = self.flow_length_histo(\
-            multi_gauss_fit = multi_gauss_fit, exclude_short_vecs =\
-                    exclude_short_vecs, cond_mask_flat = cond_mask_flat)
-                    
-        tit="Flow length histo"
-        if multi_gauss_fit and fit2.has_results():
-            mu, sigma,_,_ = fit2.analyse_fit_result()
+        _, mu, sigma = self.plot_orientation_histo(pix_mask=mask, 
+                                                   apply_fit=True, ax=ax3, 
+                                                   color=c)
+        low, high = mu-sigma, mu+sigma
+        self.plot_length_histo(pix_mask=mask, apply_fit=True, ax=ax6, 
+                               dir_low=low, dir_high=high, color=c)
         
-            info_str=" mu (sigma) = %.1f (+/- %.1f)" %(mu, sigma)
-            tit += info_str
-    
-        w = bins2[1] - bins2[0]
-        ax3.bar(bins2[:-1], n2, width = w, label = "Histo")
-        ax3.set_title(tit, fontsize=11)
-        if multi_gauss_fit and fit2.has_results():
-            fit2.plot_multi_gaussian(ax=ax3, label="Multi-gauss fit")   
-        ax3.legend(loc='best', fancybox=True, framealpha=0.5, fontsize=10) 
-        
-
-        ax3.set_ylim([0, n2.max()*1.1])
-        ax3.set_xlim([0, bins2[-1]])
-        
+        fig.tight_layout()
+        self.roi_abs = roi_temp
         return fig
         
-    def calc_flow_lines(self, in_roi = True):
+    def calc_flow_lines(self, in_roi=True, roi=None):
         """Determine line objects for visualisation of current flow field
         
-        .. note::
-
-            The flow lines are calculated only in image area specified
-            by current ROI (``self.roi``).
+        Parameters
+        ----------
+        in_roi : bool
+            if True (default), then the lines are calculated for pixels
+            within ROI (either specified by 2. input param and else
+            :attr:`roi_abs` is used).
+        roi : list
+            Region of interest supposed to be displayed
+            
+        Returns
+        -------
+        tuple
+            the line coordinates
             
         """
         settings = self.settings
         step, len_thresh = settings.disp_skip, settings.disp_len_thresh
         #get the shape of the rectangle in which the flow was determined
         if in_roi:
-            flow = self.get_flow_in_roi()
+            flow = self.get_flow_in_roi(roi)
         else:
             flow = self.flow
         h, w = flow.shape[:2]
@@ -1505,22 +2179,6 @@ class OpticalFlowFarneback(object):
         # create line endpoints
         lines = int32(vstack([x, y,x + fx, y + fy]).T.reshape(-1,2,2))
         return lines
-
-    def show_flow_field(self, rect=None):
-        """Plot the actual flow field (dx,dy images) 
-        
-         :param list rect: sub-img rectangle specifying ROI for flow field \
-            analysis (in absolute image coordinates)
-        """
-        raise NotImplementedError
-#==============================================================================
-#         if rect is None:
-#             x0,y0=0,0
-#             h,w = self.flow.shape[:2]
-#         else:
-#             x0,y0=self.settings.imgShapePrep.map_coordinates(rect[0][0],rect[0][1])
-#             h,w=self.settings.imgShapePrep.get_subimg_shape()
-#==============================================================================
     
     def plot(self, **kwargs):
         """Draw current flow field onto image
@@ -1557,7 +2215,7 @@ class OpticalFlowFarneback(object):
         img = bytescale(img.img, cmin = i_min, cmax = i_max)
         dsp = ax.imshow(img, cmap = "gray_r")
         if add_cbar:    
-            fig.colorbar(dsp, ax = ax)
+            fig.colorbar(dsp, ax=ax)
             
 
         disp = cvtColor(img, COLOR_GRAY2BGR) 
@@ -1568,15 +2226,16 @@ class OpticalFlowFarneback(object):
         lines = self.calc_flow_lines()
         tit = r"1. img"
         if not in_roi:
-            x0, y0, w, h = roi2rect(self.roi)
-            ax.add_patch(Rectangle((x0, y0), w, h, fc = "none", ec = "c"))
+            x_tl, y_tl, w, h = roi2rect(self.roi)
+            ax.add_patch(Rectangle((x_tl, y_tl), w, h, fc="none", ec="c"))
         else:
             tit += " (in ROI)"
+        print "X0 / Y0: %s / %s" %(x0, y0)
         for (x1, y1), (x2, y2) in lines:
             line(disp, (x0+ x1, y0 + y1),\
                         (x0 + x2,y0 + y2),(0, 255, 255), 1)
             circle(disp, (x0 + x2, y0 + y2), 1, (255, 0, 0), -1)
-        #ax.imshow(disp)
+        ax.imshow(disp)
         
         try:
             tit += (r": %s \n $\Delta$t (next) = %.2f s" %(\
@@ -1585,53 +2244,81 @@ class OpticalFlowFarneback(object):
         except:
             pass
         
-        ax.set_title(tit, fontsize = 10)
+        ax.set_title(tit, fontsize=10)
         return ax, disp
     
-    def draw_flow(self, in_roi=False, add_cbar=False, ax=None):
+    def draw_flow(self, in_roi=False, roi_abs=None, add_cbar=False, ax=None):
         """Draw the current optical flow field
         
-        :param bool in_roi: if True, the flow field is plotted in a
-            cropped image area (using current ROI), else, the whole image is 
-            drawn and the flow field is plotted within the ROI which is 
-            indicated with a rectangle
-        :param ax (None): matplotlib axes object
+        Parameters
+        ----------
+        in_roi : bool
+            if True, the flow field is plotted in a cropped image area 
+            else, the whole image is drawn 
+        roi_abs : :obj:`list`, optional
+            region of interest for which the flow field is drawn (in absolute
+            image coordinates, i.e. is converted to current pyrlevel). If None, 
+            then the :attr:`roi_abs` is used.
+        add_cbar : bool
+            if True, a colorbar is added to the plot (note that the images
+            are converted into 8 bit before the flow is calculated, therefore 
+            the intensity range of the displayed image is between 0 and 256).
+        ax : Axes
+            matplotlib axes object
+            
+        Returns
+        -------
+        Axes
+            the plot axes
         """
+        if self.flow is None:
+            print "Could not draw flow, no flow available"
+            return
         if ax is None:
             fig, ax = subplots(1,1)
         else:
             fig = ax.figure
         
-        x0, y0 = 0, 0
         i_min, i_max = self.current_contrast_range()
     
-        img = self.images_input["this"]#.bytescale(i_min, i_max)
-        if in_roi:
-            img = img.crop(roi_abs = self.roi_abs, new_img = True)
+        img = self.images_input["this"]
+        if not check_roi(roi_abs):
+            roi_abs = self.roi_abs
         
-        #ugly (fast solution)
+        roi_rel = map_roi(roi_abs, self.pyrlevel)
+        disp = bytescale(img.img, cmin=i_min, cmax=i_max)
+        if img.is_tau: #invert intensities
+            disp = (255 - disp)
+        
+        if add_cbar:
+            disp_temp = ax.imshow(disp, cmap="gray")
+            fig.colorbar(disp_temp, ax=ax)
 
-        img = bytescale(img.img, cmin = i_min, cmax = i_max)
-        dsp = ax.imshow(img, cmap = "gray_r")
-        if add_cbar:    
-            fig.colorbar(dsp, ax = ax)
-        
-        if self.flow is None:
-            print "Could not draw flow, no flow available"
-            return
-        lines = self.calc_flow_lines()
+        disp = cvtColor(disp, COLOR_GRAY2BGR) 
+       
+        lines = self.calc_flow_lines(in_roi, roi_rel)
         tit = r"1. img"
+        x0, y0, w, h = roi2rect(roi_rel)
         if not in_roi:
-            x0, y0, w, h = roi2rect(self.roi)
-            ax.add_patch(Rectangle((x0, y0), w, h, fc = "none", ec = "c"))
+            ax.add_patch(Rectangle((x0, y0), w, h, fc="none", ec="c"))
+            x0, y0 = 0, 0
         else:
             tit += " (in ROI)"
         print "Drawing optical flow field into plot..."
         for (x1, y1), (x2, y2) in lines:
-            ax.add_artist(Line2D([x0+ x1, x0 + x2], [y0 + y1, y0 + y2],
-                                color="c"))
-            ax.add_patch(Circle((x0 + x2, y0 + y2), 1, ec="r", fc="r"))
-        #ax.imshow(disp)
+            line(disp, (x0 + x1, y0 + y1), (x0 + x2, y0 + y2),(0, 255, 255), 1)
+            circle(disp, (x0 + x2, y0 + y2), 1, (255, 0, 0), -1)
+        ax.imshow(disp)
+        if in_roi:
+            set_ax_lim_roi(roi_rel, ax)
+            #img = img.crop(roi_abs=roi_abs, new_img=True)
+#==============================================================================
+#         for (x1, y1), (x2, y2) in lines:
+#             ax.add_artist(Line2D([x0 + x1, x0 + x2], [y0 + y1, y0 + y2],
+#                                 color="c"))
+#             ax.add_patch(Circle((x0 + x2, y0 + y2), 1, ec="r", fc="r"))
+#         #ax.imshow(disp)
+#==============================================================================
         
         try:
             tit += (r": %s \n $\Delta$t (next) = %.2f s" %(\
@@ -1640,7 +2327,7 @@ class OpticalFlowFarneback(object):
         except:
             pass
         
-        ax.set_title(tit, fontsize = 10)
+        ax.set_title(tit, fontsize=12)
         return ax    
         
     def live_example(self):

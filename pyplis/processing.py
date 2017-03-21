@@ -16,7 +16,8 @@ This module contains the following processing classes and methods:
 """
 from numpy import vstack, ogrid, empty, ones, asarray, ndim, round, hypot,\
     linspace, sum, dstack, float32, zeros, poly1d, polyfit, argmin, where,\
-    logical_and, rollaxis, complex, angle, array, ndarray
+    logical_and, rollaxis, complex, angle, array, ndarray, cos, sin,\
+    arctan, dot, int32, pi
     
 from numpy.linalg import norm
 from scipy.ndimage import map_coordinates 
@@ -27,9 +28,10 @@ from copy import deepcopy
 from datetime import datetime, timedelta
 from matplotlib.pyplot import subplot, subplots, tight_layout, draw
 from matplotlib.dates import date2num, DateFormatter
+from matplotlib.patches import Polygon, Rectangle
 
 from pandas import Series, concat, DatetimeIndex
-from cv2 import cvtColor, COLOR_BGR2GRAY, pyrDown, pyrUp
+from cv2 import cvtColor, COLOR_BGR2GRAY, pyrDown, pyrUp, fillPoly
 from os import getcwd, remove
 from os.path import join, exists
 from astropy.io import fits
@@ -37,7 +39,8 @@ from astropy.io import fits
 from .image import Img
 from .setupclasses import Camera
 from .exceptions import ImgMetaError, ImgModifiedError
-from .helpers import map_coordinates_sub_img, same_roi, map_roi, to_datetime
+from .helpers import map_coordinates_sub_img, same_roi, map_roi, to_datetime,\
+    roi2rect
 
 class PixelMeanTimeSeries(Series):
     """A ``pandas.Series`` object with extended functionality representing time
@@ -275,35 +278,43 @@ class PixelMeanTimeSeries(Series):
 class LineOnImage(object):
     """Class representing a line on an image
     
-    Main purpose is data extraction along the line, which is done using 
-    spline interpolation.    
+    Main purpose is data extraction along this line on a discrete image grid.
+    This is done using spline interpolation.
+    
+    Parameters
+    ----------    
+    x0 : int
+        start x coordinate
+    y0 : int
+        start y coordinate
+    x1 : int
+        stop x coordinate
+    y1 : int 
+        stop y coordinate
+    normal_orientation : str
+        orientation of normal vector, choose from left or right (left means in 
+        negative x direction for a vertical line)
+    roi_abs_def : list
+        ROI specifying image sub coordinate system in which the line
+        coordinates are defined (is used to convert to other image shape 
+        settings)
+    pyrlevel_def : int
+        pyramid level of image for which start /stop coordinates are defined
+    line_id : str
+        string for identification (optional)
+        
+    Note
+    ----
+    The input coordinates correspond to relative image coordinates 
+    with respect to the input ROI (``roi_def``) and pyramid level
+    (``pyrlevel_def``)
+        
+            
     """
     def __init__(self, x0=0, y0=0, x1=1, y1=1,  normal_orientation="right",
-                 roi_abs=[0, 0, 9999, 9999], pyrlevel=0, line_id = "",
+                 roi_abs_def=[0, 0, 9999, 9999], pyrlevel_def=0, line_id = "",
                  color="lime", linestyle="-"):
-        """Initiation of line
-        
-        :param int x0: start x coordinate
-        :param int y0: start y coordinate
-        :param int x1: stop x coordinate
-        :param int y1: stop y coordinate
-        :param str normal_orientation: orientation of normal vector, choose 
-            from left or right (left means in negative x direction for a 
-            vertical line)
-        :param list roi_abs: region of interest in image for which start / stop
-            coordinates are defined (is used to convert to other image shape
-            settings)
-        :param int pyrlevel: pyramid level of image for which start /stop
-            coordinates are defined
-        :param str line_id: string for identification (optional)
-        
-        .. note::
-        
-            The input coordinates correspond to relative image coordinates 
-            with respect to the input ROI (``roi_abs``) and pyramid level
-            (``pyrlevel``)
-            
-        """
+                     
         self.line_id = line_id # string ID of line
         self.color = color
         self.linestyle = linestyle
@@ -315,22 +326,27 @@ class LineOnImage(object):
         self.x1 = x1 #stop x coordinate
         self.y1 = y1 #stop y coordinate
         
-        self._roi_abs = roi_abs
-        self._pyrlevel = pyrlevel
+        self._roi_abs_def = roi_abs_def
+        self._pyrlevel_def = pyrlevel_def
+        self._rect_roi_rot = None
+        self._line_roi_abs = [0, 0, 9999, 9999]
+        self._last_rot_roi_mask = None
         
         self.profile_coords = None
         
         self._dir_idx = {"left"   :   0,
                          "right"  :   1}
+                        
+        self.normal_vecs = [None, None]
                          
         self.check_coordinates()
         self.normal_orientation = normal_orientation
                                        
-        self.prepare_profile_coordinates()
+        self.prepare_coords()
             
     @property
     def start(self):
-        """Get / set start coordinates ``[x0, y0]``"""
+        """x, y coordinates of start point (``[x0, y0]``)"""
         return [self.x0, self.y0]
 
     @start.setter
@@ -344,7 +360,7 @@ class LineOnImage(object):
 
     @property
     def stop(self):
-        """Get / set stop coordinates ``[x1, y1]``"""
+        """x, y coordinates of stop point (``[x1, y1]``)"""
         return [self.x1, self.y1]
 
     @stop.setter
@@ -380,58 +396,144 @@ class LineOnImage(object):
             self._dir_idx["left"] =1
             self._dir_idx["right"] = 0
         self._normal_orientation = val
+    
+    @property
+    def line_frame(self):
+        """ROI framing the line (in line coordinate system)"""
+        return map_roi(self._line_roi_abs, self.pyrlevel)
+    
+    @property
+    def line_frame_abs(self):
+        """ROI framing the line (in absolute coordinate system)"""
+        return self._line_roi_abs
         
     @property
-    def roi_abs(self):
-        """Returns current ROI (in absolute detector coordinates)"""
-        return self._roi_abs
+    def roi_def(self):
+        """ROI in which line is defined (at current ``pyrlevel``)"""
+        return map_roi(self.roi_abs_def, pyrlevel_rel=self.pyrlevel)
+        
+    @property
+    def roi_abs_def(self):
+        """Current ROI (in absolute detector coordinates)"""
+        return self._roi_abs_def
     
-    @roi_abs.setter
-    def roi_abs(self):
-        """Raises AttributeError"""
+    @roi_abs_def.setter
+    def roi_abs_def(self):
         raise AttributeError("This attribute is not supposed to be changed, "
             "please use method convert() to create a new LineOnImage object "
             "corresponding to other image shape settings")
-            
+    
+    # Redundancy (after renaming attribute in v0.10)        
     @property
     def pyrlevel(self):
-        """Returns current pyramid level"""
-        return self._pyrlevel
+        """Pyramid level at which line coords are defined"""
+        warn("This method was renamed in version 0.10. Please use pyrlevel_def")
+        return self._pyrlevel_def
         
     @pyrlevel.setter
     def pyrlevel(self):
-        """Raises AttributeError"""
         raise AttributeError("This attribute is not supposed to be changed, "
             "please use method convert() to create a new LineOnImage object "
             "corresponding to other image shape settings")
     
+    @property
+    def roi_abs(self):
+        """Current ROI (in absolute detector coordinates)"""
+        warn("This method was renamed in version 0.10. Please use roi_abs_def")
+        return self._roi_abs_def
+    
+    @roi_abs.setter
+    def roi_abs(self):
+        raise AttributeError("This attribute is not supposed to be changed, "
+            "please use method convert() to create a new LineOnImage object "
+            "corresponding to other image shape settings")
+    
+    @property
+    def pyrlevel_def(self):
+        """Pyramid level at which line coords are defined"""
+        return self._pyrlevel_def
+        
+    @pyrlevel_def.setter
+    def pyrlevel_def(self):
+        """Raises AttributeError"""
+        raise AttributeError("This attribute is not supposed to be changed, "
+            "please use method convert() to create a new LineOnImage object "
+            "corresponding to other image shape settings")
+            
+    @property
+    def coords(self):
+        """Return coordinates as ROI list"""
+        return [self.x0, self.y0, self.x1, self.y1]
+    
+    @property
+    def rect_roi_rot(self):
+        """Rectangle specifying coordinates of ROI aligned with line normal"""
+        try:
+            if not self._rect_roi_rot.shape == (5,2):
+                raise Exception
+        except:
+            print("Rectangle for rotated ROI was not set and is not being "
+                "set to default depth of +/- 30 pix around line. Use "
+                "method set_rect_roi_rot to change the rectangle")
+            self.set_rect_roi_rot()
+        return self._rect_roi_rot
+            
     def dist_other(self, other):
         """Determines the distance to another line
         
-        :param LineOnImage other: the line to which the distance is retrieved
-            
-        .. note::
         
-            The offset is applied in relative coordinates, i.e. it does not
-            consider the pyramide level or ROI
+        Note
+        ----
+        
+            1. The offset is applied in relative coordinates, i.e. it does not
+            consider the pyramide level or ROI.
             
+            #. The two lines need to be parallel
+        
+        Parameters
+        ----------
+        other : LineOnImage
+            the line to which the distance is retrieved
+        
+        Returns
+        -------
+        float
+            retrieved distance in pixel coordinates
+            
+        Raises
+        ------
+        ValueError
+            if the two lines are not parallel
         """
         dx0, dy0 = other.x0 - self.x0, other.y0 - self.y0
         dx1, dy1 = other.x1 - self.x1, other.y1 - self.y1
         if dx1 != dx0 or dy1 != dy0:
             raise ValueError("Lines are not parallel...")
-        return norm([dx0, dy0]), dx0, dy0
+        return norm([dx0, dy0])
         
     def offset(self, pixel_num=20, line_id=None):
-        """Returns a shifted line at given distance along normal orientation
+        """Returns a new line shifted within normal direction
         
-        .. note::
+        Note
+        ----
                 
             1. The offset is applied in relative coordinates, i.e. it does not
                 consider the pyramide level or ROI
             
             2. The determined required displacement (dx, dy) is converted into
                 integers                
+                
+        Parameters
+        ----------
+        pixel_num : int
+            shift length in pixels
+        line_id : str
+            string ID of new line, if None (default) it is set automatically
+        
+        Returns
+        -------
+        LineOnImage
+            shifted line        
             
         """
         if line_id is None:
@@ -444,31 +546,29 @@ class LineOnImage(object):
                            line_id=line_id)
         
         
-    def convert(self, pyrlevel = 0, roi_abs = [0, 0, 9999, 9999]):
+    def convert(self, to_pyrlevel=0, to_roi_abs=[0, 0, 9999, 9999]):
         """Convert to other image preparation settings"""
-        if pyrlevel == self.pyrlevel and same_roi(self.roi_abs, roi_abs):
+        if to_pyrlevel == self.pyrlevel and same_roi(self.roi_abs_def, 
+                                                     to_roi_abs):
             print("Same shape settings, returning current line object""")
             return self
-
-        (x0, x1), (y0, y1) = map_coordinates_sub_img([self.x0, self.x1],
-                                                     [self.y0, self.y1],
-                                                     roi_abs=self._roi_abs, 
-                                                     pyrlevel=self._pyrlevel,
-                                                     inverse=True)
-                                                     
+        # first convert to absolute coordinates
+        ((x0, x1), 
+         (y0, y1)) = map_coordinates_sub_img([self.x0, self.x1],
+                                             [self.y0, self.y1],
+                                             roi_abs=self._roi_abs_def,
+                                             pyrlevel=self._pyrlevel_def,
+                                             inverse=True)
+        # now convert from absolute into specified coords
         (x0, x1), (y0, y1) = map_coordinates_sub_img([x0, x1], [y0, y1],
-                                                     roi_abs=roi_abs,
-                                                     pyrlevel=pyrlevel,
+                                                     roi_abs=to_roi_abs,
+                                                     pyrlevel=to_pyrlevel,
                                                      inverse=False)
         
-        return LineOnImage(x0, y0, x1, y1, roi_abs=roi_abs, pyrlevel=pyrlevel,
+        return LineOnImage(x0, y0, x1, y1, roi_abs_def=to_roi_abs, 
+                           pyrlevel_def=to_pyrlevel, 
                            normal_orientation=self.normal_orientation,
                            line_id=self.line_id)
-    
-    @property
-    def coords(self):
-        """Return coordinates as ROI list"""
-        return [self.x0, self.y0, self.x1, self.y1]
         
     def check_coordinates(self):
         """Check line coordinates
@@ -508,9 +608,7 @@ class LineOnImage(object):
         return True
         
     def point_in_image(self, x, y, img_array):
-        """
-        Check, if input x and y coordinates are within an image array. It is
-        assumed that y direction is first dimension of image array-
+        """Check if a given coordinate is within image 
         
         Parameters
         ----------
@@ -536,8 +634,8 @@ class LineOnImage(object):
             return False
         return True
     
-    def get_roi_abs_coords(self, img_array, add_left=80, add_right=80,
-                           add_bottom=80, add_top=80):
+    def get_roi_abs_coords(self, img_array, add_left=5, add_right=5,
+                           add_bottom=5, add_top=5):
         """Get a rectangular ROI covering this line 
         
         Parameters
@@ -564,8 +662,143 @@ class LineOnImage(object):
         y_min, y_max = min(y_arr), max(y_arr)
         y0, y1 = y_min - add_top, y_max + add_bottom
         roi = self.check_roi_borders([x0, y0, x1, y1], img_array)
-        roi_abs = map_roi(roi, pyrlevel_rel=-1 * self.pyrlevel)
+        roi_abs = map_roi(roi, pyrlevel_rel=-self.pyrlevel)
+        self._line_roi_abs= roi_abs
         return roi_abs
+    
+    def _roi_from_rot_rect(self):
+        """Set current ROI from current rotated rectangle coords"""
+        r = self._rect_roi_rot
+        xc = asarray([x[0] for x in r])
+        xc[xc < 0] = 0
+        yc = asarray([x[1] for x in r])
+        yc[yc < 0] = 0
+        roi = [xc.min(), yc.min(), xc.max(), yc.max()]
+        self._line_roi_abs = map_roi(roi, pyrlevel_rel=-self.pyrlevel)
+        return roi
+    
+    def set_rect_roi_rot(self, depth=None):
+        """Get rectangle for rotated ROI based on current tilting
+        
+        Note
+        ----
+        This function also changes the current ``roi_abs`` attribute
+        
+        Parameters
+        ----------
+        depth : int
+            depth of rotated ROI (in normal direction of line) in pixels
+            
+        Returns
+        -------
+        list 
+            rectangle coordinates
+        """
+        dx, dy = self._delx_dely()
+        if depth is None:
+            depth  = norm((dx, dy)) * 0.10
+                
+        n = self.normal_vecs[1]
+        dx0, dy0 = n * depth / 2.0
+        
+#==============================================================================
+#     
+#         if sign(dx0) == sign(dy0):
+#             dx0 = -dx0
+#             dy0 = -dy0
+#==============================================================================
+        x0 = self.x0 + int(dx0)    
+        y0 = self.y0 + int(dy0)
+        offs = array([x0, y0])
+        
+        w = self.length()
+        r = array([(0, 0), (w, 0), (w, depth), (0, depth), (0, 0)])
+
+        dx, dy = self._delx_dely()
+        try:
+            theta = arctan(dy / dx)
+        except ZeroDivisionError:
+            theta = pi / 2
+        #rotation matrix (account for neg. y direction)
+        m_rot = array([[cos(theta), sin(theta)],
+                        [-sin(theta), cos(theta)]])
+        r = dot(r, m_rot) + offs
+        self._rect_roi_rot = r
+        self._roi_from_rot_rect()
+        return r
+        
+#==============================================================================
+#     def set_rect_roi_rot_v0(self, depth=None):
+#         """Get rectangle for rotated ROI based on current tilting
+#         
+#         Note
+#         ----
+#         This function also changes the current ``roi_abs`` attribute
+#         
+#         Parameters
+#         ----------
+#         depth : int
+#             depth of rotated ROI (in normal direction of line) in pixels
+#             
+#         Returns
+#         -------
+#         list 
+#             rectangle coordinates
+#         """
+#         if depth is None:
+#             depth  = self.length() * 0.10
+#         dx0, dy0 = self.normal_vector * depth / 2.0
+#     
+#         if sign(dx0) == sign(dy0):
+#             dx0 = -dx0
+#             dy0 = -dy0
+#         x0 = self.x0 + int(dx0)    
+#         y0 = self.y0 + int(dy0)
+#         offs = array([x0, y0])
+#         
+#         w = self.length()
+#         r = array([(0, 0), (w, 0), (w, depth), (0, depth), (0, 0)])
+# 
+#         dx, dy = self._delx_dely()
+#         try:
+#             theta = arctan(dy / dx)
+#         except ZeroDivisionError:
+#             theta = pi / 2
+#         #rotation matrix (account for neg. y direction)
+#         m_rot = array([[cos(theta), sin(theta)],
+#                         [-sin(theta), cos(theta)]])
+#         r = dot(r, m_rot) + offs
+#         self._rect_roi_rot = r
+#         self._roi_from_rot_rect()
+#         return r
+#==============================================================================
+    
+    
+    def get_rotated_roi_mask(self, shape):
+        """Returns pixel access mask for rotated ROI
+        
+        Parameters
+        ----------
+        shape : tuple
+            shape of image for which the mask is supposed to be used
+            
+        Returns
+        -------
+        array
+            bool array that can be used to access pixels within the ROI
+        """
+        try:
+            if not self._last_rot_roi_mask.shape == shape:
+                raise Exception
+            mask = self._last_rot_roi_mask
+        except:
+            mask = zeros(shape)
+            rect = self.rect_roi_rot
+            poly = array([rect], dtype=int32)
+            fillPoly(mask, poly, 1)
+            mask = mask.astype(bool)
+        self._last_rot_roi_mask = mask
+        return mask
     
     def check_roi_borders(self, roi, img_array):
         """ Check if all points of ROI are within image borders
@@ -595,8 +828,8 @@ class LineOnImage(object):
         if not y1 < h:
             y1 = h - 2
         return [x0, y0, x1, y1]
-            
-    def prepare_profile_coordinates(self):
+        
+    def prepare_coords(self):
         """Prepare the analysis mesh
         
         Note
@@ -612,6 +845,8 @@ class LineOnImage(object):
         x = linspace(x0, x1, length)
         y = linspace(y0, y1, length)
         self.profile_coords = vstack((y, x))
+        self.det_normal_vecs()
+        self.set_rect_roi_rot()
         
     def length(self):
         """Determine the length in pixel coordinates"""
@@ -654,8 +889,8 @@ class LineOnImage(object):
         
     """Plotting / visualisation etc...
     """
-    def plot_line_on_grid(self, img_arr=None, ax=None, include_normal=False, 
-                          **kwargs):
+    def plot_line_on_grid(self, img_arr=None, ax=None, include_normal=False,
+                          include_roi_rot=False, include_roi=False, **kwargs):
         """Draw this line on the image
         
         Parameters
@@ -697,6 +932,7 @@ class LineOnImage(object):
         else:
             xlim = ax.get_xlim()
             ylim = ax.get_ylim()
+        c = kwargs["color"]
         if img_arr is not None:
             ax.imshow(img_arr, cmap = "gray")
         p = ax.plot([self.start[0],self.stop[0]], [self.start[1],
@@ -712,7 +948,11 @@ class LineOnImage(object):
             c = p[0].get_color()
             ax.arrow(xm, ym, epx, epy, head_width=mag/2, head_length=mag,
                      fc=c, ec=c)
-            
+        if include_roi:
+            x0, y0, w, h = roi2rect(self.roi)
+            ax.add_patch(Rectangle((x0, y0), w, h, fc="none", ec=c))
+        if include_roi_rot:
+            self.plot_rotated_roi(color=c, ax=ax)
         #axis('image')
         if new_ax:
             ax.set_title("Line " + str(self.line_id))
@@ -722,6 +962,32 @@ class LineOnImage(object):
         draw()
         return ax
     
+    def plot_rotated_roi(self, color=None, ax=None):
+        """Plot current rotated ROI into axes
+        
+        Parameters
+        ----------
+        color
+            optional, color information. If None (default) then the current 
+            line color is used
+        ax : :obj:`Axes`, optional
+            matplotlib axes object, if None, a figure with one subplot will
+            be created
+        
+        Returns
+        -------
+        Axes
+            axes instance
+        """     
+        if ax is None:
+            ax = subplot(111)
+        if color is None:
+            color = self.color
+        r = self.rect_roi_rot
+        p = Polygon(r, fc=color, alpha=0.2)
+        ax.add_patch(p)
+        return ax
+        
     def plot_line_profile(self, img_arr, ax=None):
         """Plots the line profile"""
         if ax is None:
@@ -763,16 +1029,17 @@ class LineOnImage(object):
         dx, dy = self._delx_dely()
         return norm([dx, dy])
     
-    def normal_vecs(self):
+    def det_normal_vecs(self):
         """Get both normal vectors"""
         dx, dy = self._delx_dely()
         v1, v2 = array([-dy, dx]), array([dy, -dx])
-        return v1 / norm(v1), v2 / norm(v2)
+        self.normal_vecs = [v1 / norm(v1), v2 / norm(v2)]
+        return self.normal_vecs
             
     @property
     def normal_vector(self):
         """Get normal vector corresponding to current orientation setting"""
-        return self.normal_vecs()[self._dir_idx[self.normal_orientation]]
+        return self.normal_vecs[self._dir_idx[self.normal_orientation]]
         
     @property
     def complex_normal(self):

@@ -284,7 +284,7 @@ class BaseImgList(object):
     def has_files(self):
         """Returns boolean whether or not images are available in list"""
         return bool(self.nof)
-        
+    
     def plume_dist_access(self):
         """Checks if measurement geometry is available"""
         if not isinstance(self.meas_geometry, MeasGeometry):
@@ -865,7 +865,7 @@ class BaseImgList(object):
                 self.vign_mask = img.vign_mask
             
             self.update_prev_next_index()
-            self.apply_current_edit("this")
+            self._apply_edit("this")
                     
         except IOError:
             warn("Invalid file encountered at list index %s, file will"
@@ -915,7 +915,7 @@ class BaseImgList(object):
         self.img_prep["blurring"] += sigma
         self.load()
         
-    def apply_current_edit(self, key):
+    def _apply_edit(self, key):
         """Applies the current image edit settings to image
         
         :param str key: image id (e.g. this)            
@@ -1205,32 +1205,37 @@ class DarkImgList(BaseImgList):
             self.add_files(files)
             
 class ImgList(BaseImgList):
-    """Image list object with expanded functionality compared to 
-    :class:`BaseImgList`. 
+    """Image list object with expanded functionality (cf. :class:`BaseImgList`)
     
     Additional features:
-    
-        1. Linking of other image lists 
-            The index (i.e. the currently loaded image) of all linked lists is 
-            automatically updated whenever the index in this list is changed 
-            based on acquisition time such that the corresponding images in 
-            other lists are the ones closest in time to this image
+        
+            1. Optical flow determination
+            #. Linking of lists (e.g. on and offband lists)
+            #. Dark and offset image correction
+            #. Plume background modelling and tau image determination
+            #. Methods for dilution correction
+            #. Automatic vignetting correction
+            #. Assignment of calibration data and automatic image calibration
+            
+    Parameters
+    ----------
+    files : list
+        list containing image file paths, defaults to ``[]`` (i.e. empty list)
+    list_id : :obj:`str`, optional
+        string ID of this list, defaults to None
+    list_type : :obj:`str`, optional
+        string specifying type of image data in this list (e.g. on, off)
+    camera : :obj:`Camera`, optional
+        camera specifications, defaults to None
+    geometry : :obj:`MeasGeometry`, optional
+        measurement geometry
+    init : bool
+        if True, the first two images in list ``files`` are loaded
     
     """
     def __init__(self, files=[], list_id=None, list_type=None, camera=None,
                  geometry=None, init=True):
-        """
-            
-        Extended version of :class:`BaseImgList` object, additional
-        features:
-        
-            1. Optical flow determination
-            #. Linking of lists (e.g. on and offband lists)
-            #. Dark and offset image correction (*write a bit more here*)
-            #. Plume background modelling and tau image determination
-            #. Include
-            
-        """
+
         super(ImgList, self).__init__(files, list_id, list_type, camera, 
                                       geometry, init=False)
                                       
@@ -1434,64 +1439,6 @@ class ImgList(BaseImgList):
             
         self._list_modes["gascalib"] = val
         self.load()
-        
-    def init_filelist(self):
-        """Adding functionality to filelist init"""
-        super(ImgList, self).init_filelist()
-#==============================================================================
-#         if not self.data_available:
-#             self.set_dummy()
-#==============================================================================
-    
-    def set_bg_img(self, bg_img):
-        """Update the current background image object
-        
-        Check input background image and, in case a vignetting mask is not 
-        available in this list, determine a vignetting mask from the background
-        image. Furthermore, if the input image is not blurred it is blurred 
-        using current list blurring factor and in case the latter is 0, then 
-        it is blurred with a Gaussian filter of width 1.
-        
-        The image is then stored twice, 1. as is and 2. corrected for 
-        vignetting.
-        
-        Parameters
-        ----------
-        bg_img : Img
-            the background image object used for plume background modelling 
-            (modes 1 - 6 in :class:`PlumeBackgroundModel`)        
-        """
-        if not isinstance(bg_img, Img):
-            print ("Could not set background image in ImgList %s: "
-                ": wrong input type, need Img object" %self.list_id)
-            return False
-        vign_mask = self.vign_mask
-#==============================================================================
-#         bl = bg_img.edit_log["blurring"]
-#         if bl == 0 or bl < self.gaussian_blurring:
-#             blur = self.gaussian_blurring - bl
-#             if blur == 0:
-#                 blur += 1
-#             bg_img.add_gaussian_blurring(blur)
-#==============================================================================
-        if vign_mask is None:
-            if bg_img.edit_log["vigncorr"]:
-                raise AttributeError("Input background image is vignetting "
-                    "corrected and cannot be used to calculate vignetting corr"
-                    "mask.")
-        
-            self._bg_imgs[0] = bg_img
-            vign_mask = self.det_vign_mask_from_bg_img()
-            self._bg_imgs[1] = bg_img.duplicate().correct_vignetting(vign_mask)
-        else:
-            if not bg_img.edit_log["vigncorr"]:
-                bg = bg_img
-                bg_vigncorr = bg_img.duplicate().correct_vignetting(vign_mask)
-            else:
-                bg_vigncorr = bg_img
-                bg = bg_img.duplicate().correct_vignetting(vign_mask,
-                                                           new_state=0)
-            self._bg_imgs = [bg, bg_vigncorr]
     
     @property
     def ext_coeff(self):
@@ -1580,27 +1527,7 @@ class ImgList(BaseImgList):
             self.bg_img 
         else:
             raise ValueError("Invalid input: choose from img or list")
-        
-    def get_thresh_mask(self, thresh=None, this_and_next=True):
-        """Get bool mask based on intensity threshold
-        
-        Parameters
-        ----------
-        thresh : :obj:`float`, optional
-            intensity threshold
-        this_and_next : bool
-            if True, uses the current AND next image to determine mask
-            
-        Returns
-        -------
-        array
-            mask specifying pixels that exceed the threshold
-        """
-        mask = self.this.duplicate().to_binary(thresh).img
-        if this_and_next and not self.cfn == self.nof - 1:
-            mask = logical_or(mask, self.next.duplicate().to_binary(thresh).img)
-        return mask
-        
+    
     @property
     def aa_corr_mask(self):
         """Get / set AA correction mask"""
@@ -1679,9 +1606,18 @@ class ImgList(BaseImgList):
             return "aa"
         else:
             return "raw"
-    
+            
+    """RESETTING AND INIT METHODS"""      
+    def init_filelist(self):
+        """Adding functionality to filelist init"""
+        super(ImgList, self).init_filelist()
         
-    """LIST MODE MANAGEMENT METHODS"""
+    def init_bg_model(self, **kwargs):
+        """Init clear sky reference areas in background model"""
+        self.bg_model.update(**kwargs)
+        self.bg_model.set_missing_ref_areas(self.current_img())
+        
+    """LIST MODE MANAGEMENT METHODS"""        
     def activate_darkcorr(self, val=True):
         """Activate or deactivate dark and offset correction of images
         
@@ -1811,6 +1747,12 @@ class ImgList(BaseImgList):
             raise TypeError("This list is not an on band list")
         aa_test = None
         if val:
+            if self.this.edit_log["is_aa"]:
+                warn("Cannot activate AA mode in image list %s: "
+                     "current image is already AA image"
+                     %self.list_id)
+                return
+                
             offlist = self.get_off_list()
             if not isinstance(offlist, ImgList):
                 raise Exception("Linked off band list could not be found")
@@ -1837,7 +1779,204 @@ class ImgList(BaseImgList):
         self.load()
 
         return aa_test
+    
+    def activate_optflow_mode(self, val=True, draw=False):
+        """Activate / deactivate optical flow calculation on image load
         
+        Parameters
+        ----------
+        val : bool
+            activate / deactivate
+        draw : bool
+            if True, flow field is plotted into current image
+            
+
+        """
+        if val is self.optflow_mode:
+            return 
+        if self.crop:
+            raise ValueError("Optical flow analysis can only be applied to "
+                "uncropped images, please deactivate crop mode")
+        if val:
+            try:
+                self.set_flow_images()
+            except IndexError:
+                raise IndexError("Optical flow mode cannot be activated in "
+                    "image list %s: list is at last index, please change list "
+                    "index and retry")
+            self.optflow.calc_flow()
+            len_im = self.optflow.get_flow_vector_length_img() #is at pyrlevel
+            img = self.current_img()
+            if img.edit_log["is_tau"]:
+#==============================================================================
+#                 cond = logical_and(img.img > -0.03, img.img < 0.03) #tau values around 0
+#                 if cond.sum() == 0:
+#                     raise Exception("Fatal: could not activate optical flow: "
+#                         "retrieval of noise ref area failed, since current "
+#                         "list image is flagged as tau image but does not "
+#                         "contain pixels showing values around zero using cond: "
+#                         "(-0.03 < value < 0.03)")
+#                         
+#                 sub = len_im[cond]
+#==============================================================================
+                min_len = 1.5
+            else:
+                if self.bg_model.scale_rect is None:
+                    self.bg_model.guess_missing_settings(img)
+                roi = map_roi(self.bg_model.scale_rect, self.pyrlevel)
+                sub = len_im[roi[1]:roi[3], roi[0]:roi[2]]
+                min_len = ceil(sub.mean() + 3 * sub.std()) + 0.5
+            self.optflow.settings.min_length = min_len
+            if draw:
+                self.optflow.draw_flow()
+        self._list_modes["optflow"] = val
+    
+    """GETTERS"""
+    def get_dark_image(self, key="this"):
+        """Prepares the current dark image dependent on ``DARK_CORR_OPT``
+        
+        The code checks current dark correction mode and, if applicable, 
+        prepares the dark image. 
+
+            1. ``self.DARK_CORR_OPT == 0`` (no dark correction)
+                return False
+                
+            2. ``self.DARK_CORR_OPT == 1`` (model dark image from a sample dark
+                and offset image)
+                Try to access current dark and offset image from 
+                ``self.dark_lists`` and ``self.offset_lists`` (so these must
+                exist). If this fails for some reason, set 
+                ``self.DARK_CORR_OPT = 2``, else model dark image using
+                :func:`model_dark_image` and return this image
+                
+            3. ``self.DARK_CORR_OPT == 2`` (subtract dark image if exposure 
+                times of current image does not deviate by more than 20% to 
+                current dark image)
+                Try access current dark image in ``self.dark_lists``, if this 
+                fails, try to access current dark image in ``self.darkImg``
+                (which can be set manually using :func:`set_dark_image`). If 
+                this also fails, set ``self.DARK_CORR_OPT = 0`` and return 
+                False. If a dark image could be found and the exposure time
+                differs by more than 20%, set ``self.DARK_CORR_OPT = 0`` and 
+                raise ValueError. Else, return this dark image.
+                
+        """
+        if self.DARK_CORR_OPT == 0:
+            raise ValueError("Dark image could not be accessed in list %s: "
+                "DARK_CORR_OPT is zero, please set DARK_CORR_OPT according "
+                "to your data type")
+                
+        img = self.current_img(key)
+        read_gain = img.meta["read_gain"]
+        self.update_index_dark_offset_lists()
+        if self.DARK_CORR_OPT == 1:
+            try:
+                dark = self.dark_lists[read_gain]["list"].current_img()
+                offset = self.offset_lists[read_gain]["list"].current_img()
+                dark = model_dark_image(img, dark, offset)
+            except:
+                try:
+                    dark = model_dark_image(img, self.master_dark,
+                                            self.master_offset)
+                except:
+                    raise ValueError("Dark image could not be accessed in "
+                            "image list %s (DARK_CORR_OPT=1)")
+
+        if self.DARK_CORR_OPT == 2:
+            try:
+                dark = self.dark_lists[read_gain]["list"].current_img()
+                if not isinstance(dark, Img):
+                    raise ValueError
+            except:
+                dark = self.master_dark
+                if not isinstance(dark, Img):
+                    raise ValueError("Dark image could not be accessed in "
+                            "image list %s (DARK_CORR_OPT=2)")
+        try:
+            texp_ratio = img.meta["texp"] / dark.meta["texp"]
+            if not 0.8 <= texp_ratio <= 1.2:
+                warn("Exposure time of current dark image in list %s "
+                     "deviates by more than 20% from list image %s "
+                     "(current list index: %d)"
+                     %(self.list_id, key, self.cfn))
+        except:
+            pass
+    
+        return dark
+    
+    def get_off_list(self, list_id=None):
+        """Search off band list in linked lists
+        
+        :param str list_id: specify the ID of the list. If unspecified (None), 
+            the default off band filter key is attempted to be accessed
+            (``self.camera.filter_setup.default_key_off``) and if this fails,
+            the first off band list found is returned.
+            
+            
+        """
+        if list_id is None:
+            try:
+                list_id = self.camera.filter_setup.default_key_off
+                #print "Found default off band key %s" %list_id
+            except:
+                pass
+        for lst in self.linked_lists.values():
+            if lst.list_type == "off":
+                if list_id is None or list_id == lst.list_id:
+                    return lst
+        raise AttributeError("No linked offband list was found")
+        
+    """SETTERS: ATTRIBUTE ASSIGNMENT METHODS"""
+    def set_bg_img(self, bg_img):
+        """Update the current background image object
+        
+        Check input background image and, in case a vignetting mask is not 
+        available in this list, determine a vignetting mask from the background
+        image. Furthermore, if the input image is not blurred it is blurred 
+        using current list blurring factor and in case the latter is 0, then 
+        it is blurred with a Gaussian filter of width 1.
+        
+        The image is then stored twice, 1. as is and 2. corrected for 
+        vignetting.
+        
+        Parameters
+        ----------
+        bg_img : Img
+            the background image object used for plume background modelling 
+            (modes 1 - 6 in :class:`PlumeBackgroundModel`)        
+        """
+        if not isinstance(bg_img, Img):
+            print ("Could not set background image in ImgList %s: "
+                ": wrong input type, need Img object" %self.list_id)
+            return False
+        vign_mask = self.vign_mask
+#==============================================================================
+#         bl = bg_img.edit_log["blurring"]
+#         if bl == 0 or bl < self.gaussian_blurring:
+#             blur = self.gaussian_blurring - bl
+#             if blur == 0:
+#                 blur += 1
+#             bg_img.add_gaussian_blurring(blur)
+#==============================================================================
+        if vign_mask is None:
+            if bg_img.edit_log["vigncorr"]:
+                raise AttributeError("Input background image is vignetting "
+                    "corrected and cannot be used to calculate vignetting corr"
+                    "mask.")
+        
+            self._bg_imgs[0] = bg_img
+            vign_mask = self.det_vign_mask_from_bg_img()
+            self._bg_imgs[1] = bg_img.duplicate().correct_vignetting(vign_mask)
+        else:
+            if not bg_img.edit_log["vigncorr"]:
+                bg = bg_img
+                bg_vigncorr = bg_img.duplicate().correct_vignetting(vign_mask)
+            else:
+                bg_vigncorr = bg_img
+                bg = bg_img.duplicate().correct_vignetting(vign_mask,
+                                                           new_state=0)
+            self._bg_imgs = [bg, bg_vigncorr]
+            
     def set_bg_corr_mode(self, mode=1):
         """Update the current background correction mode in ``self.bg_model``
         
@@ -1847,18 +1986,192 @@ class ImgList(BaseImgList):
             valid bakground modelling mode
         """
         self.BG_MODEL_MODE = mode
+    
+    def set_flow_images(self):  
+        """Update images for optical flow determination 
         
-    def init_bg_model(self, **kwargs):
-        """Init clear sky reference areas in background model"""
-        self.bg_model.update(**kwargs)
-        self.bg_model.set_missing_ref_areas(self.current_img())
+        The images are updated in :attr:`optflow` 
+        (:class:`OpticalFlowFarneback` object) using method :func:`set_images`
         
-    def set_optical_flow(self, optflow):
-        """Set the current optical flow object (type 
-        :class:`pyplis.Processing.OpticalFlowFarneback`)
+        Raises
+        
+        object, i.e. `self.loaded_images["this"]` and `self.loaded_images["next"]`
         """
+        if self.cfn == self.nof - 1:
+            self.optflow.reset_flow()
+            raise IndexError("Optical flow images cannot be set in ImgList %s:"
+                " reached last image ..." %self.list_id)
+            
+        self.optflow.set_images(self.loaded_images["this"],
+                                self.loaded_images["next"])
+    
+    def set_optical_flow(self, optflow):
+        """Set the current optical flow object 
+        
+        Currently only support for type :class:`OpticalFlowFarneback`
+        
+        Parameters
+        ----------
+        optflow : OpticalFlowFarneback
+            the optical flow engine
+        """
+        if not isinstance(optflow, OpticalFlowFarneback):
+            raise ValueError("Need class OpticalFlowFarneback")
         self.optflow = optflow
-          
+    
+    def set_darkcorr_mode(self, mode):
+        """Update dark correction mode
+        
+        :param int mode (1): new mode
+        """
+        if 0 <= mode <= 2:
+            self.camera.DARK_CORR_OPT = mode
+            return True
+        return False
+    
+    def add_master_dark_image(self, dark, acq_time=datetime(1900, 1, 1),
+                              texp=0.0, read_gain=0):
+        """Add a (master) dark image data to list
+        
+        Sets a dark image, which is used for dark correction in case, 
+        no dark / offset image lists are linked to this object or the data 
+        extraction from these lists does not work for some reason.
+        
+        :param (Img, ndarray) dark: dark image data 
+        :param datetime acq_time: image acquisition time (only updated if input 
+            image is numpy array or if acqtime in Img object is default), 
+            default: (1900, 1, 1)
+        :param float texp: optional input for exposure time in units of
+            s (i.e. is used if img input is ndarray or if exposure time is not
+            set in the input img)
+        
+        The image is stored at::
+        
+            stored at self.master_dark
+            
+        """
+        if not any([isinstance(dark, x) for x in [Img, ndarray]]):
+            raise TypeError("Could not set dark image in image list, invalid"
+                " input type")
+        elif isinstance(dark, Img):
+            if dark.meta["texp"] == 0.0: 
+                if texp == 0.0:
+                    raise ValueError("Could not set dark image in image "
+                            "list, missing input for texp")       
+                dark.meta["texp"] = texp
+                
+        elif isinstance(dark, ndarray):
+            if texp == None:
+                raise ValueError("Could not add dark image in image list, "
+                    "missing input for texp")
+            dark = Img(dark, texp = texp)
+
+        if (acq_time != datetime(1900,1,1) and 
+            dark.meta["start_acq"] == datetime(1900,1,1)):
+            dark.meta["start_acq"] = acq_time
+        dark.meta["read_gain"] = read_gain
+            
+        self.master_dark = dark
+    
+    
+    def add_master_offset_image(self, offset, acq_time=datetime(1900, 1, 1),
+                                texp=0.0, read_gain=0):
+        """Add a (master) offset image to list
+        
+        Sets a offset image, which is used for dark correction in case, 
+        no dark / offset image lists are linked to this object or the data 
+        extraction from these lists does not work for some reason.
+        
+        :param (Img, ndarray) offset: offset image data 
+        :param datetime acq_time: image acquisition time (only used if input
+            image is numpy array or if acqtime in Img object is default)
+        :param float texp: optional input for exposure time in units of
+            s (i.e. is used if img input is ndarray or if exposure time is not
+            set in the input img)
+            
+        The image is stored at::
+        
+            self.master_offset
+                    
+        """
+        if not any([isinstance(offset, x) for x in [Img, ndarray]]):
+            raise TypeError("Could not set offset image in image list, invalid"
+                " input type")
+        elif isinstance(offset, Img):
+            if offset.meta["texp"] == 0.0: 
+                if texp == 0.0:
+                    raise ValueError("Could not set offset image in image "
+                            "list, missing input for texp")       
+                offset.meta["texp"] = texp
+                
+        elif isinstance(offset, ndarray):
+            if texp == None:
+                raise ValueError("Could not add offset image in image list, "
+                    "missing input for texp")
+            offset = Img(offset, texp=texp)
+
+        if (acq_time != datetime(1900,1,1) 
+                and offset.meta["start_acq"] == datetime(1900,1,1)):
+            offset.meta["start_acq"] = acq_time
+        offset.meta["read_gain"] = read_gain
+        self.master_offset = offset
+    
+    def set_bg_img_from_polyfit(self, mask=None, **kwargs):
+        """Sets background image from results of a poly surface fit
+        
+        Parameters
+        ----------
+        mask : array
+            mask specifying sky background pixels, if None (default) then this
+            mask is determined automatically using :func:`prepare_bg_fit_mask`
+        **kwargs:
+            additional keyword arguments for :class:`PolySurfaceFit
+        Returns
+        -------
+        Img
+            fitted background image
+        """
+        if mask is None:
+            mask = self.prepare_bg_fit_mask(dilation=True)
+        fit = PolySurfaceFit(self.current_img(), mask, **kwargs)
+        bg = fit.model
+        try:
+            low = self.get_dark_image().mean()
+        except:
+            low = finfo(float).eps
+        print "LOW: %s" %low
+        bg [bg <= low] = low
+        self.bg_img = Img(bg)
+    
+    def set_closest_dark_offset(self):
+        """Updates the index of the current dark and offset images 
+        
+        The index is updated in all existing dark and offset lists. 
+        """
+        try:
+            num = self.index
+            for read_gain, info in self.dark_lists.iteritems():
+                darknum = info["idx"][num]
+                if darknum != info["list"].index:
+                    print ("Dark image index (read_gain %s) was changed in "
+                            "list %s from %s to %s" %(read_gain, self.list_id, 
+                                                  info["list"].index, darknum))
+                    info["list"].goto_img(darknum)
+            
+            if self.DARK_CORR_OPT == 1:
+                for read_gain, info in self.offset_lists.iteritems():
+                    offsnum = info["idx"][num]
+                    if offsnum != info["list"].index:
+                        print ("Offset image index (read_gain %s) was changed "
+                            "in list %s from %s to %s" %(read_gain, 
+                                self.list_id, info["list"].index, offsnum))
+                        info["list"].goto_img(offsnum)
+        except Exception:
+            print ("Failed to update index of dark and offset lists")
+            return False
+        return True
+        
+    """LINKING OF OTHER IMAGE LIST OBJECTS"""       
     def link_imglist(self, other_list, list_id=None):
         """Link another image list to this list
         
@@ -1960,218 +2273,151 @@ class ImgList(BaseImgList):
         _print_list(warnings) 
         return dark_assigned, offset_assigned
     
-    def set_darkcorr_mode(self, mode):
-        """Update dark correction mode
-        
-        :param int mode (1): new mode
-        """
-        if 0 <= mode <= 2:
-            self.camera.DARK_CORR_OPT = mode
-            return True
-        return False
-                
-    def add_master_dark_image(self, dark, acq_time=datetime(1900, 1, 1),
-                              texp=0.0, read_gain=0):
-        """Add a (master) dark image data to list
-        
-        Sets a dark image, which is used for dark correction in case, 
-        no dark / offset image lists are linked to this object or the data 
-        extraction from these lists does not work for some reason.
-        
-        :param (Img, ndarray) dark: dark image data 
-        :param datetime acq_time: image acquisition time (only updated if input 
-            image is numpy array or if acqtime in Img object is default), 
-            default: (1900, 1, 1)
-        :param float texp: optional input for exposure time in units of
-            s (i.e. is used if img input is ndarray or if exposure time is not
-            set in the input img)
-        
-        The image is stored at::
-        
-            stored at self.master_dark
-            
-        """
-        if not any([isinstance(dark, x) for x in [Img, ndarray]]):
-            raise TypeError("Could not set dark image in image list, invalid"
-                " input type")
-        elif isinstance(dark, Img):
-            if dark.meta["texp"] == 0.0: 
-                if texp == 0.0:
-                    raise ValueError("Could not set dark image in image "
-                            "list, missing input for texp")       
-                dark.meta["texp"] = texp
-                
-        elif isinstance(dark, ndarray):
-            if texp == None:
-                raise ValueError("Could not add dark image in image list, "
-                    "missing input for texp")
-            dark = Img(dark, texp = texp)
-
-        if (acq_time != datetime(1900,1,1) and 
-            dark.meta["start_acq"] == datetime(1900,1,1)):
-            dark.meta["start_acq"] = acq_time
-        dark.meta["read_gain"] = read_gain
-            
-        self.master_dark = dark
-    
-    
-    def add_master_offset_image(self, offset, acq_time=datetime(1900, 1, 1),
-                                texp=0.0, read_gain=0):
-        """Add a (master) offset image to list
-        
-        Sets a offset image, which is used for dark correction in case, 
-        no dark / offset image lists are linked to this object or the data 
-        extraction from these lists does not work for some reason.
-        
-        :param (Img, ndarray) offset: offset image data 
-        :param datetime acq_time: image acquisition time (only used if input
-            image is numpy array or if acqtime in Img object is default)
-        :param float texp: optional input for exposure time in units of
-            s (i.e. is used if img input is ndarray or if exposure time is not
-            set in the input img)
-            
-        The image is stored at::
-        
-            self.master_offset
-                    
-        """
-        if not any([isinstance(offset, x) for x in [Img, ndarray]]):
-            raise TypeError("Could not set offset image in image list, invalid"
-                " input type")
-        elif isinstance(offset, Img):
-            if offset.meta["texp"] == 0.0: 
-                if texp == 0.0:
-                    raise ValueError("Could not set offset image in image "
-                            "list, missing input for texp")       
-                offset.meta["texp"] = texp
-                
-        elif isinstance(offset, ndarray):
-            if texp == None:
-                raise ValueError("Could not add offset image in image list, "
-                    "missing input for texp")
-            offset = Img(offset, texp=texp)
-
-        if (acq_time != datetime(1900,1,1) 
-                and offset.meta["start_acq"] == datetime(1900,1,1)):
-            offset.meta["start_acq"] = acq_time
-        offset.meta["read_gain"] = read_gain
-        self.master_offset = offset
-        
-    def get_dark_image(self, key="this"):
-        """Prepares the current dark image dependent on ``DARK_CORR_OPT``
-        
-        The code checks current dark correction mode and, if applicable, 
-        prepares the dark image. 
-
-            1. ``self.DARK_CORR_OPT == 0`` (no dark correction)
-                return False
-                
-            2. ``self.DARK_CORR_OPT == 1`` (model dark image from a sample dark
-                and offset image)
-                Try to access current dark and offset image from 
-                ``self.dark_lists`` and ``self.offset_lists`` (so these must
-                exist). If this fails for some reason, set 
-                ``self.DARK_CORR_OPT = 2``, else model dark image using
-                :func:`model_dark_image` and return this image
-                
-            3. ``self.DARK_CORR_OPT == 2`` (subtract dark image if exposure 
-                times of current image does not deviate by more than 20% to 
-                current dark image)
-                Try access current dark image in ``self.dark_lists``, if this 
-                fails, try to access current dark image in ``self.darkImg``
-                (which can be set manually using :func:`set_dark_image`). If 
-                this also fails, set ``self.DARK_CORR_OPT = 0`` and return 
-                False. If a dark image could be found and the exposure time
-                differs by more than 20%, set ``self.DARK_CORR_OPT = 0`` and 
-                raise ValueError. Else, return this dark image.
-                
-        """
-        if self.DARK_CORR_OPT == 0:
-            raise ValueError("Dark image could not be accessed in list %s: "
-                "DARK_CORR_OPT is zero, please set DARK_CORR_OPT according "
-                "to your data type")
-                
-        img = self.current_img(key)
-        read_gain = img.meta["read_gain"]
-        self.update_index_dark_offset_lists()
-        if self.DARK_CORR_OPT == 1:
-            try:
-                dark = self.dark_lists[read_gain]["list"].current_img()
-                offset = self.offset_lists[read_gain]["list"].current_img()
-                dark = model_dark_image(img, dark, offset)
-            except:
-                try:
-                    dark = model_dark_image(img, self.master_dark,
-                                            self.master_offset)
-                except:
-                    raise ValueError("Dark image could not be accessed in "
-                            "image list %s (DARK_CORR_OPT=1)")
-
-        if self.DARK_CORR_OPT == 2:
-            try:
-                dark = self.dark_lists[read_gain]["list"].current_img()
-                if not isinstance(dark, Img):
-                    raise ValueError
-            except:
-                dark = self.master_dark
-                if not isinstance(dark, Img):
-                    raise ValueError("Dark image could not be accessed in "
-                            "image list %s (DARK_CORR_OPT=2)")
-        try:
-            texp_ratio = img.meta["texp"] / dark.meta["texp"]
-            if not 0.8 <= texp_ratio <= 1.2:
-                warn("Exposure time of current dark image in list %s "
-                     "deviates by more than 20% from list image %s "
-                     "(current list index: %d)"
-                     %(self.list_id, key, self.cfn))
-        except:
-            pass
-    
-        return dark
-                
-    def update_index_dark_offset_lists(self):
-        """Check and update current dark image (if possible / applicable)"""
-        if self.DARK_CORR_OPT == 0:
-            return
-        t_last = self.time_last_dark_check
-
-        ctime = self.current_time()
-
-        if not (t_last - timedelta(minutes = self.update_dark_ival)) < ctime <\
-                        (t_last + timedelta(minutes = self.update_dark_ival)):
-            if self.set_closest_dark_offset():
-                print ("Updated dark / offset in img_list %s at %s"
-                        %(self.list_id, ctime))
-                self.time_last_dark_check = ctime
-    
-    def set_closest_dark_offset(self):
-        """Updates the index of the current dark and offset images 
-        
-        The index is updated in all existing dark and offset lists. 
-        """
-        try:
-            num = self.index
-            for read_gain, info in self.dark_lists.iteritems():
-                darknum = info["idx"][num]
-                if darknum != info["list"].index:
-                    print ("Dark image index (read_gain %s) was changed in "
-                            "list %s from %s to %s" %(read_gain, self.list_id, 
-                                                  info["list"].index, darknum))
-                    info["list"].goto_img(darknum)
-            
-            if self.DARK_CORR_OPT == 1:
-                for read_gain, info in self.offset_lists.iteritems():
-                    offsnum = info["idx"][num]
-                    if offsnum != info["list"].index:
-                        print ("Offset image index (read_gain %s) was changed "
-                            "in list %s from %s to %s" %(read_gain, 
-                                self.list_id, info["list"].index, offsnum))
-                        info["list"].goto_img(offsnum)
-        except Exception:
-            print ("Failed to update index of dark and offset lists")
+    """INDEX AND IMAGE LOAD MANAGEMENT"""
+    def load(self):
+        """Try load current and next image"""
+        self.update_index_linked_lists() #based on current index in this list
+        if not super(ImgList, self).load():
+            print ("Image load aborted...")
             return False
-        return True   
+        if self.nof > 1:
+#==============================================================================
+#             prev_file = self.files[self.prev_index]
+#             self.loaded_images["prev"] = Img(prev_file,
+#                             import_method=self.camera.image_import_method,
+#                             **self.get_img_meta_from_filename(prev_file))
+#             self._apply_edit("prev")
+#==============================================================================
+            
+            next_file = self.files[self.next_index]
+            self.loaded_images["next"] = Img(next_file,
+                            import_method=self.camera.image_import_method,                            
+                            **self.get_img_meta_from_filename(next_file))
+            self._apply_edit("next")
+        else:
+            #self.loaded_images["prev"] = self.loaded_images["this"]
+            self.loaded_images["next"] = self.loaded_images["this"]
         
+        if self.optflow_mode:  
+            try:
+                self.set_flow_images()
+                self.optflow.calc_flow()
+            except IndexError:
+                warn("Reached last index in image list, optflow_mode will be "
+                    "deactivated")
+                self.optflow_mode = 0
+        return True
+    
+    def update_index_linked_lists(self):
+        """Update current index in all linked lists based on ``cfn``"""
+        for key, lst in self.linked_lists.iteritems():
+            lst.change_index(self.linked_indices[key][self.index])
+            
+    def load_next(self):
+        """Load next image in list"""
+        if self.nof < 2 or not self._auto_reload:
+            print ("Could not load next image, number of files in list: " +
+                str(self.nof))
+            return False
+        self.index = self.next_index
+        self.update_prev_next_index()
+        
+        self.update_index_linked_lists() #loads new images in all linked lists
+        
+        #self.loaded_images["prev"] = self.loaded_images["this"]
+        self.loaded_images["this"] = self.loaded_images["next"]
+        
+        next_file = self.files[self.next_index]
+        self.loaded_images["next"] = Img(next_file,
+                            import_method=self.camera.image_import_method,                            
+                            **self.get_img_meta_from_filename(next_file))
+    
+        self._apply_edit("next")
+        if self.optflow_mode:  
+            try:
+                self.set_flow_images()
+                self.optflow.calc_flow()
+            except IndexError:
+                warn("Reached last index in image list, optflow_mode will be "
+                    "deactivated")
+                self.optflow_mode = 0
+        return True
+        
+    def change_index(self, idx):
+        """Change current image based on index of file list
+        
+        :param idx: index in `self.files` which is supposed to be loaded
+        
+        Dependend on the input index, the following scenarii are possible:
+        If..
+        
+            1. idx < 0 or idx > `self.nof`
+                then: do nothing (return)
+            #. idx == `self.index`
+                then: do nothing
+            #. idx == `self.next_index`
+                then: call :func:`next_img`
+            #. idx == `self.prev_index`
+                then: call :func:`prev_img`
+            #. else
+                then: call :func:`goto_img`
+        """
+        if not -1 < idx < self.nof or idx == self.index:
+            return
+        elif idx == self.next_index:
+            self.next_img()
+            return
+        elif idx == self.prev_index:
+            self.prev_img()
+            return
+        #: goto_img calls :func:`load` which calls prepare_additional_data
+        self.goto_img(idx)
+
+        return self.loaded_images["this"]
+    
+    """PROCESSING AND ANALYSIS METHODS"""    
+    def get_thresh_mask(self, thresh=None, this_and_next=True):
+        """Get bool mask based on intensity threshold
+        
+        Parameters
+        ----------
+        thresh : :obj:`float`, optional
+            intensity threshold
+        this_and_next : bool
+            if True, uses the current AND next image to determine mask
+            
+        Returns
+        -------
+        array
+            mask specifying pixels that exceed the threshold
+        """
+        mask = self.this.duplicate().to_binary(thresh).img
+        if this_and_next and not self.cfn == self.nof - 1:
+            mask = logical_or(mask, self.next.duplicate().to_binary(thresh).img)
+        return mask
+
+    def det_vign_mask_from_bg_img(self):
+        """Determine vignetting mask from current background image
+        
+        The mask is determined using a blurred (:math:`\sigma = 3`) 
+        background image which is normalised to one.
+        
+        The mask is stored in ``self.vign_mask``
+        
+        Returns
+        -------
+        Img
+            vignetting mask
+        """
+        if not self.has_bg_img():
+            raise AttributeError("Please set a background image first")
+        mask = self._bg_imgs[0].duplicate()
+        if mask.edit_log["blurring"] < 3:
+            mask.add_gaussian_blurring(3)
+        mask.img = mask.img / mask.img.max()
+        self.vign_mask = mask
+        return mask
+    
     def prepare_bg_fit_mask(self, dilation=False, dilate_kernel=None,
                             optflow_blur=1, optflow_median=10, 
                             plot_masks=False, **flow_settings):
@@ -2268,320 +2514,7 @@ class ImgList(BaseImgList):
         self.gaussian_blurring = bl
         self.bg_model.surface_fit_mask = mask
         return mask.astype(bool)
-    
-    def set_bg_img_from_polyfit(self, mask=None, **kwargs):
-        """Sets background image from results of a poly surface fit
         
-        Parameters
-        ----------
-        mask : array
-            mask specifying sky background pixels, if None (default) then this
-            mask is determined automatically using :func:`prepare_bg_fit_mask`
-        **kwargs:
-            additional keyword arguments for :class:`PolySurfaceFit
-        Returns
-        -------
-        Img
-            fitted background image
-        """
-        if mask is None:
-            mask = self.prepare_bg_fit_mask(dilation=True)
-        fit = PolySurfaceFit(self.current_img(), mask, **kwargs)
-        bg = fit.model
-        try:
-            low = self.get_dark_image().mean()
-        except:
-            low = finfo(float).eps
-        print "LOW: %s" %low
-        bg [bg <= low] = low
-        self.bg_img = Img(bg)
-     
-    def get_off_list(self, list_id=None):
-        """Search off band list in linked lists
-        
-        :param str list_id: specify the ID of the list. If unspecified (None), 
-            the default off band filter key is attempted to be accessed
-            (``self.camera.filter_setup.default_key_off``) and if this fails,
-            the first off band list found is returned.
-            
-            
-        """
-        if list_id is None:
-            try:
-                list_id = self.camera.filter_setup.default_key_off
-                #print "Found default off band key %s" %list_id
-            except:
-                pass
-        for lst in self.linked_lists.values():
-            if lst.list_type == "off":
-                if list_id is None or list_id == lst.list_id:
-                    return lst
-        raise AttributeError("No linked offband list was found")
-    
-    def activate_optflow_mode(self, val=True, draw=False):
-        """Activate / deactivate optical flow calculation on image load
-        
-        Parameters
-        ----------
-        val : bool
-            activate / deactivate
-        draw : bool
-            if True, flow field is plotted into current image
-            
-
-        """
-        if val is self.optflow_mode:
-            return 
-        if self.crop:
-            raise ValueError("Optical flow analysis can only be applied to "
-                "uncropped images, please deactivate crop mode")
-        if val:
-            try:
-                self.set_flow_images()
-            except IndexError:
-                raise IndexError("Optical flow mode cannot be activated in "
-                    "image list %s: list is at last index, please change list "
-                    "index and retry")
-            self.optflow.calc_flow()
-            if self.bg_model.scale_rect is None:
-                if self.current_img().edit_log["is_tau"]:
-                    raise Exception("Fatal: scale rectangle is not set in "
-                        "background model of list %s, but current image is "
-                        "flagged tau image" %self.list_id)
-                self.bg_model.set_missing_ref_areas(self.current_img())
-            roi = map_roi(self.bg_model.scale_rect, self.pyrlevel)
-            len_im = self.optflow.get_flow_vector_length_img() #is at pyrlevel
-            sub = len_im[roi[1]:roi[3], roi[0]:roi[2]]
-            min_len = ceil(sub.mean() + 3 * sub.std()) + 1
-            self.optflow.settings.min_length = min_len
-            
-            if draw:
-                self.optflow.draw_flow()
-        self._list_modes["optflow"] = val
-    
-    def det_vign_mask_from_bg_img(self):
-        """Determine vignetting mask from current background image
-        
-        The mask is determined using a blurred (:math:`\sigma = 3`) 
-        background image which is normalised to one.
-        
-        The mask is stored in ``self.vign_mask``
-        
-        Returns
-        -------
-        Img
-            vignetting mask
-        """
-        if not self.has_bg_img():
-            raise AttributeError("Please set a background image first")
-        mask = self._bg_imgs[0].duplicate()
-        if mask.edit_log["blurring"] < 3:
-            mask.add_gaussian_blurring(3)
-        mask.img = mask.img / mask.img.max()
-        self.vign_mask = mask
-        return mask
-        
-    """INDEX AND IMAGE LOAD MANAGEMENT"""
-    def load(self):
-        """Try load current and next image"""
-        self.update_index_linked_lists() #based on current index in this list
-        if not super(ImgList, self).load():
-            print ("Image load aborted...")
-            return False
-        if self.nof > 1:
-#==============================================================================
-#             prev_file = self.files[self.prev_index]
-#             self.loaded_images["prev"] = Img(prev_file,
-#                             import_method=self.camera.image_import_method,
-#                             **self.get_img_meta_from_filename(prev_file))
-#             self.apply_current_edit("prev")
-#==============================================================================
-            
-            next_file = self.files[self.next_index]
-            self.loaded_images["next"] = Img(next_file,
-                            import_method=self.camera.image_import_method,                            
-                            **self.get_img_meta_from_filename(next_file))
-            self.apply_current_edit("next")
-        else:
-            #self.loaded_images["prev"] = self.loaded_images["this"]
-            self.loaded_images["next"] = self.loaded_images["this"]
-        
-        if self.optflow_mode:  
-            try:
-                self.set_flow_images()
-                self.optflow.calc_flow()
-            except IndexError:
-                warn("Reached last index in image list, optflow_mode will be "
-                    "deactivated")
-                self.optflow_mode = 0
-        return True
-    
-    def update_index_linked_lists(self):
-        """Update current index in all linked lists based on ``cfn``"""
-        for key, lst in self.linked_lists.iteritems():
-            lst.change_index(self.linked_indices[key][self.index])
-            
-    def load_next(self):
-        """Load next image in list"""
-        if self.nof < 2 or not self._auto_reload:
-            print ("Could not load next image, number of files in list: " +
-                str(self.nof))
-            return False
-        self.index = self.next_index
-        self.update_prev_next_index()
-        
-        self.update_index_linked_lists() #loads new images in all linked lists
-        
-        #self.loaded_images["prev"] = self.loaded_images["this"]
-        self.loaded_images["this"] = self.loaded_images["next"]
-        
-        next_file = self.files[self.next_index]
-        self.loaded_images["next"] = Img(next_file,
-                            import_method=self.camera.image_import_method,                            
-                            **self.get_img_meta_from_filename(next_file))
-    
-        self.apply_current_edit("next")
-        if self.optflow_mode:  
-            try:
-                self.set_flow_images()
-                self.optflow.calc_flow()
-            except IndexError:
-                warn("Reached last index in image list, optflow_mode will be "
-                    "deactivated")
-                self.optflow_mode = 0
-        return True
-        #self.prepare_additional_data()
-        
-#==============================================================================
-#     def load_prev(self):   
-#         """Load previous image in list"""
-#         if self.nof < 2 or not self._auto_reload:
-#             print ("Could not load previous image, number of files in list: " +
-#                 str(self.nof))
-#             return
-#         self.index = self.prev_index
-#         self.update_prev_next_index()
-#         
-#         self.update_index_linked_lists() #loads new images in all linked lists
-#     
-#         self.loaded_images["next"] = self.loaded_images["this"]
-#         self.loaded_images["this"] = self.loaded_images["prev"]
-#         
-#         prev_file = self.files[self.prev_index]
-#         self.loaded_images["prev"] = Img(prev_file,
-#                         import_method=self.camera.image_import_method,
-#                         **self.get_img_meta_from_filename(prev_file))
-#         
-#         self.apply_current_edit("prev")
-#         if self.optflow_mode:  
-#             try:
-#                 self.set_flow_images()
-#                 self.optflow.calc_flow()
-#             except IndexError:
-#                 warn("Reached last index in image list, optflow_mode will be "
-#                     "deactivated")
-#                 self.optflow_mode = 0
-#==============================================================================
-
-    def apply_current_edit(self, key):
-        """Applies the current image edit settings to image
-        
-        :param str key: image id (e.g. this)
-        """
-        if not self.edit_active:
-            warn("Edit not active in img_list %s: no image preparation will "
-                "be performed" %self.list_id)
-            return
-        if key == "this":
-            upd_bgmodel = True
-        else:
-            upd_bgmodel = False
-        img = self.loaded_images[key]
-        if self.darkcorr_mode:
-            dark = self.get_dark_image(key)
-            img.subtract_dark_image(dark)
-        if self.vigncorr_mode:
-            img.correct_vignetting(self.vign_mask, new_state=True)
-        if self.tau_mode:
-            img = self.bg_model.get_tau_image(plume_img=img, 
-                                              bg_img=self.bg_img,
-                                              update_imgs=upd_bgmodel)
-        elif self.aa_mode:
-            off = self.get_off_list()
-            img = self.bg_model.get_aa_image(plume_on=img, 
-                                             plume_off=off.current_img(),
-                                             bg_on=self.bg_img, 
-                                             bg_off=off.bg_img,
-                                             update_imgs=upd_bgmodel)
-            if self.sensitivity_corr_mode:
-                img = img / self.aa_corr_mask
-                img.edit_log["senscorr"] = 1
-            if self.calib_mode:
-                img.img = self.calib_data(img.img)
-                img.edit_log["gascalib"] = True
-    
-        img.to_pyrlevel(self.img_prep["pyrlevel"])
-        if self.img_prep["crop"]:
-            img.crop(self.roi_abs)
-        if self.img_prep["8bit"]:
-            img._to_8bit_int(new_im = False)
-        # do this at last, since it can be time consuming and is therfore much
-        # faster in case pyrlevel > 0 or crop applied
-        img.add_gaussian_blurring(self.img_prep["blurring"])
-        img.apply_median_filter(self.img_prep["median"])
-        self.loaded_images[key] = img
-            
-      
-    def set_flow_images(self):  
-        """Update images for optical flow determination 
-        
-        The images are updated in :attr:`optflow` 
-        (:class:`OpticalFlowFarneback` object) using method :func:`set_images`
-        
-        Raises
-        
-        object, i.e. `self.loaded_images["this"]` and `self.loaded_images["next"]`
-        """
-        if self.cfn == self.nof - 1:
-            self.optflow.reset_flow()
-            raise IndexError("Optical flow images cannot be set in ImgList %s:"
-                " reached last image ..." %self.list_id)
-            
-        self.optflow.set_images(self.loaded_images["this"],
-                                self.loaded_images["next"])
-
-    def change_index(self, idx):
-        """Change current image based on index of file list
-        
-        :param idx: index in `self.files` which is supposed to be loaded
-        
-        Dependend on the input index, the following scenarii are possible:
-        If..
-        
-            1. idx < 0 or idx > `self.nof`
-                then: do nothing (return)
-            #. idx == `self.index`
-                then: do nothing
-            #. idx == `self.next_index`
-                then: call :func:`next_img`
-            #. idx == `self.prev_index`
-                then: call :func:`prev_img`
-            #. else
-                then: call :func:`goto_img`
-        """
-        if not -1 < idx < self.nof or idx == self.index:
-            return
-        elif idx == self.next_index:
-            self.next_img()
-            return
-        elif idx == self.prev_index:
-            self.prev_img()
-            return
-        #: goto_img calls :func:`load` which calls prepare_additional_data
-        self.goto_img(idx)
-
-        return self.loaded_images["this"]
-    
     def prep_data_dilutioncorr(self, tau_thresh=0.05, plume_pix_mask=None, 
                                plume_dists=None, ext_coeff=None):
         """Get parameters relevant for dilution correction
@@ -2826,13 +2759,7 @@ class ImgList(BaseImgList):
         
         return (img, img_off, ext_coeff, ext_coeff_off, bg, bg_off,
                 plume_dists, plume_pix_mask)
-        
-    def has_bg_img(self):
-        """Returns boolean whether or not background image is available"""
-        if not isinstance(self.bg_img, Img):
-            return False
-        return True
-            
+                
     """I/O"""
     def import_ext_coeffs_csv(self, file_path, header_id, **kwargs):
         """Import extinction coefficients from csv 
@@ -2864,8 +2791,79 @@ class ImgList(BaseImgList):
         df = DataFrame.from_csv(file_path, **kwargs)
         self.ext_coeffs = df[header_id]
         return self.ext_coeffs
+    
+    """HELPERS"""
+    def has_bg_img(self):
+        """Returns boolean whether or not background image is available"""
+        if not isinstance(self.bg_img, Img):
+            return False
+        return True
         
-    """Private methods"""        
+    def update_index_dark_offset_lists(self):
+        """Check and update current dark image (if possible / applicable)"""
+        if self.DARK_CORR_OPT == 0:
+            return
+        t_last = self.time_last_dark_check
+
+        ctime = self.current_time()
+
+        if not (t_last - timedelta(minutes = self.update_dark_ival)) < ctime <\
+                        (t_last + timedelta(minutes = self.update_dark_ival)):
+            if self.set_closest_dark_offset():
+                print ("Updated dark / offset in img_list %s at %s"
+                        %(self.list_id, ctime))
+                self.time_last_dark_check = ctime
+                
+        
+    """Private methods"""
+    def _apply_edit(self, key):
+        """Applies the current image edit settings to image
+        
+        :param str key: image id (e.g. this)
+        """
+        if not self.edit_active:
+            warn("Edit not active in img_list %s: no image preparation will "
+                "be performed" %self.list_id)
+            return
+        if key == "this":
+            upd_bgmodel = True
+        else:
+            upd_bgmodel = False
+        img = self.loaded_images[key]
+        if self.darkcorr_mode:
+            dark = self.get_dark_image(key)
+            img.subtract_dark_image(dark)
+        if self.vigncorr_mode:
+            img.correct_vignetting(self.vign_mask, new_state=True)
+        if self.tau_mode:
+            img = self.bg_model.get_tau_image(plume_img=img, 
+                                              bg_img=self.bg_img,
+                                              update_imgs=upd_bgmodel)
+        elif self.aa_mode:
+            off = self.get_off_list()
+            img = self.bg_model.get_aa_image(plume_on=img, 
+                                             plume_off=off.current_img(),
+                                             bg_on=self.bg_img, 
+                                             bg_off=off.bg_img,
+                                             update_imgs=upd_bgmodel)
+            if self.sensitivity_corr_mode:
+                img = img / self.aa_corr_mask
+                img.edit_log["senscorr"] = 1
+            if self.calib_mode:
+                img.img = self.calib_data(img.img)
+                img.edit_log["gascalib"] = True
+    
+        img.to_pyrlevel(self.img_prep["pyrlevel"])
+        if self.img_prep["crop"]:
+            img.crop(self.roi_abs)
+        if self.img_prep["8bit"]:
+            img._to_8bit_int(new_im = False)
+        # do this at last, since it can be time consuming and is therfore much
+        # faster in case pyrlevel > 0 or crop applied
+        img.add_gaussian_blurring(self.img_prep["blurring"])
+        img.apply_median_filter(self.img_prep["median"])
+        self.loaded_images[key] = img
+        
     def _aa_test_img(self, off_list):
         """Try to determine an AA image"""
         on = Img(self.files[self.cfn],
