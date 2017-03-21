@@ -144,11 +144,11 @@ if __name__=="__main__":
     
     ### Define exemplary plume cross section line
     pcs_line = pyplis.processing.LineOnImage(x0=530,
-                                              y0=730, 
-                                              x1=890,
-                                              y1=300,
-                                              line_id = "example PCS",
-                                              color="lime")
+                                             y0=730, 
+                                             x1=890,
+                                             y1=300,
+                                             line_id = "example PCS",
+                                             color="lime")
     
     plume, plume_vigncorr, bg = load_and_prepare_images()
 

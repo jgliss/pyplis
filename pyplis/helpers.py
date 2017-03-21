@@ -17,6 +17,56 @@ exponent = lambda num: int(floor(log10(abs(num))))
 
 time_delta_to_seconds = vectorize(lambda x: x.total_seconds())
 
+def set_ax_lim_roi(roi, ax, xy_aspect=None):
+    """Updates axes limits to ROI coords (for image disp)
+    
+    Note
+    ----
+    Hard coded in a rush, probably easier solution to it ;)
+    
+    Parameters
+    ----------
+    roi : list
+        ``[x0, y0, x1, y1]``
+    ax : Axes
+        the Axes showing the image
+    
+    Returns
+    -------
+    Axes
+        trivial
+    """
+    if xy_aspect is None:
+        ax.set_xlim([roi[0], roi[2]])
+        ax.set_ylim([roi[3], roi[1]])
+        return ax
+    dely = float(roi[3] - roi[1])
+    delx = float(roi[2] - roi[0])
+    r = delx / dely
+    if r <= xy_aspect: #increase x range
+        xr = xy_aspect * dely
+        xc = roi[0] + 0.5*delx
+        x0 = int(xc - xr / 2.0)
+        offs=0
+        if x0 <= 0:
+            offs = abs(x0)
+            x0 = 0
+        x1 = int(xc + xr / 2.0) + offs
+        ax.set_xlim([x0, x1])
+        ax.set_ylim([roi[3], roi[1]])
+        return ax
+    yr = delx / xy_aspect
+    yc = roi[1] + 0.5 * dely
+    y0 = int(yc - yr / 2.0)
+    offs=0
+    if y0 <= 0:
+        offs = abs(y0)
+        y0 = 0
+    y1 = int(yc + yr / 2.0) + offs
+    ax.set_ylim([y1, y0])
+    ax.set_xlim([roi[0], roi[2]])
+    return ax
+    
 def closest_index(time_stamp, time_stamps):
     """Find index of time stamp in array to other time stamp
     
@@ -40,6 +90,7 @@ def closest_index(time_stamp, time_stamps):
         warn("Time stamp is later than last time stamp in array")
         return len(time_stamps) - 1
     return argmin([abs((time_stamp - x).total_seconds()) for x in time_stamps])
+    
 def to_datetime(value):
     """Method to evaluate time and / or date input and convert to datetime"""
     if isinstance(value, datetime):

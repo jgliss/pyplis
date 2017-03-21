@@ -175,7 +175,7 @@ class EmissionRateResults(object):
         d = self.to_dict()
         del d["_start_acq"]
         try:
-            df = DataFrame(d, index = self.start_acq)
+            df = DataFrame(d, index=self.start_acq)
             return df
         except:
             warn("Failed to convert EmissionRateResults into pandas DataFrame")
@@ -183,7 +183,6 @@ class EmissionRateResults(object):
     @property
     def default_save_name(self):
         """Returns default name for txt export"""
-        
         try:
             d = self.start.strftime("%Y%m%d")
             i = self.start.strftime("%H%M")
@@ -210,12 +209,18 @@ class EmissionRateResults(object):
         ----------
         df : DataFrame
             pandas dataframe containing emisison rate results
-            
+        
+        Returns
+        -------
+        EmissionRateResults
+            this object
         """
+        self._start_acq = df.index.to_pydatetime()
         for key in df.keys():
             if self.__dict__.has_key(key):
                 self.__dict__[key] = df[key].values
-    
+        return self
+        
     @property
     def start(self):
         """Returns acquisistion time of first image"""
@@ -391,49 +396,51 @@ class EmissionRateAnalysis(object):
     determine pixel to pixel distances (on a pixel column basis) and 
     corresponding uncertainties. 
     
-    .. todo::
+    Parameters
+    ----------
+    imglist : ImgList
+        onband image list prepared such, that at least ``aa_mode`` and 
+        ``calib_mode`` can be activated. If emission rate retrieval is supposed 
+        to be performed using optical flow, then also ``optflow_mode`` needs to 
+        work. Apart from setting these modes, no further changes are applied to 
+        the list (e.g. dark correction, blurring or choosing the pyramid level) 
+        and should therefore be set before. A warning is given, in case dark 
+        correction is not activated.
+    
+    pcs_lines : list
+        python list containing :class:`LineOnImage` objects supposed to be used 
+        for retrieval of emission rates (can also be a :class:`LineOnImage` 
+        object directly)
+    velo_glob : float
+        global plume velocity in m/s (e.g. retrieved using cross correlation 
+        algorithm)
+    velo_glob_err : float
+        uncertainty in global plume speed estimate
+    bg_roi : list
+        region of interest specifying gas free area in the images. It is used 
+        to extract mean, max, min values from each of the calibrated images 
+        during the analysis as a quality check for the performance of the plume 
+        background retrieval or to detect disturbances in this region (e.g. due 
+        to clouds). If unspecified, the ``scale_rect`` of the plume background 
+        modelling class is used (i.e. ``self.imglist.bg_model.scale_rect``).
+    **settings : 
+        analysis settings (passed to :class:`EmissionRateSettings`)
+        
+    Todo
+    ----
 
         1. Include light dilution correction - automatic correction for light 
-        dilution is currently not supported by this object. If you wish
+        dilution is currently not supported in this object. If you wish
         to perform light dilution, for now, please calculate dilution
         corrected on and offband images first (see example script ex11) and 
         save them locally. The new set of images can then be used normally
         for the analysis by creating a :class:`Dataset` object and an 
         AA image list from that (see example scripts 1 and 4). 
-        
-        #. Include ImgStack support (this can acccelerate a lot)
             
     """
     def __init__(self, imglist, pcs_lines=[], velo_glob=nan,
                  velo_glob_err=None, bg_roi=None, **settings):
-        """Class initialisation
-        
-        :param ImgList imglist: onband image list prepared such, that at least
-            ``aa_mode`` and ``calib_mode`` can be activated. If emission rate
-            retrieval is supposed to be performed using optical flow, then also
-            ``optflow_mode`` needs to work. Apart from setting these modes, no
-            further changes are applied to the list (e.g. dark correction, 
-            blurring or choosing the pyramid level) and should therefore be 
-            set before. A warning is given, in case dark correction is not 
-            activated.
-        :param list pcs_lines: python list containing :class:`LineOnImage` 
-            objects used to determine emission rates (can also be a 
-            :class:`LineOnImage` object directly)
-        :param velo_glob: global plume velocity in m/s (e.g. retrieved using
-            cross correlation algorithm)
-        :param velo_glob_err: uncertainty in global plume speed estimate
-        :param bg_roi: region of interest specifying gas free area in the
-            images. It is used to extract mean, max, min values from each 
-            of the calibrated images during the analysis as a quality check
-            for the performance of the plume background retrieval or to 
-            detect disturbances in this region (e.g. due to clouds). If 
-            unspecified, the ``scale_rect`` of the plume background model 
-            environement is used (i.e. ``self.imglist.bg_model.scale_rect``).
-        :param **settings: analysis settings (passed to 
-            :class:`EmissionRateSettings`)
-        
-        """
-        
+
         if not isinstance(imglist, ImgList):
             raise TypeError("Need ImgList, got %s" %type(imglist))
            
@@ -566,31 +573,40 @@ class EmissionRateAnalysis(object):
     def get_pix_dist_info_all_lines(self):
         """Retrieve pixel distances and uncertainty for all pcs lines
         
-        :return: 
-            - dict, keys are line ids, vals are arrays with pixel distances
-            - dict, keys are line ids, vals are pixel distance uncertainty
-            - dict, keys are line ids, vals are ROIs in absolute coords for 
-                retrieval of local plume properties from optical flow
+        Returns
+        -------
+        tuple
+            2-element tuple containing
+            
+            - :obj:`dict`, keys are line ids, vals are arrays with pixel dists
+            - :obj:`dict`, keys are line ids, vals are distance uncertainties
             
         """
         lst = self.imglist
         PYR = self.imglist.pyrlevel
         # get pixel distance image
-        dist_img, _, _ = lst.meas_geometry.get_all_pix_to_pix_dists(
-                                                pyrlevel=PYR)
-        #init results
-        dists, dist_errs, rois = {}, {}, {}
+        dist_img = lst.meas_geometry.get_all_pix_to_pix_dists(pyrlevel=PYR)[0]
+        #init dicts
+        dists, dist_errs = {}, {}
         for line_id, line in self.pcs_lines.iteritems():
             dists[line_id] = line.get_line_profile(dist_img)
-            roi = line.get_roi_abs_coords(lst.current_img())
-            rois[line_id] = roi
             col = line.center_pix[0] #pixel column of center of PCS
             dist_errs[line_id] = lst.meas_geometry.pix_dist_err(col, PYR)
             
-        return dists, dist_errs, rois
+        return dists, dist_errs
     
     def init_results(self):
-        """Reset results"""
+        """Reset results
+        
+        Returns
+        -------
+        tuple
+            2-element tuple containing
+            
+            - :obj:`dict`, keys are line ids, vals are empty result classes
+            - :obj:`dict`, keys are line ids, vals are empty \
+                :class:`LocalPlumeProperties` objects
+        """
         if sum(self.settings.velo_modes.values()) == 0:
             raise ValueError("Cannot initiate result structure: no velocity "
                 "retrieval mode is activated, check self.settings.velo_modes "
@@ -600,7 +616,7 @@ class EmissionRateAnalysis(object):
         plume_props = od()
         for line_id, line in self.pcs_lines.iteritems():
             res[line_id] = od()
-            plume_props[line_id] = LocalPlumeProperties()
+            plume_props[line_id] = LocalPlumeProperties(roi_id=line_id)
             for mode, val in self.settings.velo_modes.iteritems():
                 if val:
                     res[line_id][mode] = EmissionRateResults(line_id, mode)
@@ -623,11 +639,6 @@ class EmissionRateAnalysis(object):
                            check_list=False):
         """Calculate emission rate based on current settings
         
-        :param start_index: index of first considered image in ``self.imglist``
-        :param stop_index: index of last considered image in ``self.imglist``
-        :param bool check_list: if True, :func:`check_and_init_list` is 
-            called before analysis
-        
         Performs emission rate analysis for each line in ``self.pcs_lines`` 
         and for all plume velocity retrievals activated in 
         ``self.settings.velo_modes``, the results for each line and 
@@ -641,6 +652,25 @@ class EmissionRateAnalysis(object):
         
         The results can also be easily accessed using :func:`get_results`.
         
+        Parameters
+        ----------
+        start_index : int
+            index of first considered image in ``self.imglist``, defaults to 0
+        stop_index : int
+            index of last considered image in ``self.imglist``, defaults to 
+            last image in list
+        check_list : bool
+            if True, :func:`check_and_init_list` is called before analysis
+        
+        Returns
+        -------
+        tuple
+            2-element tuple containing
+            
+            - :obj:`dict`, keys are line ids, vals are corresponding results
+            - :obj:`dict`, keys are line ids, vals are \
+                :class:`LocalPlumeProperties` objects
+                
         """
         if check_list:
             self.check_and_init_list()
@@ -648,7 +678,7 @@ class EmissionRateAnalysis(object):
         if stop_index is None:
             stop_index = lst.nof - 1 
         results, plume_props = self.init_results()
-        dists, dist_errs, rois = self.get_pix_dist_info_all_lines()
+        dists, dist_errs = self.get_pix_dist_info_all_lines()
         lst.goto_img(start_index)
         try:
             cd_err = lst.calib_data.slope_err
@@ -704,7 +734,6 @@ class EmissionRateAnalysis(object):
                     
                     
                 if lst.optflow_mode:
-                    lst.optflow.roi_abs = rois[pcs_id] #update ROI for flow analysis
                     delt = lst.optflow.del_t
 
                     if velo_modes["farneback_raw"]:
@@ -731,12 +760,14 @@ class EmissionRateAnalysis(object):
                         
                     if velo_modes["farneback_histo"]:
                         props = plume_props[pcs_id]
-                        mask = lst.optflow.prepare_intensity_condition_mask(
-                                                lower_val=min_cd)
+                        # get mask specifying plume pixels
+                        mask = lst.get_thresh_mask(min_cd)
                         props.get_and_append_from_farneback(lst.optflow,
-                                                            cond_mask_flat=mask)
+                                                            line=pcs,
+                                                            pix_mask=mask)
                         v, verr = props.get_velocity(-1, distarr.mean(),
-                                                     disterr, pcs.normal_vector)
+                                                     disterr, 
+                                                     pcs.normal_vector)
                         
                         phi, phi_err = det_emission_rate(cds, v, distarr, 
                                                          cd_err, verr, disterr, 

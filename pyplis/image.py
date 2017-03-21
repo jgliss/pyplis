@@ -736,6 +736,12 @@ class Img(object):
     def shape(self):
         """Return shape of image data"""
         return self.img.shape
+        
+    @property
+    def xy_aspect(self):
+        """Aspect ratio (delx / dely)"""
+        s = self.shape[:2]
+        return s[1] / float(s[0]) 
     
     @property    
     def pyr_up_factor(self):

@@ -3,6 +3,7 @@
 pyplis example script no. 8 - Plume velocity retrieval using cross correlation
 """
 from matplotlib.pyplot import close, show, subplots
+from matplotlib.dates import DateFormatter
 from os.path import join
 import numpy as np
 
@@ -24,7 +25,7 @@ COLOR_PCS2 = "r"
 # First PCS line
 # these line coordinates correspond to a cross section originally defined 
 # from a downscaled plume image at pyrlevel=2
-PCS = LineOnImage(150, 180, 215, 75, normal_orientation="left", pyrlevel=2,
+PCS = LineOnImage(150, 180, 215, 75, normal_orientation="left", pyrlevel_def=2,
                   line_id="1. PCS", color=COLOR_PCS1)
                   
 
@@ -37,7 +38,7 @@ SECOND_ICA_TSERIES = join(SAVE_DIR, "second_ica_tseries.fts")
 def create_pcs_lines():
     
     #convert line to pyrlevel 0
-    pcs1 = PCS.convert(pyrlevel=0)
+    pcs1 = PCS.convert(to_pyrlevel=0)
     pcs1.color = COLOR_PCS1
     # create a second line at 40 pixels distance to the first line 
     # (in direction of its normal vector)
@@ -178,8 +179,10 @@ def plot_result(crosscorr_res, pcs1, pcs2, example_img):
     ### Plot original ICA time series for both lines
     fig2, ax2 = subplots(1,1)
     
+    tseries1.index.to_pydatetime()    
     #plot original ICA time series along pcs 1
-    tseries1.plot(ax=ax2, style="--", color=COLOR_PCS1, label="1. PCS (original)")
+    tseries1.plot(ax=ax2, style="--", color=COLOR_PCS1, 
+                  label="1. PCS (original)")
     # plot shifted time series along pcs 1 and apply light fill
     tseries_shift.plot(ax=ax2, style="-", color=COLOR_PCS1, 
                        label="1. PCS (shift %.1f s)" %lag)
@@ -188,9 +191,9 @@ def plot_result(crosscorr_res, pcs1, pcs2, example_img):
     
     tseries2.plot(ax=ax2, style="-", color=COLOR_PCS2, label="2. PCS")
     
-
     ax2.set_ylim([40, 100])
     ax2.set_ylabel("ICA [m]")
+    ax2.xaxis.set_major_formatter(DateFormatter("%H:%M"))
     #ax[0,].set_title("Original time series", fontsize = 10)
     ax2.grid()
     ax2.legend(loc=2, fancybox=True, framealpha=0.5, fontsize=11) 

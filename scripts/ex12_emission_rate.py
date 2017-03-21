@@ -42,7 +42,7 @@ MMOL = 64.0638 #g/mol
 CD_MIN = 2.5e17
 OPTFLOW_LEN_ESTIM_MODE = "argmax" #multigauss
 
-START_INDEX = 0
+START_INDEX = 1
 STOP_INDEX = None
 DO_EVAL = 1
 
@@ -59,6 +59,9 @@ CALIB_FILE = join(SAVE_DIR,
 
 CORR_MASK_FILE = join(SAVE_DIR, "aa_corr_mask.fts")
 
+if not exists(CORR_MASK_FILE):
+    raise IOError("Cannot find AA correction mask, please run example script"
+        "7 first")
 ### SCRIPT FUNCTION DEFINITIONS        
 def plot_and_save_results(ana, line_id = "1. PCS"):
     fig, ax = subplots(2, 1, figsize = (7, 9), sharex = True)
@@ -123,13 +126,11 @@ if __name__ == "__main__":
     #set DOAS calibration data in image list
     aa_list.calib_data = doascalib
     
-    aa_list.optflow.settings.hist_len_how = "argmax"
-    
-    pcs = PCS.convert(pyrlevel=PYRLEVEL)
+    pcs = PCS.convert(to_pyrlevel=PYRLEVEL)
                                              
     ana = pyplis.fluxcalc.EmissionRateAnalysis(aa_list, pcs,
-                                                velo_glob=PLUME_VEL_GLOB,
-                                                bg_roi=LOG_ROI_SKY)
+                                               velo_glob=PLUME_VEL_GLOB,
+                                               bg_roi=LOG_ROI_SKY)
     
     ana.settings.velo_modes["farneback_raw"] = True
     ana.settings.velo_modes["farneback_histo"] = True
@@ -142,7 +143,8 @@ if __name__ == "__main__":
         ax = ana.plot_pcs_lines() 
         #check if optical flow works
         ana.imglist.optflow_mode = True
-        ana.imglist.optflow.plot_flow_histograms()
+        aa_mask = ana.imglist.get_thresh_mask(CD_MIN)
+        ana.imglist.optflow.plot_flow_histograms(line=pcs, pix_mask=aa_mask)
     else:
         ana.calc_emission_rate(start_index=START_INDEX, 
                                stop_index=STOP_INDEX)
