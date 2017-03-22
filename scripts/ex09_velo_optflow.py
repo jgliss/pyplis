@@ -3,6 +3,10 @@
 pyplis example script no. 9 - Plume velocity retrieval using Farneback optical 
 flow algorithm
 """
+from SETTINGS import check_version
+# Raises Exception if conflict occurs
+check_version()
+
 from matplotlib.pyplot import close, show, subplots
 from os.path import join, basename
 import pyplis
@@ -147,16 +151,17 @@ if __name__ == "__main__":
         ax[0].set_title("Movement direction")
         ax[1].set_title("Displacement length")
         figs.append(fig)
+        # Save the time series as txt
+        plume_props_l1.save_txt(join(SAVE_DIR, 
+                                     "ex09_PCS1_res_histo_analysis.txt"))
+        plume_props_l2.save_txt(join(SAVE_DIR, 
+                                     "ex09_PCS2_res_histo_analysis.txt"))
         
     if SAVEFIGS:
         for k in range(len(figs)):
             figs[k].savefig(join(SAVE_DIR, "%s_out_%d.%s" 
                             %(SCRIPT_ID, (k+1), FORMAT)),
                             format=FORMAT, dpi=DPI)
-    
-    # Save the time series as txt
-    plume_props_l1.save_txt(SAVE_DIR)
-    plume_props_l2.save_txt(SAVE_DIR)
 
     # Display images or not    
     (options, args)   =  OPTPARSE.parse_args()

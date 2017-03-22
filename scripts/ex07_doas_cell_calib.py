@@ -12,6 +12,10 @@ from example script 5. The results from the DOAS calibration (see prev. example)
 where stored as a FITS file (including FOV information) and the results are 
 imported here.
 """
+from SETTINGS import check_version
+# Raises Exception if conflict occurs
+check_version()
+
 import pyplis
 from os.path import join, exists
 import numpy as np
@@ -28,8 +32,7 @@ from ex04_prep_aa_imglist import prepare_aa_image_list
 ### RELEVANT DIRECTORIES AND PATHS
 
 #fits file containing DOAS calibration information (from ex6)
-CALIB_FILE = join(SAVE_DIR,
-                  "pyplis_doascalib_id_aa_avg_20150916_0706_0721.fts")
+CALIB_FILE = join(SAVE_DIR, "ex06_doascalib_aa.fts")
                   
 ### SCRIPT FUNCTION DEFINITIONS    
 def draw_doas_fov(fov_x, fov_y, fov_extend, ax):
@@ -161,7 +164,7 @@ if __name__ == "__main__":
     #Save the sensitivity correction mask from the cell with the lowest SO2 CD
     so2min = np.min(masks.keys())
     mask = pyplis.Img(masks[so2min])
-    mask.save_as_fits(SAVE_DIR, "aa_corr_mask")
+    mask.save_as_fits(SAVE_DIR, "ex07_aa_corr_mask")
     
     # Display images or not    
     (options, args)   =  OPTPARSE.parse_args()

@@ -20,6 +20,9 @@ Furthermore, some basic image preparation features of ImgList objects are
 introduced (e.g. linking of lists, dark correction, automatic blurring, 
 cropping, size reduction).
 """
+from SETTINGS import check_version
+# Raises Exception if conflict occurs
+check_version()
 
 import pyplis
 from matplotlib.pyplot import subplots, close, show

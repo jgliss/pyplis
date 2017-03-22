@@ -9,6 +9,9 @@ detected and separated into individual image lists (for all filters, i.e. here
 on / off).
 
 """
+from SETTINGS import check_version
+# Raises Exception if conflict occurs
+check_version()
 
 import pyplis
 from datetime import datetime

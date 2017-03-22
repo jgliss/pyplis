@@ -11,6 +11,9 @@ In this script, a newer version of the camera type "ecII" is created manually
 in order to illustrate all relevant parameters. The only difference to the 
 classic ecII camera is, that the filter setup is different.
 """
+from SETTINGS import check_version
+# Raises Exception if conflict occurs
+check_version()
 
 import pyplis
 ### SCRIPT OPTIONS

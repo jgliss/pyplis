@@ -20,6 +20,9 @@ PCS lines in the EmissionRateAnalysis class using ``add_pcs_line``.
 The results for each velocity mode and for each PCS line are stored within 
 EmissionRateResults classes.
 """
+from SETTINGS import check_version
+# Raises Exception if conflict occurs
+check_version()
 
 import pyplis
 from os.path import join, exists
@@ -54,14 +57,10 @@ LOG_ROI_SKY = [530, 30, 600, 100] #correspond to pyrlevel 1
 
 ### RELEVANT DIRECTORIES AND PATHS
 
-CALIB_FILE = join(SAVE_DIR,
-                  "pyplis_doascalib_id_aa_avg_20150916_0706_0721.fts")
+CALIB_FILE = join(SAVE_DIR, "ex06_doascalib_aa.fts")
 
-CORR_MASK_FILE = join(SAVE_DIR, "aa_corr_mask.fts")
+CORR_MASK_FILE = join(SAVE_DIR, "ex07_aa_corr_mask.fts")
 
-if not exists(CORR_MASK_FILE):
-    raise IOError("Cannot find AA correction mask, please run example script"
-        "7 first")
 ### SCRIPT FUNCTION DEFINITIONS        
 def plot_and_save_results(ana, line_id = "1. PCS"):
     fig, ax = subplots(2, 1, figsize = (7, 9), sharex = True)
@@ -71,9 +70,9 @@ def plot_and_save_results(ana, line_id = "1. PCS"):
     res1 = ana.get_results(line_id=line_id, velo_mode="farneback_raw")
     res2 = ana.get_results(line_id=line_id, velo_mode="farneback_histo")
     
-    res0.save_txt(join(SAVE_DIR, "emission_rates_velo_glob.txt"))
-    res1.save_txt(join(SAVE_DIR, "emission_rates_velo_farneback_raw.txt"))
-    res2.save_txt(join(SAVE_DIR, "emission_rates_velo_farneback_histo.txt"))
+    res0.save_txt(join(SAVE_DIR, "ex12_flux_velo_glob.txt"))
+    res1.save_txt(join(SAVE_DIR, "ex12_flux_farneback_raw.txt"))
+    res2.save_txt(join(SAVE_DIR, "ex12_flux_farneback_histo.txt"))
     
     #Plot emission rates for the different plume speed retrievals
     res0.plot(yerr=False, date_fmt="%H:%M", ax=ax[0], color="r")
@@ -105,11 +104,13 @@ def plot_and_save_results(ana, line_id = "1. PCS"):
 ### SCRIPT MAIN FUNCTION    
 if __name__ == "__main__":
     close("all")
-    
     if not exists(CALIB_FILE):
-        raise IOError("Calibration file could not be found at specified location:\n"
-            "%s\nYou might need to run example 6 first")
-        
+        raise IOError("Calibration file could not be found at specified "
+            "location:\n%s\nPlease run example 6 first")
+    if not exists(CORR_MASK_FILE):
+        raise IOError("Cannot find AA correction mask, please run example script"
+            "7 first")  
+            
     ### Load AA list
     aa_list = prepare_aa_image_list() #includes viewing direction corrected geometry
     aa_list.pyrlevel = PYRLEVEL

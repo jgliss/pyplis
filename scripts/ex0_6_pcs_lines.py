@@ -8,9 +8,11 @@ of the line points). This is mainly important for emission rate retrievals,
 where, for instance velcoity displacement vectors (e.g. from an optical flow
 algorithm) have to be multiplied with the normal vector of such a line (using
 the dot product).
-
-
 """
+from SETTINGS import check_version
+# Raises Exception if conflict occurs
+check_version()
+
 from pyplis.processing import LineOnImage
 from os.path import join
 from matplotlib.pyplot import show, subplots, close

@@ -2,6 +2,9 @@
 """
 pyplis example script no. 10 - Create background image dataset
 """
+from SETTINGS import check_version
+# Raises Exception if conflict occurs
+check_version()
 
 import pyplis
 from datetime import datetime

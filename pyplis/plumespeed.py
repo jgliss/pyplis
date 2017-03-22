@@ -1,6 +1,13 @@
 # -*- coding: utf-8 -*-
 """
 Module containing features related to plume velocity analysis
+
+Todo
+----
+
+    1. Make class for signal cross correlation analysis (high level) based on
+       image list (cf. methods in ex08)
+       
 """
 from time import time
 from numpy import mgrid,vstack,int32,sqrt,arctan2,rad2deg, asarray, sin, cos,\
