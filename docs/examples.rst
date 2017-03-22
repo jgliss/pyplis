@@ -2,6 +2,12 @@
 Example scripts
 ***************
 
+pyplis example scripts. The scripts require downloading the `pyplis test data <http://pyplis.readthedocs.io/en/latest/intro.html#example-and-test-data>`__.
+
+.. note::
+
+  The scripts are based on the latest commit in the `GitHub repo <https://github.com/jgliss/pyplis>`__. If you have installed an older version of pyplis, please use the corresponding scripts which are provided `here <https://github.com/jgliss/pyplis/tree/master/scripts/old_versions>`__.
+  
 Inroductory scripts
 ===================
 
