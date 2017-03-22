@@ -16,6 +16,10 @@ definitions  contains information about the camera specs a the
 image base directory (note that in this example, start / stop acq. time stamps
 are ignored, i.e. all images available in the specified directory are imported)
 """
+from SETTINGS import check_version
+# Raises Exception if conflict occurs
+check_version()
+
 import pyplis
 
 ### IMPORT GLOBAL SETTINGS

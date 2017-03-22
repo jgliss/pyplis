@@ -23,6 +23,9 @@ curves retrieved for both FOV parametrisations.
     increasing script option PYRLEVEL_ROUGH_SEARCH.
     
 """
+from SETTINGS import check_version
+# Raises Exception if conflict occurs
+check_version()
 
 import pyplis
 import pydoas
@@ -58,7 +61,7 @@ PYRLEVEL_ROUGH_SEARCH = 2
 DOAS_DATA_DIR = join(IMG_DIR, "..", "spectra", "plume_prep", "min10Scans",
                      "ResultFiles")                                                                
 
-STACK_PATH = join(SAVE_DIR, "pyplis_imgstack_id_aa_20150916_0706_0721.fts")
+STACK_PATH = join(SAVE_DIR, "ex06_aa_imgstack.fts")
 
 ### SCRIPT FUNCTION DEFINITIONS                    
 def load_doas_results():
@@ -125,7 +128,7 @@ def make_aa_stack_from_list(aa_list, roi_abs=None, pyrlevel=None,
             remove(stack_path)
         except:
             pass    
-        stack.save_as_fits(save_dir=save_dir)  
+        stack.save_as_fits(save_dir=save_dir, save_name="ex06_aa_imgstack.fts")  
     return stack
 
 def get_stack(reload_stack=RELOAD_STACK, stack_path=STACK_PATH,
@@ -191,24 +194,24 @@ if __name__ == "__main__":
 
         del stack # make space for new stack
         #create ROI around center position of FOV
-        roi = [ pos_x - 5*extend, pos_y - 5*extend,\
+        roi = [ pos_x - 5*extend, pos_y - 5*extend,
                 pos_x + 5*extend, pos_y + 5*extend]
                 
         stack = make_aa_stack_from_list(aa_list, roi_abs=roi, pyrlevel=0, 
                                         save=0)
-        s = pyplis.doascalib.DoasFOVEngine(stack, doas_time_series,\
-                                                    pearson_max_radius = 30)
+        s = pyplis.doascalib.DoasFOVEngine(stack, doas_time_series,
+                                           pearson_max_radius=30)
         calib_pears_fine = s.perform_fov_search(method = "pearson")
         calib_pears_fine.fit_calib_polynomial()
         axes.append(calib_pears_fine.plot())
         axes.append(calib_pears_fine.fov.plot())
         
     try:
-        remove(join(SAVE_DIR, 
-                    "pyplis_doascalib_id_aa_avg_20150916_0706_0721.fts"))
+        remove(join(SAVE_DIR, "ex06_doascalib_aa.fts"))
     except:
         pass
-    calib_pears.save_as_fits(save_dir = SAVE_DIR)
+    calib_pears.save_as_fits(save_dir=SAVE_DIR, 
+                             save_name="ex06_doascalib_aa.fts")
     
     # Print the results of the FOV search
     print calib_ifr.fov
@@ -219,8 +222,8 @@ if __name__ == "__main__":
         for k in range(len(axes)):
             ax = axes[k]
             ax.set_title("")
-            ax.figure.savefig(join(SAVE_DIR, "ex06_out_%d.%s" %((k+1), FORMAT)),
-                                   format=FORMAT, dpi=DPI)
+            ax.figure.savefig(join(SAVE_DIR, "ex06_out_%d.%s" 
+                              %((k+1), FORMAT)), format=FORMAT, dpi=DPI)
     
     # Display images or not    
     (options, args)   =  OPTPARSE.parse_args()

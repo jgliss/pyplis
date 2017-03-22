@@ -10,6 +10,10 @@ from os.path import join
 import pyplis
 from matplotlib.pyplot import show, subplots, close
 
+from SETTINGS import check_version
+# Raises Exception if conflict occurs
+check_version()
+
 ### IMPORT GLOBAL SETTINGS
 from SETTINGS import SAVEFIGS, SAVE_DIR, FORMAT, DPI, IMG_DIR, OPTPARSE
 

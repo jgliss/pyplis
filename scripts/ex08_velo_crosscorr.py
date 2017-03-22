@@ -2,6 +2,10 @@
 """
 pyplis example script no. 8 - Plume velocity retrieval using cross correlation
 """
+from SETTINGS import check_version
+# Raises Exception if conflict occurs
+check_version()
+
 from matplotlib.pyplot import close, show, subplots
 from matplotlib.dates import DateFormatter
 from os.path import join
@@ -31,8 +35,8 @@ PCS = LineOnImage(150, 180, 215, 75, normal_orientation="left", pyrlevel_def=2,
 
 ### RELEVANT DIRECTORIES AND PATHS
 
-FIRST_ICA_TSERIES = join(SAVE_DIR, "first_ica_tseries.fts")
-SECOND_ICA_TSERIES = join(SAVE_DIR, "second_ica_tseries.fts")
+FIRST_ICA_TSERIES = join(SAVE_DIR, "ex08_1st_ica_tseries.fts")
+SECOND_ICA_TSERIES = join(SAVE_DIR, "ex08_2nd_ica_tseries.fts")
 
 ### SCRIPT FUNCTION DEFINITIONS
 def create_pcs_lines():
@@ -110,8 +114,8 @@ def reload_profile_tseries_from_aa_list(aa_list, pcs1, pcs2, dist_img):
 
     # save the two profile pics (these files are used in the main function
     # of this script in case they exist and option RELOAD = 0)
-    prof_pic1.save_as_fits(SAVE_DIR, "first_ica_tseries.fts")
-    prof_pic2.save_as_fits(SAVE_DIR, "second_ica_tseries.fts")
+    prof_pic1.save_as_fits(SAVE_DIR, "ex08_1st_ica_tseries.fts")
+    prof_pic2.save_as_fits(SAVE_DIR, "ex08_2nd_ica_tseries.fts")
     return prof_pic1, prof_pic2
 
 def load_profile_tseries_from_fits(fits_path1, fits_path2):

@@ -172,7 +172,7 @@ class DoasCalibData(object):
             self.plot()
         return self.poly
     
-    def save_as_fits(self, save_dir = None, save_name = None):
+    def save_as_fits(self, save_dir=None, save_name=None):
         """Save stack as FITS file"""
         if not len(self.doas_vec) == len(self.tau_vec):
             raise ValueError("Could not save calibration data, mismatch in "

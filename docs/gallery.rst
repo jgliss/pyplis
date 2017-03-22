@@ -1,6 +1,6 @@
-*******
-Gallery
-*******
+*************
+Plot gallery
+*************
 
 .. thumbnail::  ../scripts/scripts_out/ex02_out_1.png
   :title:
@@ -60,12 +60,12 @@ Gallery
 .. thumbnail::  ../scripts/scripts_out/ex09_out_1.png
   :title:
   
-  Example output of optical flow Farneback algorithm (cf. ex. script 9)
+  Example output of optical flow Farneback algorithm (left) including results from a histogram based post analysis for two different retrieval lines (cf. ex. script 9)
   
 .. thumbnail::  ../scripts/scripts_out/ex09_out_4.png
   :title:
   
-  Result of histogram based post analysis of optical flow field shown in prev. Fig.  (cf. ex. script 9)
+  Time series of plume velocity parameters (direction, top; displacement length, bottom) retrieved using histogram based post analysis of optical flow field for the two retrieval lines shown in prev. Fig.  (cf. ex. script 9)
   
 .. thumbnail::  ../scripts/scripts_out/ex11_out_2.png
   :title:

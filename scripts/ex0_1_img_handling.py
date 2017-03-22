@@ -17,6 +17,11 @@ from datetime import datetime
 from matplotlib.pyplot import close
 import pyplis
 
+from SETTINGS import check_version
+
+# Raises Exception if conflict occurs
+check_version()
+
 # file name of test image stored in data folder 
 IMG_FILE_NAME = "test_201509160708_F01_335.fts"
 

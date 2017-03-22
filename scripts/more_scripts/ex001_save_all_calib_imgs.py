@@ -5,7 +5,7 @@ example script 001 - Save plots of all SO2 CD images of test dataset
 This script prepares an AA image list for calibration (using DOAS calib
 data) and loops over the list to save all SO2 CD images
 """
-from os.path import join, exists, abspath
+from os.path import join, exists
 from os import mkdir
 import sys
 import pyplis

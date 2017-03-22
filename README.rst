@@ -1,11 +1,11 @@
 pyplis is a Python toolbox for the analysis of UV SO2 camera data. It includes a large collection of routines for the analysis of such data, for instance:
 
-  - Several routines for plume background estimation
-  - Automatic cell calibration 
-  - DOAS calibration routine including two methods to identify the field of view of a DOAS instrument within the camera images
-  - Plume velocity retrieval either using an optical flow analysis or using signal cross correlation
-  - Detailed analysis of the measurement geometry including automized retrieval of distances to the emission plume and/or to topographic features in the camera images (on a pixel basis)
-  - Routine for image based light dilution correction
+- Several routines for plume background estimation
+- Automatic cell calibration 
+- DOAS calibration routine including two methods to identify the field of view of a DOAS instrument within the camera images
+- Plume velocity retrieval either using an optical flow analysis or using signal cross correlation
+- Detailed analysis of the measurement geometry including automized retrieval of distances to the emission plume and/or to topographic features in the camera images (on a pixel basis)
+- Routine for image based light dilution correction
   
 .. note::
 
@@ -14,25 +14,25 @@ pyplis is a Python toolbox for the analysis of UV SO2 camera data. It includes a
 Requirements
 ============
 
-Requirements are listed in the order of likelyhood to run into problems when using pip for installing them (on Windows machines you may use the pre-compiled binary wheels on Christoph Gohlke's `webpage <http://www.lfd.uci.edu/~gohlke/pythonlibs/>`_)
+Requirements are listed ordered in decreasing likelyhood to run into problems when using pip for installation (on Windows machines you may use the pre-compiled binary wheels on Christoph Gohlke's `webpage <http://www.lfd.uci.edu/~gohlke/pythonlibs/>`_)
 
-  - numpy >= 1.11.0
-  - scipy >= 0.17.0
-  - opencv (cv2) >= 2.4.11
-  - Pillow (PIL fork) >= 3.3.0 (installs scipy.misc.pilutil)
-  - astropy >= 1.0.3
-  - geonum >= 1.0.0
+- numpy >= 1.11.0
+- scipy >= 0.17.0
+- opencv (cv2) >= 2.4.11
+- Pillow (PIL fork) >= 3.3.0 (installs scipy.misc.pilutil)
+- astropy >= 1.0.3
+- geonum >= 1.0.0
     
-    - latlon >= 1.0.2
-    - srtm.py >= 0.3.2
-    - pyproj  >= 1.9.5.1
+  - latlon >= 1.0.2
+  - srtm.py >= 0.3.2
+  - pyproj  >= 1.9.5.1
     
-  - pandas == 0.16.2
-  - matplotlib >= 1.4.3
+- pandas == 0.16.2
+- matplotlib >= 1.4.3
 
 **Optional dependencies (to use extra features)**
 
-  - pydoas >= 1.0.0
+- pydoas >= 1.0.0
 
 We recommend using `Anaconda <https://www.continuum.io/downloads>`_ as package manager since it includes most of the required dependencies and is updated on a regular basis. Moreover, it is probably the most comfortable way to postinstall and upgrade dependencies such as OpenCV (`see here <http://stackoverflow.com/questions/23119413/how-to-install-python-opencv-through-conda>`__) or the scipy stack.
 
@@ -52,10 +52,14 @@ On Linux::
   
 In case the installation fails make sure that all dependencies (see above) are installed correctly. pyplis is currently only supported for Python v2.7.
 
+.. note::
+
+  The code currently still undergoes improvements and changes to the repo are commited on a daily basis. PyPi and Github releases are only made for stable versions.
+
 Code documentation
 ==================
 
-The code documentation of pyplis is hosted on `Read the Docs <http://pyplis.readthedocs.io/en/latest/code_lib.html>`__
+The code documentation of pyplis is hosted on `Read the Docs <http://pyplis.readthedocs.io/en/latest/code_lib.html>`__. It corresponds to the documentation of the latest commit of this repo.
 
 Getting started
 ===============
@@ -84,12 +88,18 @@ The latter searches all paths provided in the file **_paths.txt** whenever acces
     pyplis.inout.set_test_data_path(``LOCAL_DIR``)
     
     
+TODO's
+======
+
+1. Write high level analysis class for signal cross correlation (currently only a low level method exists)
+  
+  
 Future developments / ideas
 ===========================
 
-  1. Include DOAS analysis for camera calibration by combining `pydoas <https://pypi.python.org/pypi/pydoas/1.0.1>`__ with `flexDOAS <https://github.com/gkuhl/flexDOAS>`__.
-  #. Re-implementation of graphical user interface 
-  #. Include online access to meteorological databases (e.g. to estimate wind direction, velocity)
+1. Re-implementation of GUI framework
+#. Include DOAS analysis for camera calibration by combining `pydoas <https://pypi.python.org/pypi/pydoas/1.0.1>`__ with `flexDOAS <https://github.com/gkuhl/flexDOAS>`__. 
+#. Include online access to meteorological databases (e.g. to estimate wind direction, velocity)
   
 .. note::
 

@@ -132,45 +132,52 @@ release (version 0.9.2)
 
   major changes related to optical flow histogram analysis. Retrieval of main flow field parameters using MultiGaussFit does not work at the moment. Will be fixed tomorrow in
   
-  1. Improved performance and stability of optical flow histogram analysis by better controlling the number of bins and settings allowing for a threshold specifying the minimum number of significant vectors for retrieval of mean flow field parameters (see new parameter ``min_count_frac`` in optical flow settings class).
+1. Improved performance and stability of optical flow histogram analysis by better controlling the number of bins and settings allowing for a threshold specifying the minimum number of significant vectors for retrieval of mean flow field parameters (see new parameter ``min_count_frac`` in optical flow settings class).
   
-  2. ``LineOnImage`` object can now also created rotated ROIs, i.e. rectangles aligned with the line orientation 
+2. ``LineOnImage`` object can now also created rotated ROIs, i.e. rectangles aligned with the line orientation 
   
-  3. Remove :func:`prepare_intensity_condition_mask` from :class:`OpticalFlowFarneback` (it was causing more confustion than help).
+3. Remove :func:`prepare_intensity_condition_mask` from :class:`OpticalFlowFarneback` (it was causing more confustion than help).
   
-  4. Removed multigauss analysis of length histogram due to instability of the fit. The mean displacement length is now determined using mean and std of all pixels longer than ``min_length`` and which are pointing into the right direction. The latter is retrieved from multi Gauss fit applied to orientation histogram in specified ROI.
-  
-    - removed :attr:`hist_len_how` in :class:`OpticalFlowFarnebackSettings`
-    - removed :attr:`hist_len_gnum_max` in :class:`OpticalFlowFarnebackSettings`
-    - removed :func:`estimate_mean_len_argmax` from :class:`OpticalFlowFarneback`
-    
-  5. New parameter :attr:`hist_dir_binres` in optical flow settings class: can be used to set the bin width in degrees for the fit of the flow orientation histogram (defaults to 10)
-    
-  6. New parameter :attr:`roi_rad` in optical flow settings class: can be used to set the ROI used for setting min / max intensity range before calculating flow field (only relevant if :attr:`auto_update` is True)
+4. Removed multigauss analysis of length histogram due to instability of the fit. The mean displacement length is now determined using mean and std of all pixels longer than ``min_length`` and which are pointing into the right direction. The latter is retrieved from multi Gauss fit applied to orientation histogram in specified ROI.
 
-  7. Finalised and tested new retrieval of local optical flow parameters including rotated ROIs of multiple lines.
-  
-  8. Applied appropriate changes to all relevant example scripts.
-  
-  9. Improved plotting methods for optical flow histogram analysis, including new methods:
-  
-    - :func:`plot_orientation_histo`
-    - :func:`plot_length_histo`
+  - removed :attr:`hist_len_how` in :class:`OpticalFlowFarnebackSettings`
+  - removed :attr:`hist_len_gnum_max` in :class:`OpticalFlowFarnebackSettings`
+  - removed :func:`estimate_mean_len_argmax` from :class:`OpticalFlowFarneback`
     
-  10. Added features to :class:`LocalPlumeProperties`, most important ones:
+5. New parameter :attr:`hist_dir_binres` in optical flow settings class: can be used to set the bin width in degrees for the fit of the flow orientation histogram (defaults to 10)
+    
+6. New parameter :attr:`roi_rad` in optical flow settings class: can be used to set the ROI used for setting min / max intensity range before calculating flow field (only relevant if :attr:`auto_update` is True)
+
+7. Finalised and tested new retrieval of local optical flow parameters including rotated ROIs of multiple lines.
   
-    - :attr:`displacement_vectors`: array containing all displacement vectors of the time series
-    - :attr:`significance`: array containing information about the fraction of significant optical flow vectors within ROI used to retrieve the mean flow field parameters (can be used, e.g. for quality check and is included in :func:`plot` function).
-    - :func:`plot_magnitudes`: plots time series (+/- error) of displacement magnitudes.
-    - :func:`plot` (Beta): plot 3 subplots showing detailed information of retrieval results 
-    - :func:`to_dict`: dictionary representation of object
-    - :func:`from_dict`: import data from dictionary
-    - :func:`to_pandas_dataframe`: convert object into pandas DataFrame object
-    - :func:`from_pandas_dataframe`: self explanatory
-    - :func:`save_txt`: save data as text file
-    - :func:`load_txt`: load data from text file
-    - :func:`interpolate`: interpolate missing data points (uses pandas DataFrame interpolation method)
-    - :func:`dropna`: remove missing data points (uses pandas DataFrame dropna method)
-    - :func:`apply_median_filter`: applies median filter to data
-    - :func:`apply_gaussian_filter`: applies median filter to data
+8. Applied appropriate changes to all relevant example scripts.
+  
+9. Improved plotting methods for optical flow histogram analysis, including new methods:
+  
+  - :func:`plot_orientation_histo`
+  - :func:`plot_length_histo`
+    
+10. Added features to :class:`LocalPlumeProperties`, most important ones:
+  
+  - :attr:`displacement_vectors`: array containing all displacement vectors of the time series
+  - :attr:`significance`: array containing information about the fraction of significant optical flow vectors within ROI used to retrieve the mean flow field parameters (can be used, e.g. for quality check and is included in :func:`plot` function).
+  - :func:`plot_magnitudes`: plots time series (+/- error) of displacement magnitudes.
+  - :func:`plot` (Beta): plot 3 subplots showing detailed information of retrieval results 
+  - :func:`to_dict`: dictionary representation of object
+  - :func:`from_dict`: import data from dictionary
+  - :func:`to_pandas_dataframe`: convert object into pandas DataFrame object
+  - :func:`from_pandas_dataframe`: self explanatory
+  - :func:`save_txt`: save data as text file
+  - :func:`load_txt`: load data from text file
+  - :func:`interpolate`: interpolate missing data points (uses pandas DataFrame interpolation method)
+  - :func:`dropna`: remove missing data points (uses pandas DataFrame dropna method)
+  - :func:`apply_median_filter`: applies median filter to data
+  - :func:`apply_gaussian_filter`: applies median filter to data
+    
+22/03/2017
+==========
+
+1. Added older versions of example scripts (for older pyplis versions)
+2. Renamed some output files of example scripts 
+3. Added version check in all example scripts (raises error if version conflict occurs)
     

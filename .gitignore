@@ -120,3 +120,6 @@ scripts/scripts_out/all_cd_imgs
 
 # Optical flow histograms
 scripts/scripts_out/optflow_out
+
+# Batch files for running all scripts on Windows
+scripts/*.bat

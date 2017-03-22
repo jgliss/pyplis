@@ -15,6 +15,10 @@ The two example images are then corrected for dilution and the results are
 plotted (as comparison of the retrieved emission rate along an exemplary 
 plume cross section)
 """
+from SETTINGS import check_version
+# Raises Exception if conflict occurs
+check_version()
+
 import pyplis as pyplis
 from geonum.base import GeoPoint
 from matplotlib.pyplot import show, close, subplots, Rectangle
@@ -66,7 +70,7 @@ AMBIENT_ROI = [1240, 10, 1300, 70]
 PLUME_VELO = 4.14 #m/s (result from ex8)
 
 ### RELEVANT DIRECTORIES AND PATHS
-CALIB_FILE = join(SAVE_DIR, "pyplis_doascalib_id_aa_avg_20150916_0706_0721.fts")
+CALIB_FILE = join(SAVE_DIR, "ex06_doascalib_aa.fts")
 
 ### SCRIPT FUNCTION DEFINITIONS        
 def create_dataset_dilution():

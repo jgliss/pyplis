@@ -27,6 +27,10 @@ ex04_prep_aa_imglist.py which shows how to create an image list displaying
 AA images.
 
 """
+from SETTINGS import check_version
+# Raises Exception if conflict occurs
+check_version()
+
 import pyplis as pyplis
 from datetime import datetime
 from matplotlib.pyplot import show
