@@ -400,7 +400,7 @@ class LineOnImage(object):
     @property
     def line_frame(self):
         """ROI framing the line (in line coordinate system)"""
-        return map_roi(self._line_roi_abs, self.pyrlevel)
+        return map_roi(self._line_roi_abs, self.pyrlevel_def)
     
     @property
     def line_frame_abs(self):
@@ -410,7 +410,7 @@ class LineOnImage(object):
     @property
     def roi_def(self):
         """ROI in which line is defined (at current ``pyrlevel``)"""
-        return map_roi(self.roi_abs_def, pyrlevel_rel=self.pyrlevel)
+        return map_roi(self.roi_abs_def, pyrlevel_rel=self.pyrlevel_def)
         
     @property
     def roi_abs_def(self):
@@ -548,8 +548,8 @@ class LineOnImage(object):
         
     def convert(self, to_pyrlevel=0, to_roi_abs=[0, 0, 9999, 9999]):
         """Convert to other image preparation settings"""
-        if to_pyrlevel == self.pyrlevel and same_roi(self.roi_abs_def, 
-                                                     to_roi_abs):
+        if to_pyrlevel == self.pyrlevel_def and same_roi(self.roi_abs_def, 
+                                                         to_roi_abs):
             print("Same shape settings, returning current line object""")
             return self
         # first convert to absolute coordinates
@@ -662,7 +662,7 @@ class LineOnImage(object):
         y_min, y_max = min(y_arr), max(y_arr)
         y0, y1 = y_min - add_top, y_max + add_bottom
         roi = self.check_roi_borders([x0, y0, x1, y1], img_array)
-        roi_abs = map_roi(roi, pyrlevel_rel=-self.pyrlevel)
+        roi_abs = map_roi(roi, pyrlevel_rel=-self.pyrlevel_def)
         self._line_roi_abs= roi_abs
         return roi_abs
     
@@ -674,7 +674,7 @@ class LineOnImage(object):
         yc = asarray([x[1] for x in r])
         yc[yc < 0] = 0
         roi = [xc.min(), yc.min(), xc.max(), yc.max()]
-        self._line_roi_abs = map_roi(roi, pyrlevel_rel=-self.pyrlevel)
+        self._line_roi_abs = map_roi(roi, pyrlevel_rel=-self.pyrlevel_def)
         return roi
     
     def set_rect_roi_rot(self, depth=None):

@@ -254,7 +254,7 @@ class PlumeBackgroundModel(object):
     def settings_dict(self):
         """Write current sky reference areas and masks into dictionary"""
         d = {}
-        d["CORR_MODE"] = self.CORR_MODE
+        d["mode"] = self.mode
         d["surface_fit_mask"] = self.surface_fit_mask 
         d["surface_fit_pyrlevel"] = self.surface_fit_pyrlevel
         d["surface_fit_polyorder"] = self.surface_fit_polyorder
@@ -388,8 +388,7 @@ class PlumeBackgroundModel(object):
         tau_img.edit_log["is_tau"] = 1
         tau_img.img = tau
         if update_imgs:
-            self.set_current_images(plume_img.duplicate(), 
-                                    bg_img.duplicate(), tau_img)
+            self.set_current_images(plume_img, bg_img, tau_img)
         
         return tau_img
     
@@ -563,9 +562,19 @@ class PlumeBackgroundModel(object):
         :param Img tau: the modelled tau image
         
         """
-        self._current_imgs["plume"] = plume
-        self._current_imgs["bg_raw"] = bg_raw
-        self._current_imgs["tau"] = tau
+        try:
+            self._current_imgs["plume"] = plume.duplicate()
+        except:
+            pass
+        try:
+            self._current_imgs["bg_raw"] = bg_raw.duplicate()
+        except:
+            pass
+        try:
+            self._current_imgs["tau"] = tau
+        except:
+            pass
+        
             
     """Plotting"""
     def plot_sky_reference_areas(self, plume):

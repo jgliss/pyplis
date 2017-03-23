@@ -27,7 +27,7 @@ from .processing import ImgStack, PixelMeanTimeSeries, LineOnImage,\
                                                             model_dark_image
 from .optimisation import PolySurfaceFit                                                    
 from .plumebackground import PlumeBackgroundModel
-from .plumespeed import OpticalFlowFarneback
+from .plumespeed import OpticalFlowFarneback, LocalPlumeProperties
 from .helpers import check_roi, map_roi, _print_list, closest_index
 
 class BaseImgList(object):
@@ -2374,7 +2374,39 @@ class ImgList(BaseImgList):
 
         return self.loaded_images["this"]
     
-    """PROCESSING AND ANALYSIS METHODS"""    
+    """PROCESSING AND ANALYSIS METHODS""" 
+    def optflow_histo_analysis(self, lines=[], start_idx=0, stop_idx=None, 
+                               intensity_thresh=0, **optflow_settings):
+        cfn_tmp = self.cfn
+        flm = self.optflow_mode
+        self.goto_img(start_idx)
+        self.optflow.settings.update(**optflow_settings)
+        props = []  
+        for line in lines:
+            if isinstance(line, LineOnImage):
+                props.append(LocalPlumeProperties(line.line_id, 
+                                                  color=line.color))
+
+        if len(props) == 0:
+            lines=[None]
+            props.append(LocalPlumeProperties("thresh_%.1f" %intensity_thresh))
+
+        if stop_idx is None:
+            stop_idx = self.nof - 1
+            
+        self.optflow_mode = True
+        for k in range(start_idx, stop_idx):
+            plume_mask = self.get_thresh_mask(intensity_thresh)
+            for i in range(len(props)):
+                props[i].get_and_append_from_farneback(self.optflow, 
+                                                      line=lines[i],
+                                                      pix_mask=plume_mask)
+
+            self.next_img()
+        self.goto_img(cfn_tmp)
+        self.optflow_mode = flm
+        return props
+        
     def get_thresh_mask(self, thresh=None, this_and_next=True):
         """Get bool mask based on intensity threshold
         
@@ -2779,7 +2811,7 @@ class ImgList(BaseImgList):
         Returns
         -------
         Series
-            pandas Series containing extinctinction coeffs
+            pandas Series containing extinction coeffs
             
         Todo
         ----

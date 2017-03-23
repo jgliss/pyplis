@@ -191,12 +191,13 @@ class LocalPlumeProperties(object):
     Further, the time difference between the two frames used to estimate the 
     displacement parameters is stored. This class is for instance used for
     plume displacement properties derived using 
-    :func:`get_main_flow_field_params` from :class:`OpticalFlowFarneback`
+    :func:`local_flow_params` from :class:`OpticalFlowFarneback`
     which is based on a statistical analysis of histograms derived from 
     a dense optical flow algorithm.
     """
     def __init__(self, roi_id="", **kwargs):
         self.roi_id = roi_id
+        self.color = "b"
         self._len_mu_norm = []
         self._len_sigma_norm = []
         self._dir_mu = []
@@ -204,7 +205,10 @@ class LocalPlumeProperties(object):
         self._start_acq = []
         self._del_t = []
         self._significance = []
-    
+        
+        for k, v in kwargs.iteritems():
+            self[k] = v
+            
     @property
     def start(self):
         """Acquisistion time of first image"""
@@ -250,7 +254,7 @@ class LocalPlumeProperties(object):
         """Significancy of data point
         
         This array is filled in :func:`get_and_append_from_farneback`, which
-        calls :func:`get_main_flow_field_params` of 
+        calls :func:`local_flow_params` of 
         :class:`OpticalFlowFarneback` object. The number corresponds to the 
         fraction of pixels used to determine the displacement parameters, 
         relative to the total number of pixels available in the corresponding
@@ -322,7 +326,7 @@ class LocalPlumeProperties(object):
         LocalPlumeProperties
             new object excluding nan values in any of the data arrays
         """
-        p = LocalPlumeProperties(self.roi_id)
+        p = LocalPlumeProperties(self.roi_id, color=self.color)
         df = self.to_pandas_dataframe()
         df = df.dropna(**kwargs)
         p.from_pandas_dataframe(df)
@@ -347,20 +351,80 @@ class LocalPlumeProperties(object):
         LocalPlumeProperties
             new object excluding nan values in any of the data arrays
         """
-        p = LocalPlumeProperties(self.roi_id)
+        p = LocalPlumeProperties(self.roi_id, color=self.color)
         df = self.to_pandas_dataframe()
         df = df.interpolate(**kwargs)
         p.from_pandas_dataframe(df)
         return p
+    
+    def apply_median_filter(self, width=5):
+        """Apply median filter to data
+        
+        The filter is only applied to :attr:`len_mu` and :attr:`dir_mu`, 
+        and the corresponding uncertainty arrays :attr:`len_sigma` and 
+        :attr:`dir_sigma`
+        
+        Note
+        ----
+        Creates and returns new :class:`LocalPlumeProperties` instance, the 
+        data in this object remains unchanged
+        
+        Parameters
+        ----------
+        width : int
+            width of 1D median filter
             
+        Returns
+        -------
+        LocalPlumeProperties
+            new data object
+        """
+        p = LocalPlumeProperties(self.roi_id, color=self.color)
+        p.from_dict(self.to_dict())
+        p._len_mu_norm = median_filter(self.len_mu_norm, width)
+        p._len_sigma_norm = median_filter(self.len_sigma_norm, width)
+        p._dir_mu = median_filter(self.dir_mu, width)
+        p._dir_sigma = median_filter(self.dir_sigma, width)
+        return p
+        
+    def apply_gauss_filter(self, width=5):
+        """Apply Gaussian blurring filter to data
+        
+        The filter is only applied to :attr:`len_mu` and :attr:`dir_mu`, 
+        and the corresponding uncertainty arrays :attr:`len_sigma` and 
+        :attr:`dir_sigma`
+        
+        Note
+        ----
+        Creates and returns new :class:`LocalPlumeProperties` instance, the 
+        data in this object remains unchanged
+        
+        Parameters
+        ----------
+        width : int
+            width of Gaussian blurring kernel 
+            
+        Returns
+        -------
+        LocalPlumeProperties
+            new data object
+        """
+        p = LocalPlumeProperties(self.roi_id, color=self.color)
+        p.from_dict(self.to_dict())
+        p._len_mu_norm = gaussian_filter(self.len_mu_norm, width)
+        p._len_sigma_norm = gaussian_filter(self.len_sigma_norm, width)
+        p._dir_mu = gaussian_filter(self.dir_mu, width)
+        p._dir_sigma = gaussian_filter(self.dir_sigma, width)
+        return p
+        
     def get_and_append_from_farneback(self, optflow_farneback, **kwargs):
         """Retrieve main flow field parameters from Farneback engine
         
-        Calls :func:`get_main_flow_field_params` from 
+        Calls :func:`local_flow_params` from 
         :class:`OpticalFlowFarneback` engine and appends the results to 
         the current data
         """
-        res = optflow_farneback.get_main_flow_field_params(**kwargs)
+        res = optflow_farneback.local_flow_params(**kwargs)
         for key, val in res.iteritems():
             if self.__dict__.has_key(key):
                 self.__dict__[key].append(val)
@@ -406,66 +470,6 @@ class LocalPlumeProperties(object):
         verr = sqrt((pix_dist_m * self.len_sigma[idx] / dt)**2 +\
                     (pix_dist_m_err * len_mu_eff / dt)**2)
         return (v, verr)
-    
-    def apply_median_filter(self, width=5):
-        """Apply median filter to data
-        
-        The filter is only applied to :attr:`len_mu` and :attr:`dir_mu`, 
-        and the corresponding uncertainty arrays :attr:`len_sigma` and 
-        :attr:`dir_sigma`
-        
-        Note
-        ----
-        Creates and returns new :class:`LocalPlumeProperties` instance, the 
-        data in this object remains unchanged
-        
-        Parameters
-        ----------
-        width : int
-            width of 1D median filter
-            
-        Returns
-        -------
-        LocalPlumeProperties
-            new data object
-        """
-        p = LocalPlumeProperties(self.roi_id)
-        p.from_dict(self.to_dict())
-        p._len_mu_norm = median_filter(self.len_mu_norm, width)
-        p._len_sigma_norm = median_filter(self.len_sigma_norm, width)
-        p._dir_mu = median_filter(self.dir_mu, width)
-        p._dir_sigma = median_filter(self.dir_sigma, width)
-        return p
-        
-    def apply_gauss_filter(self, width=5):
-        """Apply Gaussian blurring filter to data
-        
-        The filter is only applied to :attr:`len_mu` and :attr:`dir_mu`, 
-        and the corresponding uncertainty arrays :attr:`len_sigma` and 
-        :attr:`dir_sigma`
-        
-        Note
-        ----
-        Creates and returns new :class:`LocalPlumeProperties` instance, the 
-        data in this object remains unchanged
-        
-        Parameters
-        ----------
-        width : int
-            width of Gaussian blurring kernel 
-            
-        Returns
-        -------
-        LocalPlumeProperties
-            new data object
-        """
-        p = LocalPlumeProperties(self.roi_id)
-        p.from_dict(self.to_dict())
-        p._len_mu_norm = gaussian_filter(self.len_mu_norm, width)
-        p._len_sigma_norm = gaussian_filter(self.len_sigma_norm, width)
-        p._dir_mu = gaussian_filter(self.dir_mu, width)
-        p._dir_sigma = gaussian_filter(self.dir_sigma, width)
-        return p
         
     def get_orientation_tseries(self):   
         """Get time series (and uncertainties) of movement direction
@@ -544,7 +548,10 @@ class LocalPlumeProperties(object):
         if ax is None:
             fig, ax = subplots(1,1)
         if not "color" in kwargs:
-            kwargs["color"] = "b"
+            kwargs["color"] = self.color
+        if not "label" in kwargs:
+            kwargs["label"] = self.roi_id
+            
         s, upper, lower = self.get_orientation_tseries()
         s.index = s.index.to_pydatetime()
         s.plot(ax=ax, **kwargs)
@@ -583,7 +590,10 @@ class LocalPlumeProperties(object):
         if ax is None:
             fig, ax = subplots(1,1)
         if not "color" in kwargs:
-            kwargs["color"] = "b"
+            kwargs["color"] = self.color
+        if not "label" in kwargs:
+            kwargs["label"] = self.roi_id
+            
         s, upper, lower = self.get_magnitude_tseries(normalised=normalised)
         if normalised:
             unit = "pix/s"
@@ -757,6 +767,12 @@ class LocalPlumeProperties(object):
         df = DataFrame.from_csv(path)
         return self.from_pandas_dataframe(df)
     
+    def __setitem__(self, key, val):
+        if self.__dict__.has_key(key):
+            #print ("Updating attr. %s in LocalPlumeProperties, new val: %s"
+            #    %(key, val))
+            self.__dict__[key] = val
+        
 class OpticalFlowFarnebackSettings(object):
     """Settings for optical flow Farneback calculations and visualisation
     
@@ -797,7 +813,7 @@ class OpticalFlowFarnebackSettings(object):
         #. :attr:`hist_len_how`: method to estimate the average displacement \
             length from the flow length histogram (see \
             :func:`flow_length_histo`) when performing \
-            :func:`get_main_flow_field_params` analysis. Choose from:
+            :func:`local_flow_params` analysis. Choose from:
             
                 - *argmax*: the mean displacement length corresponds to \
                     histogram bin with largest count. This method is faster \
@@ -1594,7 +1610,7 @@ class OpticalFlowFarneback(object):
             defaults to 1.0
         **kwargs : 
             additional key word args that can be used to pass lens and angles
-            arrays (see e.g. :func:`get_main_flow_field_params`). Use keywords
+            arrays (see e.g. :func:`local_flow_params`). Use keywords
             ``lens`` and ``angles`` to pass this information. 
             
         Returns
@@ -1646,7 +1662,7 @@ class OpticalFlowFarneback(object):
             defaults to 1.0
         **kwargs : 
             additional key word args that can be used to pass lens and angles
-            arrays (see e.g. :func:`get_main_flow_field_params`). Use keywords
+            arrays (see e.g. :func:`local_flow_params`). Use keywords
             ``lens`` and ``angles`` to pass this information. 
             
         Returns
@@ -1786,9 +1802,12 @@ class OpticalFlowFarneback(object):
                                                max_num_gaussians)
         return fit, ok
     
-    def get_main_flow_field_params(self, line=None, pix_mask=None, 
-                                   noise_amp=None, min_count_frac=None,
-                                   min_length=None):
+    def get_main_flow_field_params(self, **kwargs):
+        """Old name of :func:`local_flow_params`"""
+        return self.local_flow_params(**kwargs)
+        
+    def local_flow_params(self, line=None, pix_mask=None, noise_amp=None, 
+                          min_count_frac=None, min_length=None):
         """Histogram based statistical analysis of flow field in current ROI
         
         This function analyses histograms of the current flow field within
@@ -2142,7 +2161,7 @@ class OpticalFlowFarneback(object):
                                                    apply_fit=True, ax=ax3, 
                                                    color=c)
         low, high = mu-sigma, mu+sigma
-        self.plot_length_histo(pix_mask=mask, apply_fit=True, ax=ax6, 
+        self.plot_length_histo(pix_mask=mask, apply_fit=False, ax=ax6, 
                                dir_low=low, dir_high=high, color=c)
         
         fig.tight_layout()
@@ -2195,64 +2214,6 @@ class OpticalFlowFarneback(object):
         :param **kwargs: key word args (see :func:`draw_flow`)
         """
         return self.draw_flow(**kwargs)
-    
-    def draw_flow_old(self, in_roi=False, add_cbar=False, ax=None):
-        """Draw the current optical flow field
-        
-        :param bool in_roi: if True, the flow field is plotted in a
-            cropped image area (using current ROI), else, the whole image is 
-            drawn and the flow field is plotted within the ROI which is 
-            indicated with a rectangle
-        :param ax (None): matplotlib axes object
-        """
-        if ax is None:
-            fig, ax = subplots(1,1)
-        else:
-            fig = ax.figure
-        
-        x0, y0 = 0, 0
-        i_min, i_max = self.current_contrast_range()
-    
-        img = self.images_input["this"]#.bytescale(i_min, i_max)
-        if in_roi:
-            img = img.crop(roi_abs = self.roi_abs, new_img = True)
-        
-        #ugly (fast solution)
-
-        img = bytescale(img.img, cmin = i_min, cmax = i_max)
-        dsp = ax.imshow(img, cmap = "gray_r")
-        if add_cbar:    
-            fig.colorbar(dsp, ax=ax)
-            
-
-        disp = cvtColor(img, COLOR_GRAY2BGR) 
-        
-        if self.flow is None:
-            print "Could not draw flow, no flow available"
-            return
-        lines = self.calc_flow_lines()
-        tit = r"1. img"
-        if not in_roi:
-            x_tl, y_tl, w, h = roi2rect(self.roi)
-            ax.add_patch(Rectangle((x_tl, y_tl), w, h, fc="none", ec="c"))
-        else:
-            tit += " (in ROI)"
-        print "X0 / Y0: %s / %s" %(x0, y0)
-        for (x1, y1), (x2, y2) in lines:
-            line(disp, (x0+ x1, y0 + y1),\
-                        (x0 + x2,y0 + y2),(0, 255, 255), 1)
-            circle(disp, (x0 + x2, y0 + y2), 1, (255, 0, 0), -1)
-        ax.imshow(disp)
-        
-        try:
-            tit += (r": %s \n $\Delta$t (next) = %.2f s" %(\
-                self.get_img_acq_times()[0].strftime("%H:%M:%S"), self.del_t))
-            tit = tit.decode("string_escape")
-        except:
-            pass
-        
-        ax.set_title(tit, fontsize=10)
-        return ax, disp
     
     def draw_flow(self, in_roi=False, roi_abs=None, add_cbar=False, ax=None):
         """Draw the current optical flow field
