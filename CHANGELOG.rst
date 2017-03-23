@@ -191,5 +191,10 @@ Version < 0.11
 2. Renamed method ``get_main_flow_field_params` in :class:`OpticalFlowFarneback` to ``local_flow_params` (old name still also works)
 
 3. A color can now be assigned on init (using kwargs) to :class:`LocalPlumeProperties`
+
+4. Renamed classes:
+
+  - :class:`OpticalFlowFarnebackSettings` -> :class:`FarnebackSettings` (old name still works but gives a warning on class initiation)
+  - :class:`OpticalFlowFarneback` -> :class:`OptflowFarneback` (old name still works but gives a warning on class initiation)
   
     

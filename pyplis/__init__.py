@@ -34,8 +34,8 @@ from imagelists import ImgList, CellImgList
 from plumebackground import PlumeBackgroundModel
 from cellcalib import CellCalibData, CellCalibEngine
 from doascalib import DoasCalibData, DoasFOV, DoasFOVEngine
-from plumespeed import find_signal_correlation, OpticalFlowFarneback,\
-    OpticalFlowFarnebackSettings
+from plumespeed import find_signal_correlation, OptflowFarneback,\
+    FarnebackSettings, LocalPlumeProperties
 from processing import LineOnImage, ImgStack, ProfileTimeSeriesImg,\
     PixelMeanTimeSeries
 from dilutioncorr import DilutionCorr

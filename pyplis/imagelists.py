@@ -27,7 +27,7 @@ from .processing import ImgStack, PixelMeanTimeSeries, LineOnImage,\
                                                             model_dark_image
 from .optimisation import PolySurfaceFit                                                    
 from .plumebackground import PlumeBackgroundModel
-from .plumespeed import OpticalFlowFarneback, LocalPlumeProperties
+from .plumespeed import OptflowFarneback, LocalPlumeProperties
 from .helpers import check_roi, map_roi, _print_list, closest_index
 
 class BaseImgList(object):
@@ -1292,7 +1292,7 @@ class ImgList(BaseImgList):
         #self.currentMaxI=None
     
         #Optical flow engine
-        self.optflow = OpticalFlowFarneback(name=self.list_id)
+        self.optflow = OptflowFarneback(name=self.list_id)
         
         if self.data_available and init:
             self.load()
@@ -1990,7 +1990,7 @@ class ImgList(BaseImgList):
         """Update images for optical flow determination 
         
         The images are updated in :attr:`optflow` 
-        (:class:`OpticalFlowFarneback` object) using method :func:`set_images`
+        (:class:`OptflowFarneback` object) using method :func:`set_images`
         
         Raises
         
@@ -2007,15 +2007,15 @@ class ImgList(BaseImgList):
     def set_optical_flow(self, optflow):
         """Set the current optical flow object 
         
-        Currently only support for type :class:`OpticalFlowFarneback`
+        Currently only support for type :class:`OptflowFarneback`
         
         Parameters
         ----------
-        optflow : OpticalFlowFarneback
+        optflow : OptflowFarneback
             the optical flow engine
         """
-        if not isinstance(optflow, OpticalFlowFarneback):
-            raise ValueError("Need class OpticalFlowFarneback")
+        if not isinstance(optflow, OptflowFarneback):
+            raise ValueError("Need class OptflowFarneback")
         self.optflow = optflow
     
     def set_darkcorr_mode(self, mode):

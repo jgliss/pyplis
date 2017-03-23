@@ -191,7 +191,7 @@ class LocalPlumeProperties(object):
     Further, the time difference between the two frames used to estimate the 
     displacement parameters is stored. This class is for instance used for
     plume displacement properties derived using 
-    :func:`local_flow_params` from :class:`OpticalFlowFarneback`
+    :func:`local_flow_params` from :class:`OptflowFarneback`
     which is based on a statistical analysis of histograms derived from 
     a dense optical flow algorithm.
     """
@@ -255,7 +255,7 @@ class LocalPlumeProperties(object):
         
         This array is filled in :func:`get_and_append_from_farneback`, which
         calls :func:`local_flow_params` of 
-        :class:`OpticalFlowFarneback` object. The number corresponds to the 
+        :class:`OptflowFarneback` object. The number corresponds to the 
         fraction of pixels used to determine the displacement parameters, 
         relative to the total number of pixels available in the corresponding
         ROI used. The latter can, for instance, be a rotated ROI around 
@@ -421,7 +421,7 @@ class LocalPlumeProperties(object):
         """Retrieve main flow field parameters from Farneback engine
         
         Calls :func:`local_flow_params` from 
-        :class:`OpticalFlowFarneback` engine and appends the results to 
+        :class:`OptflowFarneback` engine and appends the results to 
         the current data
         """
         res = optflow_farneback.local_flow_params(**kwargs)
@@ -773,9 +773,13 @@ class LocalPlumeProperties(object):
             #    %(key, val))
             self.__dict__[key] = val
         
-class OpticalFlowFarnebackSettings(object):
+class FarnebackSettings(object):
     """Settings for optical flow Farneback calculations and visualisation
     
+    .. todo::
+    
+        Finish docs
+        
     This object contains settings for the opencv implementation of the 
     optical flow Farneback algorithm :func:`calcOpticalFlowFarneback`. 
     For a detailed description of the input parameters see `OpenCV docs 
@@ -810,24 +814,13 @@ class OpticalFlowFarnebackSettings(object):
         #. :attr:`hist_dir_gnum_max`: maximum allowed number of gaussians for \
             multi gauss fit of orientation histogram (default = 5).
             
-        #. :attr:`hist_len_how`: method to estimate the average displacement \
-            length from the flow length histogram (see \
-            :func:`flow_length_histo`) when performing \
-            :func:`local_flow_params` analysis. Choose from:
-            
-                - *argmax*: the mean displacement length corresponds to \
-                    histogram bin with largest count. This method is faster \
-                    and more robust compared to method 
-                - *multigauss*: apply :class:`MultiGaussFit` to length \
-                    histogram and set mean displacement length based on \
-                    x-position of main peak.
                     
     Parameters
     ----------
     **settings 
         valid keyword arguments for class attributes, e.g.::
         
-            stp = OpticalFlowFarnebackSettings(i_min=0, i_max=3500,
+            stp = FarnebackSettings(i_min=0, i_max=3500,
                                                iterations=8)
         
     """
@@ -910,7 +903,7 @@ class OpticalFlowFarnebackSettings(object):
         
         If active, then :attr:`i_min` and :attr:`i_max` are updated
         automativally whenever new images are assigned to a 
-        :class:`OpticalFlowFarneback` using method :func:`set_images`. The
+        :class:`OptflowFarneback` using method :func:`set_images`. The
         update is performed based on min / max intensities of the images in
         the current ROI
         """
@@ -1128,11 +1121,11 @@ class OpticalFlowFarnebackSettings(object):
 
 
     
-class OpticalFlowFarneback(object):
+class OptflowFarneback(object):
     """Implementation of Optical flow Farneback algorithm of OpenCV library
     
     Engine for autmatic optical flow calculation, for settings see
-    :class:`OpticalFlowFarnebackSettings`. The calculation of the flow field
+    :class:`FarnebackSettings`. The calculation of the flow field
     is performed for two consecutive images. 
     
     Includes features for histogram based post analysis of flow field which can
@@ -1159,7 +1152,7 @@ class OpticalFlowFarneback(object):
     flow : array
         this attribute contains the flow field (i.e. raw output of 
         :func:`calcOpticalFlowFarneback`).
-    settings : OpticalFlowFarnebackSettings
+    settings : FarnebackSettings
         settings class including input specifications for flow calculation
         (i.e. input args for :func:`calcOpticalFlowFarneback`) and further, 
         settings for image preparation (before the flow field is calculated,
@@ -1168,7 +1161,7 @@ class OpticalFlowFarneback(object):
     """
     def __init__(self, first_img=None, next_img=None, **settings):
         #settings for determination of flow field
-        self.settings = OpticalFlowFarnebackSettings(**settings)
+        self.settings = FarnebackSettings(**settings)
 
         self.images_input = {"this" : None,
                              "next" : None}
@@ -1203,7 +1196,7 @@ class OpticalFlowFarneback(object):
     @auto_update_contrast.setter
     def auto_update_contrast(self, val):
         self.settings.auto_update = val
-        print ("Auto update contrast mode was updated in OpticalFlowFarneback "
+        print ("Auto update contrast mode was updated in OptflowFarneback "
             "but not applied to current image objects, please call method "
             "set_images in order to apply the changes")
         return val
@@ -1973,8 +1966,7 @@ class OpticalFlowFarneback(object):
         try:
             return self.images_input["this"].meta["start_acq"]
         except:
-            warn("Image acquisition time cannot be accessed in" 
-                        " OpticalFlowFarneback")
+            warn("Image acq. time cannot be accessed in OptflowFarneback")
             return datetime(1900, 1, 1)
         
     def get_img_acq_times(self):
@@ -1990,7 +1982,7 @@ class OpticalFlowFarneback(object):
             t1 = self.images_input["next"].meta["start_acq"]
         except: 
             warn("Image acquisition times cannot be accessed in" 
-                        " OpticalFlowFarneback")
+                        " OptflowFarneback")
             t0 = datetime(1900, 1, 1)
             t1 = datetime(1900, 1, 1, 0, 0, 1)
         return t0, t1
@@ -2345,4 +2337,18 @@ class OpticalFlowFarneback(object):
                     return val[item]
             except:
                 pass 
-            
+
+### OLD CLASS NAMES    
+class OpticalFlowFarnebackSettings(FarnebackSettings):
+    """Old name of :class:`FarnebackSettings`"""
+    def __init__(self, *args, **kwargs):
+        super(OpticalFlowFarnebackSettings, self).__init__(*args, **kwargs)
+        warn("You are using an old name (OpticalFlowFarnebackSettings) for "
+            "class FarnebackSettings")
+
+class OpticalFlowFarneback(OptflowFarneback):
+    """Old name of :class:`OptflowFarneback`"""
+    def __init__(self, *args, **kwargs):
+        super(OpticalFlowFarneback, self).__init__(*args, **kwargs)
+        warn("You are using an old name OpticalFlowFarneback for class"
+            "OptflowFarneback") 
