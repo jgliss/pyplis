@@ -1,8 +1,8 @@
-This file keeps track of major changes applied to the code after the first 
-release (version 0.9.2)
+Version < 0.11
+==============
 
 28/02/2017 - 01/03/2017
-=======================
+-----------------------
 
   1. Allowing for defining custom image import method (file custom_image_import.py)
   2.  Fixed bug regarding assignment of dark / offset lists for HD-Custom camera: if multiple type dark (and / or offset) image lists exist (based on camera file naming convention after file separation in Dataset), then the list with the shortest difference in the exposure time is set (using the first image of the respective image lists for intercomparison)
@@ -15,33 +15,33 @@ release (version 0.9.2)
     2. Customised assignment of dark / offset lists in image lists for cameras where meas type is specified in own filename substring (e.g. HD cam). 
     
 02/03/2017
-==========
+----------
 
   1. Included new default camera type "hd_new" (2. camera from group in Heidelberg, Germany). Currently missing detector and optics specs
-  #. Expanded flexibility for meta information access via filename for acquisition time, meas_type and filter_id in Camera class: now, the conversion / identification strings can also include the actual delimiter (e.g. delim="_", time_info_pos = 0, time_info_str="%Y%m%d_%H%M%S_%f" or filter_id_pos=3 and filter.acronym="A_dark"). This is for instance required for file naming convention of new default SO2 camera type "hd_new".
+  #. Expanded flexibility for meta information access via filename for acquisition time, meas_type and filter_id in Camera class: now, the conversion / identification strings can also include the actual delimiter (e.g. delim="_", time_info_pos - 0, time_info_str="%Y%m%d_%H%M%S_%f" or filter_id_pos=3 and filter.acronym="A_dark"). This is for instance required for file naming convention of new default SO2 camera type "hd_new".
   #. Improved functionality for dark and offset image access in ImgList classes
   #. Improved data import speed in Dataset -> search of master_dark image is only applied to lists that actually include image data
   
 03/03/2017
-==========
+----------
 
-  1. Included image check for negative numbers or zeros after dark image correction and before tau / AA image calculation: correction is directly applied to images (no warning), i.e. pixels <= 0 are set to smallest positive float of system.
+  1. Included image check for negative numbers or zeros after dark image correction and before tau / AA image calculation: correction is directly applied to images (no warning), i.e. pixels <- 0 are set to smallest positive float of system.
   2. Removed bugs regarding image time stamps in MeasSetup and image match search in Dataset (when specifying start / stop time stamps are provided as time object and not as datetime object). These two bugs resulted from changes applied in 0.9.3.dev1 (1/3/2017) and are irrelevant for previous versions.
   
 05/03/2017
-==========
+----------
 
 .. note::
 
   Detected and fixed bug related to signal cross correlation based plume velocity retrievals after pandas updgrade from 0.16.2 -> 0.19.2.
   
 06/03/2017
-==========
+----------
 
   1. Removed bug in :class:`ImgStack` method ``merge_with_time_series``: generalised catch of first exception (applies if ``doas_series`` is pandas ``Series`` object and not pydoas ``DoasResults``).
   
 07/03/2017
-==========
+----------
 
   1. Improved performance in long "for" loops (e.g. :func:`make_stack`, :func:`get_mean_value` in :class:`BaseImgList` or file searching methods in :class:`Dataset`  by removing ``self.`` operations within the loops)
   #. :class:`EmissionRateResults` can now be saved as text file and has some new methods, the most important ones are: 
@@ -64,7 +64,7 @@ release (version 0.9.2)
     - new global settings parameters for maximum number of fitted gaussians in both orientation and length histogram, can now be set via :class:`OpticalFlowFarnebackSettings`
 
 08/03/2017
-==========
+----------
 
   1. New functions in ``Img`` class:
     
@@ -76,7 +76,7 @@ release (version 0.9.2)
   #. Removed bug in ``Img`` method ``to_pyrlevel`` for going up in pyramid
   
 09/03/2017
-==========
+----------
 
   1. Class ``Dataset`` objects can now be initiated with differnt ``ImgList`` types (e.g. ``CellCalibEngine`` is now initiated with ``CellImgList`` objects)
   #. implementation of method to apply dilution correction to an plume image ``correct_img`` moved as global method in ``dilutioncorr.py`` and is now a wrapper in ``DilutionCorr`` class.
@@ -85,7 +85,7 @@ release (version 0.9.2)
     - ``get_ext_coeffs_imglist``: retrieve extinction coefficients for all images in an :class:`ImgList` object.
 
 13/03/2017
-==========
+----------
 
   1. New functions in ``ImgList``:
   
@@ -97,11 +97,11 @@ release (version 0.9.2)
       - start / stop indices can now be set in :func:`make_stack`
       
   2. Removed automatic load of previous image in ``ImgList`` objects
-  3. Included AA image calculation for CORR_MODE == 0 in ``PlumeBackgroundModel``.
+  3. Included AA image calculation for CORR_MODE -- 0 in ``PlumeBackgroundModel``.
   4. Removed dark corr check between plume and BG image in ``PlumeBackgroundModel`` when modelling tau images.
   
 14/03/2017
-==========
+----------
 
   1. Image dilution correction method (:func:`correct_img`, :mod:`dilutioncorr`) can now also be called with a single floating point number specifying a constant plume distance (less accurate, but may be required for a fast check or if measurement geometry is not available)
   2. New methods in :class:`ImgList`:
@@ -110,9 +110,9 @@ release (version 0.9.2)
     - :func:`correct_dilution_all`: corrects and saves all images in list for signal dilution (optionally also attached off band list)
     
 15/03/2017
-==========
+----------
 
-  1. NEW background correction mode (VALUE = 99) in :class:`PlumeBackgroundModel`. In this mode, plume and background image are used as they are without any modifications. This mode may be used in case a plume background image
+  1. NEW background correction mode (VALUE - 99) in :class:`PlumeBackgroundModel`. In this mode, plume and background image are used as they are without any modifications. This mode may be used in case a plume background image
   
   #. :class:`PlumeBackgroundModel` raises ``AttributeError`` in case plume and background image have different vignetting correction states.
   
@@ -126,7 +126,7 @@ release (version 0.9.2)
    #. Renamed method ``apply_current_edit`` to ``_apply_edit`` in ``ImgList`` classes 
    
 16/03/2017 - 20/03/2017
-=======================
+-----------------------
 
 .. note::
 
@@ -175,9 +175,21 @@ release (version 0.9.2)
   - :func:`apply_gaussian_filter`: applies median filter to data
     
 22/03/2017
-==========
+----------
 
 1. Added older versions of example scripts (for older pyplis versions)
 2. Renamed some output files of example scripts 
 3. Added version check in all example scripts (raises error if version conflict occurs)
+
+23/03/2017
+----------
+
+1. Added functionality to :class:`ImgList` objects:
+
+  - :func:`optflow_histo_analysis`: performs optical flow histo analysis for all images in list and arbitrary number of PCS lines
+  
+2. Renamed method ``get_main_flow_field_params` in :class:`OpticalFlowFarneback` to ``local_flow_params` (old name still also works)
+
+3. A color can now be assigned on init (using kwargs) to :class:`LocalPlumeProperties`
+  
     
