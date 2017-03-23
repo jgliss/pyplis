@@ -10,5 +10,5 @@ check_version()
 
 import pyplis
 
-flow = pyplis.plumespeed.OpticalFlowFarneback()
+flow = pyplis.plumespeed.OptflowFarneback()
 flow.live_example()
