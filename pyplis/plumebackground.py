@@ -605,7 +605,8 @@ class PlumeBackgroundModel(object):
             tau = self._current_imgs["tau"]
         if not isinstance(tau, Img):
             raise AttributeError("No tau image available in background model")
-            
+        tmin = tau_min
+        tmax = tau_max
         if tau_max is None:
             tau_max = tau.max()
         if tau_min is None:
@@ -690,12 +691,12 @@ class PlumeBackgroundModel(object):
         #ax[2].set_ylim([-.05,.25])
         ax[2].set_xlim([0, w0 - 1])
     
-        subplots_adjust(wspace = 0.02, hspace =  0.02)
+        subplots_adjust(wspace=0.02, hspace=0.02)
         ax[2].axhline(0, ls = "--", color = "k")
         ax[1].axvline(0, ls = "--", color = "k")
         
         if edit_profile_labels:
-            low, high = tau_min, tau_max
+            low, high = tmin, tmax
             if low is None:
                 low = p_vert.min()
             if high is None:
@@ -711,7 +712,7 @@ class PlumeBackgroundModel(object):
             ax[1].set_xlim([low, high])
             ax[1].set_xticklabels(lbl_str)                
             
-            low, high = tau_min, tau_max
+            low, high = tmin, tmax
             if low is None:
                 low = p_hor.min()
             if high is None:

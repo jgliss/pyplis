@@ -595,9 +595,11 @@ class BaseImgList(object):
             self.crop = True
 
         if stack_id is None:
-            stack_id = self.img_mode
+            stack_id = self.list_id + "_" + self.img_mode           
+            
         if stack_id in ["raw", "tau"]:
-            stack_id += "_%s" %self.list_id
+            stack_id = "%s_%s" %(self.list_id, stack_id)
+            
         #create a new settings object for stack preparation
         self.goto_img(start_idx)
         self.auto_reload = True
@@ -2234,7 +2236,8 @@ class ImgList(BaseImgList):
                         dt = abs(texp - lst.current_img().texp)
                         if isnan(dt):
                             raise ValueError
-                        elif dt < dtexp_dark:
+                        elif dt < dtexp_dark\
+                                or not self.dark_lists.has_key(lst.read_gain):
                             self.dark_lists[lst.read_gain] = od()
                             self.dark_lists[lst.read_gain]["list"] = lst
                             dtexp_dark = dt
@@ -2247,7 +2250,8 @@ class ImgList(BaseImgList):
                 elif lst.list_type == "offset":
                     try:
                         dt = abs(texp - lst.current_img().texp)
-                        if dt < dtexp_offset:
+                        if dt < dtexp_offset or not\
+                                self.offset_lists.has_key(lst.read_gain):
                             self.offset_lists[lst.read_gain] = od()
                             self.offset_lists[lst.read_gain]["list"] = lst
                             dtexp_offset = dt

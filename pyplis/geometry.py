@@ -279,10 +279,14 @@ class MeasGeometry(object):
                                                          step_deg=0.1,
                                                          view_above_topo_m=
                                                          self.cam["alt_offset"])
-                                                         
+                                                       
             idx_x.append(cols[k])
             idx_y.append(argmin(abs(elev - elevs)))
-            dists.append(dist_secs[-1])
+            try:
+                dists.append(dist_secs[-1])
+            except:
+                warn("Temporary solution, need a fix here...")
+                dists.append(nan)
         return idx_x, idx_y, dists
                         
     def get_viewing_directions_line(self, line):
