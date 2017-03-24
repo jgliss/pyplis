@@ -33,7 +33,7 @@ from matplotlib.patches import Polygon, Rectangle
 from pandas import Series, concat, DatetimeIndex
 from cv2 import cvtColor, COLOR_BGR2GRAY, pyrDown, pyrUp, fillPoly
 from os import getcwd, remove
-from os.path import join, exists
+from os.path import join, exists, dirname, basename, isdir, abspath
 from astropy.io import fits
     
 from .image import Img
@@ -1585,7 +1585,7 @@ class ImgStack(object):
         time_stamps = self.time_stamps
         #interpolate exposure times
         s0 = Series(self.texps, time_stamps)
-        df0 = concat([s0, time_series], axis =1).interpolate(itp_type).dropna()
+        df0 = concat([s0, time_series], axis=1).interpolate(itp_type).dropna()
         
         new_num = len(df0[0])
         if not new_num >= self.num_of_imgs:
@@ -1847,46 +1847,63 @@ class ImgStack(object):
     def load_stack_fits(self, file_path):
         """Load stack object (fits)
         
-        :param str file_path: file path of stack
+        Note
+        ----
+        FITS stores in Big-endian and needs to be converted into little-endian
+        (see `this issue <https://github.com/astropy/astropy/issues/1156>`__).
+        We follow the suggested fix and use::
+        
+            byteswap().newbyteorder()
+            
+        on any loaded data array.
+        
+        Parameters
+        ----------
+        file_path : str
+            file path of stack
+            
         """
         if not exists(file_path):
             raise IOError("ImgStack could not be loaded, path does not exist")
         hdu = fits.open(file_path)
-        self.set_stack_data(hdu[0].data.astype(self.dtype))
+        self.set_stack_data(hdu[0].data.byteswap().newbyteorder().\
+                            astype(self.dtype))
         prep = Img().edit_log
         for key, val in hdu[0].header.iteritems():
             if key.lower() in prep.keys():
                 self.img_prep[key.lower()] = val
         self.stack_id = hdu[0].header["stack_id"]
         try:
+            times = hdu[1].data["start_acq"].byteswap().newbyteorder()
             self.start_acq = [datetime.strptime(x, "%Y%m%d%H%M%S%f") 
-                              for x in hdu[1].data["start_acq"]]
+                              for x in times]
         except:
             warn("Failed to import acquisition times")
         try:
-            self.texps = hdu[1].data["texps"]
+            self.texps = hdu[1].data["texps"].byteswap().newbyteorder()
         except:
             warn("Failed to import exposure times")
         try:
-            self._access_mask = hdu[1].data["_access_mask"]
+            self._access_mask = hdu[1].data["_access_mask"].byteswap().\
+                                newbyteorder()
         except:
             warn("Failed to import data access mask")    
         try:
-            self.add_data = hdu[1].data["add_data"]
+            self.add_data = hdu[1].data["add_data"].byteswap().\
+                            newbyteorder()
         except:
             warn("Failed to import data additional data")
-        self.roi_abs = hdu[2].data["roi_abs"]
+        self.roi_abs = hdu[2].data["roi_abs"].byteswap().\
+                        newbyteorder()
         self._format_check()
         
     def save_as_fits(self, save_dir=None, save_name=None):
         """Save stack as FITS file"""
         self._format_check()
-        try:
-            save_name = save_name.split(".")[0]
-        except:
-            pass
-        if save_dir is None:
-            save_dir = getcwd()
+        save_dir = abspath(save_dir) #returns abspath of current wkdir if None
+        if not isdir(save_dir): #save_dir is a file path
+            save_name = basename(save_dir)
+            save_dir = dirname(save_dir)
         if save_name is None:
             save_name = ("pyplis_imgstack_id_%s_%s_%s_%s.fts" 
                             %(self.stack_id,
@@ -1894,7 +1911,9 @@ class ImgStack(object):
                               self.start.strftime("%H%M"),
                               self.stop.strftime("%H%M")))
         else:
-            save_name = save_name + ".fts"
+            save_name = save_name.split(".")[0] + ".fts"
+        print "DIR: %s" %save_dir
+        print "Name: %s" %save_name
         hdu = fits.PrimaryHDU()
         start_acq_str = [x.strftime("%Y%m%d%H%M%S%f") for x in self.start_acq]
         col1 = fits.Column(name="start_acq", format="25A", array=start_acq_str)

@@ -9,19 +9,20 @@ from scipy.sparse.linalg import lsmr
 from pandas import Series
 from copy import deepcopy
 from astropy.io import fits
-from os import getcwd
-from os.path import join, exists
+from os.path import join, exists, isdir, abspath, basename, dirname
 from traceback import format_exc
 from warnings import warn
 
 from matplotlib.pyplot import subplots
 from matplotlib.patches import Circle, Ellipse
 from matplotlib.cm import RdBu
+from matplotlib.dates import DateFormatter
 
 from .glob import SPECIES_ID, CALIB_ID_STRINGS
 from .processing import ImgStack
 from .helpers import shifted_color_map, mesh_from_img, get_img_maximum,\
-        sub_img_to_detector_coords, map_coordinates_sub_img, exponent
+        sub_img_to_detector_coords, map_coordinates_sub_img, exponent,\
+        rotate_xtick_labels
 from .optimisation import gauss_fit_2d, GAUSS_2D_PARAM_INFO
 from .image import Img
 from .inout import get_camera_info
@@ -180,18 +181,17 @@ class DoasCalibData(object):
         if not len(self.time_stamps) == len(self.doas_vec):
             self.time_stamps = asarray([datetime(1900,1,1)] *\
                                                 len(self.doas_vec))
-        try:
-            save_name = save_name.split(".")[0]
-        except:
-            pass
-        if save_dir is None:
-            save_dir = getcwd()
+        
+        save_dir = abspath(save_dir) #returns abspath of current wkdir if None
+        if not isdir(save_dir): #save_dir is a file path
+            save_name = basename(save_dir)
+            save_dir = dirname(save_dir)
         if save_name is None:
             save_name = "pyplis_doascalib_id_%s_%s_%s_%s.fts" %(\
                 self.calib_id, self.start.strftime("%Y%m%d"),\
                 self.start.strftime("%H%M"), self.stop.strftime("%H%M"))
         else:
-            save_name = save_name + ".fts"
+            save_name = save_name.split(".")[0] + ".fts"
         fov_mask = fits.PrimaryHDU()
         fov_mask.data = self.fov.fov_mask
         fov_mask.header.update(self.fov.img_prep)
@@ -235,7 +235,7 @@ class DoasCalibData(object):
             raise IOError("DoasCalibData object could not be loaded, "
                 "path does not exist")
         hdu = fits.open(file_path)
-        self.fov.fov_mask = hdu[0].data
+        self.fov.fov_mask = hdu[0].data.byteswap().newbyteorder()
         
         prep_keys = Img().edit_log.keys()
         search_keys = DoasFOVEngine()._settings.keys()
@@ -249,22 +249,23 @@ class DoasCalibData(object):
             elif k in self.fov.result_pearson.keys():
                 self.fov.result_pearson[k] = val
                 
-        self.fov.corr_img = Img(hdu[1].data)
+        self.fov.corr_img = Img(hdu[1].data.byteswap().newbyteorder())
         try:
-            self.time_stamps = [datetime.strptime(x, "%Y%m%d%H%M%S%f")\
-                    for x in hdu[2].data["time_stamps"]]
+            times = hdu[2].data["time_stamps"].byteswap().newbyteorder()
+            self.time_stamps = [datetime.strptime(x, "%Y%m%d%H%M%S%f")
+                                for x in times]
         except:
             print "Failed to import time stamps"
         try:
-            self.tau_vec = hdu[2].data["tau_vec"]
+            self.tau_vec = hdu[2].data["tau_vec"].byteswap().newbyteorder()
         except:
             print "Failed to import calibration tau data vector"
         try:
-            self.doas_vec = hdu[2].data["doas_vec"]
+            self.doas_vec = hdu[2].data["doas_vec"].byteswap().newbyteorder()
         except:
             print "Failed to import calibration doas data vector"
             
-        self.fov.roi_abs = hdu[3].data["roi"]
+        self.fov.roi_abs = hdu[3].data["roi"].byteswap().newbyteorder()
     
     @property
     def poly_str(self):
@@ -306,25 +307,34 @@ class DoasCalibData(object):
         ax.legend(loc='best', fancybox=True, framealpha=0.7, fontsize=11)
         return ax
         
-    def plot_data_tseries_overlay(self, ax=None):
+    def plot_data_tseries_overlay(self, date_fmt=None, ax=None):
         """Plot overlay of tau and DOAS time series"""
         if ax is None:
             fig, ax = subplots(1,1)
         s1 = self.tau_tseries
         s2 = self.doas_tseries
-        p1 = ax.plot(s1, "--xb", label = r"$\tau$")
+        p1 = ax.plot(s1.index.to_pydatetime(), s1.values, "--xb", 
+                     label = r"$\tau$")
         ax.set_ylabel("tau")
         ax2 = ax.twinx()
             
-        p2 = ax2.plot(s2, "--xr", label="DOAS CDs")
+        p2 = ax2.plot(s2.index.to_pydatetime(), s2.values,"--xr", 
+                      label="DOAS CDs")
         ax2.set_ylabel(r"$S_{%s}$ [cm$^{-2}$]" %SPECIES_ID)
         ax.set_title("Time series overlay DOAS calib data")
         
+        try:
+            if date_fmt is not None:
+                ax.xaxis.set_major_formatter(DateFormatter(date_fmt))
+        except:
+            pass
+            
         ps = p1 + p2
         labs = [l.get_label() for l in ps]
         ax.legend(ps, labs, loc="best",fancybox=True, framealpha=0.5)
-        
-        return ax, ax2
+        ax.grid()
+        rotate_xtick_labels(ax)
+        return (ax, ax2)
         
     def __call__(self, value, filter_id="aa", **kwargs):
         """Define call function to apply calibration
@@ -676,15 +686,15 @@ class DoasFOVEngine(object):
         """
         self.calib_data = DoasCalibData() #includes DoasCalibData class
         self.update_search_settings(**settings)
-        self.merge_data(merge_type = self._settings["mergeopt"])
-        self.det_correlation_image(search_type = self.method)
+        self.merge_data(merge_type=self._settings["mergeopt"])
+        self.det_correlation_image(search_type=self.method)
         self.get_fov_shape()
         self.calib_data.fov.search_settings = deepcopy(self._settings)
         
         return self.calib_data
         
                     
-    def merge_data(self, merge_type = "average"):
+    def merge_data(self, merge_type="average"):
         """Merge stack data and DOAS vector in time
         
         Wrapper for :func:`merge_with_time_series` of :class:`ImgStack`
@@ -714,7 +724,7 @@ class DoasFOVEngine(object):
         print "Data merging failed..."
         return False
     
-    def det_correlation_image(self, search_type = "pearson", **kwargs):
+    def det_correlation_image(self, search_type="pearson", **kwargs):
         """Determines correlation image
         
         Determines correlation image either using IFR or Pearson method.
