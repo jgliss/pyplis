@@ -7,7 +7,7 @@ from numpy import asarray, zeros, argmin, arange, ndarray, float32, ceil,\
 from datetime import timedelta, datetime
 #from bunch import Bunch
 from pandas import Series, DataFrame
-from matplotlib.pyplot import figure, draw, subplots
+from matplotlib.pyplot import figure, draw, subplots, ion, ioff, close
 from copy import deepcopy
 from scipy.ndimage.filters import gaussian_filter
 from warnings import warn
@@ -2687,7 +2687,9 @@ class ImgList(BaseImgList):
    
     def correct_dilution_all(self, tau_thresh=0.05, add_off_list=True, 
                              save_dir=None, save_masks=False, 
-                             save_bg_imgs=False, **kwargs):
+                             save_bg_imgs=False, save_tau_prev=False,
+                             vmin_tau_prev=None, vmax_tau_prev=None,
+                             **kwargs):
         """Correct all images for signal dilution
         
         Correct and save all images in this list for the signal dilution 
@@ -2722,11 +2724,17 @@ class ImgList(BaseImgList):
             if True, a folder *bg_imgs* is created which is used to store all
             retrieved plume background images (this folder can be used on 
             re-import of the data in order to save background modelling time)
-            
+        save_tau_prev : bool
+            if True, png previews of dilution corrected tau images are saved
+        vmin_tau_prev : :obj:`float`, optional
+            lower tau value for tau image preview plots
+        vmax_tau_prev : :obj:`float`, optional
+            upper tau value for tau image preview plots
         **kwargs 
             additional keyword args for dilution correction functions
             :func:`correct_dilution` and :func:`prep_data_dilutioncorr`
         """
+        ioff()
         if save_dir is None or not exists(save_dir):
             save_dir = abspath(join(dirname(self.files[0]), "..", 
                                     "dilutioncorr"))
@@ -2740,6 +2748,10 @@ class ImgList(BaseImgList):
             bg_dir = join(save_dir, "bg_imgs")
             if not exists(bg_dir):
                 mkdir(bg_dir)
+        if save_tau_prev:
+            tau_dir = join(save_dir, "tau_prev")
+            if not exists(tau_dir):
+                mkdir(tau_dir)
         # initiate settings
         self.goto_img(0)
         try:
@@ -2776,6 +2788,15 @@ class ImgList(BaseImgList):
                     file_name=fname).save_as_fits(mask_dir)
             if save_bg_imgs:
                 bg.save_as_fits(bg_dir, fname)
+            if save_tau_prev:
+                tau = corr.to_tau(bg)
+                fig = self.bg_model.plot_tau_result(tau, 
+                                                    tau_min=vmin_tau_prev,
+                                                    tau_max=vmax_tau_prev)
+                name = fname.split(".")[0] + ".png"
+                fig.savefig(join(tau_dir, name))
+                close("all")
+                del fig
             if not off.current_img().meta["file_name"] in saved_off:
                 # use on band plume pixel mask
                 (corr_off, 
@@ -2787,7 +2808,7 @@ class ImgList(BaseImgList):
                     bg_off.save_as_fits(bg_dir, corr_off.meta["file_name"])    
             
             self.next_img()
-        
+        ion()
         return (img, img_off, ext_coeff, ext_coeff_off, bg, bg_off,
                 plume_dists, plume_pix_mask)
                 
