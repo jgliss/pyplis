@@ -197,4 +197,10 @@ Version < 0.11
   - :class:`OpticalFlowFarnebackSettings` -> :class:`FarnebackSettings` (old name still works but gives a warning on class initiation)
   - :class:`OpticalFlowFarneback` -> :class:`OptflowFarneback` (old name still works but gives a warning on class initiation)
   
+24/03/2017
+----------
+
+1. Improved tau-preview plot in :class:`PlumeBackgroundModel`
+2. Added option ``save_tau_prev`` to :func:`correct_dilution_all` in :class:`ImgList` class: if True, then tau preview images are stored as well.
+  
     

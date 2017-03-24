@@ -584,16 +584,20 @@ class PlumeBackgroundModel(object):
         
     def plot_tau_result(self, tau_img=None, tau_min=None, tau_max=None,
                         edit_profile_labels=True, **add_lines):
-        """Plot current tau image including all gas free reference sections and 
-        the horizontal and vertical profile line
+        """Plot current tau image including all reference areas 
         
-        :param Img tau_img: the tau image to be displayed
-        :param float tau_min: lower tau boundary for colormap
-        :param float tau_max: upper tau boundary for colormap
-        :param bool edit_profile_labels: beta version of smart layout for 
-            axis labels from profile subplots
-        :param **kwargs: 
-            - additional lines to be plotted, e.g.:: 
+        Parameters
+        ----------
+        tau_img : Img
+            the tau image to be displayed
+        tau_min : :obj:`float`, optional
+            lower tau boundary to be displayed
+        tau_max : :obj:`float`, optional
+            upper tau boundary for colormap
+        edit_profile_labels : bool
+            beta version of smart layout for axis labels from profile subplots
+        **kwargs: 
+            additional lines to be plotted, e.g.:: 
                 pcs = [300, 400, 500, 600]
         """
         tau = tau_img
@@ -691,24 +695,36 @@ class PlumeBackgroundModel(object):
         ax[1].axvline(0, ls = "--", color = "k")
         
         if edit_profile_labels:
-            _range = p_vert.max() - p_vert.min()
+            low, high = tau_min, tau_max
+            if low is None:
+                low = p_vert.min()
+            if high is None:
+                high = p_vert.max()
+            _range = high - low
             lbls = [0]
-            if p_vert.max() > 0 and p_vert.max()/_range > 0.2:
-                lbls.append(p_vert.max() - _range * .05)
-            if p_vert.min() < 0 and abs(p_vert.min())/p_vert.max() > 0.5:
-                lbls.insert(0, p_vert.min() + _range*.05)
+            if high > 0 and high/_range > 0.2:
+                lbls.append(high - _range * .05)
+            if low < 0 and abs(low)/high > 0.5:
+                lbls.insert(0, low + _range*.05)
             ax[1].get_xaxis().set_ticks(lbls)
             lbl_str = ["%.2f" %lbl for lbl in lbls]
+            ax[1].set_xlim([low, high])
             ax[1].set_xticklabels(lbl_str)                
             
-            _range = p_hor.max() - p_hor.min()
+            low, high = tau_min, tau_max
+            if low is None:
+                low = p_hor.min()
+            if high is None:
+                high = p_hor.max()
+            _range = high - low
             lbls = [0]
-            if p_hor.max() > 0 and p_hor.max() / _range > 0.2:
-                lbls.append(p_hor.max() - _range*.05)
-            if p_hor.min() < 0 and abs(p_hor.min())/p_hor.max() > 0.5:
-                lbls.insert(0, p_hor.min() + _range *.05)
+            if high > 0 and high / _range > 0.2:
+                lbls.append(high - _range*.05)
+            if low < 0 and abs(low) / high > 0.5:
+                lbls.insert(0, low + _range *.05)
             ax[2].get_yaxis().set_ticks(lbls)
             lbl_str = ["%.2f" %lbl for lbl in lbls]
+            ax[2].set_ylim([low, high])
             ax[2].set_yticklabels(lbl_str)         
             
         ax[1].set_xlabel(r"$\tau$", fontsize=16)
