@@ -32,9 +32,9 @@ ROI_CONTRAST = [0, 0, 1344, 730]
 MIN_AA = 0.05
 
 PCS1 = pyplis.LineOnImage(345, 350, 450, 195, pyrlevel_def=1, 
-                          line_id="young_plume", color="g")
+                          line_id="young_plume", color="#e67300")
 PCS2 = pyplis.LineOnImage(80, 10, 80, 270, pyrlevel_def=1, 
-                          line_id="old_plume", color="r")
+                          line_id="old_plume", color="#1a1aff")
     
 LINES = [PCS1, PCS2]
    
@@ -54,14 +54,17 @@ def analyse_and_plot(lst, lines):
         fl.plot_length_histo(pix_mask=m, apply_fit=False, ax=ax[2], 
                              dir_low=low, dir_high=high, color=line.color)
         
-    ax[1].set_title("Orientation histograms")
+    #ax[1].set_title("Orientation histograms")
     ax[1].set_xlabel(r"$\Theta\,[^{\circ}]$", fontsize=14)
     ax[1].set_ylabel(r"Count", fontsize=14)
-    ax[2].set_title("Length histograms")
+    #ax[2].set_title("Length histograms")
     ax[2].set_xlabel(r"Magnitude [pix]", fontsize=14)
     ax[2].set_ylabel(r"Count", fontsize=14)
     ax[0].get_xaxis().set_ticks([])
     ax[0].get_yaxis().set_ticks([])
+    ax[0].set_title("")
+    for axis in ax:
+        axis.set_title("")
     fig.tight_layout()
     return fig
 
@@ -103,7 +106,7 @@ if __name__ == "__main__":
     
 
     aa_list.optflow_mode = True
-    
+
     plume_mask = pyplis.Img(aa_list.get_thresh_mask(MIN_AA))
     plume_mask.show(tit="AA threshold mask")
     
@@ -148,8 +151,8 @@ if __name__ == "__main__":
                                       label="PCS2") 
         ax[0].set_xticklabels([])
         ax[0].legend(loc='best', fancybox=True, framealpha=0.5, fontsize=14) 
-        ax[0].set_title("Movement direction")
-        ax[1].set_title("Displacement length")
+        #ax[0].set_title("Movement direction")
+        #ax[1].set_title("Displacement length")
         figs.append(fig)
         # Save the time series as txt
         plume_props_l1.save_txt(join(SAVE_DIR, 

@@ -26,7 +26,7 @@ check_version()
 
 import pyplis
 from os.path import join, exists
-from matplotlib.pyplot import close, subplots, tight_layout, show
+from matplotlib.pyplot import close, subplots, show, GridSpec, figure
 
 ### IMPORT GLOBAL SETTINGS
 from SETTINGS import SAVEFIGS, SAVE_DIR, FORMAT, DPI, OPTPARSE
@@ -62,8 +62,16 @@ CALIB_FILE = join(SAVE_DIR, "ex06_doascalib_aa.fts")
 CORR_MASK_FILE = join(SAVE_DIR, "ex07_aa_corr_mask.fts")
 
 ### SCRIPT FUNCTION DEFINITIONS        
-def plot_and_save_results(ana, line_id = "1. PCS"):
-    fig, ax = subplots(2, 1, figsize = (7, 9), sharex = True)
+def plot_and_save_results(ana, line_id="1. PCS", date_fmt="%H:%M"):
+    fig = figure(figsize=(10,14))
+    gs = GridSpec(3, 1, height_ratios = [.6, .2, .2], hspace=0.05)
+    ax0 = fig.add_subplot(gs[0]) #for significance plot
+    ax1 = fig.add_subplot(gs[1])#, sharex=ax2) #for orientation plot
+    ax2 = fig.add_subplot(gs[2])#, sharex=ax2) #for displ. lens
+    ax1.yaxis.tick_right()
+    ax1.yaxis.set_label_position("right")
+
+    
     
     #Get emission rate results for the PCS line 
     res0 = ana.get_results(line_id=line_id, velo_mode="glob")
@@ -75,35 +83,41 @@ def plot_and_save_results(ana, line_id = "1. PCS"):
     res2.save_txt(join(SAVE_DIR, "ex12_flux_farneback_histo.txt"))
     
     #Plot emission rates for the different plume speed retrievals
-    res0.plot(yerr=False, date_fmt="%H:%M", ax=ax[0], color="r")
-    res1.plot(yerr=False, ax=ax[0], color="b")
-    res2.plot(yerr=True, ax=ax[0], color="g")
+    res0.plot(yerr=False, date_fmt=date_fmt, ls="--", marker="x", ax=ax0, 
+              color="#e67300")
+    res1.plot(yerr=False, ax=ax0, ls="--", marker="x", color="b")
+    res2.plot(yerr=True, ax=ax0, lw=2, color="g")
+    
     #ax[0].set_title("Retrieved emission rates")
-    ax[0].legend(loc='best', fancybox=True, framealpha=0.5, fontsize=12)
+    ax0.legend(loc='best', fancybox=True, framealpha=0.5, fontsize=12)
     
     #Plot effective velocity retrieved from optical flow histogram analysis    
-    res2.plot_velo_eff(ax=ax[1], color="g")
+    res2.plot_velo_eff(ax=ax1, date_fmt=date_fmt, color="g")
     #ax[1].set_title("Effective plume speed (from optflow histogram analysis)")
-    ax[1].set_ylim([0, ax[1].get_ylim()[1]])
-    ax2 = ax[1].twinx()
+    ax1.set_ylim([0, ax1.get_ylim()[1]])
+
     #Plot time series of predominant plume direction (retrieved from optical
     #flow histogram analysis and stored in object of type LocalPlumeProperties
     #which is part of plumespeed.py module
-    ana.plume_properties[line_id].plot_directions(ax=ax2, color="#ff9900")
+    ana.plume_properties[line_id].plot_directions(ax=ax2, date_fmt=date_fmt,
+                                                  color="g")
 
     ax2.set_ylim([-180, 180])
-    pyplis.helpers.rotate_xtick_labels(ax=ax[1])
-    tight_layout()
+    pyplis.helpers.rotate_xtick_labels(ax=ax2)
+    ax0.set_xticklabels([])
+    ax1.set_xticklabels([])
+    #tight_layout()
     
-    fig2, ax2 = subplots(1,1)
-    ax2 = ana.plot_bg_roi_vals(ax = ax2, date_fmt="%H:%M")
+    fig1, ax3 = subplots(1,1)
+    ax3 = ana.plot_bg_roi_vals(ax=ax3, date_fmt="%H:%M")
     
-    ax2.set_title("SO2 CD time series in scale_rect")
-    return ax, ax2
+    ax3.set_title("SO2 CD time series in scale_rect")
+    return (fig, fig1)
     
 ### SCRIPT MAIN FUNCTION    
 if __name__ == "__main__":
     close("all")
+    figs = []
     if not exists(CALIB_FILE):
         raise IOError("Calibration file could not be found at specified "
             "location:\n%s\nPlease run example 6 first")
@@ -150,16 +164,15 @@ if __name__ == "__main__":
         ana.calc_emission_rate(start_index=START_INDEX, 
                                stop_index=STOP_INDEX)
         
-        ax0, ax1 = plot_and_save_results(ana)
+        figs.extend(plot_and_save_results(ana))
         
         # the EmissionRateResults class has an informative string representation
         print ana.get_results("1. PCS", "farneback_histo")
         
         if SAVEFIGS:
-            ax0[0].figure.savefig(join(SAVE_DIR, "ex12_out_1.%s" %FORMAT),
-                               format=FORMAT, dpi=DPI)
-            ax1.figure.savefig(join(SAVE_DIR, "ex12_out_2.%s" %FORMAT),
-                               format=FORMAT, dpi=DPI)
+            for k in range(len(figs)):
+                figs[k].savefig(join(SAVE_DIR, "ex12_out_%d.%s" %(k+1,FORMAT)),
+                                format=FORMAT, dpi=DPI)
                                
     # Display images or not    
     (options, args)   =  OPTPARSE.parse_args()
