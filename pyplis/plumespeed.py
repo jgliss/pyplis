@@ -33,7 +33,8 @@ from cv2 import calcOpticalFlowFarneback, OPTFLOW_FARNEBACK_GAUSSIAN,\
     cvtColor,COLOR_GRAY2BGR,line,circle,VideoCapture,COLOR_BGR2GRAY,\
     waitKey, imshow
 
-from .helpers import bytescale, check_roi, map_roi, roi2rect, set_ax_lim_roi
+from .helpers import bytescale, check_roi, map_roi, roi2rect, set_ax_lim_roi,\
+    nth_moment
 from .optimisation import MultiGaussFit
 from .processing import LineOnImage
 from .image import Img
@@ -561,7 +562,7 @@ class LocalPlumeProperties(object):
         except:
             pass
         ax.fill_between(s.index, lower, upper, alpha=0.1, **kwargs)
-        ax.set_ylabel(r"$\Theta$ [degrees]", fontsize=14)
+        ax.set_ylabel(r"$\Theta\,[^{\circ}$]", fontsize=14)
         ax.grid()
         return ax
         
@@ -1655,8 +1656,8 @@ class OptflowFarneback(object):
             defaults to 1.0
         **kwargs : 
             additional key word args that can be used to pass lens and angles
-            arrays (see e.g. :func:`local_flow_params`). Use keywords
-            ``lens`` and ``angles`` to pass this information. 
+            arrays (see e.g. :func:`local_flow_params`). Use keyword
+            ``lens`` to pass this information. 
             
         Returns
         -------
@@ -1670,9 +1671,8 @@ class OptflowFarneback(object):
         """
         try:
             lens = kwargs["lens"]
-            angles = kwargs["angles"]
         except:
-            lens, angles = self.all_len_angle_vecs_roi(pix_mask)    
+            lens, _ = self.all_len_angle_vecs_roi(pix_mask)    
         cond = lens > min_length
         
         lens = lens[cond.astype(bool)]
@@ -1716,10 +1716,12 @@ class OptflowFarneback(object):
         fit = MultiGaussFit(c, x, noise_amp=noise_amp,
                             max_num_gaussians=max_num_gaussians,
                             do_fit=False) #make sure the object is initiated
+        ok = False
         try:
-            fit.auto_fit()
+            if fit.run_optimisation():
+                ok = True
         except:
-            ok = False
+            pass
         return fit, ok
         
     def fit_orientation_histo(self, count, bins, noise_amp=None, 
@@ -1760,6 +1762,31 @@ class OptflowFarneback(object):
                                                max_num_gaussians)
         return fit, ok
     
+    def analyse_length_histo(self, count, bins):
+        """Get mean and sigma of length histogram using 1. and 2nd moment
+        
+        Parameters
+        ----------
+        count : array
+            array with counts per bin
+        bins : array
+            array containing bins
+            
+        Returns
+        -------
+        tuple
+            2-element tuple, containing
+            
+            - :obj:`float`: expectation value mu
+            - :obj:`float`: corresponding standard deviation
+        """
+        c, x = self._prep_histo_data(count, bins)
+
+        mu = nth_moment(x, c, 0, 1)
+        sigma = sqrt(nth_moment(x, c, mu, 2))
+        print("Avg. displ. length: %.1f +/- %.1f" %(mu, sigma))
+        return (mu, sigma)
+        
     def fit_length_histo(self, count, bins, noise_amp=None,
                          max_num_gaussians=4, **kwargs):
         """Apply multi gauss fit to length distribution histogram
@@ -1903,16 +1930,21 @@ class OptflowFarneback(object):
                  "fit of orientation histogram failed")
             raise Exception
             return res
-        
+        sigma_tol = self.settings.hist_dir_sigma
         #analyse the fit result (i.e. find main gauss peak and potential other
         #significant peaks)
-        dir_mu, dir_sigma, tot_num, add_gaussians = fit.analyse_fit_result()
+        (dir_mu, 
+         dir_sigma, 
+         tot_num, 
+         add_gaussians) = fit.analyse_fit_result(sigma_tol + 1)
+         
         res["_dir_mu"] = dir_mu
         res["_dir_sigma"] = dir_sigma
         res["_add_gauss_dir"] = add_gaussians
         
         print("Predominant movement direction: %.1f +/- %.1f" %(dir_mu,
                                                                 dir_sigma))
+                                                                
         for g in add_gaussians:
             sign = int(fit.integrate_gauss(*g) * 100 / tot_num)
             if sign > 20: #other peak exceeds 20% of main peak
@@ -1921,8 +1953,8 @@ class OptflowFarneback(object):
                      "%sSignificany: %s %%\n" %(fit.gauss_str(g), sign))
         
         #limit range of reasonable orientation angles...
-        dir_low = dir_mu - dir_sigma * self.settings.hist_dir_sigma
-        dir_high = dir_mu + dir_sigma * self.settings.hist_dir_sigma
+        dir_low = dir_mu - dir_sigma * sigma_tol
+        dir_high = dir_mu + dir_sigma * sigma_tol
         
         #... and make a mask from it including min length condition
         cond = logical_and(angles > dir_low, 
@@ -1938,8 +1970,10 @@ class OptflowFarneback(object):
             return res
         res["_significance"] = frac
         lens = lens[cond]
-        len_mu, len_sigma = lens.mean(), lens.std()
-        print("Mean displacement length: %.1f +/- %.1f" %(len_mu, len_sigma))
+        
+        count, bins, _ = self.flow_length_histo(lens=lens)
+        len_mu, len_sigma = self.analyse_length_histo(count, bins)
+        
         res["_len_mu_norm"] = len_mu / del_t #normalise to 1s ival
         res["_len_sigma_norm"] = len_sigma / del_t #normalise to 1s ival
         return res
@@ -2029,7 +2063,7 @@ class OptflowFarneback(object):
             fit, ok = self.fit_orientation_histo(count, bins, **fit_settings)
             if fit.has_results():
                 mu, sigma,_,_ = fit.analyse_fit_result()
-                fit.plot_multi_gaussian(ax=ax, label="Multi-gauss fit",
+                fit.plot_multi_gaussian(ax=ax, label="Multi-Gauss fit",
                                         color=color)
                 tit += (r": $\mu (+/-\sigma$) = %.1f (+/- %.1f)" 
                     %(mu, sigma))
@@ -2070,15 +2104,21 @@ class OptflowFarneback(object):
         ax.bar(bins[:-1], count, width=w, color=color, ec="none", alpha=0.3,
                label="Histogram")
         
-        mu, sigma = lens.mean(), lens.std()
+        mu, sigma = self.analyse_length_histo(count, bins)
+        
         tit += (r": $\mu (+/-\sigma$) = %.1f (+/- %.1f)" %(mu, sigma))
         if apply_fit:
             fit, ok = self.fit_length_histo(count, bins, **fit_settings)
             if fit.has_results():
-                fit.plot_multi_gaussian(ax=ax, label="Multi-gauss fit",
+                fit.plot_multi_gaussian(ax=ax, label="Multi-Gauss fit",
                                         color=color)
         ax.set_title(tit, fontsize=11)      
-        ax.set_xlim([0, int(bins.max()) + 1])    
+        ax.set_xlim([0, int(bins.max()) + 1])
+        ax.plot([mu, mu], [0, count.max()*1.05], color=color, ls="-")
+        ax.plot([mu-sigma, mu-sigma], [0, count.max()*1.05], 
+                color=color, ls="--")
+        ax.plot([mu+sigma, mu+sigma], [0, count.max()*1.05], 
+                color=color, ls="--")
         ax.legend(loc='best', fancybox=True, framealpha=0.5, fontsize=10)
         ax.grid()
         return ax

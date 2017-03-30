@@ -356,7 +356,7 @@ class EmissionRateResults(object):
             s.index = s.index.to_pydatetime()
         except:
             pass
-        s.plot(ax=ax, label=label, **kwargs)
+        ax.plot(s.index, s.values, label=label, **kwargs)
         try:
             if date_fmt is not None:
                 ax.xaxis.set_major_formatter(DateFormatter(date_fmt))

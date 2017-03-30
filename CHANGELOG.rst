@@ -1,4 +1,4 @@
-Version < 0.11
+Version < 0.12
 ==============
 
 28/02/2017 - 01/03/2017
@@ -204,3 +204,8 @@ Version < 0.11
 2. Added option ``save_tau_prev`` to :func:`correct_dilution_all` in :class:`ImgList` class: if True, then tau preview images are stored as well.
   
     
+28-29/03/2017
+-------------
+
+1. Reviewed and optimised fitting routine in :class:`MultiGaussFit`
+2. Changed retrieval of main peak params and analysis of magnitude histogram using moments of distributions

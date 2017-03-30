@@ -9,7 +9,7 @@ from datetime import datetime, time, date
 from warnings import warn
 from matplotlib.pyplot import draw
 from numpy import mod, linspace, hstack, vectorize, uint8, cast, asarray,\
-    unravel_index, nanargmax, meshgrid, int, floor, log10, isnan, argmin
+    unravel_index, nanargmax, meshgrid, int, floor, log10, isnan, argmin, sum
 from scipy.ndimage.filters import gaussian_filter
 from cv2 import pyrUp
 
@@ -17,6 +17,22 @@ exponent = lambda num: int(floor(log10(abs(num))))
 
 time_delta_to_seconds = vectorize(lambda x: x.total_seconds())
 
+def nth_moment(index, data, center=0.0, n=0):
+    """Determine n-th moment of distribution
+    
+    Parameters
+    ----------
+    index : array
+        data x axis index array
+    data : array
+        the data distribution
+    center : float
+        coordinate around which the moment is determined
+    n : int
+        number of moment
+    """
+    return sum((index - center)**n * data) / sum(data)
+    
 def set_ax_lim_roi(roi, ax, xy_aspect=None):
     """Updates axes limits to ROI coords (for image disp)
     

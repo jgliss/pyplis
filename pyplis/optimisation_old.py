@@ -1,9 +1,8 @@
 # -*- coding: utf-8 -*-
 """Module containing optimisation and fitting algorithms"""
 from numpy import abs, linspace, random, asarray, ndarray, where, diff,\
-    insert, argmax, average, gradient, arange, nanmean, full, inf, sqrt, pi,\
-    mod, mgrid, ndim, ones_like,ogrid, finfo, remainder, e, sum, uint8, int,\
-    histogram, nan, isnan
+    insert, argmax, average, gradient, arange,argmin, full, inf, sqrt, pi,\
+    mod, mgrid, ndim, ones_like,ogrid, finfo, remainder, e, sum, uint8
     
 from warnings import catch_warnings, simplefilter, warn
 from matplotlib.pyplot import subplots
@@ -11,7 +10,7 @@ from matplotlib.pyplot import subplots
 from astropy.modeling import models
 from astropy.modeling.fitting import LevMarLSQFitter
 
-from scipy.ndimage.filters import gaussian_filter1d
+from scipy.ndimage.filters import gaussian_filter1d, median_filter
 from scipy.integrate import quad
 from scipy.optimize import curve_fit, least_squares
 
@@ -135,74 +134,29 @@ def gauss_fit_2d(img_arr, cx, cy, g2d_asym = True,\
     # normalise
     return (popt, pcov, result_img)
 
-def gauss_fit(data, idx=None, has_offset=False, plot=False):
-    """Fits Gaussian function to data
-    
-    Parameters
-    ----------
-    data : array
-        data array
-    idx : :obj:`array`, optional
-        indices of data (e.g. angles)
-    has_offset : bool
-        if True, the fitted Gauss is allowed to have a constant offset
-        
-    Returns
-    -------
-    array
-        optimised parameters of gauss
-    """
-    data = asarray(data)
-    if idx is None:
-        idx = arange(len(data))
-    if has_offset:
-        model = gaussian    
-    else:
-        model = gaussian_no_offset
-    err_fun = lambda p, x, y: (model(x, *p) - y)
-    guess = [data.max(), idx[argmax(data)], data.std()]
-    res = least_squares(err_fun, guess, args=(idx, data))
-    opt = res.x
-    if plot:
-        fig, ax = subplots(1,1)
-        ax.plot(idx, data, "--xg", label="data")
-        x = linspace(idx.min(), idx.max(), 100)
-        d = model(x, *opt)
-        ax.plot(x, d, "-r", label="Fit result")
-        ax.legend(loc='best', fancybox=True, framealpha=0.5)
-        
-    return opt
-    
-def get_histo_data(data, **kwargs):
-    """Determine histogram of data and set bin array to center of bins"""
-    c, b = histogram(data, **kwargs)
-    b = asarray([0.5 * (b[i] + b[i + 1]) for i in xrange(len(b) - 1)])
-    return (c, b)
-    
-    
 class MultiGaussFit(object):
     """Fitting environment for fitting an arbitrary (i.e. unknown) amount of
-    Gaussians to noisy 1D (x,y) data. It was initally desinged and developed
+    gaussians to noisy 1D (x,y) data. It was initally desinged and developed
     for histogram data and aims to find a solution based on a minimum of 
-    required superimposed Gaussians to describe the distribution. Therefore,
-    the fit is performed in a controlled way (i.e. allowed Gaussians are
+    required superimposed gaussians to describe the distribution. Therefore,
+    the fit is performed in a controlled way (i.e. allowed gaussians are
     required to be within certain parameter bounds, details below) starting 
     with a noise analysis (if noise level is not provided on class 
     initialisation).
     Based on the noise level, and the x-range of the data, the boundaries for
     accepted gauss parameters are set. These are::
     
-        self.gauss_bounds["amp"][0] = 2*self.noise_amp
+        self.gauss_bounds["amp"][0] = 2*self.noise_amplitude
         self.gauss_bounds["amp"][1] = (self.y_range - self.offset) * 1.5
         self.gauss_bounds["mu"][0] = self.index[0]
         self.gauss_bounds["mu"][1] = self.index[-1]
         self.gauss_bounds["sigma"][0] = self.x_resolution/2.
         self.gauss_bounds["sigma"][1] = self.x_range/2.
         
-    i.e. the amplitude of each of the superimposed Gaussians must be positive
+    i.e. the amplitude of each of the superimposed gaussians must be positive
     and larger then 2 times the noise amplitude. The max allowed amplitude
     is set 1.5 times the min / max difference of the data. The mean of each 
-    Gaussian must be within the index range of the data and the standard
+    gaussian must be within the index range of the data and the standard
     deviation must at least be half the x resolution (the smallest allowed peak
     must be at least have a of FWHM = 1 index) and the max FHWM must not
     exceed the covered x-range. The fit boundaries can also be set manually
@@ -217,51 +171,54 @@ class MultiGaussFit(object):
         x-coordinates
     noise_amp : :obj:`float`, optional, 
         amplitude of noise in the signal. Defines the minimum required 
-        amplitude for fitted Gaussians (you don't want to fit all the noise 
+        amplitude for fitted gaussians (you don't want to fit all the noise 
         peaks). If None, it will be estimated automatically on data import 
-        using :func:`estimate_noise_amp`
-    noise_amp_thresh_fac : float
-        factor multiplied with :attr:`noise_amp` in order to determine the 
-        minimum amplitude threshold required for detecting additional peaks
-        in residual (see :func:`find_additional_peaks`)
-    sigma_smooth : int
-        width of Gaussian kernel to determine smoothed analysis signal (is 
-        used to determine data baseline offset)
+        using :func:`estimate_noise_amplitude`
+    smooth_sig : int
+        width of Gaussian kernel to determine smoothed analysis signal
     sigma_tol_overlaps : int
         sigma range considered to find overlapping Gauss functions (after 
         fit was applied). This is, for instance used in 
         :func:`analyse_fit_result` in order to find the main peak parameters
     max_num_gaussians : int 
-        max number of superimposed, defaults to 20 Gaussians for data 
+        max number of superimposed, defaults to 20
+        gaussians for data 
     max_iter : int
-        max number of iterations for optimisation, if None (default), use 
-        ``max_num_gaussians + 1``
+        max number of iterations for optimisation, defaults to 10
     auto_bounds : bool
         if True, bounds will be set automatically from data ranges whenever 
         data is updated, defaults to True
     do_fit : bool
-        if True and input data available & ok, then :func:`run_optimisation` 
-        will be called on initialisation, defaults to True
+        if True and input data available & ok, then :func:`self.auto_fit` will 
+        be performed on initialisation, defaults to True
+    horizontal_baseline : bool
+        data has horizontal baseline (if this  is set False, the fit strategy 
+        is different... some more info follows)
     """
-    def __init__(self, data=None , index=None, noise_amp=None, 
-                 noise_amp_thresh_fac=2.0, sigma_smooth=3,
-                 sigma_tol_overlaps=3, max_num_gaussians=20, max_iter=None, 
-                 auto_bounds=True, do_fit=True):
+    def __init__(self, data=None , index=None, noise_amp=None, smooth_sig=3,
+                 sigma_tol_overlaps=2, max_num_gaussians=20, max_iter=10, 
+                 auto_bounds=True, horizontal_baseline=True, do_fit=True):
         #data
         self.index = []
         self.data = []
+        self.data_smooth = []
+        self.data_grad = []
+        self.data_grad_smooth = []
         
         # init relevant parameters
         self.offset = 0.0
-        self.noise_amp = noise_amp
-        self.noise_amp_thresh_fac = noise_amp_thresh_fac
-        self.sigma_smooth =sigma_smooth
+        self.noise_amplitude = noise_amp
+        self.smooth_sig =smooth_sig
         self.sigma_tol_overlaps = sigma_tol_overlaps
         
         self.max_num_gaussians = max_num_gaussians
-        if max_iter is None:
-            max_iter = max_num_gaussians + 1
         self.max_iter = max_iter
+    
+        #bounds for gaussians (will be set for each gauss guess before fitting)
+        self._horizontal_baseline = horizontal_baseline
+        #make sure autobounds is off in case of none horizontal baseline
+        if not horizontal_baseline: 
+            auto_bounds = False
           
         self.auto_bounds = auto_bounds
         self.gauss_bounds = {"amp"  :   [0, inf],
@@ -271,15 +228,15 @@ class MultiGaussFit(object):
         #Fitting related stuff
         self._fit_result = None #the actual output from the minimisation
         
-        self.params = [] #this is where the fit parameters are stored in
+        self.params = [0,0,0] #this is where the fit parameters are stored in
         
         #function to be minimised
         self.err_fun = lambda p, x, y:\
                     (multi_gaussian_no_offset(x, *p) - y)#**2
         
         #will be filled with optimisation results
-        self.opt_log = {"chis"     : [],
-                        "residuals": []}
+        self.optimise_log = {"chis"     : [],
+                             "residuals": []}
 
         self.plot_font_sizes = {"titles":  14,
                                 "labels":  12,
@@ -287,40 +244,15 @@ class MultiGaussFit(object):
                                 
         self.set_data(data, index)
         if do_fit and self.has_data:
-            self.run_optimisation()
+            self.auto_fit()
     
-    ### @property decorators
-    @property
-    def residual(self):
-        """Get and return residual"""
-        return self.get_residual()
-    
-    @property
-    def data_grad(self):
-        """Gradient of analysis signal"""
-        return self.first_derivative(self.data)
-        
-    @property
-    def data_grad_smooth(self):
-        """Smoothed gradient of analysis signal"""        
-        return self.apply_binomial_filter(self.data_grad, 
-                                          sigma=self.sigma_smooth)
-        
-    @property
-    def data_smooth(self):
-        """Data smoothed using Gaussian kernel of width ``self.sigma_smooth``"""
-        return self.apply_binomial_filter(self.data, sigma=self.sigma_smooth)
-    
-    @property
-    def min_amp(self):
-        """Minimum required amplitude to idenitify significant peaks"""
-        return self.noise_amp * self.noise_amp_thresh_fac
-        
-    ### Initialisation, data preparation, I/O, etc...
+    """
+    Initialisation, data preparation, I/O, etc...
+    """
     def init_results(self):
         """Initiate all result parameters"""
         self._peak_indices = []
-        self.params = []
+        self.params = [0, 0, 0]
         self.offset = 0.0
     
     def set_data(self, data, index=None):
@@ -349,43 +281,58 @@ class MultiGaussFit(object):
                 
         self.init_results()
         self.init_data()
-        
+            
+            
     def init_data(self):
-        """Initiate the input data and set constraints for Gaussians"""
+        """Initiate the input data and set constraints for valid gaussians
+        
+        Main steps:
+        
+            1.  Estimate the data offset from minimum of smoothed data (using
+                gaussian filter, width 3 to reduce noise)
+            #.  Determine 1st derivative of data (stored in
+                                            ``self.data_grad``)
+            #.  Smooth data and gradient (using gaussian filter width 1)
+            #.  Call :func:`self.estimate_noise_amplitude`
+            #.  Call :func:`self.init_gauss_bounds_auto`
+        """
         if self.has_data:
-            # helper for optimisation (analysis signal)
-            if self.noise_amp is None:
-                self.estimate_noise_amp()
-            self.offset = self.data_smooth.min()
-            self.y = self.data - self.offset
+            sigma = self.smooth_sig
+            self.offset = gaussian_filter1d(self.data, sigma).min()
+            self.data_grad = self.first_derivative(self.data)
+            self.data_smooth = self.apply_binomial_filter(self.data, 
+                                                          sigma=sigma-1)
+            self.data_grad_smooth = self.apply_binomial_filter(self.data_grad, 
+                                                               sigma=sigma-1)
+            if self.noise_amplitude is None:
+                self.estimate_noise_amplitude()
             self.init_gauss_bounds_auto()
-    
+     
     def set_gauss_bounds(self, amp_range=[0, inf], mu_range=[-inf, inf],
                          sigma_range=[-inf, inf]):
         """Manually set boundaries for gauss parameters
         
-        Parameters
-        ----------
-        amp_range : array
-            accepted amplitude range, defaults to ``[0, inf]``
-        mu_range : array
-            accepted mu range, defaults to ``[-inf, inf]``
-        sigma_range : array 
-            accepted range of standard deveiations, defaults to ``[-inf, inf]``
+        :param array amp_range ([0, nan]): accepted amplitude range
+        :param array mu_range ([nan, nan]): accepted mu range
+        :param array sigma_range ([nan, nan]): accepted range of gauss widths
+        
+        This routine was initially developed for fitting histogram distributions
+        (e.g. gray values in an image).
+        
         """
         self.gauss_bounds["amp"] = amp_range
         self.gauss_bounds["mu"] = mu_range
         self.gauss_bounds["sigma"] = sigma_range
         
     def init_gauss_bounds_auto(self):
-        """Set parameter bounds for individual Gaussians"""
+        """Set parameter bounds for individual gaussians"""
         if not self.has_data:
             #print "Could not init gauss bounds, no data available..."
             return 0
         if not self.auto_bounds:
             #print "Automatic update of boundaries is deactivated..."
             return 1
-        self.gauss_bounds["amp"][0] = self.min_amp
+        self.gauss_bounds["amp"][0] = 2 * self.noise_amplitude
         self.gauss_bounds["amp"][1] = (self.y_range - self.offset) * 1.5
         self.gauss_bounds["mu"][0] = self.index[0]
         self.gauss_bounds["mu"][1] = self.index[-1]
@@ -393,168 +340,151 @@ class MultiGaussFit(object):
         self.gauss_bounds["sigma"][1] = self.x_range / 2.
         return 1
                 
-    ### Fit preparations, peak search, etc
+    """
+    Fit preparations, peak search, etc
+    """
     def estimate_main_peak_params(self):
         """Get rough estimate and position of main peak"""
-        data = self.y
+        data = self.data - self.offset
         ind = argmax(data)
         amp = data[ind] 
-        if not amp > self.min_amp:
+        if not amp > 1.5 * self.noise_amplitude:
             raise IndexError("No significant peak could be found in data")
         w = self.estimate_peak_width(data, ind)
         guess = [amp, self.index[ind], w * self.x_resolution]
+        y = self.data - self.offset
         params, bds = self.prepare_fit_boundaries(guess)
-        return least_squares(self.err_fun, params, args=(self.index, self.y),
+        
+        return least_squares(self.err_fun, params, args=(self.index, y),
                              bounds=bds).x
-    
-    ### index based processing (functions that get slow if data is large)
-    def find_additional_peaks(self):
+
+    def find_peak_positions_residual(self):
         """Search for significant peaks in the current residual
         
-        Returns
-        -------
-        list
-            list containing additional peak parameters (for optimisation), or 
-            empty list if no additional peaks can be found
+        :returns list: list containing additional peak parameters (for 
+            optimisation)        
         """
-        dat = self.residual
+        dat = self.get_residual()
         add_params = []
         num = self.num_of_gaussians #current number of fitted gaussians
         for k in range(self.max_num_gaussians - num):
-            if not dat.max() > self.min_amp:
+            if not dat.max() > 2.0 * self.noise_amplitude:
                 #print "Residual peak search finished..."
                 return add_params
-            else: #estimate peak and cut out sigma 3 sigma range
+            else:
                 ind = argmax(dat)
                 w = self.estimate_peak_width(dat, ind)
                 add_params.append(dat[ind])
                 add_params.append(self.index[ind])
                 add_params.append(w * self.x_resolution)
-                cut_low = ind - 3 * w
+                cut_low = ind - 3*w
                 if cut_low < 0:
                     cut_low = 0
-                cut_high = ind + 3 * w
-                dat[cut_low : cut_high] = 0
-        warn("Peak search in residual aborted: reached maxmimum number of "
-            "allowed Gaussians: %d" %self.max_num_gaussians)
-        return add_params
-    
-    def estimate_peak_width(self, dat, idx):
-        """"Estimate width of a peak at given index 
+                cut_high = ind + 3*w
+                dat[cut_low:cut_high] = 0
+        warn("Number of detected peaks exceeds allowed max "
+            "number of superimposed gaussians in model")
         
-        The peak width is estimated by finding the closest
+    def add_peak_from_residual(self):
+        """Search for significant peaks in the current residual
+        
+        :returns list: list containing additional peak parameters (for 
+            optimisation)        
+        """
+        if self.num_of_gaussians == self.max_num_gaussians:
+            raise ValueError("Number of detected peaks exceeds allowed max "
+                "number of superimposed gaussians in model")
+        dat = self.get_residual()
+        
+        add_params = []
+        if dat.max() > 2.0 * self.noise_amplitude:
+            ind = argmax(dat)
+            w = self.estimate_peak_width(dat, ind)
+            add_params.append(dat[ind])
+            add_params.append(self.index[ind])
+            add_params.append(w * self.x_resolution)
+        return add_params
+        
+            
+    def estimate_peak_width(self, dat, idx):
+        """"Estimate width of a peak at given index by finding the closest
         datapoint smaller than 0.5 the amplitude of data at index position
         
-        Parameters
-        ----------
-        dat : array
-            data (with baseline zero)
-        idx : int
-            index position of peak
+        :param int dat: data (with baseline zero)
+        :param int idx: index position of peak
         
-        Returns
-        -------
-        int
-            Estimated peak width in index units
-            
         """
         amp = dat[idx]
+        #print "Estimating peak width at peak, index: " + str(idx)
+        #print "x,y:" + str(self.index[idx]) + ", " + str(amp)
         max_ind = len(self.index) - 1  
-        lr_arr = [nan, nan]
-        try: #
-            ind = (next(val[0] for val in 
-                    enumerate(dat[idx:max_ind]) if val[1] < amp / 2))
-            #set estimate in right direction
-            lr_arr[1] = ind
-        except:
-            pass
         try:
-            inv = dat[::-1]
-            idx = len(inv) - 1 - idx
-            ind = next(val[0] for val in enumerate(inv[idx:max_ind])\
-                                            if val[1] < amp/2)
-            # set estimate in left direction
-            lr_arr[0] = ind
+            ind = next(val[0] for val in enumerate(dat[idx:max_ind])\
+                                                if val[1] < amp/2)
+            #print "Width (index units): " + str(abs(ind))
+            
+            return ind
         except:
-            pass
-        w = nanmean(lr_arr)
-        if isnan(w):
-            w = 3
-            warn("Width of detected peak at index %d could not be estimated"
-                "assuming 3 indices")
-        return int(w)
+            #print "Trying to the left"#format_exc()
+            try:
+                inv = dat[::-1]
+                idx = len(inv)-1-idx
+                ind = next(val[0] for val in enumerate(inv[idx:max_ind])\
+                                                if val[1] < amp/2)
+                #print "Width (index units): " + str(abs(ind))
+                return ind
+            except:
+                pass
+        #print "Peak width could not be estimated, return 1"
+        return int(len(dat))*0.05#2#int(.05*len(dat))
             
-    ### Fitting, fitting preparations, etc.        
-    def prepare_fit_boundaries(self, guess):
-        """Prepare the boundaries tuple
+    
+    """
+    Fitting etc
+    """         
+    def prepare_fit_boundaries(self, params):
+        """Prepare the boundaries tuple (for details see 
+        `Minimisation tool <http://docs.scipy.org/doc/scipy-0.17.0/reference/
+        generated/scipy.optimize.least_squares.html>`_)
+        using the boundaries specified in ``self.gauss_bounds``.
         
-        For details see `used least squares solver <http://docs.scipy.org/doc/
-        scipy-0.17.0/reference/generated/scipy.optimize.least_squares.html>`_)
+        :param list params: list of gauss parameters (e.g. ``self.params``)
         
-        Prepare fit boundary tuple for a multi-gauss parameter array supposed
-        to be optimised (e.g. for two Gaussians  this could look like
-        ``params=[300, 10, 2, 150, 15, 1]`` using the boundaries specified in 
-        ``self.gauss_bounds``.
+        .. note::
         
-        Note
-        ----
-        
-        If any of the parameters in ``params`` is out of the acceptance
-        borders specified in ``self.gauss_bounds``, the corresponding 
-        parameters will be updated to the corresponding boundary value.
-        
-        Parameters
-        ----------
-        params : list
-            list of gauss parameters (e.g. ``self.params``)
- 
-        Returns
-        -------
-        tuple 
-            2-element tuple, containing
-            
-            - :obj:`list`: new parameter list (only those matching boundaries)
-            - :obj:`tuple`: corresponding lower and upper boundaries
+            If any of the parameters in ``paramList`` is out of the acceptance
+            borders specified in ``self.gauss_bounds`` it will be disregarded in
+            the fit
             
         """
-        if not mod(len(guess), 3) == 0:
+        if not mod(len(params),3) == 0:
             #print "Error: length of gauss param list must be divisable by three.."
             return []
-        sub = [guess[x : x + 3] for x in range(0, len(guess), 3)]
-        params_new = []
-        for peak in sub:
-            params_new.extend(self.check_peak_bounds(peak))
+        sub = [params[x : x + 3] for x in range(0, len(params), 3)]
+        new_list = []
+        for pl in sub:
+            if self._in_bounds(pl):
+                new_list.extend(pl)
+            #else:
+                #print ("Gaussian in param list with params: " + str(pl) + "out "
+                   # "of acceptance boundaries -> will be disregarded..:")
         lower, upper = [], []
         l, u = self._prep_bounds_single_gauss()
-        for k in range(len(params_new) / 3):
+        for k in range(len(new_list) / 3):
             lower.extend(l)
             upper.extend(u)
         bds = (lower, upper)
-        return params_new, bds
+        return new_list, bds
         
-    def do_fit(self, x, y, guess):
+    def do_fit(self, x, y, *guess):
         """Perform a least squares minimisation
         
-        Perform least squares optimisiation for initial set of parameters and
-        input data (includes determination of fit boundary array for all 
-        initial peak guesses of input array).
-        
-        Parameters
-        ----------
-        x : array
-            x-argument for model function (index of data)
-        y : array
-            y-argument for input function (data)
-        guess : list
-            initial guess of fit parameters
-        
-        Returns
-        -------
-        bool
-            True, if optimisation was successful, False if not
+        :param array x: x argument for input function
+        :param array y: y argument for input function
+        :param list guess: initial guess of fit parameters
         """
         try:
-            params, bds = self.prepare_fit_boundaries(guess)    
+            params, bds = self.prepare_fit_boundaries(*guess)
             #print "Fitting data..."
             self._fit_result = res = least_squares(self.err_fun, params,
                                                    args=(x, y), bounds=bds)
@@ -564,94 +494,116 @@ class MultiGaussFit(object):
                 return False
             self.params = res.x
             return True
-        except:
+        except Exception:
             #print "Fit failed with exception: %s" %repr(e)
             return False
     
-    def opt_iter(self, add_params=[]):
-        """Search additional peaks in residual and apply fit 
-        
-        Extends current optimisation parameters by additional peaks (either
-        provided on input or automatically searched in residual) and performs
-        multi gauss fit.
-        
-        Parameter
-        ---------
-        add_params : list
-            list containing additional gauss parameters which are supposed to
-            be added to ``self.params`` before the fit is applied
-        Returns
-        -------
-        bool
-        
-            - False: Optimisation failed
-            - True: Optimisation was successful
-            
+    def result_ok(self):
+        """Compares current peak to peak residual (ppr) with noise amplitude
+        :returns bool: 1 if ``2*self.noise_amplitude > ppr``, else 0
         """
-        guess = list(self.params)
-        guess.extend(add_params)
-        if not self.do_fit(self.index, self.y, guess):
-            return False
-        return True
-        
+        if len(self.find_peak_positions_residual()) == 0:
+            return True
+        return False
+    
+    def auto_fit(self):
+        """Automatic least square analysis"""
+        idx_max = argmax(self.data)
+        if any([idx_max == x for x in [0, (len(self.data) - 1)]]):
+            raise ValueError("Could not perform MultiGaussFit: maximum of "
+                "data is at first or last index of data")
+        #print "Running multi gauss auto fit routine"
+        guess = self.find_peak_positions_residual()
+        #print "Initial peak search: found %s peaks" %(len(guess)/3.0)
+                
+        y = self.data - self.offset
+        if not self.do_fit(self.index, y, guess):
+            return 0
+        #print "Fit applied (first iter), current settings:"
+        #print self.info()
+        add_params = self.find_peak_positions_residual()
+        if add_params:
+            #print ("Found %s more peaks after first iter, running "
+               # "optimisation..." %(len(add_params)/3.0))
+            if not self.run_optimisation():
+                return 0
+        #print "Auto fit successfully finished"""
+        return 1
+
     def run_optimisation(self):
         """Run optimisation"""
-        res = self.get_residual()
-        # init optimisation info arrays
-        params_log = [self.params]
-        res_mus = [res.mean()]
-        res_stds = [res.std()]
+        last_params = self.params
+        residuals = [self.get_residual()]
+        chis = []
         for k in range(self.max_iter):
             if self.num_of_gaussians >= self.max_num_gaussians:
                 #print ("Max num of gaussians (%d) reached "
                    # "abort optimisation" %self.max_num_gaussians)
-                self._write_opt_log(params_log, res_mus, res_stds)
-                warn ("MultiGaussFit reached aborted: maximum number of "
-                      "Gaussians reached")
-                return False
-            add_params = self.find_additional_peaks()
-            if len(add_params) == 0:
-                # Optimisation was successful
-                self._write_opt_log(params_log, res_mus, res_stds)
-                return True
-            
-            # perform fit based on current parameters
-            if not self.opt_iter(add_params):
+                self._write_opt_log(chis, residuals)
+                warn ("MultiGaussFit reached aborted at maximum number of "
+                    "allowed gaussians")
+                return 0
+            if not self.optimise_result():
                 #print ("Optimisation failed,  aborted at iter %d" %k)
-                self._write_opt_log(params_log, res_mus, res_stds)
+                self._write_opt_log(chis, residuals)
                 warn("Optimisation failed in MultiGaussFit")
-                return False
+                return 0
             
-            res = self.residual
-            # append relevant information to optimisation log
-            params_log.append(self.params)
-            res_mus.append(res.mean())
-            res_stds.append(res.std())   
+            residuals.append(self.get_residual())
+            chis.append(residuals[-1].std() / residuals[-2].std())
+            #print "Current iter: %s, current chi: %.2f" %(k, chis[-1])
+            if chis[-1] > 1:
+                #print "Optimisation stopped, chi increased..."
+                self.params = last_params
+                self._write_opt_log(chis, residuals)
+                return 1
+            last_params = self.params
+            if self.get_peak_to_peak_residual() < self.noise_amplitude or\
+                                    0.9 < chis[-1] <= 1.0:
+                #print "Optimisation successfully finished"
+                self._write_opt_log(chis, residuals)
+                return 1
         #print "Optimisation aborted, maximum number of iterations reached..."
-        self._write_opt_log(params_log, res_mus, res_stds)
+        self._write_opt_log(chis, residuals)
         warn("MultiGaussFit max iter reached..")
-        return False
+        return 0
         
-    def _write_opt_log(self, params, mus, stds):
-        """Log optimisation params, and corresponding residual info"""
-        self.opt_log["params"] = asarray(params)
-        self.opt_log["mu"] = asarray(mus)
-        self.opt_log["std"] = asarray(stds)
-    
-    ### Quality checks, etc..
-    def result_ok(self):
-        """Compares current peak to peak residual (ppr) with noise amplitude
-        :returns bool: 1 if ``2*self.noise_amp > ppr``, else 0
+    def _write_opt_log(self, chis, residuals):
+        """Write chi values and residuals from optimisation"""
+        self.optimise_log["chis"] = chis
+        self.optimise_log["residuals"] = residuals
+        
+    def optimise_result(self, add_params=None):
+        """Optimise current result
+        
+        :param add_params: list containing additional peak params (guess) which
+            are not yet included within the fit. If default (None), additional
+            peaks are searched in the current fit residual
+        
+        Extends current optimisation parameters by additional peaks (either
+        provided on input or automatically searched in residual) and performs
+        multi gauss fit.
         """
-        if len(self.find_additional_peaks()) == 0:
-            return True
-        return False
-        
-    ### Post analysis methods for fitted Gaussian mixture model
+        if add_params is None:
+            add_params = self.find_peak_positions_residual()
+        if not len(add_params) > 0:
+            #print ("Optimisation aborted, no additional peaks could be "
+                  #  "detected in current fit residual")
+            return 1
+        guess = list(self.params)
+        guess.extend(add_params)
+        y = self.data - self.offset
+        if not self.do_fit(self.index, y, guess):
+            return 0
+        return 1
+
+    """
+    Fit analysis, results, post processing, etc..
+    """
     def find_overlaps(self, sigma_tol=None):
-        """ Find overlapping Gaussians for current optimisation params
+        """ Find overlapping gaussians for current optimisation params
         
-        Loops over all current Gaussians (``self.gaussians``) and for each of
+        Loops over all current gaussians (``self.gaussians``) and for each of
         them, finds all which fall into :math:`3\\sigma` range.
         
         Parameters
@@ -684,59 +636,11 @@ class MultiGaussFit(object):
             int_vals.append(int_val)
             
         return info, int_vals
-    
-    def analyse_fit_result(self, sigma_tol_overlaps=None):
+
+    def analyse_fit_result(self, sigma_tol=None):
         """Analyse result of optimisation
         
-        Find main peak (can be overlap of single Gaussians) and potential other
-        peaks.
-        
-        Parameters
-        ----------
-        sigma_tol : :obj:`float`, optional
-            sigma tolerance level for finding overlapping Gaussians, if None, 
-            use :attr:`sigma_tol_overlaps`.
-            
-        Returns
-        -------
-        tuple
-            4-element tuple containing
-            
-            - :obj:`float`: center position (:math:`\\mu`) of predominant peak
-            - :obj:`float`: corresponding standard deviation 
-            - :obj:`float`: integral value of predominant peak
-            - :obj:`list`: additional Gaussians (from fit result) that are \
-                not lying within specified tolerance interval of main peak
-        """
-        if sigma_tol_overlaps is None:
-            sigma_tol_overlaps = self.sigma_tol_overlaps
-            
-        info, ints = self.find_overlaps(sigma_tol_overlaps)
-        #the peak index with largest integral value for integrated superposition
-        #of all gaussians which are within 3sigma of this peak
-        ind = argmax(ints) 
-        #list of all gaussians contributing to max integral val
-        gs = info[ind] 
-        #Gaussians belonging to main peak
-        params_mp = []
-        for g in gs:
-            params_mp.extend(g)
-    
-        x = self.index
-        params_mp_norm = self.normalise_params(params_mp)
-        mp_norm  = multi_gaussian_no_offset(x, *params_mp_norm)
-        mu = self.det_moment(x, mp_norm, 0, 1)
-        sigma = sqrt(self.det_moment(x, mp_norm, mu, 2))
-        add_g = self.get_all_gaussians_out_of_sigma_range(mu,
-                                                          sigma,
-                                                          sigma_tol_overlaps)
-                                                             
-        return (mu, sigma, ints[ind], add_g)
-        
-    def analyse_fit_result_old(self, sigma_tol=None):
-        """Analyse result of optimisation
-        
-        Find main peak (can be overlap of single Gaussians) and potential other
+        Find main peak (can be overlap of single gaussians) and potential other
         peaks.
         
         Parameters
@@ -791,111 +695,67 @@ class MultiGaussFit(object):
         
         return mean_mu, mean_sigma, max_int, add_gaussians
         
-    ### Helpers / post analysis
-    def normalise_params(self, params=None):
-        """Get normalised distribution of Gaussians"""
-        if params is None:
-            params = self.params
-        ints = self.integrate_all_gaussians(params)
-        weights = ints / ints.sum()
-        norm = []
-        gs = self._params_to_sublist(params)
-        print "NUM of cons. peaks for normalisation: (%d | %d)" %(len(gs), len(self.gaussians()))
-        for k in range(len(gs)):
-            g = gs[k]
-            mu, sigma = g[1], g[2]
-            norm.extend([weights[k]/(sigma*sqrt(2*pi)), mu, sigma])
-        return norm
-        
+    """
+    Helpers
+    """
     def gaussians(self):
-        """Get list containing fitted parameters for each Gaussian"""
-        return self._params_to_sublist(self.params)
-        
-    def _params_to_sublist(self, params):
-        """Convert fit paramer list to list containing each Gaussian sep"""
-        return [params[i:i + 3] for i in range(0, len(params), 3)]
+        """Split self.params (i.e. parameters of all gaussians) into sublists
+        containing information of individual gaussians
+        """
+        return [self.params[i:i + 3] for i in range(0, len(self.params), 3)]
         
     def integrate_gauss(self, amp, mu, sigma, start=-inf, stop=inf):
-        """Return integral value of one Gaussian
-        
-        Parameters
-        ----------
-        amp : float
-            amplitude of Gaussian
-        mu : float
-            mean of Gaussian
-        sigma : float
-            standard deviation
-        start : 
-            left integral border, defaults to :math:`-\infty`            
-        stop : 
-            right integral border, defaults to :math:`\infty`            
+        """Return integral value of one gaussian
+        :param float amp: amplitude of gaussian
+        :param float mu: mean of gaussian
+        :param float sigma: standard deviation
+        :param float start (-inf): left integral border
+        :param float stop (inf): right integral border
         """
         if start == -inf and stop == inf:
             return amp * sigma * sqrt(2 * pi)
         g = [amp, mu, sigma]
         return quad(lambda x: gaussian_no_offset(x, *g), start, stop)[0]
     
-    def integrate_all_gaussians(self, params=None):
-        """Determines the integral values of all Gaussians in ``self.gaussians`` 
-        :returns list: integral values for each Gaussian
+    def integrate_all_gaussians(self):
+        """Determines the integral values of all gaussians in ``self.gaussians`` 
+        :returns list: integral values for each gaussian
         """
         vals = []
-        if params is None:
-            gaussians = self.gaussians()
-        else:
-            gaussians = self._params_to_sublist(params)
-        for g in gaussians:
+        for g in self.gaussians():
             vals.append(self.integrate_gauss(*g))
-        return asarray(vals)
+        return vals
     
-    def det_moment(self, index, data, center, n):
-        """Determine n-th moment of distribution"""
-        return sum((index - center)**n * data) / sum(data)
+    def create_test_data_singlegauss(self, add_noise=1):
+        """Make a test data set with a single gaussian
         
-    ### Creation of test data
-    def create_test_data_singlegauss(self, add_noise=True, noise_frac=0.05):
-        """Make a test data set containing a single Gaussian (without offset)
-        
-        The parameters of the Gaussian are ``[300, 150, 20]``
-        
-        Parameters
-        ----------        
-        add_noise : bool
-            add noise to test data
-        noise_frac : float
-            determines noise amplitude (fraction relative to max amplitude of
-            Gaussian)
+        :param bool add_noise: add noise to test data
         """
+        self.id = "test_data"
         x = linspace(0, 400, 401)
-        amp = 300
-        params = [amp, 150, 20]
+        params = [300, 150, 20]
         y = multi_gaussian_same_offset(x, 15, *params)
         if add_noise:
-            y = y + amp * noise_frac * random.normal(0, 1, size = len(x))
+            y = y + 5*random.normal(0, 1, size = len(x))
         self.set_data(y, x)
         
-    def create_test_data_multigauss(self, add_noise=True, noise_frac=0.03):
-        """Create test data set containing 5 overlapping Gaussians
+    def create_test_data_multigauss(self, add_noise=1):
+        """Make a test data set
         
-        Parameters
-        ----------        
-        add_noise : bool
-            add noise to test data
-        noise_frac : float
-            determines noise amplitude (fraction relative to max amplitude of
-            Gaussian)
+        :param bool add_noise: add noise to test data
     
         """
+        self.id="test_data"
         x = linspace(0,400,401)
         params = [150,30,8,200,110,3,300,150,20,75,370,40,300,250,1]
         y = multi_gaussian_same_offset(x, 45, *params)
         if add_noise:
-            y = y + 300 * noise_frac * random.normal(0, 1, size=len(x))
+            y = y + 5*random.normal(0, 1, size = len(x))
         self.set_data(y, x)
         
     def create_noise_dataset(self):
         """Make pure noise and set as current data"""
+        self.id="noise"
         x = linspace(0,400,401)
         y = 5 * random.normal(0, 1, size=len(x))
         self.set_data(y, x)
@@ -903,77 +763,44 @@ class MultiGaussFit(object):
     def apply_binomial_filter(self, data=None, sigma=1):
         """Returns filtered data using 1D gauss filter
         
-        Parameters
-        ----------
-        data : :obj:`array`, optional
-            data to be smoothed, if None, use ``self.data``
-        sigma : int
-            width of smoothing kernel, defaults to 1
-            
-        Returns
-        -------
-        array
-            smoothed data array
+        :param array data (None): data to be filtered, default None means that
+            ``self.data`` is used
+        :param int sigma (1): width of smoothing kernel
         
         """
         if data is None:
-            data = self.data
+            data=self.data
         return gaussian_filter1d(data, sigma)
     
     def first_derivative(self, data=None):
-        """Determines and returns first derivatieve of data
+        """Apply discrete gradient to data
         
-        The derivative is determined using the numpy method :func:`gradient`
-        
-        Parameters
-        ----------
-        data : :obj:`array`, optional
-            data to be smoothed, if None, use ``self.data``
-        
-        Returns
-        -------
-        array
-            array containing gradients
+        :param ndarray data (None): data array (if None, use ``self.data``)
         """
         if data is None:
             data = self.data
         return gradient(data)        
         
-    def set_noise_amp(self, ampl):
-        """Set the current fit amplitude threshold
+    def set_noise_amplitude(self, ampl):
+        """Set an amplitude threshold for the peak search
         
         :param float ampl: amplitude of noise level
         """
-        self.noise_amp = ampl
+        self.noise_amplitude = ampl
     
-    def estimate_noise_amp(self, sigma_gauss=3, sigma_tol=3,
-                           cut_out_width=None):
+    def estimate_noise_amplitude(self, sigma_gauss = 1, std_fac = 3,\
+                                                        cut_out_width = None):
         """Estimate the noise amplitude of the current data
         
-        
-        Parameters
-        ----------
-        sigma_gauss : int
-            width of smoothing kernel applied to data in order to determine 
-            analysis signal
-        sigma_tol : float
-            factor by which noise signal standard deviation is multiplied in 
-            order to estimate noise amplitude
-        cut_out_width : 
-            specifyies the width of index neighbourhood around narrow peaks 
-            which is to be disregarded for statistics of noise amplitude. Such 
-            narrow peaks can remain in the analysis signal. If None, it is set 
-            3 times the width of the smoothing kernel used to determine the 
-            analysis signal.
-            
-        Returns
-        -------
-        tuple
-            3-element tuple containing
-            
-            - :obj:`float`: the analysis signal
-            - :obj:`array`: mask specifying indices used to determine the ampl.
-            - :obj:`array`: inital index array
+        :param int sigma_gauss: width of smoothing kernel applied to data in 
+            order to determine analysis signal
+        :param float std_fac: factor by which noise signal standard deviation
+            is multiplied in order to estimate noise amplitude
+        :param cut_out_width: specifyies the width of index neighbourhood 
+            around narrow peaks which is to be disregarded for statistics of
+            noise amplitude. Such narrow peaks can remain in the analysis 
+            signal. If None, it is set 3 times the width of the smoothing 
+            kernel used to determine the analysis signal.
             
         """
         if cut_out_width is None:
@@ -981,16 +808,93 @@ class MultiGaussFit(object):
         mask = full(len(self.data), True, dtype = bool)
         width = int(self.x_resolution * cut_out_width)
         #Analysis signal
-        signal = self.data - self.apply_binomial_filter(sigma=sigma_gauss)
-        idxs = where(abs(signal) > sigma_tol * signal.std())[0]
+        signal = self.data - self.apply_binomial_filter(sigma = sigma_gauss)
+        idxs = where(abs(signal) > std_fac * signal.std())[0]
         for idx in idxs:
              mask[idx - width : idx + width] = False
-        try:
-            self.noise_amp = sigma_tol * signal[mask].std()
-        except:
-            warn("Using conservative estimate for noise amplitude")
-            self.noise_amp = sigma_tol * signal.std()
+        self.noise_amplitude = std_fac * signal[mask].std()
         return signal, mask, idxs
+        
+    def estimate_noise_amplitude_alt(self, sigma_gauss = 1, medianwidth = 3,\
+                                cut_out_width = 20, thresh = 0.75, max_iter = 10):
+        """Estimate the amplitude of the noise in the data
+        
+        :param int sigma_gauss (3): width of gaussian smoothing kernel for high
+            pass filter
+        :param int medianwidth (3): width of median filter applied to low pass
+            signal (for removal of narrow peaks)
+        :param int cut_out_width (20): factor defining width of cutted out region
+            around bad areas at each iteration
+        :param float thresh (0.75): percentage threshold for std comparison of 
+            target signals to fulfill "ok" condition 
+        :param int max_iter (10): max number of iterations for optimisation
+        
+        Steps:
+
+            1. Determine bool array ``B`` of ones (all data is considered 
+                                                                    initially)
+            #. Determine high pass filtered data array (hp) by subtracting 
+                                                                    original
+                data from smoothed data using gaussian kernel of input width
+            #. Apply median filter to hp to reduce amplitudes of 
+                remaining narrow and sharp peaks (e.g. salt & pepper peaks), 
+                resulting in signal "hp_median"
+            #. Run optimisation until max_iter is reached or "ok" condition is
+                fulfilled. The ok condition is
+                ``hp_median[B].std() / hp[B].std > thresh``
+                and ``B`` is reduced by sharp peak areas at each iteration by 
+                analysing target signal ``hp[B]`` for position of max 
+                amplitude and cutting window around this region where the width 
+                of this window is specified by ``self.x_resolution*cut_out_width``
+            #. Finally, if "ok" condition is reached, it is checked whether 
+                enough datapoints remain when applying ``B`` to ``hp`` and if 
+                not, "ok" condition is set to False
+            #. Finally, based on result (i.e. "ok" is True or False) the 
+                noise amplitude is estimated from the standard deviation of the
+                high pass filtered signal (hp) either considering all datapoints
+                (i.e. if optimisation failed) or of all datapoints within ``B``
+                
+            
+        """
+        #make bool array of indices considered (initally all)
+        b = full(len(self.data), True, dtype=bool)
+        #width in indices of window cutted out around deviations at each 
+        #optimisation iteration
+        w = self.x_resolution * cut_out_width
+        #Smooth by width 3 and pick every 3rd entry of difference signal
+        d = self.data - self.apply_binomial_filter(sigma = sigma_gauss)
+        dm = median_filter(d,medianwidth)
+        #diff = dm - d
+        ok = False
+        for k in range(max_iter):
+            #print "Current iteration: " + str(k)
+            if dm[b].std() / d[b].std() < thresh: 
+                #print "Significant difference found, optimising..."
+                ind1 = argmax(d[b])
+                ind2 = argmin(d[b])       
+                if abs(d[b][ind1]) > abs(d[b][ind2]):
+                    ind = ind1
+                else: 
+                    ind = ind2
+                #print "Bad index at: " + str(ind)
+                #print "Cut out index window: " + str(ind-w) + " - " + str(ind+w)
+                b[ind-w:ind+w]=False
+                #print "Current number of considered indices: " + str(sum(b))
+            else:
+                ok = True
+                #print "Optimisation finished"
+                break
+        
+        if float(sum(b)) / len(d) < 0.2:
+            #print "Too little remaining data points, using conservative approach"
+            ok = False
+        if ok:
+            self.noise_amplitude = 6*d[b].std()#d[b].max()-d[b].min()
+        else:
+            #print "Optimisation failed, use std of high pass filtered signal"
+            self.noise_amplitude = 6*d.std()
+        #print "Estimated noise amplitude: %s" %self.noise_amplitude
+        return self.noise_amplitude
     
     def max(self):
         """Return max value and x position of current parameters (not of data)"""
@@ -1002,7 +906,7 @@ class MultiGaussFit(object):
     
     @property   
     def num_of_gaussians(self):
-        """Get the current number of Gaussians, which is the length 
+        """Get the current number of gaussians, which is the length 
         
         :returns: 
             - float, ``len(self.params) / 3`` 
@@ -1046,7 +950,7 @@ class MultiGaussFit(object):
         #print "Found sub intervals: " + str(ind)
         return ind
         
-    def get_residual(self, params=None, mask=None):
+    def get_residual(self, params = None, mask = None):
         """Get the current residual
         
         :param list params: Multi gauss parameters, if None, use 
@@ -1066,7 +970,7 @@ class MultiGaussFit(object):
         dat = y - self.offset
         return dat - multi_gaussian_no_offset(x, *params)
         
-    def get_peak_to_peak_residual(self, params=None):
+    def get_peak_to_peak_residual(self, params = None):
         """Return peak to peak difference of fit residual
         
         :param list params: mutligauss optimisation parameters, if default
@@ -1077,12 +981,12 @@ class MultiGaussFit(object):
         res = self.get_residual(params)
         return res.max() - res.min()
     
-    def cut_sigma_range(self, x, y, params, n_sigma=4):
-        """Cut out a N x sigma environment around Gaussian from data
+    def cut_sigma_range(self, x, y, params, n_sigma = 4):
+        """Cut out a N x sigma environment around gaussian from data
         
         :param array x: x-data array
         :param array y: y-data array
-        :param list params: Gaussian fit parameters [ampl, mu, sigma]
+        :param list params: gaussian fit parameters [ampl, mu, sigma]
         :param int n_sigma: N (e.g. 3 => 3* sigma environment will be cutted)
         """
         data = []
@@ -1125,30 +1029,8 @@ class MultiGaussFit(object):
             return 0
         return 1
         
-    def check_peak_bounds(self, params):
-        """Checks if gauss params fulfill current boundary conditions
-        
-        :param params: parameters of a single gauss ``[amp, mu, sigma]``
-        """
-        bds = self.gauss_bounds
-        if params[0] < bds["amp"][0]:
-            params[0] = bds["amp"][0]
-        elif params[0] > bds["amp"][1]:
-            params[0] = bds["amp"][1]
-            
-        if params[1] < bds["mu"][0]:
-            params[1] = bds["mu"][0]
-        elif params[1] > bds["mu"][1]:
-            params[1] = bds["mu"][1]
-        
-        if params[2] < bds["sigma"][0]:
-            params[2] = bds["sigma"][0]
-        elif params[2] > bds["sigma"][1]:
-            params[2] = bds["sigma"][1]
-        return params
-        
     def _value_range_single_gauss(self, x, p):
-        """Return max amplitude of min/max of Gaussian in x array
+        """Return max amplitude of min/max of gaussian in x array
         
         :param x: x values
         :param p: gauss params
@@ -1161,12 +1043,12 @@ class MultiGaussFit(object):
         
     def get_all_gaussians_within_sigma_range(self, mu, sigma,
                                              sigma_tol=None):
-        """Find all current Gaussians within sigma range of a Gaussian
+        """Find all current gaussians within sigma range of a gaussian
         
         Parameters
         ----------
         mu : float 
-            mean (x pos) of considered Gaussian
+            mean (x pos) of considered gaussian
         sigma : float
             corresponding standard deviation
         sigma_tol : :obj:`float`, optional
@@ -1192,12 +1074,12 @@ class MultiGaussFit(object):
     
     def get_all_gaussians_out_of_sigma_range(self, mu, sigma, 
                                              sigma_tol=None):
-        """Find all current Gaussians out of sigma range of a Gaussian
+        """Find all current gaussians out of sigma range of a gaussian
         
         Parameters
         ----------
         mu : float 
-            mean (x pos) of considered Gaussian
+            mean (x pos) of considered gaussian
         sigma : float
             corresponding standard deviation
         sigma_tol : :obj:`float`, optional
@@ -1319,7 +1201,7 @@ class MultiGaussFit(object):
     def plot_result(self, add_single_gaussians=False):
         """Plot the current fit result
         
-        :param bool add_single_gaussians: if True, all individual Gaussians are 
+        :param bool add_single_gaussians: if True, all individual gaussians are 
             plotted
             
         """
@@ -1338,7 +1220,7 @@ class MultiGaussFit(object):
             k = 1
             for g in self.gaussians(): 
                 self.plot_gaussian(self.index, g, ax = axes[0],\
-                    label = ("%d. Gaussian" %k))
+                    label = ("%d. gaussian" %k))
                 k += 1
                 
         axes[0].legend(loc = 'best', fancybox = True, framealpha = 0.5,\
@@ -1373,7 +1255,7 @@ class MultiGaussFit(object):
         
     
     def gauss_str(self, g):
-        """String representation of a Gaussian
+        """String representation of a gaussian
         
         :param list g: gauss parameter list ``[amp, mu, sigma]``
                         
@@ -1404,13 +1286,13 @@ class MultiGaussFit(object):
         """String representation"""
         gs = self.gaussians()
         s=("pyplis MultiGaussFit info\n--------------------------------\n\n"
-            "All current Gaussians:\n\n")
+            "All current gaussians:\n\n")
         for k in range(len(gs)):
             g = gs[k]
             s+= "Gaussian #%d\n%s\n" %(k, self.gauss_str(g))
             
         s += ("Current peak to peak residual: %s\nNoise amplitude: %s" 
-        %(self.get_peak_to_peak_residual(self.params), self.noise_amp))
+        %(self.get_peak_to_peak_residual(self.params), self.noise_amplitude))
         return s
 
 class PolySurfaceFit(object):
@@ -1510,7 +1392,7 @@ class PolySurfaceFit(object):
         self.auto_update = val
     
     def change_pyrlevel(self, newlevel):
-        """Change the level in the Gaussian pyramide where the fit is applied
+        """Change the level in the gaussian pyramide where the fit is applied
         """
         self.pyrlevel = newlevel
         if self.auto_update:
@@ -1557,7 +1439,7 @@ class PolySurfaceFit(object):
             self.do_fit()
             
     def pyr_down(self, arr, steps):
-        """Reduce the image size using Gaussian pyramide 
+        """Reduce the image size using gaussian pyramide 
         
         :param int steps: steps down in the pyramide
         
@@ -1568,7 +1450,7 @@ class PolySurfaceFit(object):
         return arr
     
     def pyr_up(self, arr, steps):
-        """Increasing the image size using Gaussian pyramide 
+        """Increasing the image size using gaussian pyramide 
         
         :param int steps: steps down in the pyramide
         
@@ -1605,7 +1487,10 @@ class PolySurfaceFit(object):
             print format_exc()
             return 0   
     
-    
+    @property
+    def residual(self):
+        """Get and return residual"""
+        return self.get_residual()
         
     def get_residual(self):
         """Get the current residual image array"""
@@ -1638,62 +1523,23 @@ class PolySurfaceFit(object):
         p3=ax.imshow(self.get_residual())#,vmin=l, vmax=h)
         fig.colorbar(p3,ax=ax,shrink=0.9)
         ax.set_title("Residual")
-
     
-        
 if __name__ == "__main__":
     import matplotlib.pyplot as plt
     import numpy as np
-    
-    TOL = 3
     plt.close("all")
-    f = MultiGaussFit()
-    f.create_test_data_multigauss(1, 0.03)
-    #f.create_test_data_singlegauss(0)
-    f.run_optimisation()
-    
+    f=MultiGaussFit()
+    f.create_test_data_multigauss()
+    f.auto_fit()
     axes=f.plot_result()
+    f.plot_signal_details()
     
-    p_norm = f.normalise_params()
+    curv = np.gradient(f.data_grad_smooth)
     
-    x = f.index
-    data_norm = multi_gaussian_no_offset(x, *p_norm)
+    cond1 = abs(f.data_grad_smooth) < 1
+    cond2 = curv < -0.5
+    cond = cond1 * cond2
+    peaks = f.index[cond]
+    print peaks
     
-    fig, ax = plt.subplots(1,1)
-    ax.plot(f.index, data_norm)
-    
-    mu0 = f.det_moment(x, data_norm,0,1)
-    sigma0 = np.sqrt(f.det_moment(x, data_norm, mu0, 2))
-    
-    ### COPY OF FUNC analyse_fit_result        
-    info, ints = f.find_overlaps(TOL)
-        #the peak index with largest integral value for integrated superposition
-        #of all gaussians which are within 3sigma of this peak
-    ind = argmax(ints) 
-    gs = info[ind] #list of all gaussians contributing to max integral val
-    max_int = ints[ind] #value of integrated superposition
-        #mu = self.gaussians()[ind][1] #mu of main peak
-        #if not low < mu < high:
-            #print("Main peak of multi gauss retrieval does not "
-           #     "match with main peak estimate from single gauss fit")
-    main_peak = []
-    for g in gs:
-        main_peak.extend(g)
-        
-    mp  = multi_gaussian_no_offset(x, *main_peak)
-    mu1 = f.det_moment(x, mp, 0, 1)
-    sigma1 = np.sqrt(f.det_moment(x, mp, mu1, 2))
-    
-    print "HERE"
-    mean_mu, mean_sigma, max_int, add_gaussians = f.analyse_fit_result_old(TOL)
-    mu2, sigma2, _, _ = f.analyse_fit_result(TOL)
- 
-    print "Mu, sigma (moments ALL): %.2f, %.2f" %(mu0, sigma0)
-    print "Mu, sigma (OLD METHOD): %.2f, %.2f" %(mean_mu, mean_sigma)
-    print "Mu, sigma (moments MAIN PEAK): %.2f, %.2f" %(mu1, sigma1)
-    print "Mu, sigma (moments MAIN PEAK normalised): %.2f, %.2f" %(mu2, sigma2)
-    
-    
-    
-    
-    
+    mean_mu, mean_sigma, max_int, add_gaussians = f.analyse_fit_result(1)
