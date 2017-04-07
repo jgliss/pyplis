@@ -1,6 +1,12 @@
 # -*- coding: utf-8 -*-
 """
 Image list objects of pyplis library
+
+.. todo::
+
+    1. Update indices in linked lists and linked dark / offset lists whenever
+       the attribute :attr:`files` is changed in an image list (e.g. in
+       :func:`clear`, :func:`pop`)
 """
 from numpy import asarray, zeros, argmin, arange, ndarray, float32, ceil,\
     isnan, logical_or, ones, uint8, finfo, exp
@@ -49,7 +55,7 @@ class BaseImgList(object):
     files : list
         list with image file paths
     list_id : str
-        a string used to identify this list (e.g. "my bad pics")
+        a string used to identify this list (e.g. "second_onband")
     list_type : str
         type of images in list (please use "on" or "off")
     camera : Camera
@@ -113,7 +119,23 @@ class BaseImgList(object):
         if self.data_available and init:
             self.load()
             
-    """ATTRIBUTES / DECORATORS""" 
+    """ATTRIBUTES / DECORATORS"""
+    @property
+    def start(self):
+        """Acquisistion time of first image"""
+        try:
+            return self.start_acq[0]
+        except IndexError:
+            raise IndexError("No data available")
+        
+    @property
+    def stop(self):
+        """Start acqusition time of last image"""
+        try:
+            return self.start_acq[-1]
+        except IndexError:
+            raise IndexError("No data available")
+        
     @property
     def this(self):
         """Current image"""
@@ -235,6 +257,11 @@ class BaseImgList(object):
     def data_available(self):
         """Wrapper for :func:`has_files`"""
         return self.has_files()
+        
+    @property
+    def has_images(self):
+        """Wrapper for :func:`has_files`"""
+        return self.has_files()
     
     @property
     def img_mode(self):
@@ -252,17 +279,23 @@ class BaseImgList(object):
         return "raw"
     
     @property
-    def acq_times(self):
-        """List containing all image acq. time stamps of this list
+    def start_acq(self):
+        """Array containing all image acq. time stamps of this list
         
+        Note
+        ----
         The time stamps are extracted from the file names
         """
         ts = self.get_img_meta_all_filenames()[0]
-        if ts is False:
-            raise ValueError("Image acquisition times could not be extracted"
-                " from file names")
         return ts
-
+    
+    @property
+    def acq_times(self):
+        """Wrapper (old name) for attribute start_acq"""
+        warn("Old name of attribute start_acq: still works, but annoys you "
+            "with this warning")
+        return self.start_acq
+        
     def activate_edit(self, val=True):
         """Activate / deactivate image edit mode
         
@@ -313,7 +346,7 @@ class BaseImgList(object):
             pass
         
     def clear(self):
-        """Empty this list (i.e. ``files``)"""
+        """Empty this list (i.e. :attr:`files`)"""
         self.files = []
     
     def separate_by_substr_filename(self, sub_str, sub_str_pos, delim="_"):
@@ -1557,8 +1590,14 @@ class ImgList(BaseImgList):
         img_temp = Img(self.files[self.cfn],
                        import_method=self.camera.image_import_method)
         if val.shape != img_temp.shape:
-            raise ValueError("Img shape mismatch between AA correction mask "
-                "and list images")
+            try:
+                val = val.to_pyrlevel(img_temp.pyrlevel)
+                if val.shape != img_temp.shape:        
+                    raise ValueError
+            except:
+                raise ValueError("Img shape mismatch between AA correction "
+                    "mask and list images")
+                
         self._aa_corr_mask = val
      
     @property
@@ -1702,8 +1741,12 @@ class ImgList(BaseImgList):
                      "current image is already a tau image"
                      %self.list_id)
                 return
+            vc = self.vigncorr_mode
+            self.vigncorr_mode = False
+            cim = Img(self.files[self.cfn],
+                      import_method=self.camera.image_import_method)
             bg_img = None
-            self.bg_model.set_missing_ref_areas(self.loaded_images["this"])
+            self.bg_model.set_missing_ref_areas(cim)
             if self.bg_model.mode == 0:
                 print ("Background correction mode is 0, initiating settings "
                     "for poly surface fit")
@@ -1723,7 +1766,8 @@ class ImgList(BaseImgList):
                         "modelling mode to 0 using self.bg_model.mode=0)" 
                         %self.list_id)
                 bg_img = self.bg_img
-            self.bg_model.get_tau_image(self.loaded_images["this"], bg_img)
+            self.bg_model.get_tau_image(cim, bg_img)
+            self.vigncorr_mode = vc
         self._list_modes["tau"] = val
         self.load()
     
@@ -2428,7 +2472,8 @@ class ImgList(BaseImgList):
         """
         mask = self.this.duplicate().to_binary(thresh).img
         if this_and_next and not self.cfn == self.nof - 1:
-            mask = logical_or(mask, self.next.duplicate().to_binary(thresh).img)
+            mask = logical_or(mask, 
+                              self.next.duplicate().to_binary(thresh).img)
         return mask
 
     def det_vign_mask_from_bg_img(self):
@@ -2611,9 +2656,13 @@ class ImgList(BaseImgList):
         
         
         dists = plume_dists
+        
         if dists is None:
             try:
-                _, _, dists = self.meas_geometry.get_all_pix_to_pix_dists() 
+                (_, 
+                 _, 
+                 dists) = self.meas_geometry.get_all_pix_to_pix_dists(
+                             pyrlevel=self.pyrlevel) 
                 dists = dists.img
             except:
                 raise ValueError("Measurement geometry not ready for access "
@@ -2640,7 +2689,7 @@ class ImgList(BaseImgList):
         return (self.current_img(), ext_coeff, bg, dists, plume_pix_mask)
     
     def correct_dilution(self, tau_thresh=0.05, plume_pix_mask=None,
-                         plume_dists=None):
+                         plume_dists=None, ext_coeff=None):
         """Correct current image for signal dilution
         
         Requires measurement geometry (:attr:`meas_geometry`) and extinction
@@ -2662,6 +2711,11 @@ class ImgList(BaseImgList):
         plume_dists : :obj:`array`, :obj:`Img`, :obj:`float`
             plume distance(s) in m. If input is numpy array or :class:`Img` 
             then, it must have the same shape as the current image
+        ext_coeff : :obj:`float`, optional
+            atmospheric extinction coefficient. If unspecified, try access 
+            via :attr:`ext_coeff` which returns the current extinction 
+            coefficient and raise :obj:`AttributeError` in case, no coeffs are
+            assigned to this list
             
         Returns
         -------
@@ -2680,7 +2734,9 @@ class ImgList(BaseImgList):
          plume_dists, 
          plume_pix_mask) = self.prep_data_dilutioncorr(tau_thresh,
                                                        plume_pix_mask, 
-                                                       plume_dists)
+                                                       plume_dists, 
+                                                       ext_coeff)
+                                                       
                                                        
         corr = correct_img(img, ext_coeff, bg, plume_dists, plume_pix_mask)
                                   
@@ -2689,11 +2745,11 @@ class ImgList(BaseImgList):
             
         return (corr, bg, plume_pix_mask)
    
-    def correct_dilution_all(self, tau_thresh=0.05, add_off_list=True, 
-                             save_dir=None, save_masks=False, 
-                             save_bg_imgs=False, save_tau_prev=False,
-                             vmin_tau_prev=None, vmax_tau_prev=None,
-                             **kwargs):
+    def correct_dilution_all(self, tau_thresh=0.05, ext_on=None, ext_off=None,
+                             add_off_list=True, save_dir=None, 
+                             save_masks=False, save_bg_imgs=False, 
+                             save_tau_prev=False, vmin_tau_prev=None, 
+                             vmax_tau_prev=None, **kwargs):
         """Correct all images for signal dilution
         
         Correct and save all images in this list for the signal dilution 
@@ -2711,6 +2767,14 @@ class ImgList(BaseImgList):
         tau_thresh : :obj:`float`, optional
             tau threshold applied to determine plume pixel mask (retrieved 
             using :attr:`tau_mode`, not :attr:`aa_mode`)
+        ext_on : :obj:`float`, optional
+            atmospheric extinction coefficient at on-band wavelength, if None
+            (default), try access via :attr:`ext_coeff`
+        ext_off : :obj:`float`, optional
+            atmospheric extinction coefficient at off-band wavelength. Only 
+            relevant if input param ``add_off_list`` is True. If None (default)
+            and ``add_off_list=True`` try access via :attr:`ext_coeff` in off
+            band list.
         add_off_list : bool
             if True, also the images in a linked off-band image list 
             (using :func:`get_off_list`) are corrected as well. For the 
@@ -2725,9 +2789,10 @@ class ImgList(BaseImgList):
             :param:`save_dir` in which all plume pixel masks are stored as
             FITS
         save_bg_imgs : bool 
-            if True, a folder *bg_imgs* is created which is used to store all
-            retrieved plume background images (this folder can be used on 
-            re-import of the data in order to save background modelling time)
+            if True, a folder *bg_imgs* is created which is used to store 
+            modelled plume background images for each image in this list. This 
+            folder can be used on re-import of the data in order to save 
+            background modelling time using background modelling mode 99.
         save_tau_prev : bool
             if True, png previews of dilution corrected tau images are saved
         vmin_tau_prev : :obj:`float`, optional
@@ -2740,10 +2805,11 @@ class ImgList(BaseImgList):
         """
         ioff()
         if save_dir is None or not exists(save_dir):
-            save_dir = abspath(join(dirname(self.files[0]), "..", 
-                                    "dilutioncorr"))
-            if not exists(save_dir):
-                mkdir(save_dir)
+            save_dir = abspath(join(dirname(self.files[0]), ".."))
+        save_dir = join(save_dir, "dilutioncorr")
+        
+        if not exists(save_dir):
+            mkdir(save_dir)
         if save_masks:
             mask_dir = join(save_dir, "plume_pix_masks")
             if not exists(mask_dir):
@@ -2764,7 +2830,7 @@ class ImgList(BaseImgList):
              bg, 
              plume_dists, 
              plume_pix_mask) = self.prep_data_dilutioncorr(tau_thresh,
-                                                           **kwargs)
+                                                           ext_coeff=ext_on)
             if add_off_list:
                 off = self.get_off_list()
                 (img_off, 
@@ -2774,7 +2840,8 @@ class ImgList(BaseImgList):
                  plume_pix_mask) = off.prep_data_dilutioncorr(plume_pix_mask=
                                                               plume_pix_mask,
                                                               plume_dists=
-                                                              plume_dists)
+                                                              plume_dists,
+                                                              ext_coeff=ext_off)
         except:
             raise Exception("Failed to initiate dilution correction with "
                 "error:\n%s" %format_exc())
@@ -2784,7 +2851,8 @@ class ImgList(BaseImgList):
             (corr, 
              bg, 
              plume_pix_mask) = self.correct_dilution(tau_thresh=tau_thresh,
-                                                     plume_dists=plume_dists)
+                                                     plume_dists=plume_dists,
+                                                     ext_coeff=ext_on)
             corr.save_as_fits(save_dir)
             fname = corr.meta["file_name"]
             if save_masks:
@@ -2801,20 +2869,19 @@ class ImgList(BaseImgList):
                 fig.savefig(join(tau_dir, name))
                 close("all")
                 del fig
-            if not off.current_img().meta["file_name"] in saved_off:
-                # use on band plume pixel mask
-                (corr_off, 
-                 bg_off, 
-                 _) = off.correct_dilution(plume_pix_mask=plume_pix_mask,
-                                           plume_dists=plume_dists)
-                saved_off.append(corr_off.save_as_fits(save_dir))
-                if save_bg_imgs:
-                    bg_off.save_as_fits(bg_dir, corr_off.meta["file_name"])    
+            if add_off_list:
+                if not off.current_img().meta["file_name"] in saved_off:
+                    # use on band plume pixel mask
+                    (corr_off, 
+                     bg_off, 
+                     _) = off.correct_dilution(plume_pix_mask=plume_pix_mask,
+                                               plume_dists=plume_dists)
+                    saved_off.append(corr_off.save_as_fits(save_dir))
+                    if save_bg_imgs:
+                        bg_off.save_as_fits(bg_dir, corr_off.meta["file_name"])    
             
             self.next_img()
         ion()
-        return (img, img_off, ext_coeff, ext_coeff_off, bg, bg_off,
-                plume_dists, plume_pix_mask)
                 
     """I/O"""
     def import_ext_coeffs_csv(self, file_path, header_id, **kwargs):
@@ -2892,15 +2959,20 @@ class ImgList(BaseImgList):
         if self.vigncorr_mode:
             img.correct_vignetting(self.vign_mask, new_state=True)
         if self.tau_mode:
+            bg = self.bg_img.to_pyrlevel(img.pyrlevel)
             img = self.bg_model.get_tau_image(plume_img=img, 
-                                              bg_img=self.bg_img,
+                                              bg_img=bg,
                                               update_imgs=upd_bgmodel)
         elif self.aa_mode:
-            off = self.get_off_list()
+            bg_on = self.bg_img.to_pyrlevel(img.pyrlevel)
+            off_list = self.get_off_list()
+            off_img = off_list.current_img().to_pyrlevel(img.pyrlevel)
+            bg_off = off_list.bg_img.to_pyrlevel(img.pyrlevel)
+            
             img = self.bg_model.get_aa_image(plume_on=img, 
-                                             plume_off=off.current_img(),
-                                             bg_on=self.bg_img, 
-                                             bg_off=off.bg_img,
+                                             plume_off=off_img,
+                                             bg_on=bg_on,
+                                             bg_off=bg_off,
                                              update_imgs=upd_bgmodel)
             if self.sensitivity_corr_mode:
                 img = img / self.aa_corr_mask
@@ -2926,8 +2998,9 @@ class ImgList(BaseImgList):
                  import_method=self.camera.image_import_method)
         off = Img(off_list.files[off_list.cfn],
                   import_method=self.camera.image_import_method)
-        return self.bg_model.get_aa_image(on, off, self.bg_img,
-                                          off_list.bg_img)
+        bg_on = self.bg_img.to_pyrlevel(on.pyrlevel)
+        bg_off = off_list.bg_img.to_pyrlevel(off.pyrlevel)
+        return self.bg_model.get_aa_image(on, off, bg_on, bg_off)
         
 class CellImgList(ImgList):
     """Image list object for cell images

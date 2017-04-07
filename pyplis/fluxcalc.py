@@ -3,7 +3,7 @@
 """
 from warnings import warn
 from numpy import dot, sqrt, mean, nan, isnan, asarray, nanmean, nanmax,\
-    nanmin
+    nanmin, sum
 from matplotlib.dates import DateFormatter
 from collections import OrderedDict as od
 from matplotlib.pyplot import subplots
@@ -21,65 +21,190 @@ MOL_MASS_SO2 = 64.0638 #g/mol
 from .imagelists import ImgList
 from .plumespeed import LocalPlumeProperties  
 from .processing import LineOnImage  
-from .exceptions import ImgMetaError
-from .helpers import map_roi, check_roi
+from .helpers import map_roi, check_roi, exponent
 
 class EmissionRateSettings(object):
     """Class for management of settings for emission rate retrievals"""
-    def __init__(self, velo_glob=nan, velo_glob_err=None, **settings):
+    def __init__(self, pcs_lines=[], velo_glob=nan, velo_glob_err=nan, 
+                 **settings):
         self.velo_modes = od([("glob"               ,   True),
                               ("farneback_raw"      ,   False),
-                              ("farneback_histo"    ,   False)])
+                              ("farneback_histo"    ,   False),
+                              ("farneback_hybrid"   ,   False)])
+                              
+        self.pcs_lines = od() 
         
-        self.velo_glob_err = velo_glob_err
+        # Dictionary that will be filled with flags (in method add_pcs_line) 
+        # specifying whether or not local plume displacement information 
+        # (class LocalPlumeProperties, retrieved using optical flow histogram 
+        # analysis) are available in within the provided LineOnImage objects
+        # along which the emission rates are retrieved.
+        self.plume_props_available = od()
+        
+        self._velo_glob = nan
+        self._velo_glob_err = nan
         self.velo_glob = velo_glob
+        self.velo_glob_err = velo_glob_err
         
         self.senscorr = True #apply AA sensitivity correction
         self.min_cd = -1e30 #minimum required column density for retrieval [cm-2]
         self.mmol = MOL_MASS_SO2
         
+        try:
+            len(pcs_lines)
+        except:
+            pcs_lines = [pcs_lines]
+        
+        for line in pcs_lines:
+            self.add_pcs_line(line)
+            
         for key, val in settings.iteritems():
             self[key] = val
         
         if self.velo_modes["glob"]:
-            if velo_glob is None or isnan(velo_glob):
+            if not self._check_velo_glob_access():
                 warn("Deactivating velocity retrieval mode glob, since global"
                     " velocity was not provided")
                 self.velo_modes["glob"] = False
         if not sum(self.velo_modes.values()) > 0:
             warn("All velocity retrieval modes are deactivated")
     
+    def _check_velo_glob_access(self):
+        """Checks if global velocity information is accessible for all lines"""
+        vglob = self.velo_glob
+        if not isnan(float(vglob)):
+            return True
+        for l in self.pcs_lines.values():
+            try:
+                l.velo_glob
+            except:
+                return False
+        return True
+        
     @property
-    def farneback_required(self):
-        """Checks if current velocity mode settings require farneback algo"""
-        for k, v in self.velo_modes.iteritems():
-            if "farneback" in k and v:
-                return True
-        return False
+    def velo_mode_glob(self):
+        """Attribute velo_glob for velocity analysis retrieval"""
+        return self.velo_modes["glob"]
+        
+    @velo_mode_glob.setter
+    def velo_mode_glob(self, val):
+        self.velo_modes["glob"] = bool(val)
+    
+    @property
+    def velo_mode_farneback_raw(self):
+        """Attribute velo_glob for velocity analysis retrieval"""
+        return self.velo_modes["farneback_raw"]
+        
+    @velo_mode_farneback_raw.setter
+    def velo_mode_farneback_raw(self, val):
+        self.velo_modes["farneback_raw"] = bool(val)
+    
+    @property
+    def velo_mode_farneback_histo(self):
+        """Attribute for velocity analysis retrieval"""
+        return self.velo_modes["farneback_histo"]
+        
+    @velo_mode_farneback_histo.setter
+    def velo_mode_farneback_histo(self, val):
+        self.velo_modes["farneback_histo"] = bool(val)
+    
+    @property
+    def velo_mode_farneback_hybrid(self):
+        """Attribute for velocity analysis retrieval"""
+        return self.velo_modes["farneback_hybrid"]
+        
+    @velo_mode_farneback_hybrid.setter
+    def velo_mode_farneback_hybrid(self, val):
+        self.velo_modes["farneback_hybrid"] = bool(val)
         
     @property
     def velo_glob(self):
-        """Get / set global velocity"""
+        """Global velocity in m/s, assigned to this line
+        
+        Raises
+        ------
+        AttributeError
+            if current value is not of type float
+        """
         return self._velo_glob
         
     @velo_glob.setter
     def velo_glob(self, val):
-        """Set global velocity"""
+        try:
+            val = float(val)
+        except:
+            raise ValueError("Invalid input, need float or int...")
         if val < 0:
             raise ValueError("Velocity must be larger than 0")
         elif val > 40:
             warn("Large value warning: input velocity exceeds 40 m/s")
         self._velo_glob = val
         if self.velo_glob_err is None or isnan(self.velo_glob_err):
-            warn("No input for global velocity error, assuming 20% of "
-                "velocity")
-            self.velo_glob_err = val * 0.20
+            warn("Global velocity error not assigned, assuming 50% of "
+                 "velocity")
+            self.velo_glob_err = val * 0.50
+    
+    @property
+    def velo_glob_err(self):
+        """Error of global velocity in m/s, assigned to this line
+        """
+        return self._velo_glob_err
+        
+    @velo_glob_err.setter
+    def velo_glob_err(self, val):
+        try:
+            val = float(val)
+        except:
+            raise ValueError("Invalid input, need float or int...")
+        if not isnan(val):
+            self._velo_glob_err = val
+    
+    def add_pcs_line(self, line):
+        """Add one analysis line to this list
+        
+        Parameters
+        ----------
+        line : LineOnImage
+            emission rate retrieval line
+        """
+        if not isinstance(line, LineOnImage):
+            raise TypeError("Invalid input type for PCS line, need "
+                "LineOnImage...")
+        elif self.pcs_lines.has_key(line.line_id):
+            raise KeyError("A PCS line with ID %s already exists"
+                            %(line.line_id))
+        try:
+            line.velo_glob #raises exception if not assigned
+        except:
+            try:
+                line.velo_glob = self.velo_glob
+                err = self.velo_glob_err
+                if isinstance(err, float) and not isnan(err):
+                    line.velo_glob_err = err
+            except:
+                pass
+        try:
+            line.plume_props #raises exception if not assigned
+            self.plume_props_available[line.line_id] = 1
+        except:
+            print ("Creating new LocalPlumeProperties object in line %s" 
+                    %line.line_id)
+            line.plume_props = LocalPlumeProperties(roi_id=line.line_id)
+            self.plume_props_available[line.line_id] = 0
+            
+        self.pcs_lines[line.line_id] = line
         
     def __str__(self):
         """String representation"""
         s = "\npyplis settings for emission rate retrieval\n"
         s+= "--------------------------------------------\n\n"
-        s+= "Velocity retrieval:\n"
+        s+= "Retrieval lines:\n"
+        if bool(self.pcs_lines):
+            for v in self.pcs_lines.values():
+                s += "%s\n" %(v)             
+        else:
+            s += "No PCS lines assigned yet ...\n"
+        s += "\nVelocity retrieval:\n"
         for k, v in self.velo_modes.iteritems():
             s += "%s: %s\n" %(k,v)
         s+= "\nGlobal velocity: v = (%2f +/- %.2f) m/s" %(self.velo_glob,
@@ -110,7 +235,7 @@ class EmissionRateResults(object):
         
         self.pix_dist_mean = None
         self.pix_dist_mean_err = None
-        self.cd_err = None
+        self.cd_err_rel = None
     
     
     @property
@@ -125,9 +250,9 @@ class EmissionRateResults(object):
         
         date, i, f = self.get_date_time_strings()
         s = ("pcs_id=%s\ndate=%s\nstart=%s\nstop=%s\nvelo_mode=%s\n"
-             "pix_dist_mean=%s m\npix_dist_mean_err=%s m\ncd_err=%s cm-2"
+             "pix_dist_mean=%s m\npix_dist_mean_err=%s m\ncd_err_rel=%s cm-2"
              %(self.pcs_id, date, i, f, self.velo_mode, self.pix_dist_mean, 
-               self.pix_dist_mean_err, self.cd_err))
+               self.pix_dist_mean_err, self.cd_err_rel))
         return s
     
     def get_date_time_strings(self):
@@ -319,7 +444,8 @@ class EmissionRateResults(object):
         ax.grid()
         return ax
         
-    def plot(self, yerr=True, label=None, ax=None, date_fmt=None, **kwargs):
+    def plot(self, yerr=True, label=None, ax=None, date_fmt=None, ymin=None, 
+             ymax=None, alpha_err=0.1, **kwargs):
         """Plots emission rate time series
         
         Parameters
@@ -333,9 +459,14 @@ class EmissionRateResults(object):
         date_fmt : str
             optional, x label datetime formatting string, passed to 
             :class:`DateFormatter` (e.g. "%H:%M")
+        ymin : :obj:`float`, optional
+            lower limit of y-axis
+        ymax : :obj:`float`, optional
+            upper limit of y-axis
+        alpha_err : float
+            transparency of uncertainty range
         **kwargs
-            additional keyword args passed to plot function of :class:`Series`
-            object
+            additional keyword args passed to plot call
             
         Returns
         -------
@@ -356,7 +487,8 @@ class EmissionRateResults(object):
             s.index = s.index.to_pydatetime()
         except:
             pass
-        ax.plot(s.index, s.values, label=label, **kwargs)
+    
+        pl = ax.plot(s.index, s.values, label=label, **kwargs)
         try:
             if date_fmt is not None:
                 ax.xaxis.set_major_formatter(DateFormatter(date_fmt))
@@ -366,12 +498,92 @@ class EmissionRateResults(object):
             phi_upper = Series(phi + phierr, self.start_acq)
             phi_lower = Series(phi - phierr, self.start_acq)
         
-            ax.fill_between(s.index, phi_lower, phi_upper, alpha=0.1,
-                            **kwargs)
+            ax.fill_between(s.index, phi_lower, phi_upper, alpha=alpha_err,
+                            color = pl[0].get_color())
         ax.set_ylabel(r"$\Phi$ [g/s]", fontsize=16)
         ax.grid()
+        ylim = list(ax.get_ylim())
+        if ymin is not None:
+            ylim[0] = ymin
+        if ymax is not None:
+            ylim[1] = ymax
+        ax.set_ylim(ylim)
         return ax
+    
+    def __add__(self, other):
+        """Add emission rate results from two result classes
         
+        The values of the emission rates ``phi`` are added, the other data 
+        (``phi_err, velo_eff, velo_eff_err``) are averaged between this and 
+        the other time series.
+        
+        Parameters
+        ----------
+        other : EmissionRateResults
+            emission rate results from a different position in the image
+            
+        Returns
+        -------
+        EmissionRateResults
+            added results
+        """
+        if not isinstance(other, EmissionRateResults):
+            raise ValueError("Invalid input, need EmissionRateResults class")
+        df = self.to_pandas_dataframe()
+        df1 = other.to_pandas_dataframe()
+        df["_phi"] += df1["_phi"]
+        df["_phi_err"] = (df["_phi_err"] + df1["_phi_err"]) / 2.
+        df["_velo_eff"] = (df["_velo_eff"] + df1["_velo_eff"]) / 2.
+        df["_velo_eff"] = (df["_velo_eff_err"] + df1["_velo_eff_err"]) / 2.
+        new_id = "%s + %s" %(self.pcs_id, other.pcs_id)
+        
+        
+        new = EmissionRateResults(new_id)
+        new.from_pandas_dataframe(df)
+        pdm_diff = abs( self.pix_dist_mean - other.pix_dist_mean)
+        new.pix_dist_mean = nanmean([self.pix_dist_mean, other.pix_dist_mean])
+        pdm_err = nanmean([self.pix_dist_mean_err, other.pix_dist_mean_err])
+        new.pix_dist_mean_err = max([pdm_diff, pdm_err])
+        new.cd_err_rel =  nanmean([self.cd_err_rel, other.cd_err_rel])
+        return new
+
+    def __sub__(self, other):
+        """Subtract emission rate results from two result classes
+        
+        The values of the emission rates ``phi`` are subtracted, the other data 
+        (``phi_err, velo_eff, velo_eff_err``) are averaged between this and 
+        the other time series.
+        
+        Parameters
+        ----------
+        other : EmissionRateResults
+            emission rate results from a different position in the image
+            
+        Returns
+        -------
+        EmissionRateResults
+            added results
+        """
+        if not isinstance(other, EmissionRateResults):
+            raise ValueError("Invalid input, need EmissionRateResults class")
+        df = self.to_pandas_dataframe()
+        df1 = other.to_pandas_dataframe()
+        df["_phi"] -= df1["_phi"]
+        df["_phi_err"] = (df["_phi_err"] + df1["_phi_err"]) / 2.
+        df["_velo_eff"] = (df["_velo_eff"] + df1["_velo_eff"]) / 2.
+        df["_velo_eff"] = (df["_velo_eff_err"] + df1["_velo_eff_err"]) / 2.
+        new_id = "%s - %s" %(self.pcs_id, other.pcs_id)
+        
+        new = EmissionRateResults(new_id)
+        new.from_pandas_dataframe(df)
+        pdm_diff = abs( self.pix_dist_mean - other.pix_dist_mean)
+        new.pix_dist_mean = nanmean([self.pix_dist_mean, other.pix_dist_mean])
+        pdm_err = nanmean([self.pix_dist_mean_err, other.pix_dist_mean_err])
+        new.pix_dist_mean_err = max([pdm_diff, pdm_err])
+        new.cd_err_rel =  nanmean([self.cd_err_rel, other.cd_err_rel])
+        return new
+        
+    
     def __str__(self):
         """String representation"""
         s = "pyplis EmissionRateResults\n--------------------------------\n\n"
@@ -438,45 +650,32 @@ class EmissionRateAnalysis(object):
         AA image list from that (see example scripts 1 and 4). 
             
     """
-    def __init__(self, imglist, pcs_lines=[], velo_glob=nan,
-                 velo_glob_err=None, bg_roi=None, **settings):
+    def __init__(self, imglist, bg_roi=None, **settings):
 
         if not isinstance(imglist, ImgList):
             raise TypeError("Need ImgList, got %s" %type(imglist))
            
         self.imglist = imglist
-        self.settings = EmissionRateSettings(velo_glob, velo_glob_err,
-                                             **settings)
-    
-        self.pcs_lines = od()        
-        try:
-            len(pcs_lines)
-        except:
-            pcs_lines = [pcs_lines]
-        
-        for line in pcs_lines:
-            self.add_pcs_line(line)
+        self.settings = EmissionRateSettings(**settings)
 
-        
         #Retrieved emission rate results are written into the following 
         #dictionary, keys are the line_ids of all PCS lines
         self.results = od()
         
-        #Local plume properties (from optical flow histogram analysis), will
-        #be determined for each PCS individually
-        self.local_plume_props = od()
-    
         if not check_roi(bg_roi):
-            bg_roi = map_roi(imglist.bg_model.scale_rect,
-                          pyrlevel_rel=imglist.pyrlevel)
-            if not check_roi(bg_roi):
-                raise ValueError("Fatal: check scale rectangle in background "
-                    "model of image list...")
-        
+            try:
+                bg_roi = map_roi(imglist.bg_model.scale_rect,
+                              pyrlevel_rel=imglist.pyrlevel)
+                if not check_roi(bg_roi):
+                    raise ValueError("Fatal: check scale rectangle in "
+                        "background model of image list...")
+            except:
+                warn("Failed to access scale rectangle in background model "
+                    "of image list, setting bg_roi to lower left image corner")
+                bg_roi = [5, 5, 20, 20]
         self.bg_roi = bg_roi
-        self.bg_roi_info = {"min"   :   None, 
-                            "max"   :   None,
-                            "mean"  :   None}
+        self.bg_roi_info = {"mean"  :   None, 
+                            "std"   :   None}
         
         self.warnings = []
             
@@ -492,15 +691,34 @@ class EmissionRateAnalysis(object):
             warn(warning)
     
     @property
+    def pcs_lines(self):
+        """Dictionary containing PCS retrieval lines assigned to settings class
+        """
+        return self.settings.pcs_lines
+        
+    @property
     def velo_glob(self):
-        """Get current global velocity"""
+        """Global velocity"""
         return self.settings.velo_glob
     
     @property
     def velo_glob_err(self):
         """Return error of current global velocity"""
-        return self.settings.velo_glob_err
-     
+        return self.settings.velo_glob_err    
+        
+    @property
+    def farneback_required(self):
+        """Checks if current velocity mode settings require farneback algo"""
+        s = self.settings
+        if s.velo_modes["farneback_raw"] or s.velo_modes["farneback_hybrid"]:
+            return True
+        elif s.velo_modes["farneback_histo"]:
+            d = s.plume_props_available
+            if not sum(d.values()) == len(d):
+                return True
+        return False
+    
+    
     def get_results(self, line_id=None, velo_mode=None):
         """Return emission rate results (if available)
         
@@ -539,7 +757,6 @@ class EmissionRateAnalysis(object):
         if not lst.darkcorr_mode:
             self.warnings.append("Dark image correction is not activated in "
                 "image list")
-        lst.auto_reload = False
         if self.settings.senscorr:
             # activate sensitivity correcion mode: images are divided by 
             try:
@@ -549,10 +766,10 @@ class EmissionRateAnalysis(object):
                     "because it could not be succedfully activated in imglist")
                 self.settings.senscorr = False
         
-        # activate calibration mode: images are calibrated using DOAS calibration 
-        # polynomial. The fitted curve is shifted to y axis offset 0 for the retrieval
+        # activate calibration mode: images are calibrated using DOAS 
+        # calibration polynomial. The fitted curve is shifted to y axis 
+        # offset 0 for the retrieval
         lst.calib_mode = True
-        lst.auto_reload = True
         
         if self.settings.velo_glob:
             try:
@@ -613,35 +830,73 @@ class EmissionRateAnalysis(object):
                 "dictionary.")
     
         res = od()
-        plume_props = od()
         for line_id, line in self.pcs_lines.iteritems():
             res[line_id] = od()
-            plume_props[line_id] = LocalPlumeProperties(roi_id=line_id)
             for mode, val in self.settings.velo_modes.iteritems():
                 if val:
                     res[line_id][mode] = EmissionRateResults(line_id, mode)
         self.results = res
-        self.local_plume_props = plume_props
-        self.bg_roi_info = {"min"   :   None, 
-                            "max"   :   None,
-                            "mean"  :   None}
-        return res, plume_props
-     
-    def _write_meta(self, dists, dist_errs, cd_err):
+        self.check_pcs_plume_props()
+        self.bg_roi_info = {"mean"  :   None, 
+                            "std"   :   None}
+        return res
+    
+    def check_pcs_plume_props(self):
+        """Checks if plume displacement information is available for all PCS
+        
+        Tries to access :class:`LocalPlumeProperties` objects in each of the
+        assigned plume cross section retrieval lines (:attr:`pcs_lines`). If
+        so and if a considerable datetime index overlap is given in the
+        corresponding object (with datetime indices in :attr:`imglist`), then
+        the object is interpolated onto the time stamps of the list and the 
+        corresponding displacement information is used (and not re-calculated)
+        while performing emission rate retrieval when using 
+        ``velo_mode = farneback_histo``. If no significant overlap can be 
+        detected, the :class:`LocalPlumeProperties` object in the corresponding
+        :class:`LineOnImage` object is initiated and filled while performing 
+        the analysis.
+        """
+        lst = self.imglist
+        span = (lst.stop - lst.start).total_seconds()
+        
+        for key, line in self.pcs_lines.iteritems():
+            try:
+                p = line.plume_props
+                dt0 = (p.start - lst.start).total_seconds()
+                if dt0 > 0 and dt0 / span > 0.05:
+                    raise IndexError("Insufficient overlap of time stamps in "
+                        "plume properties of line %s with time stamps in list...")
+                dt1 = (lst.stop - p.stop).total_seconds()
+                if dt1 > 0 and dt1 / span > 0.05:
+                    raise IndexError("Insufficient overlap of time stamps in "
+                        "plume properties of line %s with time stamps in list...")
+                line.plume_props = p.interpolate(time_stamps=lst.start_acq,
+                                                 how="time")
+                self.settings.plume_props_available[key] = 1
+            except:
+                self.settings.plume_props_available[key] = 0
+                line.plume_props = LocalPlumeProperties(roi_id=key)
+                                                 
+        
+    def _write_meta(self, dists, dist_errs, cd_err_rel):
         """Write meta info in result classes"""
         for line_id, mode_dict in self.results.iteritems():
             for mode, resultclass in mode_dict.iteritems():
                 resultclass.pix_dist_mean = mean(dists[line_id])
                 resultclass.pix_dist_mean_err = dist_errs[line_id]
-                resultclass.cd_err = cd_err
+                resultclass.cd_err_rel = cd_err_rel
         
-    def calc_emission_rate(self, start_index=0, stop_index=None,
-                           check_list=False):
-        """Calculate emission rate based on current settings
+    def calc_emission_rate(self, **kwargs):
+        """Old name of :func:`run_retrieval`"""
+        warn("Old name of method run_retrieval")
+        return self.run_retrieval(**kwargs)
+        
+    def run_retrieval(self, start_index=0, stop_index=None, check_list=False):
+        """Calculate emission rates of image list
         
         Performs emission rate analysis for each line in ``self.pcs_lines`` 
         and for all plume velocity retrievals activated in 
-        ``self.settings.velo_modes``, the results for each line and 
+        ``self.settings.velo_modes``. The results for each line and 
         velocity mode are stored within :class:`EmissionRateResults` objects
         which are saved in ``self.results[line_id][velo_mode]``, e.g.::
         
@@ -677,27 +932,28 @@ class EmissionRateAnalysis(object):
         lst = self.imglist
         if stop_index is None:
             stop_index = lst.nof - 1 
-        results, plume_props = self.init_results()
+        
+        s = self.settings
+        results = self.init_results()
         dists, dist_errs = self.get_pix_dist_info_all_lines()
         lst.goto_img(start_index)
         try:
-            cd_err = lst.calib_data.slope_err
+            cd_err_rel = lst.calib_data.slope_err / lst.calib_data.slope
         except:
-            cd_err = None
+            cd_err_rel = None
             
-        self._write_meta(dists, dist_errs, cd_err)
+        self._write_meta(dists, dist_errs, cd_err_rel)
         
         # init parameters for main loop
-        mmol = self.settings.mmol    
-        if self.settings.farneback_required:
+        mmol = s.mmol    
+        if self.farneback_required:
             lst.optflow_mode = True
         else:
             lst.optflow_mode = False #should be much faster
-        vglob, vglob_err = self.velo_glob, self.velo_glob_err
-        ts, bg_min, bg_mean, bg_max = [], [], [], []
+        ts, bg_mean, bg_std = [], [], []
         roi_bg = self.bg_roi
-        velo_modes = self.settings.velo_modes
-        min_cd = self.settings.min_cd
+        velo_modes = s.velo_modes
+        min_cd = s.min_cd
         lines = self.pcs_lines
         for k in range(start_index, stop_index):
             print "Progress: %d (%d)" %(k, stop_index)
@@ -706,8 +962,7 @@ class EmissionRateAnalysis(object):
             ts.append(t)
             sub = img.img[roi_bg[1] : roi_bg[3], roi_bg[0] : roi_bg[2]]
             
-            bg_min.append(sub.min())
-            bg_max.append(sub.max())
+            bg_std.append(sub.std())
             bg_mean.append(sub.mean())
 
             for pcs_id, pcs in lines.iteritems():
@@ -716,12 +971,17 @@ class EmissionRateAnalysis(object):
                 cds = pcs.get_line_profile(img)
                 cond = cds > min_cd
                 cds = cds[cond]
+                cds_err = cds * cd_err_rel
                 distarr = dists[pcs_id][cond]
                 disterr = dist_errs[pcs_id]
                 
                 if velo_modes["glob"]:
+                    try:
+                        vglob, vglob_err = pcs.velo_glob, pcs.velo_glob_err
+                    except:
+                        vglob, vglob_err = self.velo_glob, self.velo_glob_err
                     phi, phi_err = det_emission_rate(cds, vglob, distarr,
-                                                     cd_err, vglob_err, 
+                                                     cds_err, vglob_err, 
                                                      disterr, mmol)
                     if isnan(phi):
                         print cds
@@ -731,78 +991,123 @@ class EmissionRateAnalysis(object):
                     res["glob"]._phi_err.append(phi_err)
                     res["glob"]._velo_eff.append(vglob)
                     res["glob"]._velo_eff_err.append(vglob_err)
-                    
-                    
-                if lst.optflow_mode:
+                
+                if velo_modes["farneback_raw"]:
                     delt = lst.optflow.del_t
+                    
+                    # retrieve diplacement vectors along line
+                    dx = pcs.get_line_profile(lst.optflow.flow[:,:,0])
+                    dy = pcs.get_line_profile(lst.optflow.flow[:,:,1])
+                    
+                    # detemine array containing effective velocities 
+                    # through the line using dot product with line normal
+                    veff_arr = dot(n, (dx, dy))[cond] * distarr / delt
+                    
+                    # Calculate mean of effective velocity through l and 
+                    # uncertainty using 2 sigma confidence of standard deviation
+                    veff = veff_arr.mean()
+                    veff_err = veff_arr.std() * 2
+                    
+                    phi, phi_err = det_emission_rate(cds, veff_arr,
+                                                     distarr, cds_err, 
+                                                     veff_err, disterr, mmol)
+                    res["farneback_raw"]._start_acq.append(t)                                
+                    res["farneback_raw"]._phi.append(phi)
+                    res["farneback_raw"]._phi_err.append(phi_err)
 
-                    if velo_modes["farneback_raw"]:
-                        dx = pcs.get_line_profile(lst.optflow.flow[:,:,0])
-                        dy = pcs.get_line_profile(lst.optflow.flow[:,:,1])
-                        veff_arr = dot(n, (dx, dy))[cond] * distarr / delt
-                        
-                        phi, phi_err = det_emission_rate(cds, veff_arr,
-                                                         distarr, cd_err, 
-                                                         None, disterr, mmol)
-                        res["farneback_raw"]._start_acq.append(t)                                
-                        res["farneback_raw"]._phi.append(phi)
-                        res["farneback_raw"]._phi_err.append(phi_err)
-
-                        veff = veff_arr.mean()
-                        #note that the velocity is likely underestimated due to
-                        #low contrast regions (e.g. out of the plume, this can
-                        #be accounted for by setting an appropriate CD minimum
-                        #threshold in settings, such that the retrieval is
-                        #only applied to pixels exceeding a certain column 
-                        #density)
-                        res["farneback_raw"]._velo_eff.append(veff)
-                        res["farneback_raw"]._velo_eff_err.append(veff * .60)
-                        
-                    if velo_modes["farneback_histo"]:
-                        props = plume_props[pcs_id]
+                    
+                    #note that the velocity is likely underestimated due to
+                    #low contrast regions (e.g. out of the plume, this can
+                    #be accounted for by setting an appropriate CD minimum
+                    #threshold in settings, such that the retrieval is
+                    #only applied to pixels exceeding a certain column 
+                    #density)
+                    res["farneback_raw"]._velo_eff.append(veff)
+                    res["farneback_raw"]._velo_eff_err.append(veff_err)
+                
+                props = pcs.plume_props
+                if velo_modes["farneback_histo"]:                    
+                    if s.plume_props_available[pcs_id]:
+                        idx = k
+                    else:                            
                         # get mask specifying plume pixels
                         mask = lst.get_thresh_mask(min_cd)
                         props.get_and_append_from_farneback(lst.optflow,
                                                             line=pcs,
                                                             pix_mask=mask)
-                        v, verr = props.get_velocity(-1, distarr.mean(),
-                                                     disterr, 
-                                                     pcs.normal_vector)
+                        idx = -1
                         
-                        phi, phi_err = det_emission_rate(cds, v, distarr, 
-                                                         cd_err, verr, disterr, 
-                                                         mmol)
-                                                         
-                        res["farneback_histo"]._start_acq.append(t)                                
-                        res["farneback_histo"]._phi.append(phi)
-                        res["farneback_histo"]._phi_err.append(phi_err)
-                        res["farneback_histo"]._velo_eff.append(v)
-                        res["farneback_histo"]._velo_eff_err.append(verr)
-                        
+                    v, verr = props.get_velocity(idx, distarr.mean(),
+                                                 disterr, 
+                                                 pcs.normal_vector)
+                    
+                    phi, phi_err = det_emission_rate(cds, v, distarr, 
+                                                     cds_err, verr, disterr, 
+                                                     mmol)
+                                                     
+                    res["farneback_histo"]._start_acq.append(t)                                
+                    res["farneback_histo"]._phi.append(phi)
+                    res["farneback_histo"]._phi_err.append(phi_err)
+                    res["farneback_histo"]._velo_eff.append(v)
+                    res["farneback_histo"]._velo_eff_err.append(verr)
+                    
+                if velo_modes["farneback_hybrid"]:
+                    # get results from local plume properties analysis
+                    if not velo_modes["farneback_histo"]:
+                        if s.plume_props_available[pcs_id]:
+                            idx = k
+                        else:                            
+                            # get mask specifying plume pixels
+                            mask = lst.get_thresh_mask(min_cd)
+                            props.get_and_append_from_farneback(lst.optflow,
+                                                                line=pcs,
+                                                                pix_mask=mask)
+                            idx = -1
+            
+                    min_len = props.len_mu[idx] - props.len_sigma[idx]
+                    dir_min = props.dir_mu[idx] - 3 * props.dir_sigma[idx]
+                    dir_max = props.dir_mu[idx] + 3 * props.dir_sigma[idx]
+                    
+                    vec = props.displacement_vector(idx)
+                                        
+                    flc = lst.optflow.replace_trash_vecs(displ_vec=vec, 
+                                                         min_len=min_len,
+                                                         dir_low=dir_min, 
+                                                         dir_high=dir_max)
+                    
+                    delt = lst.optflow.del_t
+                    dx = pcs.get_line_profile(flc.flow[:,:,0])
+                    dy = pcs.get_line_profile(flc.flow[:,:,1])
+                    veff_arr = dot(n, (dx, dy))[cond] * distarr / delt
+                    
+                    # Calculate mean of effective velocity through l and 
+                    # uncertainty using 2 sigma confidence of standard deviation
+                    veff = veff_arr.mean()
+                    veff_err = veff_arr.std()
+                    
+                    phi, phi_err = det_emission_rate(cds, veff_arr,
+                                                     distarr, cds_err, 
+                                                     veff_err, disterr, mmol)
+                    res["farneback_hybrid"]._start_acq.append(t)                                
+                    res["farneback_hybrid"]._phi.append(phi)
+                    res["farneback_hybrid"]._phi_err.append(phi_err)
+                    res["farneback_hybrid"]._velo_eff.append(veff)
+                    res["farneback_hybrid"]._velo_eff_err.append(veff_err)
+                    
             lst.next_img()  
-        self.plume_properties = plume_props
+    
         self.bg_roi_info["mean"] = Series(bg_mean, ts)
-        self.bg_roi_info["max"] = Series(bg_max, ts)
-        self.bg_roi_info["min"] = Series(bg_min, ts)
+        self.bg_roi_info["std"] = Series(bg_std, ts)
         
-        return self.results, plume_props
+        return self.results
 
     def add_pcs_line(self, line):
         """Add one analysis line to this list
         
         :param LineOnImage line: the line object
         """
-        if not isinstance(line, LineOnImage):
-            raise TypeError("Invalid input type for PCS line, need "
-                "LineOnImage...")
-        elif self.pcs_lines.has_key(line.line_id):
-            raise KeyError("A PCS line with ID %s already exists in list %s"
-                            %(line.line_id, self.list_id))
-        elif line.pyrlevel != self.imglist.pyrlevel:
-            raise ImgMetaError("Pyramid level of PCS line %s and image list %s"
-                " do not match.." %(line.line_id, self.imglist.list_id))
-        self.pcs_lines[line.line_id] = line
-    
+        self.settings.add_pcs_line(line)
+        
     def plot_pcs_lines(self):
         """Plots all current PCS lines onto current list image"""
         # plot current image in list and draw line into it
@@ -842,15 +1147,23 @@ class EmissionRateAnalysis(object):
             s.index = s.index.to_pydatetime()
         except:
             pass
-        s.plot(ax=ax, label="mean", **kwargs)
+        err = self.bg_roi_info["std"]
+        lower = s - err
+        upper = s +err
+        exp = exponent(upper.values.max())
+
+        s_disp = s * 10**-exp
+        lower_disp = lower * 10**-exp
+        upper_disp = upper * 10**-exp
+        
+        s_disp.plot(ax=ax, label="mean", **kwargs)
         try:
             if date_fmt is not None:
                 ax.xaxis.set_major_formatter(DateFormatter(date_fmt))
         except:
             pass
-        lower, upper = self.bg_roi_info["min"], self.bg_roi_info["max"]
-        ax.fill_between(s.index, lower, upper, alpha=0.1, **kwargs)
-        ax.set_ylabel(r"CD [cm-2]", fontsize=16)
+        ax.fill_between(s.index, lower_disp, upper_disp, alpha=0.1, **kwargs)
+        ax.set_ylabel(r"$ROI_{BG}\,[E%+d\,cm^{-2}]$" %exp)
         ax.grid()
         return ax
         

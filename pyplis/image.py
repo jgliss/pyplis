@@ -6,7 +6,7 @@ import matplotlib.cm as cmaps
 from matplotlib.pyplot import imread, figure, tight_layout
 from numpy import ndarray, argmax, histogram, uint, nan, linspace,\
     isnan, uint8, float32, finfo, ones, invert, log
-from os.path import abspath, splitext, basename, exists, join
+from os.path import abspath, splitext, basename, exists, join, isdir, dirname
 from os import getcwd, remove
 from warnings import warn
 from datetime import datetime
@@ -548,6 +548,7 @@ class Img(object):
             return self.pyr_down(steps)
         elif steps < 0:
             return self.pyr_up(-steps)
+        return self
      
     def pyr_down(self, steps=0):
         """Reduce the image size using gaussian pyramide 
@@ -855,19 +856,18 @@ class Img(object):
         str 
             name of saved file
         """
-        try:
-            save_name = save_name.split(".")[0]
-        except:
-            pass
-        if save_dir is None:
-            save_dir = getcwd()
+        save_dir = abspath(save_dir)
+        if not isdir(save_dir): #save_dir is a file path
+            save_name = basename(save_dir)
+            save_dir = dirname(save_dir)
         if save_name is None:
             if self.meta["file_name"] == "":
                 save_name = "pyplis_img_name_undefined.fts"
             else:
                 save_name = self.meta["file_name"].split(".")[0] + ".fts"
         else:
-            save_name = save_name + ".fts"
+            save_name = save_name.split(".")[0] + ".fts"
+        
         hdu = fits.PrimaryHDU()
         hdu.data = self._img
         hdu.header.update(self.edit_log)

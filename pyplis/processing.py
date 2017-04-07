@@ -17,7 +17,7 @@ This module contains the following processing classes and methods:
 from numpy import vstack, ogrid, empty, ones, asarray, ndim, round, hypot,\
     linspace, sum, dstack, float32, zeros, poly1d, polyfit, argmin, where,\
     logical_and, rollaxis, complex, angle, array, ndarray, cos, sin,\
-    arctan, dot, int32, pi
+    arctan, dot, int32, pi, isnan, nan
     
 from numpy.linalg import norm
 from scipy.ndimage import map_coordinates 
@@ -338,6 +338,10 @@ class LineOnImage(object):
                          "right"  :   1}
                         
         self.normal_vecs = [None, None]
+        
+        self._velo_glob = nan
+        self._velo_glob_err = nan
+        self._plume_props = None
                          
         self.check_coordinates()
         self.normal_orientation = normal_orientation
@@ -477,7 +481,77 @@ class LineOnImage(object):
                 "method set_rect_roi_rot to change the rectangle")
             self.set_rect_roi_rot()
         return self._rect_roi_rot
-            
+    
+    @property
+    def velo_glob(self):
+        """Global velocity in m/s, assigned to this line
+        
+        Raises
+        ------
+        AttributeError
+            if current value is not of type float
+        """
+        if not isinstance(self._velo_glob, float) or isnan(self._velo_glob):
+            raise AttributeError("Global velocity not assigned to line")
+        return self._velo_glob
+        
+    @velo_glob.setter
+    def velo_glob(self, val):
+        try:
+            val = float(val)
+            if isnan(val):
+                raise Exception
+        except:
+            raise ValueError("Invalid input, need float or int...")
+        if val < 0:
+            raise ValueError("Velocity must be larger than 0")
+        elif val > 40:
+            warn("Large value warning: input velocity exceeds 40 m/s")
+        self._velo_glob = val
+        if self._velo_glob_err is None or isnan(self._velo_glob_err):
+            warn("Global velocity error not assigned, assuming 50% of "
+                 "velocity")
+            self.velo_glob_err = val * 0.50
+    
+    @property
+    def velo_glob_err(self):
+        """Error of global velocity in m/s, assigned to this line
+        
+        Raises
+        ------
+        AttributeError
+            if current value is not of type float
+        """
+        if not isinstance(self._velo_glob_err, float) or\
+                                        isnan(self._velo_glob_err):
+            raise AttributeError("Global velocity error not assigned to line")
+        return self._velo_glob_err
+        
+    @velo_glob_err.setter
+    def velo_glob_err(self, val):
+        try:
+            val = float(val)
+            if isnan(val):
+                raise Exception
+        except:
+            raise ValueError("Invalid input, need float or int...")
+        self._velo_glob_err = val
+        
+    @property
+    def plume_props(self):
+        """:class:`LocalPlumeProperties` object assigned to this list"""
+        from pyplis import LocalPlumeProperties
+        if not isinstance(self._plume_props, LocalPlumeProperties):
+            raise AttributeError("Local plume properties not assigned to line")
+        return self._plume_props
+        
+    @plume_props.setter
+    def plume_props(self, val):
+        from pyplis import LocalPlumeProperties
+        if not isinstance(val, LocalPlumeProperties):
+            raise ValueError("Invalid input, need class LocalPlumeProperties")
+        self._plume_props = val
+        
     def dist_other(self, other):
         """Determines the distance to another line
         
@@ -565,10 +639,25 @@ class LineOnImage(object):
                                                      pyrlevel=to_pyrlevel,
                                                      inverse=False)
         
-        return LineOnImage(x0, y0, x1, y1, roi_abs_def=to_roi_abs, 
-                           pyrlevel_def=to_pyrlevel, 
-                           normal_orientation=self.normal_orientation,
-                           line_id=self.line_id)
+        new_line = LineOnImage(x0, y0, x1, y1, roi_abs_def=to_roi_abs, 
+                               pyrlevel_def=to_pyrlevel, 
+                               normal_orientation=self.normal_orientation,
+                               line_id=self.line_id,
+                               color=self.color, linestyle=self.linestyle)
+        try:
+            new_line.velo_glob = self.velo_glob
+        except:
+            pass
+        try:
+            new_line.velo_glob_err = self.velo_glob_err
+        except:
+            pass
+        try:
+            new_line.plume_props = self.plume_props
+        except:
+            pass
+                
+        return new_line
         
     def check_coordinates(self):
         """Check line coordinates
@@ -1089,12 +1178,10 @@ class LineOnImage(object):
     """Magic methods
     """
     def __str__(self):
-        """String representation
-        """
-        s=("LineOnImage " + str(self.line_id) + 
-            "\n----------------------------------------\n")
-        s=(s + "Start (X,Y): " + str(self.start) + 
-                "\nStop (X,Y): " + str(self.stop) + "\n")
+        """String representation"""
+        s = ("Line %s: [%d, %d, %d, %d], @pyrlevel %d, @ROI: %s" 
+             %(self.line_id, self.x0, self.y0, self.x1, self.y1, 
+               self.pyrlevel_def, self.roi_abs_def))
         return s
 
 class ProfileTimeSeriesImg(Img):
@@ -1166,18 +1253,32 @@ class ProfileTimeSeriesImg(Img):
     def save_as_fits(self, save_dir=None, save_name=None):
         """Save stack as FITS file"""
         self._format_check()
-        try:
-            save_name = save_name.split(".")[0]
-        except:
-            pass
-        if save_dir is None:
-            save_dir = getcwd()
+        save_dir = abspath(save_dir) #returns abspath of current wkdir if None
+        if not isdir(save_dir): #save_dir is a file path
+            save_name = basename(save_dir)
+            save_dir = dirname(save_dir)
         if save_name is None:
             save_name = "pyplis_profile_tseries_id_%s_%s_%s_%s.fts"\
                 %(self.img_id, self.start.strftime("%Y%m%d"),\
                 self.start.strftime("%H%M"), self.stop.strftime("%H%M"))
         else:
-            save_name = save_name + ".fts"
+            save_name = save_name.split(".")[0] + ".fts"
+            
+        ### OLD
+#==============================================================================
+#         try:
+#             save_name = save_name.split(".")[0]
+#         except:
+#             pass
+#         if save_dir is None:
+#             save_dir = getcwd()
+#         if save_name is None:
+#             save_name = "pyplis_profile_tseries_id_%s_%s_%s_%s.fts"\
+#                 %(self.img_id, self.start.strftime("%Y%m%d"),\
+#                 self.start.strftime("%H%M"), self.stop.strftime("%H%M"))
+#         else:
+#             save_name = save_name + ".fts"
+#==============================================================================
         hdu = fits.PrimaryHDU()
         time_strings = [x.strftime("%Y%m%d%H%M%S%f") for x in self.time_stamps]
         col1 = fits.Column(name = "time_stamps", format = "25A", array =\
@@ -1270,26 +1371,31 @@ class ImgStack(object):
         4. ``self.add_data``: 1D array which can be used to store additional 
         data for each image (e.g. DOAS CD vector)
         
-    .. todo::
-    
-        1. Include optical flow routine for emission rate retrieval
+    Todo
+    ----
+    1. Include optical flow routine for emission rate retrieval
         
+    Parameters
+    ----------
+    height : int
+        height of images to be stacked
+    width : int
+        width of images to be stacked
+    num : int
+        number of images to be stacked
+    dtype : 
+        numerical data type (e.g. uint8, makes the necessary space smaller,
+            default: float32)
+    stack_id : str
+        string ID of this object ("")
+    img_prep : dict
+        additional information about the preparation state of the images 
+        (e.g. roi, gauss pyramid level, dark corrected?, blurred?)
+    **stack_data
+        can be used to pass stack data directly
     """
     def __init__(self, height=0, width=0, img_num=0, dtype=float32,
                  stack_id="", img_prep=None, camera=None, **stack_data):
-        """Specify input
-        
-        :param int height: height of images to be stacked
-        :param int width: width of images to be stacked
-        :param int num: number of images to be stacked
-        :param dtype: accuracy of image data type (e.g. for an 8 bit image, 
-            uint8 would be enough, makes the necessary space smaller,
-            default: float32)
-        :param str stack_id: string ID of this object ("")
-        :param dict img_prep: additional information about the images (e.g.
-            roi, gauss pyramid level, dark corrected?, blurred?)
-        :param **stack_data:
-        """
         self.stack_id = stack_id
         self.dtype = dtype
         self.current_index = 0
@@ -1330,22 +1436,24 @@ class ImgStack(object):
         """Returns start time stamp of first image"""
         try:
             return self.start_acq[0]
+        except IndexError:
+            raise IndexError("Stack is empty...")
         except:
-            raise ValueError("Information about start acquisition time could"
-                " not be retrieved")
+            raise ValueError("Start acquisition time could accessed in stack")
                 
     @property
     def stop(self):
         """Returns start time stamp of first image"""
         try:
             return self.start_acq[-1] + timedelta(self.texps[-1] / 86400.)
+        except IndexError:
+            raise IndexError("Stack is empty...")
         except:
-            raise ValueError("Information about stop acquisition time could"
-                " not be retrieved")
+            raise ValueError("Start acquisition time could accessed in stack")
         
     @property
     def time_stamps(self):
-        """Compute time stamps for images from acq. times and exposure times"""
+        """Acq. time stamps of all images"""
         try:
             dts = [timedelta(x /(2 * 86400.)) for x in self.texps]
             return self.start_acq + asarray(dts)
@@ -1355,34 +1463,44 @@ class ImgStack(object):
     
     @property
     def pyrlevel(self):
-        """return current pyramide level (stored in ``self.img_prep``)"""
+        """Gauss pyramid level of images in stack"""
         return self.img_prep["pyrlevel"]
     
     @property
     def camera(self):
-        """Get / set current camera object"""
+        """Camera object assigned to stack"""
         return self._cam
     
     @camera.setter
     def camera(self, value):
-        """Set camera"""
         if isinstance(value, Camera):
             self._cam = value
         else:
             raise TypeError("Need Camera object...")
-            
+
+    @property
+    def num_of_imgs(self):
+        """Depth of stack"""
+        return self.stack.shape[0]
+        
     def append_img(self, img_arr, start_acq=datetime(1900, 1, 1), texp=0.0, 
                    add_data=0.0):
         """Append at the end of the stack
         
-        :param ndarray img_arr: image data (must have same dimension than
-            ``self.stack.shape[:2]``)
-        :param datetime start_acq (datetime(1900, 1, 1)): acquisition time of 
-                                                                        image
-        :param float texp: exposure time of image (in units of s)
-        
         The image is inserted at the current index position ``self.current_index``
         which is increased by 1 afterwards.
+        
+        Parameters
+        ----------
+        img_arr : array
+            image data (must have same dimension than ``self.stack.shape[:2]``)
+        start_acq : datetime
+            acquisition time stamp of image, defaults to datetime(1900, 1, 1)
+        texp : float 
+            exposure time of image (in units of s), defaults to 0.0
+        add_data 
+            arbitrary additional data appended to list :attr:`add_data`
+        
         """
 #==============================================================================
 #         if self.current_index >= self.last_index:
@@ -1394,15 +1512,27 @@ class ImgStack(object):
             
     def set_img(self, pos, img_arr, start_acq=datetime(1900, 1, 1),
                 texp=0.0, add_data=0.0):
-        """Place the imageArr in the stack
-        :param int pos: Position of img in stack
-        :param ndarray img_arr: image data (must have same dimension than
-            ``self.stack.shape[:2]``)
-        :param datetime start_acq (datetime(1900, 1, 1)): acquisition time of 
-                                                                        image
-        :param float texp: exposure time of image (in units of s)
+        """Insert an image into the stack at provided index
+        
+        Parameters
+        ----------
+        pos : int
+            Insert position of img in stack
+        img_arr : array
+            image data (must have same dimension than ``self.stack.shape[:2]``,
+            can also be of type :obj:`Img`)
+        start_acq : datetime
+            acquisition time stamp of image, defaults to datetime(1900, 1, 1)
+        texp : float 
+            exposure time of image (in units of s), defaults to 0.0
+        add_data 
+            arbitrary additional data appended to list :attr:`add_data`
         
         """
+        try:
+            img_arr = img_arr.img
+        except:
+            pass
         self.stack[pos] = img_arr
         self.start_acq[pos] = to_datetime(start_acq)
         self.texps[pos] = texp
@@ -1411,9 +1541,22 @@ class ImgStack(object):
     
     def make_circular_access_mask(self, cx, cy, radius):
         """Create a circular mask for stack 
-        :param int pos_x_abs: x position of centre
-        :param int pos_y_abs: y position of centre
-        :param int radius: radius
+        
+        Parameters
+        ----------
+        cx : int
+            x position of centre
+        cy : nint
+            y position of centre
+        radius : int
+            radius
+            
+        Returns
+        -------
+        array
+            circular mask (use e.g. like ``img[mask]`` which will return a 
+            1D vector containing all pixel values of ``img`` that fall into 
+            the mask)
         """
         #cx, cy = self.img_prep.map_coordinates(pos_x_abs, pos_y_abs)
         h, w = self.stack.shape[1:]
@@ -1421,17 +1564,17 @@ class ImgStack(object):
         m = (x - cx)**2 + (y - cy)**2 < radius**2
         return m
         
-    @property
-    def num_of_imgs(self):
-        """Return current number of images in stack"""
-        return self.stack.shape[0]
-        
     def set_stack_data(self, stack, start_acq=None, texps=None):
         """Sets the current data based on input
         
-        :param ndarray stack: the image stack data
-        :param ndarray start_acq: array containing acquisition time stamps
-        :param ndarray texps: array containing exposure times
+        Parameters
+        ----------
+        stack : array
+            3D numpy array containing the image stack data
+        start_acq : :obj:`array`, optional
+            array containing acquisition time stamps
+        texps : obj:`array`, optional 
+            array containing exposure times
         """
         num = stack.shape[0]
         self.stack = stack
@@ -1444,26 +1587,37 @@ class ImgStack(object):
         self._access_mask = ones(num, dtype = bool)
         
     def get_data(self):
-        """Get stack data 
+        """Get stack data (containing of stack, acq. and exp. times) 
         
-        :rtype: (ndarray, list, list)
-        :returns: 
-            - ndarray, stack data
-            - ndarray, acq time stamps
-            - ndarray, exposure times
+        Returns
+        -------
+        tuple
+            3-element tuple containing
+            
+            - :obj:`array`: stack data
+            - :obj:`array`: acq. time stamps
+            - :obj:`array`: exposure times
         """
         m = self._access_mask
         return (self.stack[m], asarray(self.time_stamps)[m], 
                 asarray(self.texps)[m])
         
     def apply_mask(self, mask):
-        """Convolves the stack data with a input mask along time axis (2)
+        """Convolves the stack data with a input mask along time axis
         
-        :param ndarray mask: bool mask for image pixel access
-        :returns:
-            - ndarray, new stack 
-            - list, acq times
-            - list, exposure times
+        Parameter
+        ---------
+        mask : array
+            2D bool mask for image pixel access
+        
+        Returns
+        -------
+        tuple
+            3-element tuple containing
+            
+            - :obj:`array`: 3D numpy array containing convolved stack data
+            - :obj:`array`: acq. time stamps
+            - :obj:`array`: exposure times
         """
         #mask_norm = boolMask.astype(float32)/sum(boolMask)
         d = self.get_data()
@@ -1473,22 +1627,39 @@ class ImgStack(object):
     def get_time_series(self, pos_x=None, pos_y=None, radius=1, mask=None):
         """Get time series in a circular ROI
         
-        Retrieve the time series at a given pixel position *in stack 
+        Retrieve time series at a given pixel position *in stack 
         coordinates* in a circular pixel neighbourhood.
         
-        :param int pos_x: x position of center pixel on detector
-        :param int pos_y: y position of center pixel on detector
-        :param float radius: radius of pixel disk on detector (centered
-            around pos_x, pos_y, default: 1)
-        :param ndarray mask: boolean mask for image pixel access, 
+        Parameters
+        ----------
+        pos_x : int
+            x position of center pixel on detector
+        pos_y : int
+            y position of center pixel on detector
+        radius : float
+            radius of pixel disk on detector (centered around pos_x, pos_y, 
+            default: 1)
+        mask : array
+            boolean mask for image pixel access, 
             default is None, if the mask is specified and valid (i.e. same
             shape than images in stack) then the other three input parameters
             are ignored
+        
+        Returns
+        -------
+        tuple
+            2-element tuple containing
+            
+            - :obj:`Series`: time series data
+            - :obj:`array`: pixel access mask used to convolve stack images 
         """
         d = self.get_data()
         try:
             data_mask, start_acq, texps = self.apply_mask(mask)
         except:
+            if not radius > 0:
+                raise ValueError("Invalid input for param radius (3. pos): "
+                    "value must be larger than 0, got %d" %radius)
             if radius == 1:
                 mask = zeros(self.shape[1:]).astype(bool)
                 mask[pos_y, pos_x] = True
@@ -1499,9 +1670,40 @@ class ImgStack(object):
         values = data_mask.sum((1, 2)) / float(sum(mask))
         return Series(values, start_acq), mask
     
-    """Data merging functionality based on additional time series data"""
     def merge_with_time_series(self, time_series, method="average", **kwargs):
-        """High level wrapper for data merging"""
+        """High level wrapper for data merging
+        
+        Choose from either of three methods to perform an index merging based
+        on time stamps of stack and of other time series data (provided on 
+        input).
+
+        Parameters
+        ----------
+        time_series : Series
+            time series data supposed to be merged with stack data
+        method : str
+            merge method, currently available methods are:
+                
+                - average: determine new stack containing images averaged based
+                  on start / stop time stamps of each datapoint in input 
+                  ``time_series`` (requires corresponding data to be available
+                  in input, i.e. ``time_series`` must be of type 
+                  :class:`DoasResults` of ``pydoas`` library).
+                - nearest: perform merging based on nearest datapoint per image
+                - interpolation: perform cross interpolation onto unified time
+                  index array from stack and time series data
+        **kwargs 
+            additional keyword args specifying additional merge settings (e.g.
+            ``itp_type=quadratic`` in case ``method=interpolation`` is used)
+            
+        Returns
+        -------
+        tuple
+            2-element tuple containing
+            
+            - :obj:`ImgStack`: new stack containing merged data
+            - :obj:`Series`: merged time series data
+        """
         if not isinstance(time_series, Series):
             raise TypeError("Could not merge stack data with input data: "
                 "wrong type: %s" %type(time_series))
@@ -1529,13 +1731,6 @@ class ImgStack(object):
         data point for each image in this stack. Then, get rid of all indices
         showing double occurences using time delta information. 
         
-        .. note::
-            
-            Hard coded for now, more elegant solution follows...
-            
-        .. todo::
-            
-            rewrite docstring
             
         """
         nearest_idxs, del_ts = self.get_nearest_indices(time_series.index)
@@ -1633,14 +1828,18 @@ class ImgStack(object):
         in case, these data (e.g. DOAS SO2 CD time series) is supposed to be 
         compared with the averaged stack.
         
-        :param DoasResults time_series: DOAS results object including arrays
-            for start / stop acquisition time stamps required for averaging
-        :returns: tuple, containing
-            - :class:`ImgStack`, new stack object with averaged images
-            - list, containing bad indices, i.e. indices of all start / stop 
-                intervals for which no images could be found
+        Parameters
+        ----------
+        time_series : DoasResults
+            Time series containing DOAS results, including arrays
+            for start / stop acquisition time stamps (required for averaging)
         
-        
+        Returns
+        -------
+        tuple
+            2-element tuple containing
+            - :class:`ImgStack`: new stack object with averaged images
+            - :obj:`list`: list of bad indices (where no overlap was found)
         """
         try:
             if not time_series.has_start_stop_acqtamps():
@@ -1766,10 +1965,14 @@ class ImgStack(object):
     """Plots / visualisation"""
     def show_img(self, index=0):
         """Show image at input index
-        :param int index: index of image in stack        
+        
+        Parameters
+        ----------
+        index : int
+            index of image in stack        
         """
         stack, ts, _ = self.get_data()
-        im = Img(stack[index], start_acq = ts[index], texp = self.texps[index])
+        im = Img(stack[index], start_acq=ts[index], texp=self.texps[index])
         im.edit_log.update(self.img_prep)
         im.roi_abs = self.roi_abs
         return im.show()
@@ -1777,9 +1980,15 @@ class ImgStack(object):
     def pyr_down(self, steps=0):
         """Reduce the stack image size using gaussian pyramid 
              
-        :param int steps: steps down in the pyramide
-        :return: 
-            - ImgStack, new image stack object (downscaled)
+        Parameters
+        ----------
+        steps : int
+            steps down in the pyramide
+        
+        Returns
+        -------
+        ImgStack
+            new, downscaled image stack object
         
         """
         
@@ -1801,6 +2010,7 @@ class ImgStack(object):
     
     def pyr_up(self, steps):
         """Increasing the image size using gaussian pyramide 
+        
         
         :param int steps: steps down in the pyramide
         

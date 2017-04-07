@@ -60,7 +60,7 @@ class MeasGeometry(object):
                                 ('alt_offset'   ,   0.0)])  #altitude above 
                                                             #topo in m
         
-        self.geo_setup = GeoSetup(id = self.cam_id)
+        self.geo_setup = GeoSetup(id=self.cam_id)
         
         self.update_source_specs(source_info)
         self.update_cam_specs(cam_info)
@@ -165,8 +165,8 @@ class MeasGeometry(object):
         mag = 20
         if cam_ok:
             print "Updating camera in GeoSetup of MeasGeometry"
-            cam = GeoPoint(self.cam["lat"], self.cam["lon"],\
-                                self.cam["altitude"], name = "cam")
+            cam = GeoPoint(self.cam["lat"], self.cam["lon"],
+                           self.cam["altitude"], name="cam")
             self.geo_setup.add_geo_point(cam)
             
         if source_ok:                            
@@ -527,7 +527,6 @@ class MeasGeometry(object):
         elev_cam = elev_obj + del_elev
         az_cam = az_obj - del_az
         
-        
         return elev_cam, az_cam
         
     def find_viewing_direction(self, pix_x, pix_y, pix_pos_err=10, 
@@ -541,6 +540,7 @@ class MeasGeometry(object):
         (Lon / Lat) to determine the viewing direction of the camera (azimuth,
         elevation).
         
+
         :param int pix_x: x position of object on camera detector 
             (measured from left)
         :param int pix_y: y position of object on camera detector 
@@ -615,9 +615,10 @@ class MeasGeometry(object):
             #new vector representing the camera center pixel viewing direction (CFOV),
             #anchor at camera position
             cam_pos = self.geo_setup.points["cam"]
-            cam_view_vec = GeoVector3D(azimuth = self.cam["azim"],\
-                elevation = self.cam["elev"], dist_hor = stp.magnitude,\
-                                            anchor = cam_pos, name = "cfov")
+            cam_view_vec = GeoVector3D(azimuth=self.cam["azim"],
+                                       elevation=self.cam["elev"], 
+                                       dist_hor=stp.magnitude,
+                                       anchor=cam_pos, name="cfov")
             #horizontal intersection of plume and viewing direction
             offs = plume_vec.intersect_hor(cam_view_vec)
             #Geopoint at intersection
