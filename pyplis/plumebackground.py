@@ -583,7 +583,7 @@ class PlumeBackgroundModel(object):
         return plot_sky_reference_areas(plume, d)
         
     def plot_tau_result(self, tau_img=None, tau_min=None, tau_max=None,
-                        edit_profile_labels=True, **add_lines):
+                        edit_profile_labels=True, legend_loc=3, **add_lines):
         """Plot current tau image including all reference areas 
         
         Parameters
@@ -605,6 +605,7 @@ class PlumeBackgroundModel(object):
             tau = self._current_imgs["tau"]
         if not isinstance(tau, Img):
             raise AttributeError("No tau image available in background model")
+        tau = tau.duplicate().to_pyrlevel(0)
         tmin = tau_min
         tmax = tau_max
         if tau_max is None:
@@ -731,7 +732,7 @@ class PlumeBackgroundModel(object):
         ax[1].set_xlabel(r"$\tau$", fontsize=16)
         ax[2].set_ylabel(r"$\tau$", fontsize=16)  
         fig.suptitle("CORR_MODE: %s" %self.CORR_MODE, fontsize=16)
-        ax[0].legend(loc=3, fancybox=True, framealpha=0.7, fontsize=11)
+        ax[0].legend(loc=legend_loc, fancybox=True, framealpha=0.7, fontsize=11)
         return fig
         
     """Helpers"""

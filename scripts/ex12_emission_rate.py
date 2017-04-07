@@ -26,7 +26,7 @@ check_version()
 
 import pyplis
 from os.path import join, exists
-from matplotlib.pyplot import close, subplots, show, GridSpec, figure
+from matplotlib.pyplot import close, show, GridSpec, figure
 
 ### IMPORT GLOBAL SETTINGS
 from SETTINGS import SAVEFIGS, SAVE_DIR, FORMAT, DPI, OPTPARSE
@@ -40,10 +40,10 @@ from ex08_velo_crosscorr import PCS
 
 ### SCRIPT OPTONS  
 PYRLEVEL = 1
-PLUME_VEL_GLOB = 4.14 #m/s
+PLUME_VELO_GLOB = 4.14 #m/s
+PLUME_VELO_GLOB_ERR = 1.5
 MMOL = 64.0638 #g/mol
 CD_MIN = 2.5e17
-OPTFLOW_LEN_ESTIM_MODE = "argmax" #multigauss
 
 START_INDEX = 1
 STOP_INDEX = None
@@ -63,56 +63,63 @@ CORR_MASK_FILE = join(SAVE_DIR, "ex07_aa_corr_mask.fts")
 
 ### SCRIPT FUNCTION DEFINITIONS        
 def plot_and_save_results(ana, line_id="1. PCS", date_fmt="%H:%M"):
-    fig = figure(figsize=(10,14))
-    gs = GridSpec(3, 1, height_ratios = [.6, .2, .2], hspace=0.05)
-    ax0 = fig.add_subplot(gs[0]) #for significance plot
-    ax1 = fig.add_subplot(gs[1])#, sharex=ax2) #for orientation plot
-    ax2 = fig.add_subplot(gs[2])#, sharex=ax2) #for displ. lens
+    fig = figure(figsize=(10,9))
+    gs = GridSpec(4, 1, height_ratios = [.6, .2, .2, .2], hspace=0.05)
+    ax3 = fig.add_subplot(gs[3]) 
+    ax0 = fig.add_subplot(gs[0], sharex=ax3) 
+    ax1 = fig.add_subplot(gs[1], sharex=ax3) 
+    ax2 = fig.add_subplot(gs[2], sharex=ax3) 
     ax1.yaxis.tick_right()
     ax1.yaxis.set_label_position("right")
-
+    ax3.yaxis.tick_right()
+    ax3.yaxis.set_label_position("right")
     
     
     #Get emission rate results for the PCS line 
     res0 = ana.get_results(line_id=line_id, velo_mode="glob")
     res1 = ana.get_results(line_id=line_id, velo_mode="farneback_raw")
     res2 = ana.get_results(line_id=line_id, velo_mode="farneback_histo")
+    res3 = ana.get_results(line_id=line_id, velo_mode="farneback_hybrid")
     
     res0.save_txt(join(SAVE_DIR, "ex12_flux_velo_glob.txt"))
     res1.save_txt(join(SAVE_DIR, "ex12_flux_farneback_raw.txt"))
     res2.save_txt(join(SAVE_DIR, "ex12_flux_farneback_histo.txt"))
+    res3.save_txt(join(SAVE_DIR, "ex12_flux_farneback_hybrid.txt"))
     
     #Plot emission rates for the different plume speed retrievals
-    res0.plot(yerr=False, date_fmt=date_fmt, ls="--", marker="x", ax=ax0, 
-              color="#e67300")
-    res1.plot(yerr=False, ax=ax0, ls="--", marker="x", color="b")
-    res2.plot(yerr=True, ax=ax0, lw=2, color="g")
+    res0.plot(yerr=True, date_fmt=date_fmt, ls="--", marker="x", ax=ax0, 
+              color="#e67300", ymin=0, alpha_err=0.05)
+    res1.plot(yerr=False, ax=ax0, ls="none", marker="x", color="b", ymin=0)
+    res2.plot(yerr=False, ax=ax0, ls="-", color="#ff00ff", ymin=0)
+    res3.plot(yerr=True, ax=ax0, lw=2, color="g", ymin=0)
     
     #ax[0].set_title("Retrieved emission rates")
     ax0.legend(loc='best', fancybox=True, framealpha=0.5, fontsize=12)
+    ax0.grid()
     
     #Plot effective velocity retrieved from optical flow histogram analysis    
-    res2.plot_velo_eff(ax=ax1, date_fmt=date_fmt, color="g")
+    res3.plot_velo_eff(ax=ax1, date_fmt=date_fmt, color="g")
     #ax[1].set_title("Effective plume speed (from optflow histogram analysis)")
     ax1.set_ylim([0, ax1.get_ylim()[1]])
 
     #Plot time series of predominant plume direction (retrieved from optical
     #flow histogram analysis and stored in object of type LocalPlumeProperties
     #which is part of plumespeed.py module
-    ana.plume_properties[line_id].plot_directions(ax=ax2, date_fmt=date_fmt,
-                                                  color="g")
+    ana.pcs_lines[line_id].plume_props.plot_directions(ax=ax2, 
+                                                       date_fmt=date_fmt,
+                                                       color="g")
 
     ax2.set_ylim([-180, 180])
     pyplis.helpers.rotate_xtick_labels(ax=ax2)
     ax0.set_xticklabels([])
     ax1.set_xticklabels([])
+    ax2.set_xticklabels([])
     #tight_layout()
     
-    fig1, ax3 = subplots(1,1)
     ax3 = ana.plot_bg_roi_vals(ax=ax3, date_fmt="%H:%M")
-    
-    ax3.set_title("SO2 CD time series in scale_rect")
-    return (fig, fig1)
+    #gs.tight_layout(fig, h_pad=0)#0.03)
+    gs.update(hspace=0.05, top=0.97, bottom=0.07)
+    return fig
     
 ### SCRIPT MAIN FUNCTION    
 if __name__ == "__main__":
@@ -143,12 +150,15 @@ if __name__ == "__main__":
     
     pcs = PCS.convert(to_pyrlevel=PYRLEVEL)
                                              
-    ana = pyplis.fluxcalc.EmissionRateAnalysis(aa_list, pcs,
-                                               velo_glob=PLUME_VEL_GLOB,
-                                               bg_roi=LOG_ROI_SKY)
+    ana = pyplis.fluxcalc.EmissionRateAnalysis(imglist=aa_list, 
+                                               bg_roi=LOG_ROI_SKY,
+                                               pcs_lines=pcs,
+                                               velo_glob=PLUME_VELO_GLOB,
+                                               velo_glob_err=PLUME_VELO_GLOB_ERR)
     
     ana.settings.velo_modes["farneback_raw"] = True
     ana.settings.velo_modes["farneback_histo"] = True
+    ana.settings.velo_modes["farneback_hybrid"] = True
     ana.settings.min_cd = CD_MIN
     if not DO_EVAL:
         #you can check the settings first
@@ -164,7 +174,7 @@ if __name__ == "__main__":
         ana.calc_emission_rate(start_index=START_INDEX, 
                                stop_index=STOP_INDEX)
         
-        figs.extend(plot_and_save_results(ana))
+        figs.append(plot_and_save_results(ana))
         
         # the EmissionRateResults class has an informative string representation
         print ana.get_results("1. PCS", "farneback_histo")

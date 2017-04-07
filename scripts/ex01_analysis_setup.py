@@ -80,7 +80,9 @@ def create_dataset():
     
     #### Provide wind direction
     wind_info= {"dir"     : 0.0,
-                "dir_err"  : 15.0}
+                "dir_err"  : 1.0}
+                
+#                "dir_err"  : 15.0}
 
 
     ### Create BaseSetup object (which creates the MeasGeometry object)

@@ -119,6 +119,9 @@ def find_signal_correlation(first_data_vec, next_data_vec,
         
         s1 = Series(first_data_vec, time_stamps)
         s2 = Series(next_data_vec, time_stamps)
+        fig, ax = subplots(1,2)
+        s1.plot(ax=ax[0])
+        s2.plot(ax=ax[1])
         # this try except block was inserted due to bug when using code in 
         # exception statement with pandas > 0.19, it worked, though with 
         # pandas v0.16
@@ -128,7 +131,7 @@ def find_signal_correlation(first_data_vec, next_data_vec,
         except:
             s1 = s1.resample(delt_str).interpolate(itp_method).dropna()
             s2 = s2.resample(delt_str).interpolate(itp_method).dropna()
-        lag_fac = (s1.index[10] - s1.index[9]).total_seconds()
+        lag_fac = (s1.index[1] - s1.index[0]).total_seconds()
     else:
         s1 = Series(first_data_vec)
         s2 = Series(next_data_vec)
@@ -139,18 +142,20 @@ def find_signal_correlation(first_data_vec, next_data_vec,
     s2_vec = gaussian_filter(s2, sigma_smooth) 
         
     coeffs = []
-    max_coeff = -10
+    max_coeff = -100
     max_coeff_signal = None
     print "Signal correlation analysis running..."
     for k in range(len(s1_vec)):
         shift_s1 = roll(s1_vec, k)
-        coeffs.append(pearsonr(shift_s1, s2_vec)[0])
+        r = pearsonr(shift_s1, s2_vec)
+        coeffs.append(r[0])
         if coeffs[-1] > max_coeff:
             max_coeff = coeffs[-1]
             max_coeff_signal = Series(shift_s1, s1.index)
     coeffs = asarray(coeffs)
     s1_ana = Series(s1_vec, s1.index)
     s2_ana = Series(s2_vec, s2.index)
+        
     ax = None
     if plot:
         fig, ax = subplots(1, 3, figsize = (18,6))
@@ -206,6 +211,8 @@ class LocalPlumeProperties(object):
         self._start_acq = []
         self._del_t = []
         self._significance = []
+        self._fit_success = []
+        self._pyrlevel = []
         
         for k, v in kwargs.iteritems():
             self[k] = v
@@ -213,12 +220,18 @@ class LocalPlumeProperties(object):
     @property
     def start(self):
         """Acquisistion time of first image"""
-        return self.start_acq[0]
+        try:
+            return self.start_acq[0]
+        except IndexError:
+            raise IndexError("No data available")
         
     @property
     def stop(self):
         """Start acqusition time of last image"""
-        return self.start_acq[-1]
+        try:
+            return self.start_acq[-1]
+        except IndexError:
+            raise IndexError("No data available")
         
     @property
     def len_mu(self):
@@ -263,7 +276,18 @@ class LocalPlumeProperties(object):
         a retrieval line (:class:`LineOnImage` class).
         """
         return asarray(self._significance)
+    
+    @property
+    def fit_success(self):
+        """Array containing flags whether or not multi-gauss fit was successful
+        """
+        return asarray(self._fit_success)
         
+    @property
+    def pyrlevel(self):
+        """Array containing pyramid levels used to determine displ. params"""
+        return asarray(self._pyrlevel)
+    
     @property
     def del_t(self):
         """Return current del_t vector 
@@ -307,7 +331,42 @@ class LocalPlumeProperties(object):
         return asarray([sin(deg2rad(self.dir_mu[idx])),
                         -cos(deg2rad(self.dir_mu[idx]))])\
                         * self.len_mu[idx]
-                        
+    
+    def to_pyrlevel(self, pyrlevel=0):
+        """Convert data to a given pyramid level"""
+        p = LocalPlumeProperties(self.roi_id, color=self.color)
+        df = self.to_pandas_dataframe()
+        facs = 2**(df["_pyrlevel"] - float(pyrlevel))
+        df["_len_mu_norm"] = df["_len_mu_norm"] * facs
+        df["_len_sigma_norm"] = df["_len_sigma_norm"] * facs
+        p.from_pandas_dataframe(df)
+        return p
+        
+    def apply_significance_thresh(self, thresh=0.5):
+        """Removes all datapoints with significance val below thresh
+        
+        Datapoints with significance lower than the provided threshold are 
+        converted into NaN. Can be combined with interpolation and clean up.
+        
+        Parameters
+        ----------
+        thresh : float
+            significance threshold supposed to be applied to data
+            
+        Returns
+        -------
+        LocalPlumeProperties
+            new object excluding nan values in any of the data arrays
+        """
+        p = LocalPlumeProperties(self.roi_id, color=self.color)
+        df = self.to_pandas_dataframe()
+        df_new = df[df["_significance"]> thresh] 
+        tt = DataFrame(self.start_acq, index=self.start_acq)
+        df_new = df_new.merge(tt, how='outer', left_index=True, 
+                              right_index=True)
+        p.from_pandas_dataframe(df_new)
+        return p
+                           
     def dropna(self, **kwargs):
         """Drop all indices containing nans
         
@@ -333,7 +392,7 @@ class LocalPlumeProperties(object):
         p.from_pandas_dataframe(df)
         return p
         
-    def interpolate(self, **kwargs):
+    def interpolate(self, time_stamps=None, **kwargs):
         """Interpolate missing
         
         Remove all indices for which any of the data arrays 
@@ -343,6 +402,9 @@ class LocalPlumeProperties(object):
         
         Parameters
         ----------
+        time_stamps : array
+            array containing datetime indices supposed to be used for 
+            interpolation
         **kwargs
             additional keyword arguments passed to :func:`dropna` of pandas
             :class:`DataFrame` object.
@@ -354,6 +416,9 @@ class LocalPlumeProperties(object):
         """
         p = LocalPlumeProperties(self.roi_id, color=self.color)
         df = self.to_pandas_dataframe()
+        if time_stamps is not None:
+            tt = DataFrame(time_stamps, index=time_stamps)
+            df = df.merge(tt, how='outer', left_index=True, right_index=True)
         df = df.interpolate(**kwargs)
         p.from_pandas_dataframe(df)
         return p
@@ -421,9 +486,16 @@ class LocalPlumeProperties(object):
     def get_and_append_from_farneback(self, optflow_farneback, **kwargs):
         """Retrieve main flow field parameters from Farneback engine
         
-        Calls :func:`local_flow_params` from 
-        :class:`OptflowFarneback` engine and appends the results to 
-        the current data
+        Calls :func:`local_flow_params` from :class:`OptflowFarneback` engine 
+        and appends the results to the current data
+        
+        Parameters
+        ----------
+        optflow_farneback : OptflowFarneback
+            optical flow engine used for analysis
+        **kwargs 
+            additional keyword args passed to :func:`local_flow_params`
+        
         """
         res = optflow_farneback.local_flow_params(**kwargs)
         for key, val in res.iteritems():
@@ -562,7 +634,7 @@ class LocalPlumeProperties(object):
         except:
             pass
         ax.fill_between(s.index, lower, upper, alpha=0.1, **kwargs)
-        ax.set_ylabel(r"$\Theta\,[^{\circ}$]", fontsize=14)
+        ax.set_ylabel(r"$\varphi\,[^{\circ}$]", fontsize=14)
         ax.grid()
         return ax
         
@@ -608,23 +680,38 @@ class LocalPlumeProperties(object):
         except:
             pass
         ax.fill_between(s.index, lower, upper, alpha=0.1, **kwargs)
-        ax.set_ylabel(r"Magnitude [%s]" %unit, fontsize=14)
+        ax.set_ylabel(r"$|\mathbf{f}|$ [%s]" %unit, fontsize=14)
         ax.grid()
         return ax
     
-    def plot(self, date_fmt=None, **kwargs):
-        """Plot showing detailed information about this time series"""
-        fig = figure()
-        gs = GridSpec(3, 1, height_ratios = [.4, .4, .2], hspace=0.05)
-        ax2 = fig.add_subplot(gs[2]) #for significance plot
-        ax0 = fig.add_subplot(gs[0])#, sharex=ax2) #for orientation plot
-        ax1 = fig.add_subplot(gs[1])#, sharex=ax2) #for displ. lens
+    def plot(self, date_fmt=None, fig=None, **kwargs):
+        """Plot showing detailed information about this time series
+        
+        Parameters
+        ----------
+        date_fmt : str
+            date string formatting for x-axis
+        fig : figure
+            matplotlib figure containing 3 subplots
+        """
+        try:
+            ax = fig.axes
+            ax2 = ax[0]
+            ax0 = ax[1]
+            ax1 = ax[2]
+        except:
+            fig = figure()
+            gs = GridSpec(3, 1, height_ratios = [.4, .4, .2], hspace=0.05)
+            ax2 = fig.add_subplot(gs[2]) #for significance plot (gets x label)
+            ax0 = fig.add_subplot(gs[0], sharex=ax2) #for orientation plot
+            ax1 = fig.add_subplot(gs[1], sharex=ax2) #for displ. lens
+            
         ax1.yaxis.tick_right()
         ax1.yaxis.set_label_position("right")
         
         sign = Series(self.significance, self.start_acq)
         sign.index = sign.index.to_pydatetime()
-        sign.plot(ax=ax2,**kwargs)
+        sign.plot(ax=ax2, **kwargs)
         ax2.set_ylabel("Significance")
         ax2.set_ylim([0, 1])
         ax2.set_yticks([0,.2,.4,.6,.8, 1])
@@ -638,7 +725,11 @@ class LocalPlumeProperties(object):
         self.plot_directions(ax=ax0, date_fmt=date_fmt, **kwargs)
         self.plot_magnitudes(ax=ax1, date_fmt=date_fmt, **kwargs)
         ax0.set_xticklabels([])
-        ax1.set_xticklabels([])
+        ax1.set_xticklabels([])        
+        try:        
+            gs.update(hspace=0.05, top=0.97, bottom=0.07)
+        except:
+            pass
         return fig
         
     def plot_velocities(self, pix_dist_m=None, pix_dist_m_err=None, ax=None,
@@ -680,16 +771,18 @@ class LocalPlumeProperties(object):
         
         Returns
         -------
-        dict
+        OrderedDict
             Dictionary containing results 
         """
-        return dict(_len_mu_norm        =   self.len_mu_norm,
-                    _len_sigma_norm     =   self.len_sigma_norm,
-                    _dir_mu             =   self.dir_mu,
-                    _dir_sigma          =   self.dir_sigma,
-                    _del_t              =   self.del_t,
-                    _start_acq          =   self.start_acq,
-                    _significance       =   self._significance)
+        return od([ ("_start_acq"          ,   self.start_acq),
+                    ("_dir_mu"             ,   self.dir_mu),
+                    ("_dir_sigma"          ,   self.dir_sigma),
+                    ("_len_mu_norm"        ,   self.len_mu_norm),
+                    ("_len_sigma_norm"     ,   self.len_sigma_norm),
+                    ("_del_t"              ,   self.del_t),
+                    ("_pyrlevel"           ,   self.pyrlevel),
+                    ("_significance"       ,   self._significance),
+                    ("_fit_success"        ,   self._fit_success)])
          
     def from_dict(self, d):
         """Read valid attributes from dictionary
@@ -805,7 +898,7 @@ class FarnebackSettings(object):
         #. :attr:`min_length`: minimum length of optical flow vectors to be \
             considered for statistical analysis, default is 1 (pix)
             
-        #. :attr:`hist_dir_sigma`: parameter for retrieval of mean flow \
+        #. :attr:`hist_sigma_tol`: parameter for retrieval of mean flow \
             field parameters. It specifies the range of considered \
             orientation angles based on mu and sigma of the main peak of \
             flow field orientation histogram. All vectors falling into this \
@@ -828,7 +921,7 @@ class FarnebackSettings(object):
     def __init__(self, **settings):
         self._contrast = od([("i_min"       ,   0),
                              ("i_max"       ,   1e30),
-                             ("roi_rad"     ,   [0, 0, 9999, 9999]),
+                             ("roi_rad_abs"     ,   [0, 0, 9999, 9999]),
                              ("auto_update" ,   True)])
         
         self._flow_algo = od([("pyr_scale"  ,   0.5), 
@@ -841,7 +934,7 @@ class FarnebackSettings(object):
         self._analysis = od([("roi_abs"             ,   [0, 0, 9999, 9999]),
                              ("min_length"          ,   1.0),
                              ("min_count_frac"      ,   0.1),
-                             ("hist_dir_sigma"      ,   1),
+                             ("hist_sigma_tol"      ,   1),
                              ("hist_dir_gnum_max"   ,   10),
                              ("hist_dir_binres"     ,   10)])
         
@@ -883,20 +976,32 @@ class FarnebackSettings(object):
     
     @property
     def roi_rad(self):
+        """Old name of :attr:`roi_rad_abs`"""
+        warn("This method was renamed after release 0.11.2. Please use "
+            "roi_rad_abs in the future")
+        return self._contrast["roi_rad_abs"]
+    
+    @roi_rad.setter
+    def roi_rad(self, val):
+        warn("This method was renamed after release 0.11.2. Please use "
+            "roi_rad_abs in the future")
+        self.roi_rad_abs = val
+        
+    @property
+    def roi_rad_abs(self):
         """ROI used for measuring min / max intensities for contrast settings
         
         ROI (in absolute image coords) for updating the intensity range 
         ``i_min`` / ``i_max`` (only relevant if :attr:`auto_update` is True). 
-        
         """
-        return self._contrast["roi_rad"]
-    
-    @roi_rad.setter
-    def roi_rad(self, val):
+        return self._contrast["roi_rad_abs"]
+        
+    @roi_rad_abs.setter
+    def roi_rad_abs(self, val):
         if not check_roi(val):
             raise ValueError("Invalid ROI, need list [x0, y0, x1, y1], "
                 "got %s" %val)
-        self._contrast["roi_rad"] = val
+        self._contrast["roi_rad_abs"] = val
         
     @property
     def auto_update(self):
@@ -1038,14 +1143,27 @@ class FarnebackSettings(object):
     
     @property
     def hist_dir_sigma(self):
-        """Sigma tolerance value for mean flow analysis"""
-        return self._analysis["hist_dir_sigma"]
+        """Old name of :attr:`hist_sigma_tol`"""
+        warn("This method was renamed after release 0.11.2. Please use "
+            "hist_sigma_tol in the future")
+        return self._analysis["hist_sigma_tol"]
     
     @hist_dir_sigma.setter
     def hist_dir_sigma(self, val):
+        warn("This method was renamed after release 0.11.2. Please use "
+            "hist_sigma_tol in the future")
+        self.hist_sigma_tol = val
+        
+    @property
+    def hist_sigma_tol(self):
+        """Sigma tolerance value for mean flow analysis"""
+        return self._analysis["hist_sigma_tol"]
+    
+    @hist_sigma_tol.setter
+    def hist_sigma_tol(self, val):
         if not 1 <= val < 4:
             raise ValueError("Value must be between 1 and 4")
-        self._analysis["hist_dir_sigma"] = val
+        self._analysis["hist_sigma_tol"] = val
     
     @property
     def hist_dir_gnum_max(self):
@@ -1268,9 +1386,9 @@ class OptflowFarneback(object):
     def update_contrast_range(self):
         """Update contrast range using min/max vals of current images in ROI"""
         img = self.images_input["this"]
-        if self.settings.roi_rad == [0, 0, 9999, 9999]:
-            self.settings.roi_rad = self.settings.roi_abs
-        roi = map_roi(self.settings.roi_rad, img.edit_log["pyrlevel"])
+        if self.settings.roi_rad_abs == [0, 0, 9999, 9999]:
+            self.settings.roi_rad_abs = self.settings.roi_abs
+        roi = map_roi(self.settings.roi_rad_abs, img.edit_log["pyrlevel"])
         sub = img.img[roi[1]:roi[3], roi[0]:roi[2]]
         i_min, i_max = max([0, sub.min()]), sub.max()
         self.settings.i_min = i_min
@@ -1762,8 +1880,8 @@ class OptflowFarneback(object):
                                                max_num_gaussians)
         return fit, ok
     
-    def analyse_length_histo(self, count, bins):
-        """Get mean and sigma of length histogram using 1. and 2nd moment
+    def mu_sigma_from_moments(self, count, bins):
+        """Get mean and sigma of histogram distr. using 1. and 2nd moment
         
         Parameters
         ----------
@@ -1784,6 +1902,27 @@ class OptflowFarneback(object):
 
         mu = nth_moment(x, c, 0, 1)
         sigma = sqrt(nth_moment(x, c, mu, 2))
+        return mu, sigma
+        
+    def analyse_length_histo(self, count, bins):
+        """Get mean and sigma of length histogram using 1. and 2nd moment
+        
+        Parameters
+        ----------
+        count : array
+            array with counts per bin
+        bins : array
+            array containing bins
+            
+        Returns
+        -------
+        tuple
+            2-element tuple, containing
+            
+            - :obj:`float`: expectation value mu
+            - :obj:`float`: corresponding standard deviation
+        """
+        mu, sigma = self.mu_sigma_from_moments(count, bins)
         print("Avg. displ. length: %.1f +/- %.1f" %(mu, sigma))
         return (mu, sigma)
         
@@ -1875,7 +2014,10 @@ class OptflowFarneback(object):
                   ("_significance"  ,   0.0), #fraction of usable pixels in ROI
                   ("_add_gauss_dir" ,   []), 
                   ("pix_mask"       ,   None),
-                  ("fit_dir"        ,   None)])
+                  ("fit_dir"        ,   None),
+                  ("_fit_success"   ,   0),
+                  ("_pyrlevel"      ,   self.pyrlevel)])
+                  
         # EVALUATE INPUT AND INIT PARAMETERS
         
         # get current minimum length required to be included into statistics
@@ -1924,20 +2066,25 @@ class OptflowFarneback(object):
             return res
         # Now try to apply multi gauss fit to histogram distribution
         fit, ok = self.fit_orientation_histo(count, bins, noise_amp)
+        sigma_tol = self.settings.hist_sigma_tol
         res["fit_dir"] = fit 
-        if not fit.has_results():
-            warn("Could not retrieve main flow field parameters, multi gauss "
-                 "fit of orientation histogram failed")
-            raise Exception
-            return res
-        sigma_tol = self.settings.hist_dir_sigma
-        #analyse the fit result (i.e. find main gauss peak and potential other
-        #significant peaks)
-        (dir_mu, 
-         dir_sigma, 
-         tot_num, 
-         add_gaussians) = fit.analyse_fit_result(sigma_tol + 1)
-         
+        if fit.has_results():
+            res["_fit_success"] = 1
+            
+            #analyse the fit result (i.e. find main gauss peak and potential other
+            #significant peaks)
+            (dir_mu, 
+             dir_sigma, 
+             tot_num, 
+             add_gaussians) = fit.analyse_fit_result(sigma_tol_overlaps=
+                                                     sigma_tol + 1)
+        else:
+            warn("Could not retrieve predominant peak of orientation histogram "
+                "from multi gauss fit. Using 1. and 2. moment of distr. for "
+                "estimate of mean displacement direction")
+            dir_mu, dir_sigma = self.mu_sigma_from_moments(count, bins)
+            add_gaussians = []
+        
         res["_dir_mu"] = dir_mu
         res["_dir_sigma"] = dir_sigma
         res["_add_gauss_dir"] = add_gaussians
@@ -1988,6 +2135,45 @@ class OptflowFarneback(object):
         self.flow[:,:,0] = median_filter(self.flow[:,:,0], shape)
         self.flow[:,:,1] = median_filter(self.flow[:,:,1], shape)
     
+    def replace_trash_vecs(self, displ_vec=(0.0, 0.0), min_len=1.0, 
+                           dir_low=-180.0, dir_high=180.0):
+        """Replace all vectors that do not match certain constraints
+        
+        Returns a new :class:`OptflowFarneback` object with all vectors in 
+        attr. :attr:`flow` replaced by provided displacement vector.
+        
+        Parameters
+        ----------
+        displ_vec : iterable
+            2-element vector (list, tuple, array) containing diplacement
+            information ``(dx, dy)`` supposed to be used to replace vectors not 
+            matching provided constraints related to minimum length and 
+            expectation direction range
+        min_len : float
+            minimum required length of vectors to be considered reliable
+        dir_low : float
+            lower end of accepted displacement direction in order to be 
+            considered reliable
+        dir_high : float
+            upper end of accepted displacement direction in order to be 
+            considered reliable    
+        
+        Returns
+        -------
+        OptflowFarneback
+            duplicate of this class with :attr:`flow` containing ``displ_vec`` 
+            at indices not matching constraints
+        """
+        phis = self.get_flow_orientation_img()
+        lens = self.get_flow_vector_length_img()
+        c1 = lens > min_len
+        c2 = logical_and(phis > dir_low, phis < dir_high)
+        m = ~(c1 * c2)
+        flc = deepcopy(self)
+        flc.flow[:,:,0][m] = displ_vec[0]
+        flc.flow[:,:,1][m] = displ_vec[1]
+        return flc
+        
     @property
     def del_t(self):
         """Return time difference in s between both images"""
@@ -2063,6 +2249,7 @@ class OptflowFarneback(object):
             fit, ok = self.fit_orientation_histo(count, bins, **fit_settings)
             if fit.has_results():
                 mu, sigma,_,_ = fit.analyse_fit_result()
+                sigma = self.settings.hist_sigma_tol * sigma
                 fit.plot_multi_gaussian(ax=ax, label="Multi-Gauss fit",
                                         color=color)
                 tit += (r": $\mu (+/-\sigma$) = %.1f (+/- %.1f)" 
@@ -2081,7 +2268,7 @@ class OptflowFarneback(object):
         return ax, mu, sigma
     
     def plot_length_histo(self, pix_mask=None, dir_low=-180, dir_high=180, 
-                          min_length=None, apply_fit=True, ax=None, 
+                          min_length=None, apply_fit=False, ax=None, 
                           tit="Length histo", color="b", **fit_settings):
         if ax is None:
             fig, ax = subplots(1,1)
@@ -2105,7 +2292,7 @@ class OptflowFarneback(object):
                label="Histogram")
         
         mu, sigma = self.analyse_length_histo(count, bins)
-        
+        sigma = self.settings.hist_sigma_tol
         tit += (r": $\mu (+/-\sigma$) = %.1f (+/- %.1f)" %(mu, sigma))
         if apply_fit:
             fit, ok = self.fit_length_histo(count, bins, **fit_settings)

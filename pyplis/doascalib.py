@@ -44,14 +44,18 @@ class DoasCalibData(object):
             pixel coordinates into decimal degrees
         
         """
-        self.tau_vec = tau_vec #tau data vector within FOV
-        self.doas_vec = doas_vec #doas data vector
+        #tau data vector within FOV
+        self.tau_vec = tau_vec 
+        #doas data vector
+        self.doas_vec = doas_vec 
         self.time_stamps = time_stamps
         self.calib_id = calib_id
         
         self.camera = None
         
-        self.fov = DoasFOV(camera)
+        if not isinstance(fov, DoasFOV):
+            fov = DoasFOV(camera)
+        self.fov = fov
         
         self.poly = None
         self.cov = None
@@ -141,6 +145,11 @@ class DoasCalibData(object):
             cdmin = 0
         add = (cdmax - cdmin) * 0.05
         return cdmin - add, cdmax + add
+    
+    @property
+    def residual(self):
+        """Residual of calibration curve"""
+        return self.poly(self.tau_vec) - self.tau_vec
         
     def has_calib_data(self):
         """Checks if calibration data is available"""
@@ -150,11 +159,20 @@ class DoasCalibData(object):
             return False
         return True
         
-    def fit_calib_polynomial(self, polyorder = None, plot = False):
+    def fit_calib_polynomial(self, polyorder=None, plot=False):
         """Fit calibration polynomial to current data
         
-        :param int polyorder: update current polyorder 
-        :return: poly1d, calibration polynomial
+        Parameters
+        ----------
+        polyorder : :obj:`int`, optional
+            update current polyorder 
+        plot : bool
+            If True, the calibration curve and the polynomial are plotted
+        
+        Returns
+        -------
+        poly1d
+            calibration polynomial
         """
         if not self.has_calib_data():
             raise ValueError("Calibration data is not available")
@@ -174,7 +192,10 @@ class DoasCalibData(object):
         return self.poly
     
     def save_as_fits(self, save_dir=None, save_name=None):
-        """Save stack as FITS file"""
+        """Save stack as FITS file
+        
+                
+        """
         if not len(self.doas_vec) == len(self.tau_vec):
             raise ValueError("Could not save calibration data, mismatch in "
                 " lengths of data arrays")
@@ -335,8 +356,14 @@ class DoasCalibData(object):
         ax.grid()
         rotate_xtick_labels(ax)
         return (ax, ax2)
+    
+    def err(self, value):
+        """Returns measurement error of tau value based on slope error"""
+        val = self(value)
+        r = self.slope_err / self.slope
+        return val * r
         
-    def __call__(self, value, filter_id="aa", **kwargs):
+    def __call__(self, value,  **kwargs):
         """Define call function to apply calibration
         
         :param float value: tau or AA value
@@ -377,7 +404,7 @@ class DoasFOV(object):
         
         self.result_pearson = {"cx_rel"     :   nan,
                                "cy_rel"     :   nan,
-                               "rad_rel" :   nan,
+                               "rad_rel"    :   nan,
                                "corr_curve" :   None}
         self.result_ifr = {"popt"           :   None,
                            "pcov"           :   None}
@@ -449,7 +476,7 @@ class DoasFOV(object):
         else: 
             return max([self.popt[3], self.popt[3] / self.popt[4]])
          
-    def pixel_extend(self, abs_coords=False):
+    def pixel_extend(self, abs_coords=True):
         """Return pixel extend of FOV on image
         
         :param bool abs_coords: return value in absolute or relative 
@@ -527,7 +554,7 @@ class DoasFOV(object):
             d.save_as_fits(**kwargs)
             
         """
-        d = DoasCalibData(fov = self)
+        d = DoasCalibData(fov=self)
         d.save_as_fits(**kwargs)
     
     def __str__(self):
@@ -834,10 +861,6 @@ class DoasFOVEngine(object):
             if not radius > 0:
                 raise ValueError("Pearson FOV search failed")
     
-#==============================================================================
-#             cx_abs, cy_abs = map_coordinates_sub_img(cx, cy, roi =\
-#                 self.img_stack.roi, pyrlevel = pyrlevel, inverse = True)
-#==============================================================================
             self.calib_data.fov.result_pearson["cx_rel"] = cx
             self.calib_data.fov.result_pearson["cy_rel"] = cy
             self.calib_data.fov.result_pearson["rad_rel"] = radius
@@ -890,13 +913,13 @@ class DoasFOVEngine(object):
         else:
             self._settings["maxrad"] = max_rad
         #radius array
-        radii = arange(1, max_rad, 1)
+        radii = arange(1, max_rad + 1, 1)
         print "Maximum radius: " + str(max_rad - 1)
         #some variable initialisations
         coeffs, coeffs_err = [], []
         max_corr = 0
         tau_vec = None
-        mask = None
+        mask = zeros((h, w)).astype(float32)
         radius = 0
         #loop over all radii, get tauSeries at each, (merge) and determine 
         #correlation coefficient
@@ -912,11 +935,11 @@ class DoasFOVEngine(object):
             #and append correlation coefficient to results
             if coeff > max_corr:
                 radius = r
-                mask = m
+                mask = m.astype(float32)
                 max_corr = coeff
                 tau_vec = tau_dat
         corr_curve = Series(asarray(coeffs, dtype = float),radii)
-        return radius, corr_curve, tau_vec, doas_vec, mask.astype(float32)
+        return radius, corr_curve, tau_vec, doas_vec, mask
         
     # define IFR model function (Super-Gaussian)    
         
@@ -946,7 +969,6 @@ class DoasFOVEngine(object):
     def convolve_stack_fov(self, fov_mask):
         """Normalize fov image and convolve stack
         
-        :param ndarr
         :returns: - stack time series vector within FOV
         """
         # normalize fov_mask

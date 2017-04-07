@@ -134,7 +134,7 @@ def make_aa_stack_from_list(aa_list, roi_abs=None, pyrlevel=None,
 def get_stack(reload_stack=RELOAD_STACK, stack_path=STACK_PATH,
               pyrlevel=PYRLEVEL_ROUGH_SEARCH):
     """Load stack data based on current settings"""
-    if not exists(STACK_PATH):
+    if not exists(stack_path):
         reload_stack = 1
         
     if not reload_stack:
