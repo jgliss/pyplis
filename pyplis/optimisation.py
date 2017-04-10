@@ -800,7 +800,7 @@ class MultiGaussFit(object):
         weights = ints / ints.sum()
         norm = []
         gs = self._params_to_sublist(params)
-        print "NUM of cons. peaks for normalisation: (%d | %d)" %(len(gs), len(self.gaussians()))
+        #print "NUM of cons. peaks for normalisation: (%d | %d)" %(len(gs), len(self.gaussians()))
         for k in range(len(gs)):
             g = gs[k]
             mu, sigma = g[1], g[2]

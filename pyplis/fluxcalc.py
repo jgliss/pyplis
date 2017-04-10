@@ -21,12 +21,19 @@ MOL_MASS_SO2 = 64.0638 #g/mol
 from .imagelists import ImgList
 from .plumespeed import LocalPlumeProperties  
 from .processing import LineOnImage  
-from .helpers import map_roi, check_roi, exponent
+from .helpers import check_roi, exponent
 
 class EmissionRateSettings(object):
     """Class for management of settings for emission rate retrievals"""
     def __init__(self, pcs_lines=[], velo_glob=nan, velo_glob_err=nan, 
-                 **settings):
+                 bg_roi_abs=None, ref_check_lower_lim=None,
+                 ref_check_upper_lim=None, **settings):
+        
+        # allow input for older version attributes
+        if settings.has_key("bg_roi") and bg_roi_abs is None:
+            bg_roi_abs = settings["bg_roi"]
+            del settings["bg_roi"]
+            
         self.velo_modes = od([("glob"               ,   True),
                               ("farneback_raw"      ,   False),
                               ("farneback_histo"    ,   False),
@@ -45,6 +52,11 @@ class EmissionRateSettings(object):
         self._velo_glob_err = nan
         self.velo_glob = velo_glob
         self.velo_glob_err = velo_glob_err
+        
+        self._bg_roi_abs = bg_roi_abs
+        self._ref_check_mode = False
+        self.ref_check_lower_lim = ref_check_lower_lim
+        self.ref_check_upper_lim = ref_check_upper_lim
         
         self.senscorr = True #apply AA sensitivity correction
         self.min_cd = -1e30 #minimum required column density for retrieval [cm-2]
@@ -69,17 +81,44 @@ class EmissionRateSettings(object):
         if not sum(self.velo_modes.values()) > 0:
             warn("All velocity retrieval modes are deactivated")
     
-    def _check_velo_glob_access(self):
-        """Checks if global velocity information is accessible for all lines"""
-        vglob = self.velo_glob
-        if not isnan(float(vglob)):
-            return True
-        for l in self.pcs_lines.values():
+    @property
+    def bg_roi_abs(self):
+        """Current background reference ROI"""
+        return self._bg_roi_abs
+    
+    @bg_roi_abs.setter
+    def bg_roi_abs(self, value):
+        if not check_roi(value):
+            raise ValueError("Invalid ROI: %s, need list: [x0,y0,x1,y1]" 
+                                %value)
+        self._bg_roi_abs = value
+       
+    @property
+    def ref_check_mode(self):
+        """Activate / deactivate reference area control mode"""
+        return self._ref_check_mode
+    
+    @ref_check_mode.setter
+    def ref_check_mode(self, value):
+        try:
+            value = bool(value)
+        except:
+            raise ValueError("Need bool or similar")
+        if value:
+            if not check_roi(self.bg_roi_abs):
+                raise ValueError("Cannot activate ref_check_mode: bg_roi is "
+                    "not set")
             try:
-                l.velo_glob
+                self.ref_check_lower_lim = float(self.ref_check_lower_lim)
             except:
-                return False
-        return True
+                raise ValueError("Please assign a valid lower value (type float) "
+                "for reference check in bg_roi using attr. ref_check_lower_lim")
+            try:
+                self.ref_check_upper_lim = float(self.ref_check_upper_lim)
+            except:
+                raise ValueError("Please assign a valid upper value (type float) "
+                "for reference check in bg_roi using attr. ref_check_upper_lim")
+        self._ref_check_mode = value
         
     @property
     def velo_mode_glob(self):
@@ -159,6 +198,18 @@ class EmissionRateSettings(object):
         if not isnan(val):
             self._velo_glob_err = val
     
+    def _check_velo_glob_access(self):
+        """Checks if global velocity information is accessible for all lines"""
+        vglob = self.velo_glob
+        if not isnan(float(vglob)):
+            return True
+        for l in self.pcs_lines.values():
+            try:
+                l.velo_glob
+            except:
+                return False
+        return True
+        
     def add_pcs_line(self, line):
         """Add one analysis line to this list
         
@@ -667,7 +718,7 @@ class EmissionRateAnalysis(object):
         AA image list from that (see example scripts 1 and 4). 
             
     """
-    def __init__(self, imglist, bg_roi=None, **settings):
+    def __init__(self, imglist, **settings):
 
         if not isinstance(imglist, ImgList):
             raise TypeError("Need ImgList, got %s" %type(imglist))
@@ -679,18 +730,17 @@ class EmissionRateAnalysis(object):
         #dictionary, keys are the line_ids of all PCS lines
         self.results = od()
         
-        if not check_roi(bg_roi):
+        if not check_roi(self.settings.bg_roi_abs):
             try:
-                bg_roi = map_roi(imglist.bg_model.scale_rect,
-                              pyrlevel_rel=imglist.pyrlevel)
-                if not check_roi(bg_roi):
+                bg_roi_abs = imglist.bg_model.scale_rect
+                if not check_roi(bg_roi_abs):
                     raise ValueError("Fatal: check scale rectangle in "
                         "background model of image list...")
             except:
                 warn("Failed to access scale rectangle in background model "
                     "of image list, setting bg_roi to lower left image corner")
-                bg_roi = [5, 5, 20, 20]
-        self.bg_roi = bg_roi
+                bg_roi_abs = [5, 5, 20, 20]
+            self.settings.bg_roi_abs = bg_roi_abs
         self.bg_roi_info = {"mean"  :   None, 
                             "std"   :   None}
         
@@ -968,109 +1018,97 @@ class EmissionRateAnalysis(object):
         else:
             lst.optflow_mode = False #should be much faster
         ts, bg_mean, bg_std = [], [], []
-        roi_bg = self.bg_roi
+        counter=0
+        roi_bg_abs = self.settings.bg_roi_abs
         velo_modes = s.velo_modes
         min_cd = s.min_cd
         lines = self.pcs_lines
+        pnum = int(10**exponent(stop_index - start_index)/4.0)
+        imin, imax = s.ref_check_lower_lim, s.ref_check_upper_lim
         for k in range(start_index, stop_index):
-            print "Progress: %d (%d)" %(k, stop_index)
             img = lst.current_img()
             t = lst.current_time()
             ts.append(t)
-            sub = img.img[roi_bg[1] : roi_bg[3], roi_bg[0] : roi_bg[2]]
-            
-            bg_std.append(sub.std())
-            bg_mean.append(sub.mean())
-
-            for pcs_id, pcs in lines.iteritems():
-                res = results[pcs_id]
-                n = pcs.normal_vector
-                cds = pcs.get_line_profile(img)
-                cond = cds > min_cd
-                cds = cds[cond]
-                cds_err = cds * cd_err_rel
-                distarr = dists[pcs_id][cond]
-                disterr = dist_errs[pcs_id]
-                
-                if velo_modes["glob"]:
-                    try:
-                        vglob, vglob_err = pcs.velo_glob, pcs.velo_glob_err
-                    except:
-                        vglob, vglob_err = self.velo_glob, self.velo_glob_err
-                    phi, phi_err = det_emission_rate(cds, vglob, distarr,
-                                                     cds_err, vglob_err, 
-                                                     disterr, mmol)
-                    if isnan(phi):
-                        print cds
-                        raise ValueError
-                    res["glob"]._start_acq.append(t)
-                    res["glob"]._phi.append(phi)
-                    res["glob"]._phi_err.append(phi_err)
-                    res["glob"]._velo_eff.append(vglob)
-                    res["glob"]._velo_eff_err.append(vglob_err)
-                
-                if velo_modes["farneback_raw"]:
-                    delt = lst.optflow.del_t
+            ok = True
+            try:
+                sub = img.crop(roi_bg_abs, new_img=True)
+                #sub = img.img[roi_bg[1] : roi_bg[3], roi_bg[0] : roi_bg[2]]
+                avg = sub.mean()
+                bg_mean.append(avg)
+                bg_std.append(sub.std())
+                if self.settings.ref_check_mode:
+                    if not imin < avg < imax:
+                        ok = False
+            except:
+                warn("Failed to retrieve data within background ROI (bg_roi)"
+                    "writing NaN")
+                bg_std.append(nan)
+                bg_mean.append(nan)
+                if self.settings.ref_check_mode:
+                    ok = False
+            if ok:
+                for pcs_id, pcs in lines.iteritems():
+                    res = results[pcs_id]
+                    n = pcs.normal_vector
+                    cds = pcs.get_line_profile(img)
+                    cond = cds > min_cd
+                    cds = cds[cond]
+                    cds_err = cds * cd_err_rel
+                    distarr = dists[pcs_id][cond]
+                    disterr = dist_errs[pcs_id]
                     
-                    # retrieve diplacement vectors along line
-                    dx = pcs.get_line_profile(lst.optflow.flow[:,:,0])
-                    dy = pcs.get_line_profile(lst.optflow.flow[:,:,1])
+                    if velo_modes["glob"]:
+                        try:
+                            vglob, vglob_err = pcs.velo_glob, pcs.velo_glob_err
+                        except:
+                            vglob, vglob_err = self.velo_glob, self.velo_glob_err
+                        phi, phi_err = det_emission_rate(cds, vglob, distarr,
+                                                         cds_err, vglob_err, 
+                                                         disterr, mmol)
+                        if isnan(phi):
+                            print cds
+                            raise ValueError
+                        res["glob"]._start_acq.append(t)
+                        res["glob"]._phi.append(phi)
+                        res["glob"]._phi_err.append(phi_err)
+                        res["glob"]._velo_eff.append(vglob)
+                        res["glob"]._velo_eff_err.append(vglob_err)
                     
-                    # detemine array containing effective velocities 
-                    # through the line using dot product with line normal
-                    veff_arr = dot(n, (dx, dy))[cond] * distarr / delt
-                    
-                    # Calculate mean of effective velocity through l and 
-                    # uncertainty using 2 sigma confidence of standard deviation
-                    veff = veff_arr.mean()
-                    veff_err = veff_arr.std() * 2
-                    
-                    phi, phi_err = det_emission_rate(cds, veff_arr,
-                                                     distarr, cds_err, 
-                                                     veff_err, disterr, mmol)
-                    res["farneback_raw"]._start_acq.append(t)                                
-                    res["farneback_raw"]._phi.append(phi)
-                    res["farneback_raw"]._phi_err.append(phi_err)
-
-                    
-                    #note that the velocity is likely underestimated due to
-                    #low contrast regions (e.g. out of the plume, this can
-                    #be accounted for by setting an appropriate CD minimum
-                    #threshold in settings, such that the retrieval is
-                    #only applied to pixels exceeding a certain column 
-                    #density)
-                    res["farneback_raw"]._velo_eff.append(veff)
-                    res["farneback_raw"]._velo_eff_err.append(veff_err)
-                
-                props = pcs.plume_props
-                if velo_modes["farneback_histo"]:                    
-                    if s.plume_props_available[pcs_id]:
-                        idx = k
-                    else:                            
-                        # get mask specifying plume pixels
-                        mask = lst.get_thresh_mask(min_cd)
-                        props.get_and_append_from_farneback(lst.optflow,
-                                                            line=pcs,
-                                                            pix_mask=mask)
-                        idx = -1
+                    if velo_modes["farneback_raw"]:
+                        delt = lst.optflow.del_t
                         
-                    v, verr = props.get_velocity(idx, distarr.mean(),
-                                                 disterr, 
-                                                 pcs.normal_vector)
+                        # retrieve diplacement vectors along line
+                        dx = pcs.get_line_profile(lst.optflow.flow[:,:,0])
+                        dy = pcs.get_line_profile(lst.optflow.flow[:,:,1])
+                        
+                        # detemine array containing effective velocities 
+                        # through the line using dot product with line normal
+                        veff_arr = dot(n, (dx, dy))[cond] * distarr / delt
+                        
+                        # Calculate mean of effective velocity through l and 
+                        # uncertainty using 2 sigma confidence of standard deviation
+                        veff = veff_arr.mean()
+                        veff_err = veff_arr.std() * 2
+                        
+                        phi, phi_err = det_emission_rate(cds, veff_arr,
+                                                         distarr, cds_err, 
+                                                         veff_err, disterr, mmol)
+                        res["farneback_raw"]._start_acq.append(t)                                
+                        res["farneback_raw"]._phi.append(phi)
+                        res["farneback_raw"]._phi_err.append(phi_err)
+    
+                        
+                        #note that the velocity is likely underestimated due to
+                        #low contrast regions (e.g. out of the plume, this can
+                        #be accounted for by setting an appropriate CD minimum
+                        #threshold in settings, such that the retrieval is
+                        #only applied to pixels exceeding a certain column 
+                        #density)
+                        res["farneback_raw"]._velo_eff.append(veff)
+                        res["farneback_raw"]._velo_eff_err.append(veff_err)
                     
-                    phi, phi_err = det_emission_rate(cds, v, distarr, 
-                                                     cds_err, verr, disterr, 
-                                                     mmol)
-                                                     
-                    res["farneback_histo"]._start_acq.append(t)                                
-                    res["farneback_histo"]._phi.append(phi)
-                    res["farneback_histo"]._phi_err.append(phi_err)
-                    res["farneback_histo"]._velo_eff.append(v)
-                    res["farneback_histo"]._velo_eff_err.append(verr)
-                    
-                if velo_modes["farneback_hybrid"]:
-                    # get results from local plume properties analysis
-                    if not velo_modes["farneback_histo"]:
+                    props = pcs.plume_props
+                    if velo_modes["farneback_histo"]:                    
                         if s.plume_props_available[pcs_id]:
                             idx = k
                         else:                            
@@ -1080,42 +1118,81 @@ class EmissionRateAnalysis(object):
                                                                 line=pcs,
                                                                 pix_mask=mask)
                             idx = -1
-            
-                    min_len = props.len_mu[idx] - props.len_sigma[idx]
-                    dir_min = props.dir_mu[idx] - 3 * props.dir_sigma[idx]
-                    dir_max = props.dir_mu[idx] + 3 * props.dir_sigma[idx]
-                    
-                    vec = props.displacement_vector(idx)
-                                        
-                    flc = lst.optflow.replace_trash_vecs(displ_vec=vec, 
-                                                         min_len=min_len,
-                                                         dir_low=dir_min, 
-                                                         dir_high=dir_max)
-                    
-                    delt = lst.optflow.del_t
-                    dx = pcs.get_line_profile(flc.flow[:,:,0])
-                    dy = pcs.get_line_profile(flc.flow[:,:,1])
-                    veff_arr = dot(n, (dx, dy))[cond] * distarr / delt
-                    
-                    # Calculate mean of effective velocity through l and 
-                    # uncertainty using 2 sigma confidence of standard deviation
-                    veff = veff_arr.mean()
-                    veff_err = veff_arr.std()
-                    
-                    phi, phi_err = det_emission_rate(cds, veff_arr,
-                                                     distarr, cds_err, 
-                                                     veff_err, disterr, mmol)
-                    res["farneback_hybrid"]._start_acq.append(t)                                
-                    res["farneback_hybrid"]._phi.append(phi)
-                    res["farneback_hybrid"]._phi_err.append(phi_err)
-                    res["farneback_hybrid"]._velo_eff.append(veff)
-                    res["farneback_hybrid"]._velo_eff_err.append(veff_err)
-                    
+                            
+                        v, verr = props.get_velocity(idx, distarr.mean(),
+                                                     disterr, 
+                                                     pcs.normal_vector)
+                        
+                        phi, phi_err = det_emission_rate(cds, v, distarr, 
+                                                         cds_err, verr, disterr, 
+                                                         mmol)
+                                                         
+                        res["farneback_histo"]._start_acq.append(t)                                
+                        res["farneback_histo"]._phi.append(phi)
+                        res["farneback_histo"]._phi_err.append(phi_err)
+                        res["farneback_histo"]._velo_eff.append(v)
+                        res["farneback_histo"]._velo_eff_err.append(verr)
+                        
+                    if velo_modes["farneback_hybrid"]:
+                        # get results from local plume properties analysis
+                        if not velo_modes["farneback_histo"]:
+                            if s.plume_props_available[pcs_id]:
+                                idx = k
+                            else:                            
+                                # get mask specifying plume pixels
+                                mask = lst.get_thresh_mask(min_cd)
+                                props.get_and_append_from_farneback(lst.optflow,
+                                                                    line=pcs,
+                                                                    pix_mask=mask)
+                                idx = -1
+                
+                        min_len = props.len_mu[idx] - props.len_sigma[idx]
+                        dir_min = props.dir_mu[idx] - 3 * props.dir_sigma[idx]
+                        dir_max = props.dir_mu[idx] + 3 * props.dir_sigma[idx]
+                        
+                        vec = props.displacement_vector(idx)
+                                            
+                        flc = lst.optflow.replace_trash_vecs(displ_vec=vec, 
+                                                             min_len=min_len,
+                                                             dir_low=dir_min, 
+                                                             dir_high=dir_max)
+                        
+                        delt = lst.optflow.del_t
+                        dx = pcs.get_line_profile(flc.flow[:,:,0])
+                        dy = pcs.get_line_profile(flc.flow[:,:,1])
+                        veff_arr = dot(n, (dx, dy))[cond] * distarr / delt
+                        
+                        # Calculate mean of effective velocity through l and 
+                        # uncertainty using 2 sigma confidence of standard deviation
+                        veff = veff_arr.mean()
+                        veff_err = veff_arr.std()
+                        
+                        phi, phi_err = det_emission_rate(cds, veff_arr,
+                                                         distarr, cds_err, 
+                                                         veff_err, disterr, mmol)
+                        res["farneback_hybrid"]._start_acq.append(t)                                
+                        res["farneback_hybrid"]._phi.append(phi)
+                        res["farneback_hybrid"]._phi_err.append(phi_err)
+                        res["farneback_hybrid"]._velo_eff.append(veff)
+                        res["farneback_hybrid"]._velo_eff_err.append(veff_err)
+                counter += 1
+            else:
+                warn("Skipped image no. %d" %k)
+            try:
+                if k % pnum == 0:            
+                    print "Progress: %d (%d)" %(k, stop_index)
+            except:
+                pass
             lst.next_img()  
     
         self.bg_roi_info["mean"] = Series(bg_mean, ts)
         self.bg_roi_info["std"] = Series(bg_std, ts)
         
+        if not counter > 0:
+            raise ValueError("Emission rate retrieval failed for all images "
+                "in image list...")
+        print ("Emission rates could be successfully retrieved for %d of %d"
+            "images in image list" %(counter, (stop_index - start_index)))
         return self.results
 
     def add_pcs_line(self, line):

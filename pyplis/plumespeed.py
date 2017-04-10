@@ -1393,8 +1393,8 @@ class OptflowFarneback(object):
         i_min, i_max = max([0, sub.min()]), sub.max()
         self.settings.i_min = i_min
         self.settings.i_max = i_max
-        print ("Updated contrast range in opt flow: ROI=%s\ni_min=%s\ni_max%s\n" 
-            %(roi, i_min, i_max))
+        print ("Updated contrast range in optflow (ROI=%s), i_min=%.1e, "
+            "i_max=%.1e" %(roi, i_min, i_max))
     
     def set_images(self, this_img, next_img):
         """Update the current image objects 
@@ -1451,13 +1451,11 @@ class OptflowFarneback(object):
             self.set_images(this_img, next_img)
             
         settings = self.settings._flow_algo
-        print "Calculating optical flow"
-        t0 = time()
+        print "Calculating Farneback optical flow"
         self.flow = calcOpticalFlowFarneback(self.images_prep["this"],
                                              self.images_prep["next"], 
                                              flags=OPTFLOW_FARNEBACK_GAUSSIAN,
                                              **settings)
-        print "Elapsed time flow calculation: %.1f s" %(time() - t0)
         return self.flow 
         
     def get_flow_in_roi(self, roi_rel=None):
@@ -2032,7 +2030,7 @@ class OptflowFarneback(object):
         #init pixel access mask 
         mask = pix_mask
         if isinstance(line, LineOnImage):
-            print "Using rotated ROI mask for pixel access"""
+            #print "Using rotated ROI mask for pixel access"""
             m = line.get_rotated_roi_mask(self.flow.shape[:2])
             if mask is None:
                 mask = m

@@ -34,7 +34,7 @@ from .processing import ImgStack, PixelMeanTimeSeries, LineOnImage,\
 from .optimisation import PolySurfaceFit                                                    
 from .plumebackground import PlumeBackgroundModel
 from .plumespeed import OptflowFarneback, LocalPlumeProperties
-from .helpers import check_roi, map_roi, _print_list, closest_index
+from .helpers import check_roi, map_roi, _print_list, closest_index,exponent
 
 class BaseImgList(object):
     """Basic image list object
@@ -669,9 +669,13 @@ class BaseImgList(object):
             ref_check_max_val = float(ref_check_max_val)
         except:
             ref_check = False
-    
+        exp = int(10**exponent(num)/4.0)
+        if not exp:
+            exp = 1
         for k in range(num):
-            print "Building img-stack from list %s (%s | %s)" %(lid, k, num-1)
+            if k % exp == 0:
+                print ("Building img-stack from list %s, progress: (%s | %s)" 
+                       %(lid, k, num-1))
             img = self.loaded_images["this"]
             #print im.meta["start_acq"]
             append = True
@@ -770,10 +774,15 @@ class BaseImgList(object):
         num = self.nof
         
         self.goto_img(0)
-        lid=self.list_id
+        lid = self.list_id
+        pnum = int(10**exponent(num) / 4.0)
         for k in range(num):
-            print ("Calc pixel mean t-series in list %s (%d | %d)" 
-                                            %(lid,(k+1),num))
+            try:
+                if k % pnum == 0:    
+                    print ("Calc pixel mean t-series in list %s (%d | %d)" 
+                                                    %(lid,(k+1),num))
+            except:
+                pass
             img = self.loaded_images["this"]
             for i in range(num_rois):
                 roi = rois[i]
@@ -825,9 +834,14 @@ class BaseImgList(object):
         vals, stds, texps, acq_times = [],[],[],[]
         self.goto_img(0)
         lid=self.list_id
+        pnum = int(10**exponent(num) / 4.0)
         for k in range(num):
-            print ("Calc pixel mean t-series in list %s (%d | %d)" 
-                                            %(lid,(k+1),num))
+            try:
+                if k % pnum == 0:
+                    print ("Calc pixel mean t-series in list %s (%d | %d)" 
+                                                %(lid,(k+1),num))
+            except:
+                pass
             img = self.loaded_images["this"]
             texps.append(img.meta["texp"])
             acq_times.append(img.meta["start_acq"])
@@ -1880,9 +1894,11 @@ class ImgList(BaseImgList):
         """
         if val is self.optflow_mode:
             return 
-        if self.crop:
-            raise ValueError("Optical flow analysis can only be applied to "
-                "uncropped images, please deactivate crop mode")
+#==============================================================================
+#         if self.crop:
+#             raise ValueError("Optical flow analysis can only be applied to "
+#                 "uncropped images, please deactivate crop mode")
+#==============================================================================
         if val:
             try:
                 self.set_flow_images()
