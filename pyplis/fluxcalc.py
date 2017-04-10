@@ -237,10 +237,49 @@ class EmissionRateResults(object):
         self.pix_dist_mean_err = None
         self.cd_err_rel = None
     
+    @property
+    def start(self):
+        """Acquisistion time of first image"""
+        return self.start_acq[0]
+        
+    @property
+    def stop(self):
+        """Start acqusition time of last image"""
+        return self.start_acq[-1]
+        
+    @property
+    def start_acq(self):
+        """Array containing acquisition time stamps"""
+        return asarray(self._start_acq)
+    
+    @property
+    def phi(self):
+        """Array containing emission rates"""
+        return asarray(self._phi)
+    
+    @property
+    def phi_err(self):
+        """Array containing emission rate errors"""
+        return asarray(self._phi_err)
+    
+    @property
+    def velo_eff(self):
+        """Array containing effective plume velocities"""
+        return asarray(self._velo_eff)
+    
+    @property
+    def velo_eff_err(self):
+        """Array containing effective plume velocitie errors"""
+        return asarray(self._velo_eff_err)
+        
+    @property
+    def as_series(self):
+        """Emission rates as pandas Series"""
+        return Series(self.phi, self.start_acq)
     
     @property
     def meta_header(self):
-        """Return string containing available meta information
+        """String containing available meta information
         
         Returns
         -------
@@ -255,6 +294,17 @@ class EmissionRateResults(object):
                self.pix_dist_mean_err, self.cd_err_rel))
         return s
     
+    @property
+    def default_save_name(self):
+        """Returns default name for txt export"""
+        try:
+            d = self.start.strftime("%Y%m%d")
+            i = self.start.strftime("%H%M")
+            f = self.stop.strftime("%H%M")
+        except:
+            d, i, f = "", "", ""    
+        return "pyplis_EmissionRateResults_%s_%s_%s.txt" %(d, i, f)
+        
     def get_date_time_strings(self):
         """Returns string reprentations of date and start / stop times
         
@@ -304,29 +354,7 @@ class EmissionRateResults(object):
             return df
         except:
             warn("Failed to convert EmissionRateResults into pandas DataFrame")
-    
-    @property
-    def default_save_name(self):
-        """Returns default name for txt export"""
-        try:
-            d = self.start.strftime("%Y%m%d")
-            i = self.start.strftime("%H%M")
-            f = self.stop.strftime("%H%M")
-        except:
-            d, i, f = "", "", ""    
-        return "pyplis_EmissionRateResults_%s_%s_%s.txt" %(d, i, f)
-        
-    def save_txt(self, path=None):
-        """Save this object as text file"""       
-        
-        try:
-            if isdir(path): # raises exception in case path is not valid loc
-                path = join(path, self.default_save_name)
-        except:
-            path = join(getcwd(), self.default_save_name)
             
-        self.to_pandas_dataframe().to_csv(path)
-        
     def from_pandas_dataframe(self, df):
         """Import results from pandas :class:`DataFrame` object
         
@@ -346,45 +374,7 @@ class EmissionRateResults(object):
                 self.__dict__[key] = df[key].values
         return self
         
-    @property
-    def start(self):
-        """Returns acquisistion time of first image"""
-        return self.start_acq[0]
-        
-    @property
-    def stop(self):
-        """Returns start acqusition time of last image"""
-        return self.start_acq[-1]
-        
-    @property
-    def start_acq(self):
-        """Return array containing acquisition time stamps"""
-        return asarray(self._start_acq)
     
-    @property
-    def phi(self):
-        """Return array containing emission rates"""
-        return asarray(self._phi)
-    
-    @property
-    def phi_err(self):
-        """Return array containing emission rate errors"""
-        return asarray(self._phi_err)
-    
-    @property
-    def velo_eff(self):
-        """Return array containing effective plume velocities"""
-        return asarray(self._velo_eff)
-    
-    @property
-    def velo_eff_err(self):
-        """Return array containing effective plume velocitie errors"""
-        return asarray(self._velo_eff_err)
-        
-    @property
-    def as_series(self):
-        """Return emission rate as pandas Series"""
-        return Series(self.phi, self.start_acq)
     
     def plot_velo_eff(self, yerr=True, label=None, ax=None, date_fmt=None, 
                       **kwargs):
@@ -510,6 +500,33 @@ class EmissionRateResults(object):
         ax.set_ylim(ylim)
         return ax
     
+    def save_txt(self, path=None):
+        """Save this object as text file"""       
+        
+        try:
+            if isdir(path): # raises exception in case path is not valid loc
+                path = join(path, self.default_save_name)
+        except:
+            path = join(getcwd(), self.default_save_name)
+            
+        self.to_pandas_dataframe().to_csv(path)
+    
+    def load_txt(self, path):
+        """Load results from text file
+        
+        Parameters
+        ----------
+        path : str
+            valid file location
+        
+        Returns
+        -------
+        EmissionRateResults
+            loaded result data class
+        """
+        df = DataFrame.from_csv(path)
+        return self.from_pandas_dataframe(df)
+        
     def __add__(self, other):
         """Add emission rate results from two result classes
         
@@ -1166,7 +1183,7 @@ class EmissionRateAnalysis(object):
         ax.set_ylabel(r"$ROI_{BG}\,[E%+d\,cm^{-2}]$" %exp)
         ax.grid()
         return ax
-        
+      
 def det_emission_rate(cds, velo, pix_dists, cds_err=None, velo_err=None,
                       pix_dists_err=None, mmol=MOL_MASS_SO2):
     """Determine emission rate

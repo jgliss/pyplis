@@ -571,7 +571,9 @@ class BaseImgList(object):
         return True
     
     def make_stack(self, stack_id=None, pyrlevel=None, roi_abs=None,
-                   start_idx=0, stop_idx=None, dtype=float32):
+                   start_idx=0, stop_idx=None, ref_check_roi_abs=None,
+                   ref_check_min_val=None, ref_check_max_val=None,
+                   dtype=float32):
         """Stack all images in this list 
         
         The stacking is performed using the current image preparation
@@ -597,6 +599,22 @@ class BaseImgList(object):
         stop_idx : :obj:`int`, optional
             index of last considered image (if None, the last image in this 
             list is used), defaults to last index
+        ref_check_roi_abs : :obj:`list`, optional
+            rectangular area specifying a reference area which can be specified
+            in combination with the following 2 parameters in order to include
+            only images in the stack that are within a certain intensity range
+            within this ROI (Note that this ROI needs to be specified in
+            absolute coordinate, i.e. corresponding to pyrlevel 0).
+        ref_check_min_val : :obj:`float`, optional
+            if attribute ``roi_ref_check`` is a valid ROI, then only images 
+            are included in the stack that exceed the specified intensity 
+            value (can e.g. be optical density or minimum gas CD in calib
+            mode)
+        ref_check_max_val : :obj:`float`, optional
+            if attribute ``roi_ref_check`` is a valid ROI, then only images 
+            are included in the stack that are smaller than the specified 
+            intensity value (can e.g. be optical density or minimum gas CD in 
+            calib mode)    
         dtype 
             data type of stack
             
@@ -640,11 +658,32 @@ class BaseImgList(object):
         stack = ImgStack(h, w, num, dtype, stack_id, camera=self.camera,
                          img_prep=self.current_img().edit_log)
         lid = self.list_id
+        ref_check = True
+        if not check_roi(ref_check_roi_abs):
+            ref_check = False
+        try:
+            ref_check_min_val = float(ref_check_min_val)
+        except:
+            ref_check = False
+        try:
+            ref_check_max_val = float(ref_check_max_val)
+        except:
+            ref_check = False
+    
         for k in range(num):
             print "Building img-stack from list %s (%s | %s)" %(lid, k, num-1)
             img = self.loaded_images["this"]
             #print im.meta["start_acq"]
-            stack.append_img(img.img, img.meta["start_acq"], img.meta["texp"])
+            append = True
+            if ref_check:
+                sub_val = img.crop(roi_abs=ref_check_roi_abs, new_img=1).mean()
+                if not ref_check_min_val <= sub_val <= ref_check_max_val:
+                    print("Exclude image no. %d from stack, got value=%.2f in "
+                        "ref check ROI (out of specified range)" %(k, sub_val))
+                append = False
+            if append:
+                stack.append_img(img.img, img.meta["start_acq"], 
+                                 img.meta["texp"])
             self.next_img()  
         stack.start_acq = asarray(stack.start_acq)
         stack.texps = asarray(stack.texps)
@@ -658,6 +697,8 @@ class BaseImgList(object):
         self.crop = _crop
         self.roi_abs = _roi
         self.auto_reload = True
+        if not sum(stack._access_mask) > 0:
+            raise ValueError("Failed to build stack, stack is empty...")
         return stack
     
     def get_mean_img(self, start_idx=0, stop_idx=None):

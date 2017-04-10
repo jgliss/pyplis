@@ -2387,7 +2387,7 @@ class OptflowFarneback(object):
         self.roi_abs = roi_temp
         return fig
         
-    def calc_flow_lines(self, in_roi=True, roi=None):
+    def calc_flow_lines(self, in_roi=True, roi=None, include_short_vecs=False):
         """Determine line objects for visualisation of current flow field
         
         Parameters
@@ -2417,7 +2417,7 @@ class OptflowFarneback(object):
         y, x = mgrid[step / 2: h : step, step / 2: w : step].reshape(2, -1)
         fx, fy = flow[y, x].T
         
-        if len_thresh > 0:
+        if not include_short_vecs and len_thresh > 0:
             #use only those flow vectors longer than the defined threshold
             cond = sqrt(fx**2 + fy**2) > len_thresh
             x, y, fx, fy = x[cond], y[cond], fx[cond], fy[cond]
@@ -2434,7 +2434,8 @@ class OptflowFarneback(object):
         """
         return self.draw_flow(**kwargs)
     
-    def draw_flow(self, in_roi=False, roi_abs=None, add_cbar=False, ax=None):
+    def draw_flow(self, in_roi=False, roi_abs=None, add_cbar=False, 
+                  include_short_vecs=False, ax=None):
         """Draw the current optical flow field
         
         Parameters
@@ -2450,6 +2451,9 @@ class OptflowFarneback(object):
             if True, a colorbar is added to the plot (note that the images
             are converted into 8 bit before the flow is calculated, therefore 
             the intensity range of the displayed image is between 0 and 256).
+        include_short_vecs : bool
+            if True, also vectors shorter than ``self.settings.min_length`` 
+            are drawn
         ax : Axes
             matplotlib axes object
             
@@ -2483,10 +2487,11 @@ class OptflowFarneback(object):
 
         disp = cvtColor(disp, COLOR_GRAY2BGR) 
        
-        lines = self.calc_flow_lines(in_roi, roi_rel)
+        lines = self.calc_flow_lines(in_roi, roi_rel,
+                                     include_short_vecs=include_short_vecs)
         tit = r"1. img"
         x0, y0, w, h = roi2rect(roi_rel)
-        if not in_roi:
+        if not in_roi and w < disp.shape[1]:
             ax.add_patch(Rectangle((x0, y0), w, h, fc="none", ec="c"))
             x0, y0 = 0, 0
         else:
@@ -2514,7 +2519,7 @@ class OptflowFarneback(object):
         except:
             pass
         
-        ax.set_title(tit, fontsize=12)
+        #ax.set_title(tit, fontsize=12)
         return ax    
         
     def live_example(self):
