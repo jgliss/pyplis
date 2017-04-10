@@ -44,3 +44,8 @@ After release 0.11.2 (not yet released)
   - __sub__: use "-" operator to subtract results (e.g. retrieved at two different positions downwind of the crater emissions)
   
   
+10/04/2017
+==========
+
+1. Added option in :func:`make_stack` in :class:`ImgList` objects: the method includes now the option to specify a reference ROI in the image (e.g. sky reference area) and a corresponding min / max range for the expectation value in that range: if the input is specified, then only images are added to the stack that are within the specified range within the ROI.
+  

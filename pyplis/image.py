@@ -7,7 +7,7 @@ from matplotlib.pyplot import imread, figure, tight_layout
 from numpy import ndarray, argmax, histogram, uint, nan, linspace,\
     isnan, uint8, float32, finfo, ones, invert, log
 from os.path import abspath, splitext, basename, exists, join, isdir, dirname
-from os import getcwd, remove
+from os import remove
 from warnings import warn
 from datetime import datetime
 from decimal import Decimal
@@ -923,22 +923,25 @@ class Img(object):
         """Show image using plt.imshow"""
         if not "cmap" in kwargs.keys():
             kwargs["cmap"] = self.get_cmap(**kwargs)
+        new_ax = False
         try:
             fig = ax.figure
             ax = ax
         except:
             fig = figure(facecolor='w', edgecolor='none', figsize=(12,7))  
             ax = fig.add_subplot(111)
+            new_ax = True
         
         im = ax.imshow(self.img, **kwargs)
         if cbar:
             cb = fig.colorbar(im, ax=ax)
             if isinstance(zlabel, str):
-                cb.set_label(zlabel, fontsize=20)
+                cb.set_label(zlabel, fontsize=12)
         if not isinstance(tit, str):
             tit = self.make_info_header_str()
-        ax.set_title(tit, fontsize = 14)
-        tight_layout()
+        ax.set_title(tit, fontsize=14)
+        if new_ax:
+            tight_layout()
         return ax
         
     def show_img_with_histo(self, **kwargs):
