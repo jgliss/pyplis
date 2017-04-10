@@ -49,6 +49,10 @@ START_INDEX = 1
 STOP_INDEX = None
 DO_EVAL = 1
 
+REF_CHECK_LOWER = -5e16
+REF_CHECK_UPPER = 5e16
+REF_CHECK_MODE = True
+
 #the following ROI is in the upper right image corner, where no gas occurs in
 #the time series. It is used to log mean, min and max for each analysed image
 #this information can be used to check, whether the plume background retrieval
@@ -154,7 +158,10 @@ if __name__ == "__main__":
                                                bg_roi=LOG_ROI_SKY,
                                                pcs_lines=pcs,
                                                velo_glob=PLUME_VELO_GLOB,
-                                               velo_glob_err=PLUME_VELO_GLOB_ERR)
+                                               velo_glob_err=PLUME_VELO_GLOB_ERR,
+                                               ref_check_lower_lim=REF_CHECK_LOWER,
+                                               ref_check_upper_lim=REF_CHECK_UPPER)
+    ana.settings.ref_check_mode = REF_CHECK_MODE
     
     ana.settings.velo_modes["farneback_raw"] = True
     ana.settings.velo_modes["farneback_histo"] = True

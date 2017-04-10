@@ -1435,7 +1435,9 @@ class ImgStack(object):
     def start(self):
         """Returns start time stamp of first image"""
         try:
-            return self.start_acq[0]
+            i = self.start_acq[self._access_mask][0]
+            add = timedelta(self.texps[self._access_mask][0] / 86400.)
+            return i + add
         except IndexError:
             raise IndexError("Stack is empty...")
         except:
@@ -1445,7 +1447,9 @@ class ImgStack(object):
     def stop(self):
         """Returns start time stamp of first image"""
         try:
-            return self.start_acq[-1] + timedelta(self.texps[-1] / 86400.)
+            i = self.start_acq[self._access_mask][-1]
+            add = timedelta(self.texps[self._access_mask][-1] / 86400.)
+            return i + add
         except IndexError:
             raise IndexError("Stack is empty...")
         except:
@@ -1455,7 +1459,7 @@ class ImgStack(object):
     def time_stamps(self):
         """Acq. time stamps of all images"""
         try:
-            dts = [timedelta(x /(2 * 86400.)) for x in self.texps]
+            dts = ([timedelta(x /(2 * 86400.)) for x in self.texps])
             return self.start_acq + asarray(dts)
         except:
             raise ValueError("Failed to access information about acquisition "
@@ -1582,9 +1586,9 @@ class ImgStack(object):
             start_acq = asarray([datetime(1900, 1, 1)] * num)
         self.start_acq = start_acq
         if texps is None:
-            texps = zeros(num, dtype = float32)
+            texps = zeros(num, dtype=float32)
         self.texps = texps
-        self._access_mask = ones(num, dtype = bool)
+        self._access_mask = ones(num, dtype=bool)
         
     def get_data(self):
         """Get stack data (containing of stack, acq. and exp. times) 
@@ -1733,6 +1737,7 @@ class ImgStack(object):
         
             
         """
+        stack, time_stamps, texps = self.get_data()
         nearest_idxs, del_ts = self.get_nearest_indices(time_series.index)
         img_idxs = []
         spec_idxs_final = []
@@ -1748,8 +1753,8 @@ class ImgStack(object):
     
         series_new = time_series[spec_idxs_final]
         stack_new = self.stack[img_idxs]
-        texps_new = self.texps[img_idxs]
-        start_acq_new = self.start_acq[img_idxs]
+        texps_new = asarray(self.texps[img_idxs])
+        start_acq_new = asarray(self.start_acq[img_idxs])
         stack_obj_new = ImgStack(stack_id=self.stack_id + "_merged_nearest",
                                  img_prep=self.img_prep, stack=stack_new,
                                  start_acq=start_acq_new, texps=texps_new)
@@ -1769,7 +1774,8 @@ class ImgStack(object):
             
         """
         h, w = self.shape[1:]
-        stack = self.stack
+        
+        stack, time_stamps, _ = self.get_data()
         
         #first crop time series data based on start / stop time stamps
         time_series = self.crop_other_tseries(time_series)
@@ -1777,7 +1783,6 @@ class ImgStack(object):
         if not len(time_series) > 0:
             raise IndexError("Time merging failed, data does not overlap")
         
-        time_stamps = self.time_stamps
         #interpolate exposure times
         s0 = Series(self.texps, time_stamps)
         df0 = concat([s0, time_series], axis=1).interpolate(itp_type).dropna()
@@ -1865,8 +1870,10 @@ class ImgStack(object):
             texp = (f - i).total_seconds()
             cond = (times >= i) & (times < f)
             if sum(cond) > 0:
-                print ("Found %s images for spectrum #%s (of %s)" 
-                                                %(sum(cond), k, num))
+#==============================================================================
+#                 print ("Found %s images for spectrum #%s (of %s)" 
+#                                                 %(sum(cond), k, num))
+#==============================================================================
                 im = stack[cond].mean(axis = 0)
                 if counter == 0:
                     new_stack = im
@@ -1883,7 +1890,8 @@ class ImgStack(object):
                              stack_id=self.stack_id+"_avg", 
                              img_prep=self.img_prep)
         stack_obj.roi_abs = self.roi_abs
-        stack_obj.set_stack_data(new_stack, new_acq_times, new_texps)
+        stack_obj.set_stack_data(new_stack, asarray(new_acq_times), 
+                                 asarray(new_texps))
         time_series = time_series.drop(time_series.index[bad_indices])
         return stack_obj, time_series
     
@@ -1903,16 +1911,20 @@ class ImgStack(object):
         """Returns start time stamp of first image"""
         return (self.stop - self.start).total_seconds()
         
-    def get_nearest_indices(self, time_stamps):
+    def get_nearest_indices(self, tstamps_other):
         """Find indices of time stamps nearest to img acq. time stamps
         
-        :param (datetime, ndarray, list) time_stamps: input time stamps
+        Parameters
+        ----------
+        tstamps_other : 
+            datetime, or datetime array of other time series for which closest
+            index / indices are searched
         """
         idx = []
         delt = []
-        img_stamps = self.time_stamps
+        img_stamps = self.time_stamps[self._access_mask]
         for tstamp in img_stamps:
-            diff = [x.total_seconds() for x in abs(time_stamps - tstamp)]
+            diff = [x.total_seconds() for x in abs(tstamps_other - tstamp)]
             delt.append(min(diff))
             idx.append(argmin(diff))
         return asarray(idx), asarray(delt)

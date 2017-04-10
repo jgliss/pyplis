@@ -710,6 +710,8 @@ class DoasFOVEngine(object):
         
         All relevant results are written into ``self.calib_data`` (which 
         includes :class:`DoasFOV` object)
+        
+        
         """
         self.calib_data = DoasCalibData() #includes DoasCalibData class
         self.update_search_settings(**settings)
@@ -794,8 +796,13 @@ class DoasFOVEngine(object):
         corr_img = zeros((h,w), dtype = float)
         corr_img_err = zeros((h,w), dtype = float)
         doas_vec = self.doas_series.values
+        exp = int(10**exponent(h) / 4.0)
         for i in range(h):
-            print "FOV search: current img row (y): " + str(i)
+            try:
+                if i % exp == 0:
+                    print "FOV search: current img row (y): " + str(i)
+            except:
+                pass
             for j in range(w):
                 #get series from stack at current pixel
                 corr_img[i,j], corr_img_err[i,j] = pearsonr(\

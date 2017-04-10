@@ -48,4 +48,16 @@ After release 0.11.2 (not yet released)
 ==========
 
 1. Added option in :func:`make_stack` in :class:`ImgList` objects: the method includes now the option to specify a reference ROI in the image (e.g. sky reference area) and a corresponding min / max range for the expectation value in that range: if the input is specified, then only images are added to the stack that are within the specified range within the ROI.
+
+2. New features in :class:`EmissionRateAnalysis` and :class:`EmissionRateSettings`
+
+  - Added same feature (as described in 1.) to emission rate retrieval classes, relevant attributes in ``EmissionRateSettings`` class are: 
+  
+    - ``ref_check_mode``: activate / deactivate the new mode 
+    - ``bg_roi_abs`` (ROI used for check)
+    - ``ref_check_lower_lim``: lower intensity limit
+    - ``ref_check_upper_lim``: upper intensity limit
+    
+  - Moved attr. ``bg_roi`` from analysis class to settings class and renamed to ``bg_roi_abs``.
+
   
