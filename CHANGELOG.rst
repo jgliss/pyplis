@@ -60,4 +60,9 @@ After release 0.11.2 (not yet released)
     
   - Moved attr. ``bg_roi`` from analysis class to settings class and renamed to ``bg_roi_abs``.
 
+
+11/04/2017
+==========
+
+1. Added check of date information in :func:`get_img_meta_all_filenames` of :class:`ImgList` which is, for instance, used for accessing datetime inforamtion of acq. times of all images in the list: a problem may occur if the file names only include information of acq. times of the images but not dates.  Then, the retrieved timestamps (numpy array of datetime objects) will only include acq. times of all images and the default date: 1/1/1900. If this is the case, then the method replaces these default dates in the array using the date stored in the meta header of the currently loaded image in the the list. This is, for instance relevant for the HD default camera which includes date information in the tiff header (will be loaded and stored in meta header of ``Img`` class on load, but not in the file names).
   

@@ -9,6 +9,7 @@ from collections import OrderedDict as od
 from matplotlib.pyplot import subplots
 from os.path import join, isdir
 from os import getcwd
+from traceback import format_exc
 
 from pandas import Series, DataFrame
 try:
@@ -931,16 +932,18 @@ class EmissionRateAnalysis(object):
                 p = line.plume_props
                 dt0 = (p.start - lst.start).total_seconds()
                 if dt0 > 0 and dt0 / span > 0.05:
-                    raise IndexError("Insufficient overlap of time stamps in "
+                    raise ValueError("Insufficient overlap of time stamps in "
                         "plume properties of line %s with time stamps in list...")
                 dt1 = (lst.stop - p.stop).total_seconds()
                 if dt1 > 0 and dt1 / span > 0.05:
-                    raise IndexError("Insufficient overlap of time stamps in "
+                    raise ValueError("Insufficient overlap of time stamps in "
                         "plume properties of line %s with time stamps in list...")
                 line.plume_props = p.interpolate(time_stamps=lst.start_acq,
                                                  how="time")
                 self.settings.plume_props_available[key] = 1
-            except:
+            except Exception as e:
+                if isinstance(e, ValueError):
+                    warn(format_exc(e))
                 self.settings.plume_props_available[key] = 0
                 line.plume_props = LocalPlumeProperties(roi_id=key)
                                                  
