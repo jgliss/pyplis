@@ -154,13 +154,14 @@ if __name__ == "__main__":
     
     pcs = PCS.convert(to_pyrlevel=PYRLEVEL)
                                              
-    ana = pyplis.fluxcalc.EmissionRateAnalysis(imglist=aa_list, 
-                                               bg_roi=LOG_ROI_SKY,
-                                               pcs_lines=pcs,
-                                               velo_glob=PLUME_VELO_GLOB,
-                                               velo_glob_err=PLUME_VELO_GLOB_ERR,
-                                               ref_check_lower_lim=REF_CHECK_LOWER,
-                                               ref_check_upper_lim=REF_CHECK_UPPER)
+    ana = pyplis.EmissionRateAnalysis(imglist=aa_list, 
+                                      bg_roi=LOG_ROI_SKY,
+                                      pcs_lines=pcs,
+                                      velo_glob=PLUME_VELO_GLOB,
+                                      velo_glob_err=PLUME_VELO_GLOB_ERR,
+                                      ref_check_lower_lim=REF_CHECK_LOWER,
+                                      ref_check_upper_lim=REF_CHECK_UPPER)
+                                      
     ana.settings.ref_check_mode = REF_CHECK_MODE
     
     ana.settings.velo_modes["farneback_raw"] = True
@@ -178,8 +179,8 @@ if __name__ == "__main__":
         aa_mask = ana.imglist.get_thresh_mask(CD_MIN)
         ana.imglist.optflow.plot_flow_histograms(line=pcs, pix_mask=aa_mask)
     else:
-        ana.calc_emission_rate(start_index=START_INDEX, 
-                               stop_index=STOP_INDEX)
+        ana.run_retrieval(start_index=START_INDEX, 
+                          stop_index=STOP_INDEX)
         
         figs.append(plot_and_save_results(ana))
         

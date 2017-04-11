@@ -10,7 +10,7 @@ Image list objects of pyplis library
 """
 from numpy import asarray, zeros, argmin, arange, ndarray, float32, ceil,\
     isnan, logical_or, ones, uint8, finfo, exp
-from datetime import timedelta, datetime
+from datetime import timedelta, datetime, date
 #from bunch import Bunch
 from pandas import Series, DataFrame
 from matplotlib.pyplot import figure, draw, subplots, ion, ioff, close
@@ -514,7 +514,14 @@ class BaseImgList(object):
                 texps[k] = info[3]
             except:
                 pass
-    
+        if times[0].date() == date(1900,1,1):
+            d = self.this.meta["start_acq"].date()
+            warn("Warning accessing acq. time stamps from file names in "
+                "ImgList: date information could not be accessed, using "
+                "date of currently loaded image meta info: %s" %d)
+            times = [datetime(d.year, d.month, d.day, x.hour, x.minute, 
+                              x.second, x.microsecond) for x in times]
+            
         return times, texps
 
     def assign_indices_linked_list(self, lst):
@@ -1053,11 +1060,13 @@ class BaseImgList(object):
         
         Parameters
         -----------
-        key : this" or "next"
+        key : str
+            this" or "next"
         
         Returns
         -------
-        :returns Img:
+        Img
+            currently loaded image in list
         """
         img = self.loaded_images[key]
         if not isinstance(img, Img):
@@ -1768,11 +1777,12 @@ class ImgList(BaseImgList):
                 self.vign_mask = self.vign_mask.img
             if not isinstance(self.vign_mask, ndarray):
                 self.det_vign_mask_from_bg_img() 
-            shape_orig = Img(self.files[self.cfn]).img.shape
-            if not self.vign_mask.shape == shape_orig:
+            sh = Img(self.files[self.cfn],
+                     import_method=self.camera.image_import_method).img.shape
+            if not self.vign_mask.shape == sh:
                 raise ValueError("Shape of vignetting mask %s deviates from "
                             "raw img shape %s" %(list(self.vign_mask.shape),
-                            list(shape_orig)))
+                            list(sh)))
         self._list_modes["vigncorr"] = val
         self.load()
     
@@ -2166,7 +2176,7 @@ class ImgList(BaseImgList):
             if texp == None:
                 raise ValueError("Could not add dark image in image list, "
                     "missing input for texp")
-            dark = Img(dark, texp = texp)
+            dark = Img(dark, texp=texp)
 
         if (acq_time != datetime(1900,1,1) and 
             dark.meta["start_acq"] == datetime(1900,1,1)):
