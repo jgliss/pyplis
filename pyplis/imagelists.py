@@ -519,8 +519,8 @@ class BaseImgList(object):
             warn("Warning accessing acq. time stamps from file names in "
                 "ImgList: date information could not be accessed, using "
                 "date of currently loaded image meta info: %s" %d)
-            times = [datetime(d.year, d.month, d.day, x.hour, x.minute, 
-                              x.second, x.microsecond) for x in times]
+            times = asarray([datetime(d.year, d.month, d.day, x.hour, x.minute, 
+                              x.second, x.microsecond) for x in times])
             
         return times, texps
 
