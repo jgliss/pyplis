@@ -52,7 +52,7 @@ TOPO_LINE1 = pyplis.processing.LineOnImage(1100, 650, 1000, 900,
                                       
 TOPO_LINE2 = pyplis.processing.LineOnImage(1000, 990, 1100, 990,
                                             line_id="flank close",
-                                            color="b",
+                                            color="#ff33e3",
                                             linestyle="-")
 
 # all lines in this array are used for the analysis
@@ -214,7 +214,7 @@ if __name__ == "__main__":
         dil.det_topo_dists_line(line_id)
     
     # Plot the results in a 3D map
-    basemap = dil.plot_distances_3d(alt_offset_m=10, axis_off=False, color="b")                                                          
+    basemap = dil.plot_distances_3d(alt_offset_m=10, axis_off=False)                                                          
     
     # retrieve pixel distances for pixels on the line 
     # (for emission rate estimate)
@@ -337,9 +337,9 @@ if __name__ == "__main__":
     ax2.add_patch(Rectangle((x0, y0), w, h, fc="none", ec="c"))
     
     fig, ax3 = subplots(1,1)                                 
-    ax3.plot(so2_cds_uncorr, "--b", label=r"Uncorr: $\Phi_{SO2}=$"
+    ax3.plot(so2_cds_uncorr, ls="-", color="#ff33e3", label=r"Uncorr: $\Phi_{SO2}=$"
         "%.2f (+/- %.2f) kg/s" %(phi_uncorr/1000.0, phi_uncorr_err/1000.0))
-    ax3.plot(so2_cds_corr, "-g", label=r"Corr: $\Phi_{SO2}=$"
+    ax3.plot(so2_cds_corr, "-g", lw=3, label=r"Corr: $\Phi_{SO2}=$"
         "%.2f (+/- %.2f) kg/s" %(phi_corr/1000.0, phi_corr_err/1000.0))
     
     ax3.set_title("Cross section profile", fontsize = 12)
