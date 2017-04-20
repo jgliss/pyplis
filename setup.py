@@ -53,8 +53,8 @@ setup(
     package_data=   {'pyplis'     :   ['data/*.txt',
                                        'data/*.rst',
                                        'data/*.png',
-                                       'data/*.fts'
-                                      ]},
+                                       'data/*.fts'],
+                    },
 
     install_requires    =   ["progressbar"],
     dependency_links    =   [],   

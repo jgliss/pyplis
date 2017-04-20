@@ -2190,9 +2190,13 @@ class OptflowFarneback(object):
     def get_img_acq_times(self):
         """Return acquisition times of current input images
         
-        :return:
-            - datetime, acquisition time of first image
-            - datetime, acquisition time of next image
+        Returns
+        -------
+        tuple
+            2-element tuple, containing
+            
+            - :obj:`datetime`: acquisition time of first image
+            - :obj:`datetime`: acquisition time of next image
             
         """
         try:
@@ -2208,8 +2212,10 @@ class OptflowFarneback(object):
     Plotting / visualisation etc...
     """  
     def plot_orientation_histo(self, pix_mask=None, min_length=None,
+                               bin_res_degrees=None,
                                apply_fit=True, ax=None, 
                                tit="Orientation histo", color="b",
+                               label="Histo data", bar_plot=True,
                                **fit_settings):
         """Plot flow orientation histogram
         
@@ -2219,7 +2225,9 @@ class OptflowFarneback(object):
         want a histogram including the short vectors, provide input parameter
         ``min_length=0.0``.
         
-        Param
+        Todo
+        ----
+        Finish docs ...
         
         """
         if ax is None:
@@ -2232,15 +2240,22 @@ class OptflowFarneback(object):
              bins, 
              angs) = self.flow_orientation_histo(lens=lens,
                                                  angles=angles,
-                                                 min_length=min_length) 
+                                                 min_length=min_length, 
+                                                 bin_res_degrees=
+                                                 bin_res_degrees) 
         except:
             warn("Failed to retrieve orientation histogram: probably no vectors "
                 "left for retrieval of histogram. Current time: %s "
                 %self.current_time)
             return (ax, None, None)
-        w = bins[1] - bins[0]
-        ax.bar(bins[:-1], count, width=w, color=color, ec="none", alpha=0.3,
-               label="Histogram")
+        if bar_plot:
+            w = bins[1] - bins[0]
+            ax.bar(bins[:-1], count, width=w, color=color, ec="none", alpha=0.3,
+                   label=label)
+        else:
+            c, x = self._prep_histo_data(count, bins)
+            ax.plot(x, c, color=color, ls="--", marker="x", lw=2, 
+                    label=label)
         
         mu, sigma = 0, 180
         if apply_fit:
@@ -2261,13 +2276,23 @@ class OptflowFarneback(object):
                 tit += ": Fit failed..."
         ax.set_title(tit, fontsize=11)      
         ax.set_xlim([-180, 180])    
-        ax.legend(loc='best', fancybox=True, framealpha=0.5, fontsize=10) 
+        if bool(label):
+            ax.legend(loc='best', fancybox=True, 
+                      framealpha=0.5, fontsize=10) 
         ax.grid()
         return ax, mu, sigma
     
     def plot_length_histo(self, pix_mask=None, dir_low=-180, dir_high=180, 
-                          min_length=None, apply_fit=False, ax=None, 
-                          tit="Length histo", color="b", **fit_settings):
+                          min_length=None, bin_res_pix=1, 
+                          apply_fit=False, apply_stats=True,
+                          ax=None, tit="Length histo", label="Histo", 
+                          color="b", bar_plot=True, **fit_settings):
+        """Plot flow vector length histogram including some options
+        
+        Todo
+        ----
+        Write docs ...
+        """
         if ax is None:
             fig, ax = subplots(1,1)
         if min_length is None:
@@ -2280,18 +2305,21 @@ class OptflowFarneback(object):
             (count, 
              bins, 
              lens) = self.flow_length_histo(lens=lens, angles=angles,
-                                            min_length=min_length) 
+                                            min_length=min_length,
+                                            bin_res_pix=bin_res_pix) 
         except:
             warn("Failed to retrieve length histogram: probably no vectors "
                 "left for retrieval of histogram. Current time: %s "
                 %self.current_time)
         w = bins[1] - bins[0]
-        ax.bar(bins[:-1], count, width=w, color=color, ec="none", alpha=0.3,
-               label="Histogram")
+        if bar_plot:
+            ax.bar(bins[:-1], count, width=w, color=color, ec="none", alpha=0.3,
+               label=label)
+        else:
+            c, x = self._prep_histo_data(count, bins)
+            ax.plot(x, c, color=color, ls="--", marker="x", lw=2, 
+                    label=label)
         
-        mu, sigma = self.analyse_length_histo(count, bins)
-        sigma = self.settings.hist_sigma_tol
-        tit += (r": $\mu (+/-\sigma$) = %.1f (+/- %.1f)" %(mu, sigma))
         if apply_fit:
             fit, ok = self.fit_length_histo(count, bins, **fit_settings)
             if fit.has_results():
@@ -2299,12 +2327,18 @@ class OptflowFarneback(object):
                                         color=color)
         ax.set_title(tit, fontsize=11)      
         ax.set_xlim([0, int(bins.max()) + 1])
-        ax.plot([mu, mu], [0, count.max()*1.05], color=color, ls="-")
-        ax.plot([mu-sigma, mu-sigma], [0, count.max()*1.05], 
-                color=color, ls="--")
-        ax.plot([mu+sigma, mu+sigma], [0, count.max()*1.05], 
-                color=color, ls="--")
-        ax.legend(loc='best', fancybox=True, framealpha=0.5, fontsize=10)
+        if apply_stats:
+            mu, sigma = self.analyse_length_histo(count, bins)
+            sigma = self.settings.hist_sigma_tol * sigma
+            tit += (r": $\mu (+/-\sigma$) = %.1f (+/- %.1f)" %(mu, sigma))
+            ax.plot([mu, mu], [0, count.max()*1.05], color=color, ls="-")
+            ax.plot([mu-sigma, mu-sigma], [0, count.max()*1.05], 
+                    color=color, ls="--")
+            ax.plot([mu+sigma, mu+sigma], [0, count.max()*1.05], 
+                    color=color, ls="--")
+        if bool(label):
+            ax.legend(loc='best', fancybox=True, 
+                      framealpha=0.5, fontsize=10)
         ax.grid()
         return ax
         

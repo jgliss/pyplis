@@ -374,23 +374,53 @@ class DilutionCorr(object):
         return Series(exts, acq_times), Series(i0s, acq_times)
         
     def plot_distances_3d(self, draw_cam=1, draw_source=1, draw_plume=0,
-                          draw_fov=0, cmap_topo="Oranges", axis_off=True,
-                          line_ids=[], **kwargs):
+                          draw_fov=0, cmap_topo="Oranges", 
+                          contour_color="#708090", contour_antialiased=True,
+                          contour_lw=0.2, axis_off=True, line_ids=[], 
+                          **kwargs):
         """Draw 3D map of scene including geopoints of distance retrievals
         
-        :param bool draw_cam: insert camera position into map
-        :param bool draw_source: insert source position into map
-        :param bool draw_plume: insert plume vector into map
-        :param bool draw_fov: insert camera FOV (az range) into map 
-        :param cmap_topo: colormap for topography plot (default="Oranges")
-        :param bool axis_off: if True, then the rendering of axes is excluded
-        :param list line_ids: if desired, the data can also be accessed for
-            specified line ids, which have to be provided in a list. If empty
-            (default), all lines are considered
+        Parameters
+        ----------
+        draw_cam : bool 
+            insert camera position into map
+        draw_source : bool
+            insert source position into map
+        draw_plume : bool
+            insert plume vector into map
+        draw_fov : bool
+            insert camera FOV (az range) into map 
+        cmap_topo : str
+            string specifying colormap for topography surface plot defaults to
+            "Oranges"
+        contour_color : str
+            string specifying color of contour lines colors of topo contour 
+            lines (default: "#708090")
+        contour_antialiased : bool
+            apply antialiasing to surface plot of topography, defaults to False
+        contour_lw : 
+            width of drawn contour lines, defaults to 0.5, use 0 if you do not 
+            want contour lines inserted
+        axis_off : bool
+            if True, then the rendering of axes is excluded
+        line_ids : list
+            if desired, the data can also be accessed for specified line ids, 
+            which have to be provided in a list. If empty (default), all topo
+            lines are drawn
+            
+        Returns
+        -------
+        Map
+            plotted map instance (is of type Basemap)
+            
         """
         map3d = self.meas_geometry.draw_map_3d(draw_cam, draw_source, 
                                                draw_plume, draw_fov, 
-                                               cmap_topo)
+                                               cmap_topo,
+                                               contour_color=contour_color,
+                                               contour_antialiased=
+                                               contour_antialiased,
+                                               contour_lw=contour_lw)
         if len(line_ids) == 0:
             line_ids = self.line_ids
         for line_id in self.line_ids:
@@ -398,7 +428,7 @@ class DilutionCorr(object):
                 line = self.lines[line_id]
                 mask = self._masks[line_id]
                 pts = self._geopoints[line_id][mask]
-                map3d.add_geo_points_3d(pts, color=line.color)
+                map3d.add_geo_points_3d(pts, color=line.color, **kwargs)
         if axis_off:
             map3d.ax.set_axis_off()
         return map3d

@@ -296,12 +296,17 @@ class DoasCalibData(object):
         s = "(%s)E%+d" %(p, exp)
         return s.replace("x", r"$\tau$")
         
-    def plot(self, add_label_str="", ax=None, **kwargs):
+    def plot(self, add_label_str="", shift_yoffset=False, ax=None, **kwargs):
         """Plot calibration data and fit result
         
-        :param str add_label_str: additional string added to label of plots
-            for legend
-        :param ax: axes object, if None, a new one is created
+        Parameters
+        ----------
+        add_label_str : str
+            additional string added to label of plots for legend
+        shift_yoffset : bool
+            if True, the data is plotted without y-offset
+        ax : 
+            matplotlib axes object, if None, a new one is created
         """
         if not "color" in kwargs:
             kwargs["color"] = "b"
@@ -312,11 +317,20 @@ class DoasCalibData(object):
         taumin, taumax = self.tau_range
         x = linspace(taumin, taumax, 100)
         
-        ax.plot(self.tau_vec, self.doas_vec, ls="", marker=".",
+        cds = self.doas_vec
+        cds_poly = self.poly(x)
+        if shift_yoffset:
+            try:
+                cds -= self.y_offset
+                cds_poly -= self.y_offset
+            except:
+                warn("Failed to subtract y offset")
+                
+        ax.plot(self.tau_vec, cds, ls="", marker=".",
                 label="Data %s" %add_label_str, **kwargs)
             
         try:
-            ax.plot(x, self.poly(x), ls="-", marker="",
+            ax.plot(x, cds_poly, ls="-", marker="",
                     label = "Fit result", **kwargs)
                     
         except TypeError:
