@@ -199,14 +199,15 @@ if __name__=="__main__":
     
     if SAVEFIGS:
         fig0.savefig(join(SAVE_DIR, "ex03_out_1.%s" %FORMAT), format=FORMAT,
-                    dpi=DPI)
+                    dpi=DPI, transparent=True)
         for k in range(len(_tau_figs)):
             #_tau_figs[k].suptitle("")
             _tau_figs[k].savefig(join(SAVE_DIR, "ex03_out_%d.%s" 
-                                 %((k+2), FORMAT)), format=FORMAT, dpi=DPI)
+                                 %((k+2), FORMAT)), format=FORMAT, dpi=DPI,
+                                 transparent=True)
         
         fig6.savefig(join(SAVE_DIR, "ex03_out_6.%s" %FORMAT), format=FORMAT,
-                    dpi=DPI)
+                    dpi=DPI, transparent=True)
     # Display images or not    
     (options, args)   =  OPTPARSE.parse_args()
     try:

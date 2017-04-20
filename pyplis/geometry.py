@@ -169,10 +169,11 @@ class MeasGeometry(object):
                            self.cam["altitude"], name="cam")
             self.geo_setup.add_geo_point(cam)
             
-        if source_ok:                            
+        if source_ok:       
+                                 
             print "Updating source in GeoSetup of MeasGeometry"
-            source = GeoPoint(self.source["lat"], self.source["lon"],\
-                        self.source["altitude"], name = "source")
+            source = GeoPoint(self.source["lat"], self.source["lon"],
+                              self.source["altitude"], name="source")
             self.geo_setup.add_geo_point(source)
 
         if cam_ok and source_ok:
@@ -749,9 +750,9 @@ class MeasGeometry(object):
                                                                 plot = True)
         return ep
             
-    def draw_map_2d(self, draw_cam = True, draw_source = True, draw_plume =\
-            True, draw_fov = True, draw_topo = True, draw_coastline = True,\
-                draw_mapscale = True, draw_legend = True, *args, **kwargs):
+    def draw_map_2d(self, draw_cam=True, draw_source=True, draw_plume=True,
+                    draw_fov=True, draw_topo=True, draw_coastline=True,
+                    draw_mapscale=True, draw_legend=True, *args, **kwargs):
         """Draw the current setup in a map            
         
         :param bool draw_cam: insert camera position into map
@@ -806,36 +807,66 @@ class MeasGeometry(object):
         m.add_polygon_2d(pts, poly_id = poly_id, fc = fc, ec = ec,\
                                                             alpha = alpha)
         
-    def draw_map_3d(self, draw_cam = True, draw_source = True, draw_plume =\
-            True, draw_fov = True, cmap_topo = "Oranges", ax = None, **kwargs):
+    def draw_map_3d(self, draw_cam=True, draw_source=True, draw_plume=True,
+                    draw_fov=True, cmap_topo="Oranges", 
+                    contour_color="#708090", contour_antialiased=True,
+                    contour_lw=0.2, ax=None, **kwargs):
         """Draw the current setup in a 3D map
         
-        :param bool draw_cam: insert camera position into map
-        :param bool draw_source: insert source position into map
-        :param bool draw_plume: insert plume vector into map
-        :param bool draw_fov: insert camera FOV (az range) into map
-        :param cmap_topo: colormap for topography plot (default="Oranges")
-        :param ax: 3D axes object (default: None -> creates new one)
-        :param *args: additional non-keyword arguments for setting up the base
-            map (`see here <http://matplotlib.org/basemap/api/basemap_api.
+        Parameters
+        ----------
+        draw_cam : bool
+            insert camera position into map
+        draw_source : bool
+            insert source position into map
+        draw_plume : bool
+            insert plume vector into map
+        draw_fov : bool
+            insert camera FOV (az range) into map
+        cmap_topo : str
+            string ID of colormap for topography surface plot, defaults to
+            "Oranges"
+        contour_color : str
+            string specifying color of contour lines colors of topo contour 
+            lines (default: "#708090")
+        contour_antialiased : bool
+            apply antialiasing to surface plot of topography, defaults to False
+        contour_lw : 
+            width of drawn contour lines, defaults to 0.5, use 0 if you do not 
+            want contour lines inserted
+        ax : Axes3D
+            3D axes object (default: None -> creates new one)
+        *args : 
+            non-keyword arguments for setting up the base map
+            (`see here <http://matplotlib.org/basemap/api/basemap_api.
             html#mpl_toolkits.basemap.Basemap>`_)
-        :param **kwargs: additional keyword arguments for setting up the base
-            map (`see here <http://matplotlib.org/basemap/api/basemap_api.html
-            #mpl_toolkits.basemap.Basemap>`_)         
+        **kwargs: keyword arguments for setting up the basemap 
+            (`see here <http://matplotlib.org/basemap/api/basemap_api.html
+            #mpl_toolkits.basemap.Basemap>`_)    
+            
+        Returns
+        -------
+        Basemap
+            plotted basemap
         """
         if ax is None:
             fig = figure(figsize = (14, 8))
-            ax = fig.add_subplot(1, 1, 1, projection = '3d')  
+            ax = fig.add_subplot(1, 1, 1, projection='3d')  
         s = self.geo_setup
-        m = s.plot_3d(False, False, cmap_topo = cmap_topo, ax = ax, **kwargs)
+        m = s.plot_3d(False, False, cmap_topo=cmap_topo, 
+                      contour_color=contour_color, 
+                      contour_antialiased=contour_antialiased,
+                      contour_lw=contour_lw, ax=ax, **kwargs)
+       
         zr = self.geo_setup.topo_data.alt_range * 0.05
         if draw_cam:
-            self.cam_pos.plot_3d(m, add_name = True, dz_text = zr)
+            self.cam_pos.plot_3d(m, add_name=True, dz_text=zr)
         if draw_source:
-            self.source_pos.plot_3d(m, add_name = True, dz_text = zr)
-        
+            self.source_pos.plot_3d(m, add_name=True, dz_text=zr)
         if draw_fov:
             self.draw_azrange_fov_3d(m)
+        if draw_plume:
+            m.draw_geo_vector_3d(self.plume)
         try:
             m.legend()
         except:
