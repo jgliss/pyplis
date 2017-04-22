@@ -367,7 +367,16 @@ def rotate_xtick_labels(ax, deg=30, ha="right"):
     draw()
     lbls = ax.get_xticklabels()
     lbls = [lbl.get_text() for lbl in lbls]
-    ax.set_xticklabels(lbls, rotation = 30, ha = "right")
+    ax.set_xticklabels(lbls, rotation=deg, ha=ha)
+    draw()
+    return ax
+    
+def rotate_ytick_labels(ax, deg=30, va="bottom"):
+    """Rotate xtick labels in matplotlib axes object"""
+    draw()
+    lbls = ax.get_yticklabels()
+    lbls = [lbl.get_text() for lbl in lbls]
+    ax.set_yticklabels(lbls, rotation=deg, va=va)
     draw()
     return ax
     

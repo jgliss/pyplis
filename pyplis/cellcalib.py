@@ -7,6 +7,7 @@ from warnings import warn
 from numpy import float, log, arange, polyfit, poly1d, linspace, isnan,\
     diff, mean, argmin, ceil, round, ndim, asarray
 from matplotlib.pyplot import Figure
+from matplotlib.cm import get_cmap
 from datetime import timedelta
 from os.path import exists
 from collections import OrderedDict as od
@@ -1519,7 +1520,8 @@ class CellCalibEngine(Dataset):
     Plotting etc
     """           
     def plot_cell_search_result(self, filter_id="on", for_app=False,
-                                include_tit=True, ax=None):
+                                include_tit=True, cell_cmap="Oranges",
+                                ax=None):
         """High level plotting function for results from auto-cell search
         
         Parameters
@@ -1530,6 +1532,9 @@ class CellCalibEngine(Dataset):
             currently irrelevant (default is False)
         include_tit : bool
             if True, include default title
+        cell_cmap : str
+            string specifying matplotlib colormap used to plot cell time 
+            windows
         ax :
             matplotlib axes object
         
@@ -1539,6 +1544,11 @@ class CellCalibEngine(Dataset):
             matplotlib axes object
             
         """
+        try:
+            cmap = get_cmap(cell_cmap)
+        except:
+            warn("Invalid input for cell_cmap, using Oranges")
+            cmap = get_cmap("Oranges")
         # get stored time series (was automatically saved in :func:`find_cells`)
         ts_all = self.pix_mean_tseries[("%s_auto_search" %filter_id)]
         # get cell search results
@@ -1553,40 +1563,50 @@ class CellCalibEngine(Dataset):
         else:
             if ax is None:
                 fig, ax = subplots(1,1)
-        
-        ts_all.plot(include_tit = include_tit, ax = ax)
+                
         info = res.cell_info[filter_id]
+        num = len(info)
+        nums = [int(255.0 / k) for k in range(1, num+3)]
+        ts_all.plot(include_tit=include_tit, ax=ax, ls="--", c=cmap(nums[0]),
+                    label="Avg. pix intensities (%s)" %filter_id)
+        
         ts = ts_all.index
         dt = timedelta(0, (ts[-1] - ts[0]).total_seconds() /\
                                                 (len(ts_all) * 10))
+        
+        k=2
         for cell in info.values():                
             lbl = (r"Cell %s: $S_{%s}$=%.2e cm$^{-2}$" 
                     %(cell.img_list.cell_id, SPECIES_ID, cell.img_list.gas_cd))
-            p = ax.plot(cell.start_acq, cell.mean_vals,' o', ms=10, label=lbl,
-                        markeredgecolor="None", markeredgewidth=1, alpha=0.6)
+            p = ax.plot(cell.start_acq, cell.mean_vals,' o', color=cmap(nums[k]),
+                        ms=8, label=lbl, markeredgecolor="None", 
+                        markeredgewidth=1)
             c = p[0].get_color()
-            ax.fill_betweenx(arange(0, ts_all.max()*1.05, 1), cell.start - dt,\
-                                    cell.stop + dt, facecolor = c, alpha = 0.1)
-    
+            ax.fill_betweenx(arange(0, ts_all.max()*1.05, 1), cell.start-dt,
+                             cell.stop+dt, facecolor=c, alpha=0.15, 
+                             edgecolor=c)
+            k+=1
         if filter_id in res.bg_info.keys():
             bg_info = res.bg_info[filter_id]
-            ax.plot(bg_info.start_acq, bg_info.mean_vals,' o', ms = 10,\
-                markerfacecolor = "None", markeredgecolor = 'c',\
-                mew = 2,label = 'BG image candidates')
+            c = cmap(nums[1])
+            ax.plot(bg_info.start_acq, bg_info.mean_vals,' o', color=c, ms=10,
+                    markerfacecolor="None", markeredgecolor=c,
+                    mew=2, label='BG image candidates')
             ts = PixelMeanTimeSeries(bg_info.mean_vals, bg_info.start_acq)
             ts.fit_polynomial(2)
             bg_poly_vals = ts.get_poly_vals(bg_info.start_acq,
                                             ext_border_secs=30)
                                             
-            ax.plot(bg_info.start_acq, bg_poly_vals,'-', c = 'lime', lw = 2,
-                                                label = 'Fitted BG polynomial')
+            ax.plot(bg_info.start_acq, bg_poly_vals,'-', color=c, lw=2,
+                    ls="--", label = 'Fitted BG polynomial')
             
             cfn = bg_info.img_list.cfn
-            ax.plot(bg_info.start_acq[cfn], bg_info.mean_vals[cfn],\
-            ' +r', ms = 14, mew = 4, label = 'Current BG image')
+            ax.plot(bg_info.start_acq[cfn], bg_info.mean_vals[cfn],
+                    marker="+", color=cmap(nums[0]), ms=12, mew=2, 
+                    label='Current BG image')
             
-        ax.legend(loc = 4, fancybox = True, framealpha = 0.5, fontsize=10)
-        ax.set_ylabel("Avg. pixel intensity", fontsize = 16)
+        ax.legend(loc="best", fancybox=True, framealpha=0.5, fontsize=12)
+        ax.set_ylabel(r"$\mu_{pix}$", fontsize=24)
         return ax
     
     def plot_calib_curve(self, calib_id, **kwargs):
