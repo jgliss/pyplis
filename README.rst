@@ -42,6 +42,7 @@ We recommend using `Anaconda <https://www.continuum.io/downloads>`_ as package m
 
 Installation
 ============
+
 pyplis can be installed from `PyPi <https://pypi.python.org/pypi/pyplis>`_ using::
 
   pip install pyplis
@@ -56,19 +57,16 @@ On Linux::
   
 In case the installation fails make sure that all dependencies (see above) are installed correctly. pyplis is currently only supported for Python v2.7.
 
-.. note::
-
-  The code currently still undergoes improvements and changes to the repo are commited on a daily basis. PyPi and Github releases are only made for stable versions.
 
 Code documentation
 ==================
 
-The code documentation of pyplis is hosted on `Read the Docs <http://pyplis.readthedocs.io/en/latest/code_lib.html>`__. It corresponds to the documentation of the latest commit of this repo.
+The code documentation of pyplis is hosted `here <http://pyplis.readthedocs.io/en/latest/code_lib.html>`__. 
 
 Getting started
 ===============
 
-After installation try running and understanding the `example scripts <https://github.com/jgliss/pyplis/tree/master/scripts>`_. The scripts require downloading an example dataset (see following section for instructions).
+The Pyplis `example scripts <https://github.com/jgliss/pyplis/tree/master/scripts>`_ are a good starting point to get familiar with the features of Pyplis and for writing customised analysis scripts. The scripts require downloading the Etna example dataset (see following section for instructions).
 
 Example and test data
 =====================
@@ -86,7 +84,7 @@ The latter searches all paths provided in the file **_paths.txt** whenever acces
 
 .. note::
 
-  If you download the data manually (e.g. using the link provided above), please unzip it into a suitable directory ``LOCAL_DIR`` and let pyplis know about it using::
+  If the data is downloaded manually (e.g. using the link provided above), please make sure to unzip it into a local directory ``LOCAL_DIR`` and let pyplis know about it, using::
   
     import pyplis
     pyplis.inout.set_test_data_path(``LOCAL_DIR``)
@@ -97,14 +95,9 @@ TODO's
 
 1. Write high level analysis class for signal cross correlation (currently only a low level method exists)
   
-  
 Future developments / ideas
 ===========================
 
 1. Re-implementation of GUI framework
 #. Include DOAS analysis for camera calibration by combining `pydoas <https://pypi.python.org/pypi/pydoas/1.0.1>`__ with `flexDOAS <https://github.com/gkuhl/flexDOAS>`__. 
 #. Include online access to meteorological databases (e.g. to estimate wind direction, velocity)
-  
-.. note::
-
-  Open for collaboration
