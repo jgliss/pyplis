@@ -2,7 +2,7 @@
 Download
 ********
 
-Download area for supplementart material
+Pyplis download area
 
 Poster EGU General Assembly, Vienna 2017
 ========================================
