@@ -919,8 +919,9 @@ class Img(object):
         """Plot image"""
         return self.show_img(zlabel,tit,**kwargs)
 
-    def show_img(self, zlabel=None, tit=None, cbar=True, ax=None, **kwargs):
-        """Show image using plt.imshow"""
+    def show_img(self, zlabel=None, tit=None, cbar=True, ax=None,
+                 zlabel_size=12, **kwargs):
+        """Show image using matplotlib method imshow"""
         if not "cmap" in kwargs.keys():
             kwargs["cmap"] = self.get_cmap(**kwargs)
         new_ax = False
@@ -936,7 +937,7 @@ class Img(object):
         if cbar:
             cb = fig.colorbar(im, ax=ax)
             if isinstance(zlabel, str):
-                cb.set_label(zlabel, fontsize=12)
+                cb.set_label(zlabel, fontsize=zlabel_size)
         if not isinstance(tit, str):
             tit = self.make_info_header_str()
         ax.set_title(tit, fontsize=14)

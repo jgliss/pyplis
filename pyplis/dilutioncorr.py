@@ -14,7 +14,7 @@ from .image import Img
 from .optimisation import dilution_corr_fit
 from .model_functions import dilutioncorr_model
 from .geometry import MeasGeometry
-from .helpers import check_roi
+from .helpers import check_roi, rotate_ytick_labels
 from .imagelists import ImgList
 
 class DilutionCorr(object):
@@ -322,13 +322,16 @@ class DilutionCorr(object):
             fig, ax = subplots(1,1)
         x = linspace(0, dists.max(), 100)
         ints = dilutioncorr_model(x, rad_ambient, i0, ext)
-        ax.plot(dists, rads, " x", label = "Data")
-        lbl_fit = r"Fit result: $I_0$=%.1f DN, $\epsilon$ = %.2e" %(i0, ext)
-        ax.plot(x, ints, "--c", label = lbl_fit)
-        ax.set_xlabel("Distance [m]", fontsize=14)
+        ax.plot(dists/1000.0, rads, " x", label = "Data")
+        ext_perkm = ext*1000
+        lbl_fit = (r"Fit: $I_0$=%.1f DN, $\epsilon$ = %.4f km$^{-1}$" 
+                    %(i0, ext_perkm))
+        ax.plot(x/1000.0, ints, "--c", label = lbl_fit)
+        ax.set_xlabel("Distance [km]", fontsize=14)
         ax.set_ylabel("Radiances [DN]", fontsize=14)
         ax.set_title(r"$I_A$ = %.1f" %rad_ambient, fontsize=16)
         ax.grid()
+        ax = rotate_ytick_labels(ax, deg=45, va="center")
         ax.legend(loc="best", fancybox=True, framealpha=0.5, fontsize=13)
         return ax
     
