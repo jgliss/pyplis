@@ -2,13 +2,13 @@ pyplis is a Python toolbox for the analysis of UV SO2 camera data. It includes a
 
 - Support of many common image formats including (`FITS format <https://de.wikipedia.org/wiki/Flexible_Image_Transport_System>`__)
 - Easy and flexible setup for data import and camera specifications 
-- Detailed analysis of the measurement geometry including automized retrieval of distances to the emission plume and/or to topographic features in the camera images (down to pixel-level).
+- Detailed analysis of the measurement geometry including automized retrieval of distances to the emission plume and/or to topographic features in the camera images (down to pixel-level)
 - Several routines for retrieval of plume background intensities (either from plume images directly or using an additional sky reference image).
-- Automatic cell calibration.
-- Correction for cross-detector variations in SO2 sensitivity (due to wavelength shifts of filter transmission windows) using masks retrieved from cell calibration data.
-- DOAS calibration routine including two methods to identify the field of view of a DOAS instrument within the camera images.
-- Plume velocity retrieval either using an optical flow analysis or using signal cross correlation.
-- Histogram based post analysis of optical flow field for motion estimates in low contrast image regions (where optical flow fails to detect motion).
+- Automatic cell calibration
+- Correction for cross-detector variations in SO2 sensitivity (due to wavelength shifts of filter transmission windows) using masks retrieved from cell calibration data
+- DOAS calibration routine including two methods to identify the field of view of a DOAS instrument within the camera images
+- Plume velocity retrieval either using an optical flow analysis or using signal cross correlation
+- Histogram based post analysis of optical flow field for motion estimates in low contrast image regions (where optical flow fails to detect motion)
 - Routine for image based light dilution correction
   
 .. note::
