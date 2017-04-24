@@ -16,11 +16,12 @@ uimages is identified using both FOV search methods (IFR and Pearson). The
 results of the FOV search are plotted as well as the corresponding calibration
 curves retrieved for both FOV parametrisations.
 
-.. note:: 
+Note
+------ 
 
-    if a MemoryError occurs while determining the AA image stack, then the 
-    stack (3D numpy array) is too large for your RAM. In this case, try 
-    increasing script option PYRLEVEL_ROUGH_SEARCH.
+In caae a MemoryError occurs while determining the AA image stack, then the 
+stack (3D numpy array) is too large for the RAM. In this case, try 
+increasing script option PYRLEVEL_ROUGH_SEARCH.
     
 """
 from SETTINGS import check_version
