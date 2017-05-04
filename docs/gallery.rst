@@ -2,6 +2,8 @@
 Plot gallery
 *************
 
+This page contains a collection of plots from the Etna example data. 
+
 .. thumbnail::  ../scripts/scripts_out/ex02_out_1.png
   :title:
   
@@ -50,17 +52,12 @@ Plot gallery
 .. thumbnail::  ../scripts/scripts_out/ex08_out_1.png
   :title:
   
-  Exemplary plume AA image including two plume cross section lines used for determination of plume velocity using cross correlation method (cf. example script 8) 
-  
-.. thumbnail::  ../scripts/scripts_out/ex08_out_3.png
-  :title:
-  
-  Result of gas velocity correlation analysis using the two PCS lines shown in the prev. Fig., resulting in a velocity of 4.1 m/s (cf. ex. script 8)
+  Left: plume AA image including two plume cross section lines used for cross correlation based plume velocity retrieval. Right: Result of cross correlation analysis using the two PCS lines shown left resulting in a velocity of 4.29 m/s (cf. example script 8) 
   
 .. thumbnail::  ../scripts/scripts_out/ex09_out_1.png
   :title:
   
-  Example output of optical flow Farneback algorithm (left) including results from a histogram based post analysis for two different retrieval lines (cf. ex. script 9)
+  Example output of optical flow Farneback algorithm (left) including histograms of orientation angles (middle) and flow vector magnitudes (right) retrieved within ROIs around both lines. Retrieved expectation values and intervals, derived from 1. and 2. moments of the histograms are indicated by solid and dashed lines, respectively (cf. ex. script 9).
   
 .. thumbnail::  ../scripts/scripts_out/ex09_out_4.png
   :title:
@@ -86,8 +83,13 @@ Plot gallery
   :title:
   
   Result of signal dilution correction fit to retrieve atmospheric extinction coefficients (off-band)
-  
+
 .. thumbnail::  ../scripts/scripts_out/ex12_out_1.png
   :title:
   
-  Etna emission rates using three different plume velocity retrievals
+  Calibrated SO2-CD image of the Etna plume (not dilution corrected) including retrieval line L (young_plume) and area (red rectangle) used as quality check when performing emission rate analysis (cf. bottom panel, next plot).
+    
+.. thumbnail::  ../scripts/scripts_out/ex12_out_2.png
+  :title:
+  
+  Etna emission rates through L (see prev. Fig) using four different plume velocity retrievals (top, see legend), and velocity results from histogram analysis (2., 3. panel). Bottom: time series of retrieved background CDs in gas free rectangular area (cf. prev. Fig.). 

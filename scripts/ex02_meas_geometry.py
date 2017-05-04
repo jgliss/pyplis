@@ -34,7 +34,7 @@ from SETTINGS import SAVEFIGS, SAVE_DIR, FORMAT, DPI, OPTPARSE
 from ex01_analysis_setup import create_dataset
 
 ### SCRIPT FUNCTION DEFINITIONS    
-def find_viewing_direction(meas_geometry, draw_result = True):
+def find_viewing_direction(meas_geometry, draw_result=True):
     """Correct viewing direction using location of Etna SE crater
     
     Defines location of Etna SE crater within images (is plotted into current
@@ -78,15 +78,15 @@ def plot_plume_distance_image(meas_geometry):
     # camera to plume distances on a pixel basis
     dist_img, _, plume_dist_img = meas_geometry.get_all_pix_to_pix_dists()
     
-    # Draw the results
     fig, ax = subplots(1, 2, figsize = (16,4))
-    disp0 = ax[0].imshow(dist_img.img, cmap="gray")
+    
+    
+    # Show pix-to-pix distance image
+    dist_img.show(cmap="gray", ax=ax[0], zlabel="Pixel to pixel distance [m]")
     ax[0].set_title("Parametrised pixel to pixel distances")
-    cb0 = fig.colorbar(disp0, ax =ax[0], shrink = 0.9)
-    cb0.set_label("Pixel to pixel distance [m]")
-    disp1 = ax[1].imshow(plume_dist_img.img / 1000.0, cmap = "gray")
-    cb1 = fig.colorbar(disp1, ax =ax[1], shrink = 0.9)
-    cb1.set_label("Plume distance [km]")
+    
+    # Show plume distance image (convert pixel values to from m -> km)
+    (plume_dist_img / 1000.0).show(cmap="gray", ax=ax[1], zlabel="Plume distance [km]")
     ax[1].set_title("Retrieved plume distances")
     return fig
 
@@ -97,10 +97,10 @@ if __name__ == "__main__":
     # Create the Dataset object (see ex01)
     ds = create_dataset()
     
-    # apply 1. script function (see above for definition and information)
+    # execute function defined above (see above for definition and information)
     geom_corr, map = find_viewing_direction(ds.meas_geometry)
 
-    # apply 2. script function (see above for definition and information)
+    # execute 2. script function (see above for definition and information)
     fig =  plot_plume_distance_image(ds.meas_geometry)
     
     ### IMPORTANT STUFF FINISHED    

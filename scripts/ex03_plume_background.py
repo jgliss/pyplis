@@ -33,7 +33,7 @@ BG_CORR_MODES = [0, #2D poly surface fit (without sky radiance image)
                  6] #Scaling + quadr. gradient correction in x and y direction
 
 
-# Relevant file paths
+# Image file paths relevant for this script
 PLUME_FILE = join(IMG_DIR, 'EC2_1106307_1R02_2015091607065477_F01_Etna.fts')
 BG_FILE = join(IMG_DIR, 'EC2_1106307_1R02_2015091607022602_F01_Etna.fts')
 OFFSET_FILE = join(IMG_DIR, 'EC2_1106307_1R02_2015091607064723_D0L_Etna.fts')
@@ -203,11 +203,10 @@ if __name__=="__main__":
         for k in range(len(_tau_figs)):
             #_tau_figs[k].suptitle("")
             _tau_figs[k].savefig(join(SAVE_DIR, "ex03_out_%d.%s" 
-                                 %((k+2), FORMAT)), format=FORMAT, dpi=DPI,
-                                 transparent=True)
+                                 %((k+2), FORMAT)), format=FORMAT, dpi=DPI)
         
         fig6.savefig(join(SAVE_DIR, "ex03_out_6.%s" %FORMAT), format=FORMAT,
-                    dpi=DPI, transparent=True)
+                    dpi=DPI)
     # Display images or not    
     (options, args)   =  OPTPARSE.parse_args()
     try:

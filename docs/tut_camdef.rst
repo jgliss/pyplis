@@ -23,23 +23,12 @@ These information is used to separate the individual image types when creating a
 
 The following list provides an overview of relevant parameters for filename access information using examplary filenames of the ECII camera type as well as the HD-Custom camera type.
 
-Table: Example file naming conventions
---------------------------------------
-
-.. note::
-
-  Here follows a table showing exemplary file naming conventions, currently the table can not be built on RTD due to bug in module `sphinxcontrib-exceltable <https://bitbucket.org/birkenfeld/sphinx-contrib/issues/178/excel-table-not-working-with-sphinx-151>`_
-  
-Caption: Example file naming conventions for pyplis default cameras
-  
-In the following, all relevant :class:`Camera` parameters are introduced using the example of the ECII camera type.
-
 .. _tut_ecIIcam:
 
 Example 1: The ECII camera standard
 -----------------------------------
 
-Here, an exemplary :class:`Camera` is setup based on the ECII-camera type and file naming convention (cf. :ref:`ex02`).
+In the following, an exemplary :class:`Camera` class is specified based on the ECII-camera standard and file naming convention (cf. :ref:`ex02`).
 
 To start with, an empty :class:`Camera` instance is created::
 
@@ -92,7 +81,7 @@ as well as the unit (choose from "s" or "ms" if applicable)::
 
     cam.texp_unit = ""
     
-Furthermore, the image type identification can (and should) be specified in the camera, in order to make life easier. This ensures, that images of different types (e.g. on / off-band, dark, offset) can be identified and separated from the filename. The relevant information is specified in a collection of :class:`Filter` and :class:`DarkOffsetInfo` objects. 
+Furthermore, the image type identification can (and should) be specified in the camera, in order to make life easier. This ensures, that images of different types (e.g. on / off-band, dark, offset) can be identified and separated directly from the filename. The relevant information is specified in a collection of :class:`Filter` and :class:`DarkOffsetInfo` objects. 
 Let's start off with defining the different image access types for on and off-band images (these are stored in :class:`Filter` objects, while dark / offset image access information is stored in :class:`DarkOffsetInfo` objects, follows below)::
 
   # On-band images
@@ -215,7 +204,6 @@ After saving the camera as new default, you can load it using::
   
 Done!
 
-.. _tut_hdcam:
 
 Example 2: The HD-Custom camera standard
 ----------------------------------------
@@ -223,4 +211,3 @@ Example 2: The HD-Custom camera standard
 .. note::
 
   Information follows soon ...
-

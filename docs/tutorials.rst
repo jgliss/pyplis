@@ -2,4 +2,4 @@
 Tutorials
 *********
 
-.. include:: camdef.rst
+.. include:: tut_camdef.rst

@@ -24,23 +24,24 @@ from SETTINGS import check_version
 # Raises Exception if conflict occurs
 check_version()
 
-import pyplis
 from os.path import join, exists
-from matplotlib.pyplot import close, show, GridSpec, figure
+from matplotlib.pyplot import close, show, GridSpec, figure, rc_context
+from matplotlib.cm import get_cmap
 
+rc_context({'font.size':'18'})
+
+import pyplis
 ### IMPORT GLOBAL SETTINGS
-from SETTINGS import SAVEFIGS, SAVE_DIR, FORMAT, DPI, OPTPARSE
+from SETTINGS import SAVEFIGS, SAVE_DIR, FORMAT, DPI, OPTPARSE, LINES
 
 ### IMPORTS FROM OTHER EXAMPLE SCRIPTS
 from ex04_prep_aa_imglist import prepare_aa_image_list
 
-# use PCS line defined for cross correlation analysis for the exemplary
-# emission rate retrieval
-from ex08_velo_crosscorr import PCS
+PCS = LINES[0] 
 
 ### SCRIPT OPTONS  
 PYRLEVEL = 1
-PLUME_VELO_GLOB = 4.14 #m/s
+PLUME_VELO_GLOB = 4.29 #m/s
 PLUME_VELO_GLOB_ERR = 1.5
 MMOL = 64.0638 #g/mol
 CD_MIN = 2.5e17
@@ -61,13 +62,29 @@ LOG_ROI_SKY = [530, 30, 600, 100] #correspond to pyrlevel 1
 
 ### RELEVANT DIRECTORIES AND PATHS
 
+# DOAS calibration results from example script 6
 CALIB_FILE = join(SAVE_DIR, "ex06_doascalib_aa.fts")
 
+# AA sensitivity correction mask retrieved from cell calib in script 7
 CORR_MASK_FILE = join(SAVE_DIR, "ex07_aa_corr_mask.fts")
 
+# time series of predominant displacement vector from histogram analysis of  optical flow
+# field in ROI around the PCS line "young_plume" which is used here for the emission rate
+# retrieval. These information is optional, and is calculated during the evaluation if not
+# provided 
+RESULT_PLUMEPROPS_HISTO = join(SAVE_DIR, "ex09_plumeprops_young_plume.txt")
+
 ### SCRIPT FUNCTION DEFINITIONS        
-def plot_and_save_results(ana, line_id="1. PCS", date_fmt="%H:%M"):
-    fig = figure(figsize=(10,9))
+def plot_and_save_results(ana, line_id="young_plume", date_fmt="%H:%M"):
+    
+    #plot colors for different optical flow retrievals
+    cmap= get_cmap("Oranges")
+    
+    c_optflow_hybrid = cmap(255)
+    c_optflow_histo = cmap(175)
+    c_optflow_raw = cmap(100)
+    
+    fig = figure(figsize=(16,12))
     gs = GridSpec(4, 1, height_ratios = [.6, .2, .2, .2], hspace=0.05)
     ax3 = fig.add_subplot(gs[3]) 
     ax0 = fig.add_subplot(gs[0], sharex=ax3) 
@@ -91,18 +108,18 @@ def plot_and_save_results(ana, line_id="1. PCS", date_fmt="%H:%M"):
     res3.save_txt(join(SAVE_DIR, "ex12_flux_farneback_hybrid.txt"))
     
     #Plot emission rates for the different plume speed retrievals
-    res0.plot(yerr=True, date_fmt=date_fmt, ls="--", marker="x", ax=ax0, 
-              color="#e67300", ymin=0, alpha_err=0.05)
-    res1.plot(yerr=False, ax=ax0, ls="none", marker="x", color="b", ymin=0)
-    res2.plot(yerr=False, ax=ax0, ls="-", color="#ff00ff", ymin=0)
-    res3.plot(yerr=True, ax=ax0, lw=2, color="g", ymin=0)
+    res0.plot(yerr=True, date_fmt=date_fmt, ls="-", ax=ax0, 
+              color="c", ymin=0, alpha_err=0.08)
+    res1.plot(yerr=False, ax=ax0, ls="-",  color=c_optflow_raw, ymin=0)
+    res2.plot(yerr=False, ax=ax0, ls="--", color=c_optflow_histo, ymin=0)
+    res3.plot(yerr=True, ax=ax0, lw=3, ls="-", color=c_optflow_hybrid, ymin=0)
     
     #ax[0].set_title("Retrieved emission rates")
     ax0.legend(loc='best', fancybox=True, framealpha=0.5, fontsize=12)
     ax0.grid()
     
     #Plot effective velocity retrieved from optical flow histogram analysis    
-    res3.plot_velo_eff(ax=ax1, date_fmt=date_fmt, color="g")
+    res3.plot_velo_eff(ax=ax1, date_fmt=date_fmt, color= c_optflow_hybrid)
     #ax[1].set_title("Effective plume speed (from optflow histogram analysis)")
     ax1.set_ylim([0, ax1.get_ylim()[1]])
 
@@ -111,7 +128,7 @@ def plot_and_save_results(ana, line_id="1. PCS", date_fmt="%H:%M"):
     #which is part of plumespeed.py module
     ana.pcs_lines[line_id].plume_props.plot_directions(ax=ax2, 
                                                        date_fmt=date_fmt,
-                                                       color="g")
+                                                       color=c_optflow_hybrid)
 
     ax2.set_ylim([-180, 180])
     pyplis.helpers.rotate_xtick_labels(ax=ax2)
@@ -134,7 +151,30 @@ if __name__ == "__main__":
             "location:\n%s\nPlease run example 6 first")
     if not exists(CORR_MASK_FILE):
         raise IOError("Cannot find AA correction mask, please run example script"
-            "7 first")  
+            "7 first") 
+        
+    # convert the retrieval line to the specified pyramid level (script option)
+    pcs = PCS.convert(to_pyrlevel=PYRLEVEL)
+    
+    # now try to load results of optical flow histogram analysis performed for this line
+    # in script no. 9. and assign them to the pcs line. This has the advantage, that  missing 
+    # velocity vectors (i.e. from images where optical flow analysis failed) can be 
+    # interpolated. It is, however, not necessarily required to do this in advance. In the latter
+    # case the emission rates show gaps at all images, where the optical flow was considered
+    # not reliable
+    try:
+        p = pyplis.LocalPlumeProperties()
+        p.load_txt(RESULT_PLUMEPROPS_HISTO)
+        p = p.to_pyrlevel(PYRLEVEL)
+        fig = p.plot(color="r")
+        p = p.apply_significance_thresh(0.2).interpolate()
+        p = p.apply_median_filter(3).apply_gauss_filter(2)
+        fig = p.plot(date_fmt="%H:%M", fig=fig)
+        
+        pcs.plume_props = p
+    except:
+        print("Local plume properties could not be loaded and will be calculated during the "
+             "emission rate analysis")
             
     ### Load AA list
     aa_list = prepare_aa_image_list() #includes viewing direction corrected geometry
@@ -152,8 +192,8 @@ if __name__ == "__main__":
     #set DOAS calibration data in image list
     aa_list.calib_data = doascalib
     
-    pcs = PCS.convert(to_pyrlevel=PYRLEVEL)
-                                             
+    
+                              
     ana = pyplis.EmissionRateAnalysis(imglist=aa_list, 
                                       bg_roi=LOG_ROI_SKY,
                                       pcs_lines=pcs,
@@ -168,12 +208,17 @@ if __name__ == "__main__":
     ana.settings.velo_modes["farneback_histo"] = True
     ana.settings.velo_modes["farneback_hybrid"] = True
     ana.settings.min_cd = CD_MIN
+    
+    #plot all current PCS lines into current list image (feel free to define
+    #and add more PCS lines above)
+    ax = ana.plot_pcs_lines()
+    ax = ana.plot_bg_roi_rect(ax=ax, to_pyrlevel=PYRLEVEL)
+    ax.set_title("")
+    figs.append(ax.figure)
+    
     if not DO_EVAL:
         #you can check the settings first
         print ana.settings 
-        #plot all current PCS lines into current list image (feel free to define
-        #and add more PCS lines above)
-        ax = ana.plot_pcs_lines() 
         #check if optical flow works
         ana.imglist.optflow_mode = True
         aa_mask = ana.imglist.get_thresh_mask(CD_MIN)
@@ -185,13 +230,13 @@ if __name__ == "__main__":
         figs.append(plot_and_save_results(ana))
         
         # the EmissionRateResults class has an informative string representation
-        print ana.get_results("1. PCS", "farneback_histo")
+        print ana.get_results("young_plume", "farneback_histo")
         
-        if SAVEFIGS:
-            for k in range(len(figs)):
-                figs[k].savefig(join(SAVE_DIR, "ex12_out_%d.%s" %(k+1,FORMAT)),
-                                format=FORMAT, dpi=DPI)
-                               
+    if SAVEFIGS:
+        for k in range(len(figs)):
+            figs[k].savefig(join(SAVE_DIR, "ex12_out_%d.%s" %(k+1,FORMAT)),
+                            format=FORMAT, dpi=DPI)
+                           
     # Display images or not    
     (options, args)   =  OPTPARSE.parse_args()
     try:

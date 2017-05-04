@@ -280,10 +280,6 @@ class MultiGaussFit(object):
         #will be filled with optimisation results
         self.opt_log = {"chis"     : [],
                         "residuals": []}
-
-        self.plot_font_sizes = {"titles":  14,
-                                "labels":  12,
-                                "legends": 10}
                                 
         self.set_data(data, index)
         if do_fit and self.has_data:
@@ -786,9 +782,7 @@ class MultiGaussFit(object):
         add_gaussians = self.get_all_gaussians_out_of_sigma_range(mean_mu,
                                                                   mean_sigma,
                                                                   sigma_tol)
-                                                             
-        
-        
+                                                            
         return mean_mu, mean_sigma, max_int, add_gaussians
         
     ### Helpers / post analysis
@@ -889,6 +883,25 @@ class MultiGaussFit(object):
         """
         x = linspace(0,400,401)
         params = [150,30,8,200,110,3,300,150,20,75,370,40,300,250,1]
+        y = multi_gaussian_same_offset(x, 45, *params)
+        if add_noise:
+            y = y + 300 * noise_frac * random.normal(0, 1, size=len(x))
+        self.set_data(y, x)
+    
+    def create_test_data_multigauss2(self, add_noise=True, noise_frac=0.03):
+        """Create test data set containing 5 overlapping Gaussians
+        
+        Parameters
+        ----------        
+        add_noise : bool
+            add noise to test data
+        noise_frac : float
+            determines noise amplitude (fraction relative to max amplitude of
+            Gaussian)
+    
+        """
+        x = linspace(-180,180,361)
+        params = [150,-110,25,300,-50,20,150,90,10]
         y = multi_gaussian_same_offset(x, 45, *params)
         if add_noise:
             y = y + 300 * noise_frac * random.normal(0, 1, size=len(x))
@@ -1238,15 +1251,13 @@ class MultiGaussFit(object):
         fig, ax = subplots(2,1)
         ax[0].plot(self.index, self.data, "--g", label="Signal ")
         ax[0].plot(self.index, self.data_smooth, "-r", label="Smoothed")
-        ax[0].legend(loc='best', fancybox=True, framealpha=0.5,
-                     fontsize=self.plot_font_sizes["legends"])
-        ax[0].set_title("Signal", fontsize = self.plot_font_sizes["titles"])
+        ax[0].legend(loc='best', fancybox=True, framealpha=0.5)
+        ax[0].set_title("Signal")
         ax[0].grid()
         ax[1].plot(self.index, self.data_grad, "--g", label="Gradient")
         ax[1].plot(self.index, self.data_grad_smooth, "-r", 
                    label="Smoothed (width 3)")
-        ax[1].legend(loc='best', fancybox=True, framealpha=0.5,
-                     fontsize=self.plot_font_sizes["legends"])
+        ax[1].legend(loc='best', fancybox=True, framealpha=0.5)
         ax[1].set_title("Derivative")
         ax[1].grid()
         return ax
@@ -1270,7 +1281,7 @@ class MultiGaussFit(object):
             y = self.data - self.offset
             l_str += " (submin)"
             
-        ax.plot(self.index, y," x", lw=2, c='g', label = l_str)
+        ax.plot(self.index, y," x", lw=2, c='b', label = l_str)
         return ax
 
     def plot_multi_gaussian(self,x=None, params=None ,ax=None, color="r", 
@@ -1316,7 +1327,7 @@ class MultiGaussFit(object):
         ax.plot(x, dat, lw = 1, ls = "--", marker = " ", **kwargs)
         return ax
     
-    def plot_result(self, add_single_gaussians=False):
+    def plot_result(self, add_single_gaussians=False, figsize=(16, 10)):
         """Plot the current fit result
         
         :param bool add_single_gaussians: if True, all individual Gaussians are 
@@ -1326,14 +1337,14 @@ class MultiGaussFit(object):
         if not self.has_data:
             #print "Could not plot result, no data available.."
             return 0
-        fig, axes = subplots(2,1)
+        fig, axes = subplots(2,1, figsize=figsize)
         self.plot_data(sub_min = 0, ax = axes[0])
         x = linspace(self.index.min(), self.index.max(), len(self.index) * 3)
         if not self.has_results():
             #print "Only plotted data, no results available"
             return axes
         self.plot_multi_gaussian(x,self.params,ax=axes[0],\
-                                        label = "Superposition")        
+                                        label = "Fit result", lw=2, c="b")        
         if add_single_gaussians:
             k = 1
             for g in self.gaussians(): 
@@ -1341,8 +1352,7 @@ class MultiGaussFit(object):
                     label = ("%d. Gaussian" %k))
                 k += 1
                 
-        axes[0].legend(loc = 'best', fancybox = True, framealpha = 0.5,\
-                            fontsize = self.plot_font_sizes["legends"])
+        axes[0].legend(loc = 'best', fancybox = True, framealpha = 0.5)
         tit = r"Result"
         try:
             mu, sigma, _, _= self.analyse_fit_result()
@@ -1350,13 +1360,12 @@ class MultiGaussFit(object):
         except:
             pass
         
-        axes[0].set_title(tit, fontsize =\
-                            self.plot_font_sizes["titles"])
+        axes[0].set_title(tit)
         
         res = self.get_residual(self.params)
         axes[1].plot(self.index, res)
-        axes[1].set_title("Residual", fontsize =\
-                            self.plot_font_sizes["titles"])
+        axes[1].set_title("Residual")
+        fig.tight_layout()
         
         return axes
     
@@ -1644,23 +1653,25 @@ class PolySurfaceFit(object):
 if __name__ == "__main__":
     import matplotlib.pyplot as plt
     import numpy as np
+    from matplotlib.pyplot import rc_context
+    rc_context({'font.size':'12'})
     
     TOL = 3
     plt.close("all")
     f = MultiGaussFit()
-    f.create_test_data_multigauss(1, 0.03)
+    f.create_test_data_multigauss(1, 0.02)
     #f.create_test_data_singlegauss(0)
     f.run_optimisation()
     
-    axes=f.plot_result()
+    axes=f.plot_result(True, figsize=(12,10))
+    ax=axes[0]
+    ax.set_ylim([0, 400])
+    ax.set_title("")
     
     p_norm = f.normalise_params()
     
     x = f.index
     data_norm = multi_gaussian_no_offset(x, *p_norm)
-    
-    fig, ax = plt.subplots(1,1)
-    ax.plot(f.index, data_norm)
     
     mu0 = f.det_moment(x, data_norm,0,1)
     sigma0 = np.sqrt(f.det_moment(x, data_norm, mu0, 2))
@@ -1684,16 +1695,20 @@ if __name__ == "__main__":
     mu1 = f.det_moment(x, mp, 0, 1)
     sigma1 = np.sqrt(f.det_moment(x, mp, mu1, 2))
     
-    print "HERE"
     mean_mu, mean_sigma, max_int, add_gaussians = f.analyse_fit_result_old(TOL)
+    
+    pos_add = [g[1] for g in add_gaussians]
+    for g in f.gaussians():
+        if g[1] in pos_add:
+            axes[0].annotate("Additional\npeak", xy=(g[1], g[0] + f.offset), xytext=(g[1]-10, g[0] + 20 + f.offset), 
+                arrowprops=dict(arrowstyle="->", color="k", connectionstyle=
+                "arc,angleA=10,armA=20,rad=6", shrinkA=2, 
+                shrinkB=2), color="k", fontsize=14)
     mu2, sigma2, _, _ = f.analyse_fit_result(TOL)
  
     print "Mu, sigma (moments ALL): %.2f, %.2f" %(mu0, sigma0)
     print "Mu, sigma (OLD METHOD): %.2f, %.2f" %(mean_mu, mean_sigma)
     print "Mu, sigma (moments MAIN PEAK): %.2f, %.2f" %(mu1, sigma1)
     print "Mu, sigma (moments MAIN PEAK normalised): %.2f, %.2f" %(mu2, sigma2)
-    
-    
-    
     
     

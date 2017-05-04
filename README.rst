@@ -1,7 +1,7 @@
 Pyplis is a Python toolbox for the analysis of UV SO2 camera data. The software package includes a comprehensive collection of algorithms for the analysis of such data, for instance:
 
 Main features
--------------
+=============
 
 - Support of many common image formats including (`FITS format <https://de.wikipedia.org/wiki/Flexible_Image_Transport_System>`__)
 - Easy and flexible setup for data import and camera specifications 

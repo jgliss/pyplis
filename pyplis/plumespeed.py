@@ -19,7 +19,7 @@ from copy import deepcopy
 from warnings import warn
 from datetime import datetime
 from collections import OrderedDict as od
-from matplotlib.pyplot import subplots, figure, GridSpec
+from matplotlib.pyplot import subplots, figure, GridSpec, rcParams
 from matplotlib.patches import Rectangle
 from matplotlib.dates import DateFormatter
 from scipy.ndimage.filters import median_filter, gaussian_filter
@@ -38,6 +38,7 @@ from .helpers import bytescale, check_roi, map_roi, roi2rect, set_ax_lim_roi,\
 from .optimisation import MultiGaussFit
 from .processing import LineOnImage
 from .image import Img
+LABEL_SIZE=rcParams["font.size"]+ 2
 
 def find_signal_correlation(first_data_vec, next_data_vec, 
                             time_stamps=None, reg_grid_tres=None, 
@@ -162,8 +163,8 @@ def find_signal_correlation(first_data_vec, next_data_vec,
         
         s1.plot(ax = ax[0], label="First line")
         s2.plot(ax = ax[0], label="Second line")
-        ax[0].set_title("Original time series", fontsize = 10)
-        ax[0].legend(loc='best', fancybox=True, framealpha=0.5, fontsize=10) 
+        ax[0].set_title("Original time series", fontsize=LABEL_SIZE+2)
+        ax[0].legend(loc='best', fancybox=True, framealpha=0.5) 
         ax[0].grid()
         
         max_coeff_signal.plot(ax = ax[1], label =\
@@ -171,8 +172,8 @@ def find_signal_correlation(first_data_vec, next_data_vec,
         s2_ana.plot(ax = ax[1], label = "Data vector 2. line")
         
                         
-        ax[1].set_title("Signal match", fontsize = 10)
-        ax[1].legend(loc='best', fancybox=True, framealpha=0.5, fontsize=10) 
+        ax[1].set_title("Signal match", fontsize=LABEL_SIZE+2)
+        ax[1].legend(loc='best', fancybox=True, framealpha=0.5) 
         ax[1].grid()
         
         x = arange(0, len(coeffs), 1) * lag_fac
@@ -634,7 +635,7 @@ class LocalPlumeProperties(object):
         except:
             pass
         ax.fill_between(s.index, lower, upper, alpha=0.1, **kwargs)
-        ax.set_ylabel(r"$\varphi\,[^{\circ}$]", fontsize=14)
+        ax.set_ylabel(r"$\varphi\,[^{\circ}$]", fontsize=LABEL_SIZE)
         ax.grid()
         return ax
         
@@ -680,7 +681,7 @@ class LocalPlumeProperties(object):
         except:
             pass
         ax.fill_between(s.index, lower, upper, alpha=0.1, **kwargs)
-        ax.set_ylabel(r"$|\mathbf{f}|$ [%s]" %unit, fontsize=14)
+        ax.set_ylabel(r"$|\mathbf{f}|$ [%s]" %unit, fontsize=LABEL_SIZE)
         ax.grid()
         return ax
     
@@ -759,7 +760,7 @@ class LocalPlumeProperties(object):
         ax.plot(velos.index, velos, **kwargs)
         ax.fill_between(velos.index, velos_lower, velos_upper, alpha=0.1,
                         **kwargs)
-        ax.set_ylabel("v [%s]" %velo_unit, fontsize=14)
+        ax.set_ylabel("v [%s]" %velo_unit, fontsize=LABEL_SIZE)
         ax.grid()
         return ax
         
@@ -934,7 +935,7 @@ class FarnebackSettings(object):
         self._analysis = od([("roi_abs"             ,   [0, 0, 9999, 9999]),
                              ("min_length"          ,   1.0),
                              ("min_count_frac"      ,   0.1),
-                             ("hist_sigma_tol"      ,   1),
+                             ("hist_sigma_tol"      ,   2),
                              ("hist_dir_gnum_max"   ,   10),
                              ("hist_dir_binres"     ,   10)])
         
@@ -2090,13 +2091,13 @@ class OptflowFarneback(object):
         print("Predominant movement direction: %.1f +/- %.1f" %(dir_mu,
                                                                 dir_sigma))
                                                                 
-        for g in add_gaussians:
-            sign = int(fit.integrate_gauss(*g) * 100 / tot_num)
-            if sign > 20: #other peak exceeds 20% of main peak
-                warn("Optical flow histogram analysis:\n"
-                     "Detected additional gaussian in orientation histogram:\n"
-                     "%sSignificany: %s %%\n" %(fit.gauss_str(g), sign))
-        
+        sign_addgauss = sum([fit.integrate_gauss(*g) for g in add_gaussians]) / tot_num
+        #sign = int(fit.integrate_gauss(*g) * 100 / tot_num)
+        if sign_addgauss > .2: #other peaks exceed 20% of main peak
+            warn("Optical flow histogram analysis aborted:\n"
+                 "Detected additional gaussian in orientation histogram:\n"
+                 "%sSignificance: %s %%\n" %(fit.gauss_str(g), sign_addgauss*100))
+            return res
         #limit range of reasonable orientation angles...
         dir_low = dir_mu - dir_sigma * sigma_tol
         dir_high = dir_mu + dir_sigma * sigma_tol
@@ -2274,11 +2275,10 @@ class OptflowFarneback(object):
                         color=color, ls="--")
             else:
                 tit += ": Fit failed..."
-        ax.set_title(tit, fontsize=11)      
+        ax.set_title(tit, fontsize=LABEL_SIZE+2)      
         ax.set_xlim([-180, 180])    
         if bool(label):
-            ax.legend(loc='best', fancybox=True, 
-                      framealpha=0.5, fontsize=10) 
+            ax.legend(loc='best', fancybox=True, framealpha=0.5, fontsize=LABEL_SIZE-2) 
         ax.grid()
         return ax, mu, sigma
     
@@ -2325,7 +2325,7 @@ class OptflowFarneback(object):
             if fit.has_results():
                 fit.plot_multi_gaussian(ax=ax, label="Multi-Gauss fit",
                                         color=color)
-        ax.set_title(tit, fontsize=11)      
+        ax.set_title(tit, fontsize=LABEL_SIZE+2)      
         ax.set_xlim([0, int(bins.max()) + 1])
         if apply_stats:
             mu, sigma = self.analyse_length_histo(count, bins)
@@ -2337,8 +2337,7 @@ class OptflowFarneback(object):
             ax.plot([mu+sigma, mu+sigma], [0, count.max()*1.05], 
                     color=color, ls="--")
         if bool(label):
-            ax.legend(loc='best', fancybox=True, 
-                      framealpha=0.5, fontsize=10)
+            ax.legend(loc='best', fancybox=True, framealpha=0.5, fontsize=LABEL_SIZE-2)
         ax.grid()
         return ax
         
@@ -2381,13 +2380,13 @@ class OptflowFarneback(object):
         len_im = self.get_flow_vector_length_img()
         angle_im_disp = ax2.imshow(angle_im, interpolation='nearest',
                                    vmin=-180, vmax=180, cmap="RdBu")
-        ax2.set_title("Displacement orientation", fontsize=11)        
+        ax2.set_title("Displacement orientation", fontsize=LABEL_SIZE+2)        
         fig.colorbar(angle_im_disp, ax=ax2)
         
         len_im_disp = ax5.imshow(len_im, interpolation='nearest',  
                                  cmap="Blues")
         fig.colorbar(len_im_disp, ax=ax5)
-        ax5.set_title("Displacement lengths", fontsize=11)        
+        ax5.set_title("Displacement lengths", fontsize=LABEL_SIZE+2)        
         
         set_ax_lim_roi(self.roi, ax2, xy_aspect=aspect)
         set_ax_lim_roi(self.roi, ax5, xy_aspect=aspect)

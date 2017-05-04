@@ -6,7 +6,7 @@ from numpy import dot, sqrt, mean, nan, isnan, asarray, nanmean, nanmax,\
     nanmin, sum
 from matplotlib.dates import DateFormatter
 from collections import OrderedDict as od
-from matplotlib.pyplot import subplots
+from matplotlib.pyplot import subplots, rcParams, Rectangle
 from os.path import join, isdir
 from os import getcwd
 from traceback import format_exc
@@ -22,7 +22,9 @@ MOL_MASS_SO2 = 64.0638 #g/mol
 from .imagelists import ImgList
 from .plumespeed import LocalPlumeProperties  
 from .processing import LineOnImage  
-from .helpers import check_roi, exponent
+from .helpers import check_roi, exponent, roi2rect, map_roi
+
+LABEL_SIZE=rcParams["font.size"]+ 2
 
 class EmissionRateSettings(object):
     """Class for management of settings for emission rate retrievals"""
@@ -482,7 +484,7 @@ class EmissionRateResults(object):
         
             ax.fill_between(s.index, phi_lower, phi_upper, alpha=0.1,
                             **kwargs)
-        ax.set_ylabel(r"$v_{eff}$ [m/s]", fontsize=16)
+        ax.set_ylabel(r"$v_{eff}$ [m/s]")
         ax.grid()
         return ax
         
@@ -542,7 +544,7 @@ class EmissionRateResults(object):
         
             ax.fill_between(s.index, phi_lower, phi_upper, alpha=alpha_err,
                             color = pl[0].get_color())
-        ax.set_ylabel(r"$\Phi$ [g/s]", fontsize=16)
+        ax.set_ylabel(r"$\Phi$ [g/s]", fontsize=LABEL_SIZE)
         ax.grid()
         ylim = list(ax.get_ylim())
         if ymin is not None:
@@ -1205,15 +1207,24 @@ class EmissionRateAnalysis(object):
         """
         self.settings.add_pcs_line(line)
         
-    def plot_pcs_lines(self):
+    def plot_pcs_lines(self, ax=None):
         """Plots all current PCS lines onto current list image"""
         # plot current image in list and draw line into it
-        ax = self.imglist.show_current()
+        if ax is None:
+            ax = self.imglist.show_current()
         for line_id, line in self.pcs_lines.iteritems():
             line.plot_line_on_grid(ax=ax, include_normal=True, label=line_id)
-        ax.legend(loc='best', fancybox=True, framealpha=0.5, fontsize=12)
+        ax.legend(loc='best', fancybox=True, framealpha=0.5)
         return ax
     
+    def plot_bg_roi_rect(self, ax=None, to_pyrlevel=0):
+        """Plot rectangular area used for background check"""
+        roi = map_roi(self.settings.bg_roi_abs, to_pyrlevel)
+        x,y,w,h=roi2rect(roi)
+        r = Rectangle(xy=(x,y), width=w, height=h, fc="none", ec="r")
+        ax.add_artist(r)
+        return ax
+        
     def plot_bg_roi_vals(self, ax=None, date_fmt=None, **kwargs):
         """Plots emission rate time series
         
@@ -1259,8 +1270,10 @@ class EmissionRateAnalysis(object):
                 ax.xaxis.set_major_formatter(DateFormatter(date_fmt))
         except:
             pass
+        
+        #ax.yaxis.set_ticks([lower_disp.mean(), 0, upper_disp.mean()])
         ax.fill_between(s.index, lower_disp, upper_disp, alpha=0.1, **kwargs)
-        ax.set_ylabel(r"$ROI_{BG}\,[E%+d\,cm^{-2}]$" %exp)
+        ax.set_ylabel(r"$ROI_{BG}\,[E%d\,cm^{-2}]$" %exp, fontsize=LABEL_SIZE)
         ax.grid()
         return ax
       
