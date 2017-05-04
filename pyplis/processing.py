@@ -32,7 +32,7 @@ from matplotlib.patches import Polygon, Rectangle
 
 from pandas import Series, concat, DatetimeIndex
 from cv2 import cvtColor, COLOR_BGR2GRAY, pyrDown, pyrUp, fillPoly
-from os import getcwd, remove
+from os import remove
 from os.path import join, exists, dirname, basename, isdir, abspath
 from astropy.io import fits
     

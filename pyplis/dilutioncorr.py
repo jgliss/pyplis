@@ -4,7 +4,7 @@ pyplis module for image based light dilution correction
 """
 from numpy import asarray, linspace, exp, ones, nan
 from scipy.ndimage.filters import median_filter
-from matplotlib.pyplot import subplots
+from matplotlib.pyplot import subplots, rcParams
 from collections import OrderedDict as od
 from warnings import warn
 from pandas import Series, DataFrame
@@ -16,6 +16,7 @@ from .model_functions import dilutioncorr_model
 from .geometry import MeasGeometry
 from .helpers import check_roi, rotate_ytick_labels
 from .imagelists import ImgList
+LABEL_SIZE=rcParams["font.size"]+ 2
 
 class DilutionCorr(object):
     """Class for management of dilution correction
@@ -327,9 +328,9 @@ class DilutionCorr(object):
         lbl_fit = (r"Fit: $I_0$=%.1f DN, $\epsilon$ = %.4f km$^{-1}$" 
                     %(i0, ext_perkm))
         ax.plot(x/1000.0, ints, "--c", label = lbl_fit)
-        ax.set_xlabel("Distance [km]", fontsize=14)
-        ax.set_ylabel("Radiances [DN]", fontsize=14)
-        ax.set_title(r"$I_A$ = %.1f" %rad_ambient, fontsize=16)
+        ax.set_xlabel("Distance [km]", fontsize=LABEL_SIZE)
+        ax.set_ylabel("Radiances [DN]", fontsize=LABEL_SIZE)
+        ax.set_title(r"$I_A$ = %.1f" %rad_ambient, fontsize=LABEL_SIZE+2)
         ax.grid()
         ax = rotate_ytick_labels(ax, deg=45, va="center")
         ax.legend(loc="best", fancybox=True, framealpha=0.5, fontsize=13)

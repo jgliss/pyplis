@@ -6,7 +6,7 @@ from matplotlib.pyplot import subplots
 from warnings import warn
 from numpy import float, log, arange, polyfit, poly1d, linspace, isnan,\
     diff, mean, argmin, ceil, round, ndim, asarray
-from matplotlib.pyplot import Figure
+from matplotlib.pyplot import Figure, rcParams
 from matplotlib.cm import get_cmap
 from datetime import timedelta
 from os.path import exists
@@ -22,7 +22,9 @@ from .helpers import subimg_shape, map_coordinates_sub_img, exponent
 from .doascalib import DoasFOV
 from .optimisation import PolySurfaceFit
 from .glob import SPECIES_ID, CALIB_ID_STRINGS
-      
+
+LABEL_SIZE=rcParams["font.size"]+ 2
+
 class CellSearchInfo(object):
     """Class for for storage cell search from automatic cell search engine
     
@@ -650,7 +652,7 @@ class CellCalibData(object):
         ax.plot(taus, poly(taus),"-", label = "Fit result", **kwargs)
         
         if not add_to:
-            ax.set_ylabel(r"$S_{%s}$ [cm$^{-2}$]" %SPECIES_ID, fontsize=18)
+            ax.set_ylabel(r"$S_{%s}$ [cm$^{-2}$]" %SPECIES_ID, fontsize=LABEL_SIZE)
             ax.set_xlabel(r"$\tau$", fontsize=18)    
             ax.grid()
         ax.legend(loc="best", fancybox=True, framealpha=0.5, fontsize=14)
@@ -1605,8 +1607,8 @@ class CellCalibEngine(Dataset):
                     marker="+", color=cmap(nums[0]), ms=12, mew=2, 
                     label='Current BG image')
             
-        ax.legend(loc="best", fancybox=True, framealpha=0.5, fontsize=12)
-        ax.set_ylabel(r"$\mu_{pix}$", fontsize=24)
+        ax.legend(loc="best", fancybox=True, framealpha=0.5, fontsize=LABEL_SIZE-2)
+        ax.set_ylabel(r"$\mu_{pix}$", fontsize=LABEL_SIZE)
         return ax
     
     def plot_calib_curve(self, calib_id, **kwargs):
@@ -1675,12 +1677,12 @@ class CellCalibEngine(Dataset):
             if poly(0) < y_min:
                 y_min = poly(0)
                 
-        ax.set_ylabel(r"$S_{%s}$ [cm$^{-2}$]" %SPECIES_ID, fontsize=18)
-        ax.set_xlabel(r"$\tau$", fontsize = 18)
+        ax.set_ylabel(r"$S_{%s}$ [cm$^{-2}$]" %SPECIES_ID, fontsize=LABEL_SIZE)
+        ax.set_xlabel(r"$\tau$", fontsize=LABEL_SIZE)
         ax.set_ylim([y_min - gas_cd.min() * 0.1, gas_cd.max()*1.05])
         ax.set_xlim([0, tau_max * 1.05])
         ax.grid()
-        ax.legend(loc=4, fancybox=True, framealpha=0.5, fontsize=11)
+        ax.legend(loc="best", fancybox=True, framealpha=0.5)
         return ax
     
     def __call__(self, value, calib_id="aa", **kwargs):

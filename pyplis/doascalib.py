@@ -13,7 +13,7 @@ from os.path import join, exists, isdir, abspath, basename, dirname
 from traceback import format_exc
 from warnings import warn
 
-from matplotlib.pyplot import subplots
+from matplotlib.pyplot import subplots, rcParams
 from matplotlib.patches import Circle, Ellipse
 from matplotlib.cm import RdBu
 from matplotlib.dates import DateFormatter
@@ -27,6 +27,7 @@ from .optimisation import gauss_fit_2d, GAUSS_2D_PARAM_INFO
 from .image import Img
 from .inout import get_camera_info
 from .setupclasses import Camera
+LABEL_SIZE=rcParams["font.size"]+ 2
 
 class DoasCalibData(object):
     """Object representing DOAS calibration data"""
@@ -182,11 +183,12 @@ class DoasCalibData(object):
     
         if sum(isnan(self.tau_vec)) + sum(isnan(self.doas_vec)) > 0:
             raise ValueError("Encountered nans in data")
-        coeffs, cov = polyfit(self.tau_vec, self.doas_vec,\
-                                        polyorder, cov = True)
+        
+        exp = exponent(self.doas_vec.max())
+        coeffs, cov = polyfit(self.tau_vec, self.doas_vec / 10**exp, polyorder,  cov=True)
         self.polyorder = polyorder
-        self.poly = poly1d(coeffs)
-        self.cov = cov
+        self.poly = poly1d(coeffs * 10**exp)
+        self.cov = cov * 10**(2*exp)
         if plot:
             self.plot()
         return self.poly
@@ -296,7 +298,8 @@ class DoasCalibData(object):
         s = "(%s)E%+d" %(p, exp)
         return s.replace("x", r"$\tau$")
         
-    def plot(self, add_label_str="", shift_yoffset=False, ax=None, **kwargs):
+    def plot(self, add_label_str="", shift_yoffset=False, ax=None, fontsize=LABEL_SIZE, 
+                 **kwargs):
         """Plot calibration data and fit result
         
         Parameters
@@ -312,7 +315,7 @@ class DoasCalibData(object):
             kwargs["color"] = "b"
             
         if ax is None:
-            fig, ax = subplots(1,1, figsize=(16,6))
+            fig, ax = subplots(1,1, figsize=(10,8))
         
         taumin, taumax = self.tau_range
         x = linspace(taumin, taumax, 100)
@@ -335,11 +338,17 @@ class DoasCalibData(object):
                     
         except TypeError:
             print "Calibration poly probably not fitted"
-        ax.set_title("DOAS calibration data, ID: %s" %self.calib_id_str)
-        ax.set_ylabel(r"$S_{%s}$ [cm$^{-2}$]" %SPECIES_ID, fontsize=16)
-        ax.set_xlabel(r"$\tau_{%s}$" %self.calib_id_str, fontsize=18)
+        try:
+            titsize=fontsize+3
+        except:
+            titsize=fontsize
+        
+        ax.set_title("DOAS calibration data, ID: %s" %self.calib_id_str,
+                          fontsize=titsize)
+        ax.set_ylabel(r"$S_{%s}$ [cm$^{-2}$]" %SPECIES_ID, fontsize=fontsize)
+        ax.set_xlabel(r"$\tau_{%s}$" %self.calib_id_str, fontsize=fontsize)
         ax.grid()
-        ax.legend(loc='best', fancybox=True, framealpha=0.7, fontsize=11)
+        ax.legend(loc='best', fancybox=True, framealpha=0.7, fontsize=fontsize)
         return ax
         
     def plot_data_tseries_overlay(self, date_fmt=None, ax=None):
@@ -609,7 +618,7 @@ class DoasFOV(object):
         if self.method == "ifr":
             popt = self.popt
             cb.set_label(r"FOV fraction [$10^{-2}$ pixel$^{-1}$]",
-                         fontsize = 16)
+                         fontsize=LABEL_SIZE)
             
             xgrid, ygrid = mesh_from_img(img)
             if len(popt) == 7:
@@ -633,7 +642,7 @@ class DoasFOV(object):
                 "lambda=%.1e" %(cx, cy, self.search_settings["ifrlbda"]))
                         
         elif self.method == "pearson":
-            cb.set_label(r"Pearson corr. coeff.", fontsize=16)
+            cb.set_label(r"Pearson corr. coeff.", fontsize=LABEL_SIZE)
             ax.autoscale(False)
             
             c = Circle((self.cx_rel, self.cy_rel), self.radius_rel, ec="k",
@@ -645,8 +654,8 @@ class DoasFOV(object):
             ax.get_yaxis().set_ticks([0, self.cy_rel, h])
             ax.axhline(self.cy_rel, ls="--", color="k")
             ax.axvline(self.cx_rel, ls="--", color="k")
-        ax.set_xlabel("Pixel row", fontsize=14)
-        ax.set_ylabel("Pixel column", fontsize=14)    
+        ax.set_xlabel("Pixel row", fontsize=LABEL_SIZE)
+        ax.set_ylabel("Pixel column", fontsize=LABEL_SIZE)    
         return ax
 
 class DoasFOVEngine(object):

@@ -3,7 +3,7 @@
 Global settings for example scripts
 """
 from pyplis.inout import find_test_data
-from pyplis import __version__
+from pyplis import __version__, LineOnImage
 from numpy import subtract
 from os.path import join
 from optparse import OptionParser
@@ -25,6 +25,19 @@ IMG_DIR = join(find_test_data(), "images")
 SAVE_DIR = join(".", "scripts_out")
 #SAVE_DIR = r'D:/Dropbox/TEMP/jgliss_publications/pyplis/graphics/out_code/'
 
+# Emission rate retrieval lines
+
+#ORANGE LINE IN YOUNG PLUME
+PCS1 = LineOnImage(345, 350, 450, 195, pyrlevel_def=1, 
+                          line_id="young_plume", color="#e67300",
+                          normal_orientation="left")
+
+#BLUE LINE IN AGED PLUME
+PCS2 = LineOnImage(80, 10, 80, 270, pyrlevel_def=1, 
+                          line_id="old_plume", color="#1a1aff",
+                          normal_orientation="left")
+    
+LINES = [PCS1, PCS2]
 
 OPTPARSE = OptionParser(usage='')
 OPTPARSE.add_option('--show', dest="show", default=SCREENPRINT)
