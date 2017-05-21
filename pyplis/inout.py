@@ -9,12 +9,32 @@ from matplotlib.pyplot import imread
 from collections import OrderedDict as od
 from progressbar import ProgressBar, Percentage, Bar, RotatingMarker,\
     ETA, FileTransferSpeed
-from zipfile import ZipFile
+from zipfile import ZipFile, ZIP_DEFLATED
 from urllib import urlretrieve
 from urllib2 import urlopen
 from tempfile import mktemp, gettempdir
 from shutil import copy2
 
+def zip_example_scripts(repo_base):
+    from pyplis import __version__ as v
+    vstr = ".".join(v.split(".")[:3])
+    print "Adding zipped version of pyplis example scripts for version %s" %vstr
+    scripts_dir = join(repo_base, "scripts")
+    if not exists(scripts_dir):
+        raise IOError("Cannot created zipped version of scripts, folder %s "
+            "does not exist" %scripts_dir)
+    save_dir = join(scripts_dir, "old_versions")
+    if not exists(save_dir):
+        raise IOError("Cannot created zipped version of scripts, folder %s "
+            "does not exist" %save_dir)
+    name = "scripts-%s.zip" %vstr
+    zipf = ZipFile(join(save_dir, name), 'w', ZIP_DEFLATED)
+    for fname in listdir(scripts_dir):
+        if fname.endswith("py"):
+            zipf.write(join(scripts_dir, fname))
+    zipf.close()
+    
+    
 def get_all_files_in_dir(directory, file_type=None, include_sub_dirs=False):
     
     p = directory

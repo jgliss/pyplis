@@ -9,6 +9,7 @@ from scipy.sparse.linalg import lsmr
 from pandas import Series
 from copy import deepcopy
 from astropy.io import fits
+from os import remove
 from os.path import join, exists, isdir, abspath, basename, dirname
 from traceback import format_exc
 from warnings import warn
@@ -27,7 +28,7 @@ from .optimisation import gauss_fit_2d, GAUSS_2D_PARAM_INFO
 from .image import Img
 from .inout import get_camera_info
 from .setupclasses import Camera
-LABEL_SIZE=rcParams["font.size"]+ 2
+
 
 class DoasCalibData(object):
     """Object representing DOAS calibration data"""
@@ -223,11 +224,17 @@ class DoasCalibData(object):
         fov_mask.header.append()
         
         rd = self.fov.result_pearson
-        fov_mask.header.update(cx_rel = rd["cx_rel"], cy_rel = rd["cy_rel"],\
-                                                rad_rel = rd["rad_rel"])
+        try:
+            fov_mask.header.update(cx_rel=rd["cx_rel"], cy_rel=rd["cy_rel"],\
+                                   rad_rel=rd["rad_rel"])
+        except:
+            print "(Saving calib data): Position of FOV not available"
         
-        
-        hdu_cim = fits.ImageHDU(data = self.fov.corr_img.img)        
+        try:
+            hdu_cim = fits.ImageHDU(data = self.fov.corr_img.img)        
+        except:
+            hdu_cim = fits.ImageHDU()
+            print "(Saving calib data): FOV search correlation image not available"
         
         tstamps = [x.strftime("%Y%m%d%H%M%S%f") for x in self.time_stamps]
         col1 = fits.Column(name = "time_stamps", format = "25A", array =\
@@ -247,7 +254,12 @@ class DoasCalibData(object):
         #==============================================================================
         
         hdulist = fits.HDUList([fov_mask, hdu_cim, arrays, roi])
-        hdulist.writeto(join(save_dir, save_name))
+        fpath = join(save_dir, save_name)
+        try:
+            remove(fpath)
+        except:
+            pass
+        hdulist.writeto(fpath)
 
     def load_from_fits(self, file_path):
         """Load stack object (fits)
@@ -258,7 +270,11 @@ class DoasCalibData(object):
             raise IOError("DoasCalibData object could not be loaded, "
                 "path does not exist")
         hdu = fits.open(file_path)
-        self.fov.fov_mask = hdu[0].data.byteswap().newbyteorder()
+        try:
+            self.fov.fov_mask = hdu[0].data.byteswap().newbyteorder()
+        except:
+            print ("(Warning loading DOAS calib data): FOV mask not "
+                "available")
         
         prep_keys = Img().edit_log.keys()
         search_keys = DoasFOVEngine()._settings.keys()
@@ -271,14 +287,18 @@ class DoasCalibData(object):
                 self.fov.search_settings[k] = val
             elif k in self.fov.result_pearson.keys():
                 self.fov.result_pearson[k] = val
-                
-        self.fov.corr_img = Img(hdu[1].data.byteswap().newbyteorder())
+        try:
+            self.fov.corr_img = Img(hdu[1].data.byteswap().newbyteorder())
+        except:
+            print ("(Warning loading DOAS calib data): FOV search correlation "
+                "image not available")
         try:
             times = hdu[2].data["time_stamps"].byteswap().newbyteorder()
             self.time_stamps = [datetime.strptime(x, "%Y%m%d%H%M%S%f")
                                 for x in times]
         except:
-            print "Failed to import time stamps"
+            print ("(Warning loading DOAS calib data): Failed to import "
+                        "time stamps")
         try:
             self.tau_vec = hdu[2].data["tau_vec"].byteswap().newbyteorder()
         except:
@@ -298,8 +318,7 @@ class DoasCalibData(object):
         s = "(%s)E%+d" %(p, exp)
         return s.replace("x", r"$\tau$")
         
-    def plot(self, add_label_str="", shift_yoffset=False, ax=None, fontsize=LABEL_SIZE, 
-                 **kwargs):
+    def plot(self, add_label_str="", shift_yoffset=False, ax=None, **kwargs):
         """Plot calibration data and fit result
         
         Parameters
@@ -338,17 +357,12 @@ class DoasCalibData(object):
                     
         except TypeError:
             print "Calibration poly probably not fitted"
-        try:
-            titsize=fontsize+3
-        except:
-            titsize=fontsize
         
-        ax.set_title("DOAS calibration data, ID: %s" %self.calib_id_str,
-                          fontsize=titsize)
-        ax.set_ylabel(r"$S_{%s}$ [cm$^{-2}$]" %SPECIES_ID, fontsize=fontsize)
-        ax.set_xlabel(r"$\tau_{%s}$" %self.calib_id_str, fontsize=fontsize)
+        ax.set_title("DOAS calibration data, ID: %s" %self.calib_id_str)
+        ax.set_ylabel(r"$S_{%s}$ [cm$^{-2}$]" %SPECIES_ID)
+        ax.set_xlabel(r"$\tau_{%s}$" %self.calib_id_str)
         ax.grid()
-        ax.legend(loc='best', fancybox=True, framealpha=0.7, fontsize=fontsize)
+        ax.legend(loc='best', fancybox=True, framealpha=0.7)
         return ax
         
     def plot_data_tseries_overlay(self, date_fmt=None, ax=None):
@@ -524,7 +538,10 @@ class DoasFOV(object):
         :return: 
             - tuple, ``(cx, cy)``
         """
-        cx, cy = self.cx_rel, self.cy_rel
+        try:
+            cx, cy = self.cx_rel, self.cy_rel
+        except:
+            warn("Could not access information about FOV position")
         if not abs_coords:
             return (cx, cy)
         return map_coordinates_sub_img(cx, cy, self.roi_abs, self.pyrlevel,
@@ -617,8 +634,7 @@ class DoasFOV(object):
         cx, cy = self.pixel_position_center(1)
         if self.method == "ifr":
             popt = self.popt
-            cb.set_label(r"FOV fraction [$10^{-2}$ pixel$^{-1}$]",
-                         fontsize=LABEL_SIZE)
+            cb.set_label(r"FOV fraction [$10^{-2}$ pixel$^{-1}$]")
             
             xgrid, ygrid = mesh_from_img(img)
             if len(popt) == 7:
@@ -642,7 +658,7 @@ class DoasFOV(object):
                 "lambda=%.1e" %(cx, cy, self.search_settings["ifrlbda"]))
                         
         elif self.method == "pearson":
-            cb.set_label(r"Pearson corr. coeff.", fontsize=LABEL_SIZE)
+            cb.set_label(r"Pearson corr. coeff.")
             ax.autoscale(False)
             
             c = Circle((self.cx_rel, self.cy_rel), self.radius_rel, ec="k",
@@ -654,8 +670,8 @@ class DoasFOV(object):
             ax.get_yaxis().set_ticks([0, self.cy_rel, h])
             ax.axhline(self.cy_rel, ls="--", color="k")
             ax.axvline(self.cx_rel, ls="--", color="k")
-        ax.set_xlabel("Pixel row", fontsize=LABEL_SIZE)
-        ax.set_ylabel("Pixel column", fontsize=LABEL_SIZE)    
+        ax.set_xlabel("Pixel row")
+        ax.set_ylabel("Pixel column")    
         return ax
 
 class DoasFOVEngine(object):

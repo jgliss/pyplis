@@ -9,17 +9,16 @@ Todo
        image list (cf. methods in ex08)
        
 """
-from time import time
 from numpy import mgrid,vstack,int32,sqrt,arctan2,rad2deg, asarray, sin, cos,\
     logical_and, histogram, ceil, roll, argmax, arange, ndarray,\
-    deg2rad, nan, inf, dot, mean
+    deg2rad, nan, dot, mean, nonzero
 from numpy.linalg import norm
 from traceback import format_exc
 from copy import deepcopy
 from warnings import warn
 from datetime import datetime
 from collections import OrderedDict as od
-from matplotlib.pyplot import subplots, figure, GridSpec, rcParams
+from matplotlib.pyplot import subplots, figure, GridSpec
 from matplotlib.patches import Rectangle
 from matplotlib.dates import DateFormatter
 from scipy.ndimage.filters import median_filter, gaussian_filter
@@ -34,12 +33,73 @@ from cv2 import calcOpticalFlowFarneback, OPTFLOW_FARNEBACK_GAUSSIAN,\
     waitKey, imshow
 
 from .helpers import bytescale, check_roi, map_roi, roi2rect, set_ax_lim_roi,\
-    nth_moment
+    nth_moment, rotate_xtick_labels
 from .optimisation import MultiGaussFit
 from .processing import LineOnImage
 from .image import Img
-LABEL_SIZE=rcParams["font.size"]+ 2
+#LABEL_SIZE=rcParams["font.size"]+ 2
 
+def get_veff(normal_vec, dir_mu, dir_sigma, len_mu, len_sigma, pix_dist_m=1.0, 
+             del_t=1.0, sigma_tol=2):
+    """Calculate effective velocity through line element with normal vector n
+    
+    The velocity is estimated based on a provided displacement angle and 
+    magnitude which is converted into dx and dy displacement and projected to 
+    n using the dot product.
+    Unecertainties are estimated
+    
+    Parameters
+    ----------
+    normal_vec : array
+        2D normal vector relative to which the effective velocity is retrieved
+    dir_mu : float
+        expectation value of displacement orientation angle in degrees 
+        (e.g. retrieved using histogram analysis)
+    dir_sigma : float
+        uncertainty of prev. angle
+    len_mu : float
+        expectation value of displacement magnitude in units of pixels
+        (e.g. retrieved using histogram analysis)
+    len_dir : float
+        uncertainty of prev. magnitude
+    pix_dist_m : float
+        pixel-to-pixel distance in m
+    del_t : float
+        time difference corresponding to above displacement information
+    sigma_tol : int
+        sigma tolerance factor for uncertainty estimate, defaults to 2
+    
+    Returns
+    -------
+    tuple
+        2-element tuple containing effective velocity and corresponding error
+    
+    """
+    # the actual predominant displacement vector
+    vec = asarray([sin(deg2rad(dir_mu)),
+                      -cos(deg2rad(dir_mu))]) * len_mu
+    len_mu_eff = dot(normal_vec, vec)
+
+    # effective velocity corresponding to predominant displacement vector
+    veff = len_mu_eff * pix_dist_m / del_t             
+                
+    #now calculate 4 effective velocities as uncertainty estimate
+    dirs = [dir_mu - dir_sigma * sigma_tol, dir_mu + dir_sigma * sigma_tol]
+    lens = [len_mu - len_sigma * sigma_tol, len_mu + len_sigma * sigma_tol]
+    veffs = []
+        
+    for d in dirs:
+        for mag in lens:
+            vec = asarray([sin(deg2rad(d)),
+                           -cos(deg2rad(d))]) * mag
+    
+            len_mu_eff = dot(normal_vec, vec)
+            veffs.append(len_mu_eff * pix_dist_m / del_t)
+    diff = abs(veff - asarray(veffs))
+    verr = diff.std()
+    print "Retrieved eff. velocity v = %.2f +/- %.2f" %(veff, verr)
+    return (veff, verr)
+    
 def find_signal_correlation(first_data_vec, next_data_vec, 
                             time_stamps=None, reg_grid_tres=None, 
                             freq_unit="S", itp_method="linear", 
@@ -163,7 +223,7 @@ def find_signal_correlation(first_data_vec, next_data_vec,
         
         s1.plot(ax = ax[0], label="First line")
         s2.plot(ax = ax[0], label="Second line")
-        ax[0].set_title("Original time series", fontsize=LABEL_SIZE+2)
+        ax[0].set_title("Original time series")
         ax[0].legend(loc='best', fancybox=True, framealpha=0.5) 
         ax[0].grid()
         
@@ -172,7 +232,7 @@ def find_signal_correlation(first_data_vec, next_data_vec,
         s2_ana.plot(ax = ax[1], label = "Data vector 2. line")
         
                         
-        ax[1].set_title("Signal match", fontsize=LABEL_SIZE+2)
+        ax[1].set_title("Signal match")
         ax[1].legend(loc='best', fancybox=True, framealpha=0.5) 
         ax[1].grid()
         
@@ -182,7 +242,7 @@ def find_signal_correlation(first_data_vec, next_data_vec,
         ax[2].grid()
         #ax[1].set_xlabel("Shift")
         ax[2].set_ylabel("Correlation coeff")
-        ax[2].set_title("Correlation signal", fontsize = 10)
+        ax[2].set_title("Correlation signal")
     lag = argmax(coeffs) * lag_fac
     return lag, coeffs, s1_ana, s2_ana, max_coeff_signal, ax
 
@@ -502,9 +562,10 @@ class LocalPlumeProperties(object):
         for key, val in res.iteritems():
             if self.__dict__.has_key(key):
                 self.__dict__[key].append(val)
-        
+    
+    
     def get_velocity(self, idx=-1, pix_dist_m=1.0, pix_dist_m_err=None, 
-                     normal_vec=None):
+                     normal_vec=None, sigma_tol=2):
         """Determine plume velocity from displacements
         
         Parameters
@@ -523,6 +584,9 @@ class LocalPlumeProperties(object):
             object. If None (default), the normal direction is assumed to be 
             aligned with the displacement direction, i.e. the absolute 
             magnitude of the velocity is retrieved
+        sigma_tol : int
+            sigma tolerance level for expectation intervals of orientation 
+            angle and displ. magnitude
             
         Returns
         -------
@@ -532,17 +596,30 @@ class LocalPlumeProperties(object):
             - :obj:`float`: magnitude of effective velocity
             - :obj:`float`: uncertainty of effective velocity
         """
-        
+        print "GETTING VELOCITY AT %s" %self.start_acq[idx]
         if pix_dist_m_err is None:
             pix_dist_m_err = pix_dist_m * 0.05
         vec = self.displacement_vector(idx)
         if normal_vec is None:
             normal_vec = vec / norm(vec)
-        len_mu_eff = dot(normal_vec, vec)
-        dt = self.del_t[idx]
-        v =  len_mu_eff * pix_dist_m / dt
-        verr = sqrt((pix_dist_m * self.len_sigma[idx] / dt)**2 +\
-                    (pix_dist_m_err * len_mu_eff / dt)**2)
+        print "DIR_MU=%.2f\nLEN_MU=%.2f\nDT=%.2fs" %(self.dir_mu[idx],
+                                                     self.len_mu[idx],
+                                                     self.del_t[idx])
+        v, verr = get_veff(normal_vec, self.dir_mu[idx], self.dir_sigma[idx],
+                           self.len_mu[idx], self.len_sigma[idx],
+                           pix_dist_m=pix_dist_m,
+                           del_t=self.del_t[idx],
+                           sigma_tol=sigma_tol)
+#==============================================================================
+#         len_mu_eff = dot(normal_vec, vec)
+#         dt = self.del_t[idx]
+#==============================================================================
+        #print v, len_mu_eff * pix_dist_m / dt
+#==============================================================================
+#         verr = sqrt((pix_dist_m * self.len_sigma[idx] / dt)**2 +\
+#                     (pix_dist_m_err * len_mu_eff / dt)**2)
+#==============================================================================
+                    
         return (v, verr)
         
     def get_orientation_tseries(self):   
@@ -600,7 +677,8 @@ class LocalPlumeProperties(object):
     
     #: VISUALISATION ETC.
 
-    def plot_directions(self, ax=None, date_fmt=None, **kwargs):
+    def plot_directions(self, ax=None, date_fmt=None, yerr=True, 
+                        ls=None, **kwargs):
         """Plot time series of displacement orientation
         
         Parameters
@@ -625,22 +703,28 @@ class LocalPlumeProperties(object):
             kwargs["color"] = self.color
         if not "label" in kwargs:
             kwargs["label"] = self.roi_id
+        if "linsestyle" in kwargs.keys():
+            del kwargs["linestyle"]
+        if ls is None:
+            ls="-"
             
         s, upper, lower = self.get_orientation_tseries()
         s.index = s.index.to_pydatetime()
-        s.plot(ax=ax, **kwargs)
+        s.plot(ax=ax, ls=ls, **kwargs)
         try:
             if date_fmt is not None:
                 ax.xaxis.set_major_formatter(DateFormatter(date_fmt))
         except:
             pass
-        ax.fill_between(s.index, lower, upper, alpha=0.1, **kwargs)
-        ax.set_ylabel(r"$\varphi\,[^{\circ}$]", fontsize=LABEL_SIZE)
+        if yerr:
+            ax.fill_between(s.index, lower, upper, alpha=0.1, **kwargs)
+        ax.set_ylabel(r"$\varphi\,[^{\circ}$]")
         ax.grid()
+        #rotate_xtick_labels(ax=ax)
         return ax
         
     def plot_magnitudes(self, normalised=True, ax=None, 
-                        date_fmt=None, **kwargs):
+                        date_fmt=None, yerr=True, ls=None, **kwargs):
         """Plot time series of displacement magnitudes
         
         Parameters
@@ -667,6 +751,10 @@ class LocalPlumeProperties(object):
             kwargs["color"] = self.color
         if not "label" in kwargs:
             kwargs["label"] = self.roi_id
+        if "linsestyle" in kwargs.keys():
+            del kwargs["linestyle"]
+        if ls is None:
+            ls="-"
             
         s, upper, lower = self.get_magnitude_tseries(normalised=normalised)
         if normalised:
@@ -674,14 +762,15 @@ class LocalPlumeProperties(object):
         else:
             unit = "pix"
         s.index = s.index.to_pydatetime()
-        s.plot(ax=ax, **kwargs)
+        s.plot(ax=ax, ls=ls, **kwargs)
         try:
             if date_fmt is not None:
                 ax.xaxis.set_major_formatter(DateFormatter(date_fmt))
         except:
             pass
-        ax.fill_between(s.index, lower, upper, alpha=0.1, **kwargs)
-        ax.set_ylabel(r"$|\mathbf{f}|$ [%s]" %unit, fontsize=LABEL_SIZE)
+        if yerr:
+            ax.fill_between(s.index, lower, upper, alpha=0.1, **kwargs)
+        ax.set_ylabel(r"$|\mathbf{f}|$ [%s]" %unit)
         ax.grid()
         return ax
     
@@ -734,14 +823,13 @@ class LocalPlumeProperties(object):
         return fig
         
     def plot_velocities(self, pix_dist_m=None, pix_dist_m_err=None, ax=None,
-                        **kwargs):
+                        normal_vec=None, date_fmt=None, **kwargs):
         """Plot time series of velocity evolution 
         
         :param pix_dist_m: detector pixel distance in m, if unspecified, then
             velocities are plotted in units of pix/s
         :param pix_dist_m_err: uncertainty in pixel to pixel distance in m
         """
-        raise NotImplementedError("Coming soon")
         velo_unit = "m/s"
         try:
             pix_dist_m = float(pix_dist_m)
@@ -751,17 +839,34 @@ class LocalPlumeProperties(object):
         if not "color" in kwargs:
             kwargs["color"] = "b" 
             
-        v, verr = self.get_velocity(pix_dist_m, pix_dist_m_err)
+        # hard coded for now
+        v, verr = [], []
+        for k in range(len(self.len_mu)):
+            temp = self.get_velocity(k, pix_dist_m, pix_dist_m_err, 
+                                     normal_vec=normal_vec)
+            v.append(temp[0])
+            verr.append(temp[1])
+        v = asarray(v)  
+        verr = asarray(verr)
         if ax is None:
             fig, ax = subplots(1,1)
         velos = Series(v, self.start_acq)
         velos_upper = Series(v + verr, self.start_acq)
         velos_lower = Series(v - verr, self.start_acq)
+        
+        
         ax.plot(velos.index, velos, **kwargs)
+        try:
+            if date_fmt is not None:
+                ax.xaxis.set_major_formatter(DateFormatter(date_fmt))
+        except:
+            pass
         ax.fill_between(velos.index, velos_lower, velos_upper, alpha=0.1,
                         **kwargs)
-        ax.set_ylabel("v [%s]" %velo_unit, fontsize=LABEL_SIZE)
+        ax.set_ylabel("v [%s]" %velo_unit)
         ax.grid()
+        rotate_xtick_labels(ax=ax)
+        
         return ax
         
     #: I/O stuff
@@ -940,7 +1045,7 @@ class FarnebackSettings(object):
                              ("hist_dir_binres"     ,   10)])
         
         self._display = od([("disp_skip"            ,   10),
-                            ("disp_len_thresh"      ,   3)])
+                            ("disp_len_thresh"      ,   1)])
         
         
         self.update(**settings)
@@ -1394,8 +1499,10 @@ class OptflowFarneback(object):
         i_min, i_max = max([0, sub.min()]), sub.max()
         self.settings.i_min = i_min
         self.settings.i_max = i_max
-        print ("Updated contrast range in optflow (ROI=%s), i_min=%.1e, "
-            "i_max=%.1e" %(roi, i_min, i_max))
+#==============================================================================
+#         print ("Updated contrast range in optflow (ROI=%s), i_min=%.1e, "
+#             "i_max=%.1e" %(roi, i_min, i_max))
+#==============================================================================
     
     def set_images(self, this_img, next_img):
         """Update the current image objects 
@@ -1452,7 +1559,7 @@ class OptflowFarneback(object):
             self.set_images(this_img, next_img)
             
         settings = self.settings._flow_algo
-        print "Calculating Farneback optical flow"
+        #print "Calculating Farneback optical flow"
         self.flow = calcOpticalFlowFarneback(self.images_prep["this"],
                                              self.images_prep["next"], 
                                              flags=OPTFLOW_FARNEBACK_GAUSSIAN,
@@ -1921,7 +2028,12 @@ class OptflowFarneback(object):
             - :obj:`float`: expectation value mu
             - :obj:`float`: corresponding standard deviation
         """
+#==============================================================================
+#         max_len = bins[nonzero(count)[0][-1] + 1]
+#         print max_len
+#==============================================================================
         mu, sigma = self.mu_sigma_from_moments(count, bins)
+        #sigma = max_len - mu
         print("Avg. displ. length: %.1f +/- %.1f" %(mu, sigma))
         return (mu, sigma)
         
@@ -2005,9 +2117,9 @@ class OptflowFarneback(object):
         """
         del_t = self.del_t
         res = od([("_len_mu_norm"   ,   nan), #normalised displ. len [s-1]
-                  ("_len_sigma_norm",   inf), #error norm. displ. len [s-1]
+                  ("_len_sigma_norm",   nan), #error norm. displ. len [s-1]
                   ("_dir_mu"        ,   nan), #predominant displ. dir. [deg]
-                  ("_dir_sigma"     ,   inf), #error pred. displ. dir. [deg]
+                  ("_dir_sigma"     ,   180.0), #error pred. displ. dir. [deg]
                   ("_del_t"         ,   del_t), #time diff 'this' -> 'next'
                   ("_start_acq"     ,   self.current_time), #time stamp 'this'
                   ("_significance"  ,   0.0), #fraction of usable pixels in ROI
@@ -2066,7 +2178,7 @@ class OptflowFarneback(object):
         # Now try to apply multi gauss fit to histogram distribution
         fit, ok = self.fit_orientation_histo(count, bins, noise_amp)
         sigma_tol = self.settings.hist_sigma_tol
-        res["fit_dir"] = fit 
+        res["fit_dir"] = fit
         if fit.has_results():
             res["_fit_success"] = 1
             
@@ -2077,12 +2189,26 @@ class OptflowFarneback(object):
              tot_num, 
              add_gaussians) = fit.analyse_fit_result(sigma_tol_overlaps=
                                                      sigma_tol + 1)
+            
+            sign_addgauss = sum([fit.integrate_gauss(*g) for g 
+                                 in add_gaussians]) / tot_num
+            #sign = int(fit.integrate_gauss(*g) * 100 / tot_num)
+            if sign_addgauss > .2: #other peaks exceed 20% of main peak
+                warn("Aborting histogram analysis: Multi-Gauss fit yielded "
+                     "additional Gaussian exceeding significance thresh of 0.2"
+                     "in histo of orientation angles\n%sSignificance: %s %%\n"
+                     %(fit.gauss_str(g), sign_addgauss*100))
+                return res
         else:
-            warn("Could not retrieve predominant peak of orientation histogram "
-                "from multi gauss fit. Using 1. and 2. moment of distr. for "
-                "estimate of mean displacement direction")
-            dir_mu, dir_sigma = self.mu_sigma_from_moments(count, bins)
-            add_gaussians = []
+            warn("Aborting histogram analysis, Multi-Gauss fit failed")
+            return res
+#==============================================================================
+#             warn("Could not retrieve predominant peak of orientation histogram "
+#                 "from multi gauss fit. Using 1. and 2. moment of distr. for "
+#                 "estimate of mean displacement direction")
+#             dir_mu, dir_sigma = self.mu_sigma_from_moments(count, bins)
+#             add_gaussians = []
+#==============================================================================
         
         res["_dir_mu"] = dir_mu
         res["_dir_sigma"] = dir_sigma
@@ -2090,14 +2216,7 @@ class OptflowFarneback(object):
         
         print("Predominant movement direction: %.1f +/- %.1f" %(dir_mu,
                                                                 dir_sigma))
-                                                                
-        sign_addgauss = sum([fit.integrate_gauss(*g) for g in add_gaussians]) / tot_num
-        #sign = int(fit.integrate_gauss(*g) * 100 / tot_num)
-        if sign_addgauss > .2: #other peaks exceed 20% of main peak
-            warn("Optical flow histogram analysis aborted:\n"
-                 "Detected additional gaussian in orientation histogram:\n"
-                 "%sSignificance: %s %%\n" %(fit.gauss_str(g), sign_addgauss*100))
-            return res
+                                                            
         #limit range of reasonable orientation angles...
         dir_low = dir_mu - dir_sigma * sigma_tol
         dir_high = dir_mu + dir_sigma * sigma_tol
@@ -2118,7 +2237,10 @@ class OptflowFarneback(object):
         lens = lens[cond]
         
         count, bins, _ = self.flow_length_histo(lens=lens)
+        #len_mu, _ = self.mu_sigma_from_moments(count, bins)
         len_mu, len_sigma = self.analyse_length_histo(count, bins)
+        
+        #print("Avg. displ. length: %.1f +/- %.1f" %(len_mu, len_sigma))
         
         res["_len_mu_norm"] = len_mu / del_t #normalise to 1s ival
         res["_len_sigma_norm"] = len_sigma / del_t #normalise to 1s ival
@@ -2263,22 +2385,23 @@ class OptflowFarneback(object):
             fit, ok = self.fit_orientation_histo(count, bins, **fit_settings)
             if fit.has_results():
                 mu, sigma,_,_ = fit.analyse_fit_result()
-                sigma = self.settings.hist_sigma_tol * sigma
+                print "Fitted sigma (orientation histo): %.2f" %sigma
+                dir_tol = self.settings.hist_sigma_tol * sigma
                 fit.plot_multi_gaussian(ax=ax, label="Multi-Gauss fit",
                                         color=color)
                 tit += (r": $\mu (+/-\sigma$) = %.1f (+/- %.1f)" 
                     %(mu, sigma))
                 ax.plot([mu, mu], [0, count.max()*1.05], color=color, ls="-")
-                ax.plot([mu-sigma, mu-sigma], [0, count.max()*1.05], 
+                ax.plot([mu-dir_tol, mu-dir_tol], [0, count.max()*1.05], 
                         color=color, ls="--")
-                ax.plot([mu+sigma, mu+sigma], [0, count.max()*1.05], 
+                ax.plot([mu+dir_tol, mu+dir_tol], [0, count.max()*1.05], 
                         color=color, ls="--")
             else:
                 tit += ": Fit failed..."
-        ax.set_title(tit, fontsize=LABEL_SIZE+2)      
+        ax.set_title(tit)      
         ax.set_xlim([-180, 180])    
         if bool(label):
-            ax.legend(loc='best', fancybox=True, framealpha=0.5, fontsize=LABEL_SIZE-2) 
+            ax.legend(loc='best', fancybox=True, framealpha=0.5) 
         ax.grid()
         return ax, mu, sigma
     
@@ -2325,11 +2448,11 @@ class OptflowFarneback(object):
             if fit.has_results():
                 fit.plot_multi_gaussian(ax=ax, label="Multi-Gauss fit",
                                         color=color)
-        ax.set_title(tit, fontsize=LABEL_SIZE+2)      
+         
         ax.set_xlim([0, int(bins.max()) + 1])
         if apply_stats:
             mu, sigma = self.analyse_length_histo(count, bins)
-            sigma = self.settings.hist_sigma_tol * sigma
+            #sigma = self.settings.hist_sigma_tol * sigma
             tit += (r": $\mu (+/-\sigma$) = %.1f (+/- %.1f)" %(mu, sigma))
             ax.plot([mu, mu], [0, count.max()*1.05], color=color, ls="-")
             ax.plot([mu-sigma, mu-sigma], [0, count.max()*1.05], 
@@ -2337,8 +2460,9 @@ class OptflowFarneback(object):
             ax.plot([mu+sigma, mu+sigma], [0, count.max()*1.05], 
                     color=color, ls="--")
         if bool(label):
-            ax.legend(loc='best', fancybox=True, framealpha=0.5, fontsize=LABEL_SIZE-2)
+            ax.legend(loc='best', fancybox=True, framealpha=0.5)
         ax.grid()
+        ax.set_title(tit)             
         return ax
         
     def plot_flow_histograms(self, line=None, pix_mask=None, apply_fits=True, 
@@ -2380,13 +2504,13 @@ class OptflowFarneback(object):
         len_im = self.get_flow_vector_length_img()
         angle_im_disp = ax2.imshow(angle_im, interpolation='nearest',
                                    vmin=-180, vmax=180, cmap="RdBu")
-        ax2.set_title("Displacement orientation", fontsize=LABEL_SIZE+2)        
+        ax2.set_title("Displacement orientation")        
         fig.colorbar(angle_im_disp, ax=ax2)
         
         len_im_disp = ax5.imshow(len_im, interpolation='nearest',  
                                  cmap="Blues")
         fig.colorbar(len_im_disp, ax=ax5)
-        ax5.set_title("Displacement lengths", fontsize=LABEL_SIZE+2)        
+        ax5.set_title("Displacement lengths")        
         
         set_ax_lim_roi(self.roi, ax2, xy_aspect=aspect)
         set_ax_lim_roi(self.roi, ax5, xy_aspect=aspect)
@@ -2410,7 +2534,7 @@ class OptflowFarneback(object):
         _, mu, sigma = self.plot_orientation_histo(pix_mask=mask, 
                                                    apply_fit=True, ax=ax3, 
                                                    color=c)
-        low, high = mu-sigma, mu+sigma
+        low, high = mu - sigma, mu+sigma
         self.plot_length_histo(pix_mask=mask, apply_fit=False, ax=ax6, 
                                dir_low=low, dir_high=high, color=c)
         

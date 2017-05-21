@@ -1917,28 +1917,30 @@ class ImgList(BaseImgList):
                     "image list %s: list is at last index, please change list "
                     "index and retry")
             self.optflow.calc_flow()
-            len_im = self.optflow.get_flow_vector_length_img() #is at pyrlevel
-            img = self.current_img()
-            if img.edit_log["is_tau"]:
 #==============================================================================
-#                 cond = logical_and(img.img > -0.03, img.img < 0.03) #tau values around 0
-#                 if cond.sum() == 0:
-#                     raise Exception("Fatal: could not activate optical flow: "
-#                         "retrieval of noise ref area failed, since current "
-#                         "list image is flagged as tau image but does not "
-#                         "contain pixels showing values around zero using cond: "
-#                         "(-0.03 < value < 0.03)")
-#                         
-#                 sub = len_im[cond]
+#             len_im = self.optflow.get_flow_vector_length_img() #is at pyrlevel
+#             img = self.current_img()
+#             if img.edit_log["is_tau"]:
+# #==============================================================================
+# #                 cond = logical_and(img.img > -0.03, img.img < 0.03) #tau values around 0
+# #                 if cond.sum() == 0:
+# #                     raise Exception("Fatal: could not activate optical flow: "
+# #                         "retrieval of noise ref area failed, since current "
+# #                         "list image is flagged as tau image but does not "
+# #                         "contain pixels showing values around zero using cond: "
+# #                         "(-0.03 < value < 0.03)")
+# #                         
+# #                 sub = len_im[cond]
+# #==============================================================================
+#                 min_len = 1.0
+#             else:
+#                 if self.bg_model.scale_rect is None:
+#                     self.bg_model.guess_missing_settings(img)
+#                 roi = map_roi(self.bg_model.scale_rect, self.pyrlevel)
+#                 sub = len_im[roi[1]:roi[3], roi[0]:roi[2]]
+#                 min_len = ceil(sub.mean() + 3 * sub.std()) + 0.5
+#             self.optflow.settings.min_length = min_len
 #==============================================================================
-                min_len = 1.5
-            else:
-                if self.bg_model.scale_rect is None:
-                    self.bg_model.guess_missing_settings(img)
-                roi = map_roi(self.bg_model.scale_rect, self.pyrlevel)
-                sub = len_im[roi[1]:roi[3], roi[0]:roi[2]]
-                min_len = ceil(sub.mean() + 3 * sub.std()) + 0.5
-            self.optflow.settings.min_length = min_len
             if draw:
                 self.optflow.draw_flow()
         self._list_modes["optflow"] = val
@@ -3042,6 +3044,7 @@ class ImgList(BaseImgList):
                                              bg_off=bg_off,
                                              update_imgs=upd_bgmodel)
             if self.sensitivity_corr_mode:
+                
                 img = img / self.aa_corr_mask
                 img.edit_log["senscorr"] = 1
             if self.calib_mode:

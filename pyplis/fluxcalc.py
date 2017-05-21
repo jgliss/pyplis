@@ -3,7 +3,7 @@
 """
 from warnings import warn
 from numpy import dot, sqrt, mean, nan, isnan, asarray, nanmean, nanmax,\
-    nanmin, sum
+    nanmin, sum, arctan2, rad2deg, logical_and, ones, arange
 from matplotlib.dates import DateFormatter
 from collections import OrderedDict as od
 from matplotlib.pyplot import subplots, rcParams, Rectangle
@@ -27,7 +27,38 @@ from .helpers import check_roi, exponent, roi2rect, map_roi
 LABEL_SIZE=rcParams["font.size"]+ 2
 
 class EmissionRateSettings(object):
-    """Class for management of settings for emission rate retrievals"""
+    """Class for management of settings for emission rate retrievals
+    
+    Parameters
+    ----------
+    pcs_lines :
+        :class:`LineOnImage` object or list containing :class:`LineOnImage`
+        objects along which emission rates are retrieved.
+    velo_glob : float
+        optional, global velocity estimate (e.g. retrieved from cross 
+        correlation analysis). Please note, that global velocities can also
+        be assigned directly to :class:`LineOnImage` objects (see prev. inp.
+        param), hence, this input velocity is only used for lines, which do 
+        not have an explicit global velocity assigned. In any case, these 
+        velocities (whether assigned in :class:`LineOnImage`objects or here)
+        are only used if ``self.velo_mode["glob"] is True``.
+    velo_glob_err : float
+        optional, error on prev. parameter
+    bg_roi_abs : list
+        background region of interest used for logging of retrieved CDs in an
+        area out of the plume (can later be used for an assessment of the 
+        performance of the plume background retrieval for each image) since the
+        CDs are expected to be zero.
+    ref_check_lower_lim : float
+        lower required limit for CDs in ``bg_roi_abs`` area in case 
+        ``ref_check_mode`` is active. All images which show average CDs lower
+        than this thresh within ``bg_roi_abs`` are disregarded for the analysis
+    ref_check_upper_lim : float
+        upper required limit for CDs in ``bg_roi_abs`` area in case 
+        ``ref_check_mode`` is active. All images which show average CDs larger
+        than this thresh within ``bg_roi_abs`` are disregarded for the analysis
+    
+    """
     def __init__(self, pcs_lines=[], velo_glob=nan, velo_glob_err=nan, 
                  bg_roi_abs=None, ref_check_lower_lim=None,
                  ref_check_upper_lim=None, **settings):
@@ -38,10 +69,14 @@ class EmissionRateSettings(object):
             del settings["bg_roi"]
             
         self.velo_modes = od([("glob"               ,   True),
-                              ("farneback_raw"      ,   False),
-                              ("farneback_histo"    ,   False),
-                              ("farneback_hybrid"   ,   False)])
-                              
+                              ("flow_raw"      ,   False),
+                              ("flow_histo"    ,   False),
+                              ("flow_hybrid"   ,   False)])
+           
+        # empirically determined intrinsic error of farneback optical flow
+        # with respect to the effective velocities (i.e. dot product of optical
+        # flow vector with PCS normal).
+        self.optflow_err_rel_veff = 0.05                     
         self.pcs_lines = od() 
         
         # Dictionary that will be filled with flags (in method add_pcs_line) 
@@ -133,31 +168,31 @@ class EmissionRateSettings(object):
         self.velo_modes["glob"] = bool(val)
     
     @property
-    def velo_mode_farneback_raw(self):
+    def velo_mode_flow_raw(self):
         """Attribute velo_glob for velocity analysis retrieval"""
-        return self.velo_modes["farneback_raw"]
+        return self.velo_modes["flow_raw"]
         
-    @velo_mode_farneback_raw.setter
-    def velo_mode_farneback_raw(self, val):
-        self.velo_modes["farneback_raw"] = bool(val)
+    @velo_mode_flow_raw.setter
+    def velo_mode_flow_raw(self, val):
+        self.velo_modes["flow_raw"] = bool(val)
     
     @property
-    def velo_mode_farneback_histo(self):
+    def velo_mode_flow_histo(self):
         """Attribute for velocity analysis retrieval"""
-        return self.velo_modes["farneback_histo"]
+        return self.velo_modes["flow_histo"]
         
-    @velo_mode_farneback_histo.setter
-    def velo_mode_farneback_histo(self, val):
-        self.velo_modes["farneback_histo"] = bool(val)
+    @velo_mode_flow_histo.setter
+    def velo_mode_flow_histo(self, val):
+        self.velo_modes["flow_histo"] = bool(val)
     
     @property
-    def velo_mode_farneback_hybrid(self):
+    def velo_mode_flow_hybrid(self):
         """Attribute for velocity analysis retrieval"""
-        return self.velo_modes["farneback_hybrid"]
+        return self.velo_modes["flow_hybrid"]
         
-    @velo_mode_farneback_hybrid.setter
-    def velo_mode_farneback_hybrid(self, val):
-        self.velo_modes["farneback_hybrid"] = bool(val)
+    @velo_mode_flow_hybrid.setter
+    def velo_mode_flow_hybrid(self, val):
+        self.velo_modes["flow_hybrid"] = bool(val)
         
     @property
     def velo_glob(self):
@@ -275,9 +310,9 @@ class EmissionRateSettings(object):
         elif self.velo_modes.has_key(key):
             self.velo_modes[key] = val
      
-class EmissionRateResults(object):
+class EmissionRates(object):
     """Class to store results from emission rate analysis"""
-    def __init__(self, pcs_id, velo_mode="glob", settings=None):
+    def __init__(self, pcs_id, velo_mode="glob", settings=None, color="b"):
         self.pcs_id = pcs_id
         self.settings = settings
         self.velo_mode = velo_mode
@@ -286,10 +321,25 @@ class EmissionRateResults(object):
         self._phi_err = [] #emission rate errors
         self._velo_eff = [] #effective velocity through cross section
         self._velo_eff_err = [] #error effective velocity 
+        # fraction of reliable optical flow vectors along the retrieval line
+        # only relevant for histogram based optical flow retrieval 
+        # (e.g. 0.6 means that 40% of the optical flow vectors were replaced)
+        # with average vector derived from histograms        
+        self._frac_optflow_ok = [] 
+        # fraction / impact of reliable optical flow vectors on integrated 
+        # column amount (ICA) along retrieval line L. E.g. 0.8 means that 80% of
+        # the accumulated ICA along L corresponds to vectors for which the 
+        # optical flow is reliable. This information is also only relevant 
+        # for flow_hybrid velocity method and may be used to assess the 
+        # impact of erroneous flow vectors (which are replaced with result
+        # from histogram analysis) relative to the actual flux
+        self._frac_optflow_ok_ica = []
         
         self.pix_dist_mean = None
         self.pix_dist_mean_err = None
         self.cd_err_rel = None
+        
+        self.color = color
     
     @property
     def start(self):
@@ -359,6 +409,22 @@ class EmissionRateResults(object):
             d, i, f = "", "", ""    
         return "pyplis_EmissionRateResults_%s_%s_%s.txt" %(d, i, f)
         
+    def mean(self):
+        """Mean of emission rate time series"""
+        return self.phi.mean()
+        
+    def std(self):
+        """Mean of emission rate time series"""
+        return self.phi.std()
+    
+    def min(self):
+        """Minimum value of emission rate time series"""
+        return self.phi.min()
+    
+    def max(self):
+        """Maximum value of emission rate time series"""
+        return self.phi.max()
+        
     def get_date_time_strings(self):
         """Returns string reprentations of date and start / stop times
         
@@ -389,25 +455,36 @@ class EmissionRateResults(object):
         dict
             Dictionary containing results 
         """
-        return dict(_phi            =   self.phi,
-                    _phi_err        =   self.phi_err,
-                    _velo_eff       =   self.velo_eff,
-                    _velo_eff_err   =   self.velo_eff_err,
-                    _start_acq      =   self.start_acq)
-            
+        return dict(_phi                =   self.phi,
+                    _phi_err            =   self.phi_err,
+                    _velo_eff           =   self.velo_eff,
+                    _velo_eff_err       =   self.velo_eff_err,
+                    _frac_optflow_ok    =   self._frac_optflow_ok,
+                    _frac_optflow_ok_ica= self._frac_optflow_ok_ica,
+                    _start_acq          =   self.start_acq)
+    
+    def _fill_missing_data(self):
+        """Checks length of all data arrays and fills nans where data is missing"""
+        d = self.to_dict()
+        num = len(self.start_acq)
+        for k, v in d.iteritems():
+            if not len(v) == num:
+                self.__dict__[k] =[nan]*num
+                
     def to_pandas_dataframe(self):
         """Converts object into pandas dataframe
         
         This can, for instance be used to store the data as csv (cf.
         :func:`from_pandas_dataframe`)        
         """
+        self._fill_missing_data()
         d = self.to_dict()
-        del d["_start_acq"]
+        del d["_start_acq"]        
         try:
             df = DataFrame(d, index=self.start_acq)
             return df
         except:
-            warn("Failed to convert EmissionRateResults into pandas DataFrame")
+            warn("Failed to convert EmissionRates into pandas DataFrame")
             
     def from_pandas_dataframe(self, df):
         """Import results from pandas :class:`DataFrame` object
@@ -419,7 +496,7 @@ class EmissionRateResults(object):
         
         Returns
         -------
-        EmissionRateResults
+        EmissionRates
             this object
         """
         self._start_acq = df.index.to_pydatetime()
@@ -489,7 +566,7 @@ class EmissionRateResults(object):
         return ax
         
     def plot(self, yerr=True, label=None, ax=None, date_fmt=None, ymin=None, 
-             ymax=None, alpha_err=0.1, **kwargs):
+             ymax=None, alpha_err=0.1, in_kg=True, **kwargs):
         """Plots emission rate time series
         
         Parameters
@@ -509,6 +586,8 @@ class EmissionRateResults(object):
             upper limit of y-axis
         alpha_err : float
             transparency of uncertainty range
+        in_kg : bool
+            if True, emission rates are plotted in units of kg / s
         **kwargs
             additional keyword args passed to plot call
             
@@ -520,18 +599,23 @@ class EmissionRateResults(object):
         """
         if ax is None:
             fig, ax = subplots(1,1)
+            ax.grid()
         if not "color" in kwargs:
-            kwargs["color"] = "b" 
+            kwargs["color"] = self.color
         if label is None:
-            label = ("velo_mode: %s" %(self.velo_mode))
+            label = ("velo: %s" %(self.velo_mode))
         
         phi, phierr = self.phi, self.phi_err
         s = self.as_series
+        unit = "g/s"
+        if in_kg:
+            s /= 1000.0
+            unit = "kg/s"
         try:
             s.index = s.index.to_pydatetime()
         except:
             pass
-    
+        
         pl = ax.plot(s.index, s.values, label=label, **kwargs)
         try:
             if date_fmt is not None:
@@ -541,11 +625,13 @@ class EmissionRateResults(object):
         if yerr:
             phi_upper = Series(phi + phierr, self.start_acq)
             phi_lower = Series(phi - phierr, self.start_acq)
-        
+            if in_kg:
+                phi_lower /= 1000.0
+                phi_upper /= 1000.0
             ax.fill_between(s.index, phi_lower, phi_upper, alpha=alpha_err,
                             color = pl[0].get_color())
-        ax.set_ylabel(r"$\Phi$ [g/s]", fontsize=LABEL_SIZE)
-        ax.grid()
+        ax.set_ylabel(r"$\Phi$ [%s]" %unit)
+        
         ylim = list(ax.get_ylim())
         if ymin is not None:
             ylim[0] = ymin
@@ -575,7 +661,7 @@ class EmissionRateResults(object):
         
         Returns
         -------
-        EmissionRateResults
+        EmissionRates
             loaded result data class
         """
         df = DataFrame.from_csv(path)
@@ -590,16 +676,16 @@ class EmissionRateResults(object):
         
         Parameters
         ----------
-        other : EmissionRateResults
+        other : EmissionRates
             emission rate results from a different position in the image
             
         Returns
         -------
-        EmissionRateResults
+        EmissionRates
             added results
         """
-        if not isinstance(other, EmissionRateResults):
-            raise ValueError("Invalid input, need EmissionRateResults class")
+        if not isinstance(other, EmissionRates):
+            raise ValueError("Invalid input, need EmissionRates class")
         df = self.to_pandas_dataframe()
         df1 = other.to_pandas_dataframe()
         df["_phi"] += df1["_phi"]
@@ -609,13 +695,19 @@ class EmissionRateResults(object):
         new_id = "%s + %s" %(self.pcs_id, other.pcs_id)
         
         
-        new = EmissionRateResults(new_id)
+        new = EmissionRates(new_id)
         new.from_pandas_dataframe(df)
-        pdm_diff = abs( self.pix_dist_mean - other.pix_dist_mean)
-        new.pix_dist_mean = nanmean([self.pix_dist_mean, other.pix_dist_mean])
-        pdm_err = nanmean([self.pix_dist_mean_err, other.pix_dist_mean_err])
-        new.pix_dist_mean_err = max([pdm_diff, pdm_err])
-        new.cd_err_rel =  nanmean([self.cd_err_rel, other.cd_err_rel])
+        try:
+            pdm_diff = abs( self.pix_dist_mean - other.pix_dist_mean)
+            new.pix_dist_mean = nanmean([self.pix_dist_mean, other.pix_dist_mean])
+            pdm_err = nanmean([self.pix_dist_mean_err, other.pix_dist_mean_err])
+            new.pix_dist_mean_err = max([pdm_diff, pdm_err])
+        except:
+            warn("Could not access meta info pix_dist_mean in flux results")
+        try:
+            new.cd_err_rel =  nanmean([self.cd_err_rel, other.cd_err_rel])
+        except:
+            warn("Could not access meta cd_err_rel in flux results")
         return new
 
     def __sub__(self, other):
@@ -627,16 +719,16 @@ class EmissionRateResults(object):
         
         Parameters
         ----------
-        other : EmissionRateResults
+        other : EmissionRates
             emission rate results from a different position in the image
             
         Returns
         -------
-        EmissionRateResults
+        EmissionRates
             added results
         """
-        if not isinstance(other, EmissionRateResults):
-            raise ValueError("Invalid input, need EmissionRateResults class")
+        if not isinstance(other, EmissionRates):
+            raise ValueError("Invalid input, need EmissionRates class")
         df = self.to_pandas_dataframe()
         df1 = other.to_pandas_dataframe()
         df["_phi"] -= df1["_phi"]
@@ -645,19 +737,70 @@ class EmissionRateResults(object):
         df["_velo_eff"] = (df["_velo_eff_err"] + df1["_velo_eff_err"]) / 2.
         new_id = "%s - %s" %(self.pcs_id, other.pcs_id)
         
-        new = EmissionRateResults(new_id)
+        new = EmissionRates(new_id)
         new.from_pandas_dataframe(df)
-        pdm_diff = abs( self.pix_dist_mean - other.pix_dist_mean)
-        new.pix_dist_mean = nanmean([self.pix_dist_mean, other.pix_dist_mean])
-        pdm_err = nanmean([self.pix_dist_mean_err, other.pix_dist_mean_err])
-        new.pix_dist_mean_err = max([pdm_diff, pdm_err])
-        new.cd_err_rel =  nanmean([self.cd_err_rel, other.cd_err_rel])
+        try:
+            pdm_diff = abs( self.pix_dist_mean - other.pix_dist_mean)
+            new.pix_dist_mean = nanmean([self.pix_dist_mean, other.pix_dist_mean])
+            pdm_err = nanmean([self.pix_dist_mean_err, other.pix_dist_mean_err])
+            new.pix_dist_mean_err = max([pdm_diff, pdm_err])
+        except:
+            warn("Could not access meta info pix_dist_mean in flux results")
+        try:
+            new.cd_err_rel =  nanmean([self.cd_err_rel, other.cd_err_rel])
+        except:
+            warn("Could not access meta cd_err_rel in flux results")
+
         return new
         
-    
+    def __div__(self, other):
+        """Divide other emission rate results
+        
+        The values of the emission rates ``phi`` are divided, the other data 
+        (``phi_err, velo_eff, velo_eff_err``) are averaged between this and 
+        the other time series.
+        
+        Parameters
+        ----------
+        other : EmissionRates
+            emission rate results from a different position in the image
+            
+        Returns
+        -------
+        EmissionRates
+            added results
+        """
+        if not isinstance(other, EmissionRates):
+            raise ValueError("Invalid input, need EmissionRates class")
+        df = self.to_pandas_dataframe()
+        df1 = other.to_pandas_dataframe()
+        df["_phi"] /= df1["_phi"]
+        df["_phi_err"] = df["_phi"] * sqrt((df["_phi_err"] / df["_phi"])**2 +
+                                           (df1["_phi_err"] / df1["_phi"]**2))
+        
+        df["_velo_eff"] = (df["_velo_eff"] + df1["_velo_eff"]) / 2.
+        df["_velo_eff"] = (df["_velo_eff_err"] + df1["_velo_eff_err"]) / 2.
+        new_id = "%s / %s" %(self.pcs_id, other.pcs_id)
+        
+        new = EmissionRateRatio(new_id)
+        new.from_pandas_dataframe(df)
+        try:
+            pdm_diff = abs( self.pix_dist_mean - other.pix_dist_mean)
+            new.pix_dist_mean = nanmean([self.pix_dist_mean, other.pix_dist_mean])
+            pdm_err = nanmean([self.pix_dist_mean_err, other.pix_dist_mean_err])
+            new.pix_dist_mean_err = max([pdm_diff, pdm_err])
+        except:
+            warn("Could not access meta info pix_dist_mean in flux results")
+        try:
+            new.cd_err_rel =  nanmean([self.cd_err_rel, other.cd_err_rel])
+        except:
+            warn("Could not access meta cd_err_rel in flux results")
+        
+        return new
+        
     def __str__(self):
         """String representation"""
-        s = "pyplis EmissionRateResults\n--------------------------------\n\n"
+        s = "pyplis EmissionRates\n--------------------------------\n\n"
         s += self.meta_header
         s += ("\nphi_min=%.2f g/s\nphi_max=%.2f g/s\n"
               %(nanmin(self.phi), nanmax(self.phi)))
@@ -666,7 +809,37 @@ class EmissionRateResults(object):
               %(nanmin(self.velo_eff), nanmax(self.velo_eff)))
         s += "v_err=%.2f m/s" %nanmean(self.velo_eff_err)
         return s
+
+class EmissionRateRatio(EmissionRates):
+    """Time series ratio of two emission rates
+    
+    This class is new and still in Beta status    
+    """
+    def __init__(self, *args, **kwargs):
+        super(EmissionRateRatio, self).__init__(*args, **kwargs)
+        warn("You are using an old name EmissionRateResults for class"
+            "EmissionRates")
+    
+    @property
+    def dphi(self):
+        """Wrapper for attr. phi, as this class represents ratios"""
+        return self.phi
+    
+    @property
+    def dphi_err(self):
+        """Wrapper for attr. phi, as this class represents ratios"""
+        return self.phi_err
         
+    def plot(self, yerr=False, label=None, ax=None, date_fmt=None, ymin=None, 
+             ymax=None, alpha_err=0.1, **kwargs):
+        ax = super(EmissionRateRatio, self).plot(yerr, label, ax, date_fmt, 
+                                                 ymin, ymax, alpha_err,
+                                                 in_kg=False,
+                                                 **kwargs)
+        ax.set_ylabel(r"$\Delta\Phi$")
+        return ax
+        
+            
 class EmissionRateAnalysis(object):
     """Class to perform emission rate analysis
     
@@ -777,12 +950,12 @@ class EmissionRateAnalysis(object):
         return self.settings.velo_glob_err    
         
     @property
-    def farneback_required(self):
-        """Checks if current velocity mode settings require farneback algo"""
+    def flow_required(self):
+        """Checks if current velocity mode settings require flow algo"""
         s = self.settings
-        if s.velo_modes["farneback_raw"] or s.velo_modes["farneback_hybrid"]:
+        if s.velo_modes["flow_raw"] or s.velo_modes["flow_hybrid"]:
             return True
-        elif s.velo_modes["farneback_histo"]:
+        elif s.velo_modes["flow_histo"]:
             d = s.plume_props_available
             if not sum(d.values()) == len(d):
                 return True
@@ -850,7 +1023,7 @@ class EmissionRateAnalysis(object):
                 lst.optflow_mode = True
                 lst.optflow.plot_flow_histograms()
                 
-                self.settings.velo_farneback_histo = True
+                self.settings.velo_flow_histo = True
         try:
             lst.meas_geometry.get_all_pix_to_pix_dists(pyrlevel=lst.pyrlevel)
         except ValueError:
@@ -921,7 +1094,7 @@ class EmissionRateAnalysis(object):
         the object is interpolated onto the time stamps of the list and the 
         corresponding displacement information is used (and not re-calculated)
         while performing emission rate retrieval when using 
-        ``velo_mode = farneback_histo``. If no significant overlap can be 
+        ``velo_mode = flow_histo``. If no significant overlap can be 
         detected, the :class:`LocalPlumeProperties` object in the corresponding
         :class:`LineOnImage` object is initiated and filled while performing 
         the analysis.
@@ -962,7 +1135,8 @@ class EmissionRateAnalysis(object):
         """Old name of :func:`run_retrieval`"""
         warn("Old name of method run_retrieval")
         return self.run_retrieval(**kwargs)
-        
+    
+    
     def run_retrieval(self, start_index=0, stop_index=None, check_list=False):
         """Calculate emission rates of image list
         
@@ -972,7 +1146,7 @@ class EmissionRateAnalysis(object):
         velocity mode are stored within :class:`EmissionRateResults` objects
         which are saved in ``self.results[line_id][velo_mode]``, e.g.::
         
-            res = self.results["bla"]["farneback_histo"]
+            res = self.results["bla"]["flow_histo"]
             
         would yield emission rate results for line with ID "bla" using 
         histogram based plume speed analysis. 
@@ -1018,12 +1192,14 @@ class EmissionRateAnalysis(object):
         
         # init parameters for main loop
         mmol = s.mmol    
-        if self.farneback_required:
+        if self.flow_required:
             lst.optflow_mode = True
         else:
             lst.optflow_mode = False #should be much faster
         ts, bg_mean, bg_std = [], [], []
-        counter=0
+        counter = 0
+        fl_sigma_tol = lst.optflow.settings.hist_sigma_tol
+        fl_min_len = lst.optflow.settings.min_length        
         roi_bg_abs = self.settings.bg_roi_abs
         velo_modes = s.velo_modes
         min_cd = s.min_cd
@@ -1078,8 +1254,8 @@ class EmissionRateAnalysis(object):
                         res["glob"]._phi_err.append(phi_err)
                         res["glob"]._velo_eff.append(vglob)
                         res["glob"]._velo_eff_err.append(vglob_err)
-                    
-                    if velo_modes["farneback_raw"]:
+                    dx, dy = None, None  
+                    if velo_modes["flow_raw"]:
                         delt = lst.optflow.del_t
                         
                         # retrieve diplacement vectors along line
@@ -1093,14 +1269,15 @@ class EmissionRateAnalysis(object):
                         # Calculate mean of effective velocity through l and 
                         # uncertainty using 2 sigma confidence of standard deviation
                         veff = veff_arr.mean()
-                        veff_err = veff_arr.std() * 2
+                        veff_err = veff_arr.std()
                         
                         phi, phi_err = det_emission_rate(cds, veff_arr,
                                                          distarr, cds_err, 
-                                                         veff_err, disterr, mmol)
-                        res["farneback_raw"]._start_acq.append(t)                                
-                        res["farneback_raw"]._phi.append(phi)
-                        res["farneback_raw"]._phi_err.append(phi_err)
+                                                         veff_err, disterr, 
+                                                         mmol)
+                        res["flow_raw"]._start_acq.append(t)                                
+                        res["flow_raw"]._phi.append(phi)
+                        res["flow_raw"]._phi_err.append(phi_err)
     
                         
                         #note that the velocity is likely underestimated due to
@@ -1109,11 +1286,12 @@ class EmissionRateAnalysis(object):
                         #threshold in settings, such that the retrieval is
                         #only applied to pixels exceeding a certain column 
                         #density)
-                        res["farneback_raw"]._velo_eff.append(veff)
-                        res["farneback_raw"]._velo_eff_err.append(veff_err)
+                        res["flow_raw"]._velo_eff.append(veff)
+                        res["flow_raw"]._velo_eff_err.append(veff_err)
                     
                     props = pcs.plume_props
-                    if velo_modes["farneback_histo"]:                    
+                    verr = None
+                    if velo_modes["flow_histo"]:                    
                         if s.plume_props_available[pcs_id]:
                             idx = k
                         else:                            
@@ -1123,38 +1301,82 @@ class EmissionRateAnalysis(object):
                                                                 line=pcs,
                                                                 pix_mask=mask)
                             idx = -1
-                            
-                        v, verr = props.get_velocity(idx, distarr.mean(),
-                                                     disterr, 
-                                                     pcs.normal_vector)
                         
+                        print "IMGLIST CTIME: %s " %self.imglist.current_time()
+                        # get effective velocity through the pcs based on 
+                        # results from histogram analysis
+                        (v, 
+                         verr) = props.get_velocity(idx, distarr.mean(),
+                                                    disterr, 
+                                                    pcs.normal_vector,
+                                                    sigma_tol=fl_sigma_tol)
+                        print "HISTO VEFF: %.2f" %v
                         phi, phi_err = det_emission_rate(cds, v, distarr, 
                                                          cds_err, verr, disterr, 
                                                          mmol)
                                                          
-                        res["farneback_histo"]._start_acq.append(t)                                
-                        res["farneback_histo"]._phi.append(phi)
-                        res["farneback_histo"]._phi_err.append(phi_err)
-                        res["farneback_histo"]._velo_eff.append(v)
-                        res["farneback_histo"]._velo_eff_err.append(verr)
+                        res["flow_histo"]._start_acq.append(t)                                
+                        res["flow_histo"]._phi.append(phi)
+                        res["flow_histo"]._phi_err.append(phi_err)
+                        res["flow_histo"]._velo_eff.append(v)
+                        res["flow_histo"]._velo_eff_err.append(verr)
                         
-                    if velo_modes["farneback_hybrid"]:
-                        # get results from local plume properties analysis
-                        if not velo_modes["farneback_histo"]:
+                    if velo_modes["flow_hybrid"]:
+                        # get results from local plume properties analysis 
+                        if not velo_modes["flow_histo"]:
                             if s.plume_props_available[pcs_id]:
                                 idx = k
                             else:                            
                                 # get mask specifying plume pixels
                                 mask = lst.get_thresh_mask(min_cd)
-                                props.get_and_append_from_farneback(lst.optflow,
-                                                                    line=pcs,
-                                                                    pix_mask=mask)
+                                props.get_and_append_from_flow(lst.optflow,
+                                                               line=pcs,
+                                                               pix_mask=mask)
                                 idx = -1
-                
-                        min_len = props.len_mu[idx] - props.len_sigma[idx]
-                        dir_min = props.dir_mu[idx] - 3 * props.dir_sigma[idx]
-                        dir_max = props.dir_mu[idx] + 3 * props.dir_sigma[idx]
                         
+                        if dx is None:
+                            # extract raw diplacement vectors along line
+                            dx = pcs.get_line_profile(lst.optflow.flow[:,:,0])
+                            dy = pcs.get_line_profile(lst.optflow.flow[:,:,1])
+                        
+                        if verr is None:
+                            # get effective velocity through the pcs based on 
+                            # results from histogram analysis
+                            (_, 
+                             verr) = props.get_velocity(idx, distarr.mean(),
+                                                        disterr, 
+                                                        pcs.normal_vector,
+                                                        sigma_tol=fl_sigma_tol)
+                        # determine orientation angles and magnitudes along
+                        # raw optflow output
+                        phis = rad2deg(arctan2(dx, -dy))[cond]
+                        mag = sqrt(dx**2 + dy**2)[cond]
+                        
+                        
+                        # get expectation values of predominant displacement vector
+                        min_len = (props.len_mu[idx] - props.len_sigma[idx])
+                        
+                        min_len = max([min_len, fl_min_len])
+                        
+                        print "LEN_MU: %.2f" %props.len_mu[idx] 
+                        print "LEN_SIGMA: %.2f" %props.len_sigma[idx] 
+                        print "MIN LENGTH: %s" %min_len
+                        dir_min = (props.dir_mu[idx] - 
+                                   fl_sigma_tol * props.dir_sigma[idx])
+                        dir_max = (props.dir_mu[idx] + 
+                                   fl_sigma_tol * props.dir_sigma[idx])
+                        
+                        # get bool mask for indices along the pcs
+                        bad = ~ (logical_and(phis > dir_min, phis < dir_max) 
+                                * (mag > min_len))
+                                
+                        frac_bad = sum(bad) / float(len(bad))
+                        indices = arange(len(bad))[bad]
+                        # now check impact of ill-constraint motion vectors
+                        # on ICA
+                        ica_fac_ok = sum(cds[~bad]/sum(cds))
+                        
+            
                         vec = props.displacement_vector(idx)
                                             
                         flc = lst.optflow.replace_trash_vecs(displ_vec=vec, 
@@ -1169,17 +1391,38 @@ class EmissionRateAnalysis(object):
                         
                         # Calculate mean of effective velocity through l and 
                         # uncertainty using 2 sigma confidence of standard deviation
-                        veff = veff_arr.mean()
-                        veff_err = veff_arr.std()
+                        veff_avg = veff_arr.mean()
+                        fl_err = veff_avg * self.settings.optflow_err_rel_veff
+                        
+                        print "Assumed intrinsic optflow error veff=%.2f m/s" %fl_err
+                        # neglect uncertainties in the successfully constraint
+                        # flow vectors along the pcs by initiating an zero 
+                        # array ...
+                        veff_err_arr = ones(len(veff_arr))*fl_err
+                        # ... and set the histo errors for the indices of 
+                        # ill-constraint flow vectors on the pcs (see above)
+                        veff_err_arr[indices] = verr
                         
                         phi, phi_err = det_emission_rate(cds, veff_arr,
                                                          distarr, cds_err, 
-                                                         veff_err, disterr, mmol)
-                        res["farneback_hybrid"]._start_acq.append(t)                                
-                        res["farneback_hybrid"]._phi.append(phi)
-                        res["farneback_hybrid"]._phi_err.append(phi_err)
-                        res["farneback_hybrid"]._velo_eff.append(veff)
-                        res["farneback_hybrid"]._velo_eff_err.append(veff_err)
+                                                         veff_err_arr, 
+                                                         disterr, mmol)
+                        veff_err_avg = veff_err_arr.mean()
+                        
+                        
+            
+            
+                        
+                        print "Fraction of bad vectors along %s): %.3f" %(pcs_id, frac_bad)
+                        print "Kappa: %.3f %%" %(ica_fac_ok)
+                        print "Resulting mean velocity (hybrid) = %.2f +/- %.2f" %(veff_avg, veff_err_avg)
+                        res["flow_hybrid"]._start_acq.append(t)                                
+                        res["flow_hybrid"]._phi.append(phi)
+                        res["flow_hybrid"]._phi_err.append(phi_err)
+                        res["flow_hybrid"]._velo_eff.append(veff_avg)
+                        res["flow_hybrid"]._velo_eff_err.append(veff_err_avg)
+                        res["flow_hybrid"]._frac_optflow_ok.append(1-frac_bad)
+                        res["flow_hybrid"]._frac_optflow_ok_ica.append(ica_fac_ok)
                 counter += 1
             else:
                 warn("Skipped image no. %d" %k)
@@ -1225,7 +1468,8 @@ class EmissionRateAnalysis(object):
         ax.add_artist(r)
         return ax
         
-    def plot_bg_roi_vals(self, ax=None, date_fmt=None, **kwargs):
+    def plot_bg_roi_vals(self, ax=None, date_fmt=None, labelsize=None, 
+                         **kwargs):
         """Plots emission rate time series
         
         Parameters
@@ -1249,7 +1493,8 @@ class EmissionRateAnalysis(object):
             fig, ax = subplots(1,1)
         if not "color" in kwargs:
             kwargs["color"] = "r" 
-        
+        if labelsize is None:
+            labelsize=rcParams["font.size"]
         s = self.bg_roi_info["mean"]
         try:
             s.index = s.index.to_pydatetime()
@@ -1273,10 +1518,12 @@ class EmissionRateAnalysis(object):
         
         #ax.yaxis.set_ticks([lower_disp.mean(), 0, upper_disp.mean()])
         ax.fill_between(s.index, lower_disp, upper_disp, alpha=0.1, **kwargs)
-        ax.set_ylabel(r"$ROI_{BG}\,[E%d\,cm^{-2}]$" %exp, fontsize=LABEL_SIZE)
+        ax.set_ylabel(r"$ROI_{BG}\,[E%d\,cm^{-2}]$" %exp, fontsize=labelsize)
         ax.grid()
         return ax
-      
+
+
+            
 def det_emission_rate(cds, velo, pix_dists, cds_err=None, velo_err=None,
                       pix_dists_err=None, mmol=MOL_MASS_SO2):
     """Determine emission rate
@@ -1310,3 +1557,11 @@ def det_emission_rate(cds, velo, pix_dists, cds_err=None, velo_err=None,
     dphi3 = sum(cds * velo *pix_dists_err)**2
     phi_err = C * sqrt(dphi1 + dphi2 + dphi3)
     return phi, phi_err
+    
+    
+class EmissionRateResults(EmissionRates):
+    """Old name of :class:`OptflowFarneback`"""
+    def __init__(self, *args, **kwargs):
+        super(EmissionRateResults, self).__init__(*args, **kwargs)
+        warn("You are using an old name EmissionRateResults for class"
+            "EmissionRates") 
