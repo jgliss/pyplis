@@ -66,3 +66,34 @@ After release 0.11.2 (not yet released)
 
 1. Added check of date information in :func:`get_img_meta_all_filenames` of :class:`ImgList` which is, for instance, used for accessing datetime inforamtion of acq. times of all images in the list: a problem may occur if the file names only include information of acq. times of the images but not dates.  Then, the retrieved timestamps (numpy array of datetime objects) will only include acq. times of all images and the default date: 1/1/1900. If this is the case, then the method replaces these default dates in the array using the date stored in the meta header of the currently loaded image in the the list. This is, for instance relevant for the HD default camera which includes date information in the tiff header (will be loaded and stored in meta header of ``Img`` class on load, but not in the file names).
   
+12/04 - 04/05/2017
+==================
+
+1. Minor changes in plot style for standard outputs
+
+2. Improved code documentation
+
+04/05 - 21/05/2017 (v0.11.4 -> v0.12.0)
+=======================================
+
+.. note::
+
+  Not downwards compatible change in :mod:`fluxcalc.py`: changed name of velocity retrieval modes and functions related to optical flow from e.g. ``farneback_hybrid`` to ``flow_hybrid``.
+
+1. Minor improvemements in documentation of example scripts
+
+#. Changes in docs
+
+#. Minor changes in plot style for standard outputs
+
+#. DOAS calibration polynomial is now fitted only using mantissa of the CDs (to avoid large number warning in polyfit)
+  
+#. Changes in optimisation strategy for optical flow histogram analysis and correction (modules: :mod:`plumespeed.py`, :mod:`fluxcalc.py`)
+  
+  1. Minimum required length (per line and image is set at lower end of 1sigma of expectation interval of histo analysis
+  
+  #. More sophisticated uncertainty analysis for effective velocities
+  
+#. Changed all names in :mod:`fluxcalc.py` related to optical flow based velocity retrievals which included ``farneback`` to ``flow`` (not downward compatible)
+
+#. New class ``EmissionRateRatio`` in :mod:`fluxcalc`  

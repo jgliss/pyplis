@@ -9,8 +9,8 @@ correction mask retrieved from the cell calibration and normalised to the
 position of the DOAS FOV (ex 7). The emission rates are retrieved for three 
 different plume velocity retrievals: 1. using the global velocity vector 
 retrieved from the cross correlation algorithm (ex8), 2. using the raw output 
-of the optical flow Farneback algorithm (``farneback_raw``) and 3. using the 
-histogram based post analysis of the optical flow field (``farneback_histo``).
+of the optical flow Farneback algorithm (``flow_raw``) and 3. using the 
+histogram based post analysis of the optical flow field (``flow_histo``).
 The analysis is performed using the EmissionRateAnalysis class which basically 
 checks the AA list and activates ``calib_mode`` (-> images are loaded as 
 calibrated gas CD images) and loops over all images to retrieve the emission 
@@ -46,10 +46,16 @@ PLUME_VELO_GLOB_ERR = 1.5
 MMOL = 64.0638 #g/mol
 CD_MIN = 2.5e17
 
-START_INDEX = 1
+START_INDEX = 0
 STOP_INDEX = None
 DO_EVAL = 1
 
+# activate background check mode, if True, emission rates are only retrieved  for images
+# showing SO2-CDs within specified interval around zero in BG reference rectangle 
+# LOG_ROI_SKY (see above). This can be used to ensure that significant systematic 
+# errors are induced in case the plume background retrieval failed. The latter could, for 
+# instance happen, if, for instance a cloud moves through one of the background reference
+# areas used to model the background (cf. example script 3)
 REF_CHECK_LOWER = -5e16
 REF_CHECK_UPPER = 5e16
 REF_CHECK_MODE = True
@@ -98,14 +104,14 @@ def plot_and_save_results(ana, line_id="young_plume", date_fmt="%H:%M"):
     
     #Get emission rate results for the PCS line 
     res0 = ana.get_results(line_id=line_id, velo_mode="glob")
-    res1 = ana.get_results(line_id=line_id, velo_mode="farneback_raw")
-    res2 = ana.get_results(line_id=line_id, velo_mode="farneback_histo")
-    res3 = ana.get_results(line_id=line_id, velo_mode="farneback_hybrid")
+    res1 = ana.get_results(line_id=line_id, velo_mode="flow_raw")
+    res2 = ana.get_results(line_id=line_id, velo_mode="flow_histo")
+    res3 = ana.get_results(line_id=line_id, velo_mode="flow_hybrid")
     
     res0.save_txt(join(SAVE_DIR, "ex12_flux_velo_glob.txt"))
-    res1.save_txt(join(SAVE_DIR, "ex12_flux_farneback_raw.txt"))
-    res2.save_txt(join(SAVE_DIR, "ex12_flux_farneback_histo.txt"))
-    res3.save_txt(join(SAVE_DIR, "ex12_flux_farneback_hybrid.txt"))
+    res1.save_txt(join(SAVE_DIR, "ex12_flux_flow_raw.txt"))
+    res2.save_txt(join(SAVE_DIR, "ex12_flux_flow_histo.txt"))
+    res3.save_txt(join(SAVE_DIR, "ex12_flux_flow_hybrid.txt"))
     
     #Plot emission rates for the different plume speed retrievals
     res0.plot(yerr=True, date_fmt=date_fmt, ls="-", ax=ax0, 
@@ -167,8 +173,9 @@ if __name__ == "__main__":
         p.load_txt(RESULT_PLUMEPROPS_HISTO)
         p = p.to_pyrlevel(PYRLEVEL)
         fig = p.plot(color="r")
-        p = p.apply_significance_thresh(0.2).interpolate()
-        p = p.apply_median_filter(3).apply_gauss_filter(2)
+        #p.interpolate()
+        #p = p.apply_significance_thresh(0.2).interpolate()
+        #p = p.apply_median_filter(3).apply_gauss_filter(2)
         fig = p.plot(date_fmt="%H:%M", fig=fig)
         
         pcs.plume_props = p
@@ -204,9 +211,9 @@ if __name__ == "__main__":
                                       
     ana.settings.ref_check_mode = REF_CHECK_MODE
     
-    ana.settings.velo_modes["farneback_raw"] = True
-    ana.settings.velo_modes["farneback_histo"] = True
-    ana.settings.velo_modes["farneback_hybrid"] = True
+    ana.settings.velo_modes["flow_raw"] = 1
+    ana.settings.velo_modes["flow_histo"] = True
+    ana.settings.velo_modes["flow_hybrid"] = 1
     ana.settings.min_cd = CD_MIN
     
     #plot all current PCS lines into current list image (feel free to define
@@ -230,7 +237,7 @@ if __name__ == "__main__":
         figs.append(plot_and_save_results(ana))
         
         # the EmissionRateResults class has an informative string representation
-        print ana.get_results("young_plume", "farneback_histo")
+        print ana.get_results("young_plume", "flow_histo")
         
     if SAVEFIGS:
         for k in range(len(figs)):

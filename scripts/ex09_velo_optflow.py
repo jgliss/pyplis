@@ -10,7 +10,7 @@ check_version()
 from matplotlib.pyplot import close, show, subplots, figure, xticks, yticks, sca, rcParams
 rcParams["font.size"] =16
 
-from os.path import join, basename
+from os.path import join
 import pyplis
 
 ### IMPORT GLOBAL SETTINGS
@@ -27,8 +27,8 @@ PEAK_SIGMA_TOL=2
 
 # perform histogram analysis for all images in time series
 HISTO_ANALYSIS_ALL = 1
-HISTO_ANALYSIS_START_IDX = 1
-HISTO_ANALYSIS_STOP_IDX = 207#10
+HISTO_ANALYSIS_START_IDX = 0
+HISTO_ANALYSIS_STOP_IDX = None#207
 
 #Gauss pyramid level
 PYRLEVEL = 1
@@ -146,6 +146,9 @@ if __name__ == "__main__":
     plume_props_l2 = pyplis.plumespeed.LocalPlumeProperties(PCS2.line_id)
     
     if HISTO_ANALYSIS_ALL:
+        aa_list.goto_img(HISTO_ANALYSIS_START_IDX)
+        if HISTO_ANALYSIS_STOP_IDX is None:
+            HISTO_ANALYSIS_STOP_IDX = aa_list.nof - 1
         for k in range(HISTO_ANALYSIS_START_IDX, HISTO_ANALYSIS_STOP_IDX):
             plume_mask = aa_list.get_thresh_mask(MIN_AA)
             plume_props_l1.get_and_append_from_farneback(fl, line=PCS1,
@@ -154,8 +157,10 @@ if __name__ == "__main__":
                                                          pix_mask=plume_mask)
             aa_list.next_img()
             
-        plume_props_l1 = plume_props_l1.interpolate()
-        plume_props_l2 = plume_props_l2.interpolate()
+#==============================================================================
+#         plume_props_l1 = plume_props_l1.interpolate()
+#         plume_props_l2 = plume_props_l2.interpolate()
+#==============================================================================
         
         fig, ax = subplots(2, 1, figsize=(10, 9))
     

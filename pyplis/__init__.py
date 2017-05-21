@@ -39,7 +39,7 @@ from plumespeed import find_signal_correlation, OptflowFarneback,\
 from processing import LineOnImage, ImgStack, ProfileTimeSeriesImg,\
     PixelMeanTimeSeries
 from dilutioncorr import DilutionCorr
-from fluxcalc import EmissionRateAnalysis, EmissionRateResults,\
+from fluxcalc import EmissionRateAnalysis, EmissionRates,\
     EmissionRateSettings
 from optimisation import PolySurfaceFit, MultiGaussFit
 
