@@ -920,7 +920,7 @@ class Img(object):
         return self.show_img(zlabel,tit,**kwargs)
 
     def show_img(self, zlabel=None, tit=None, cbar=True, ax=None,
-                 zlabel_size=12, **kwargs):
+                 zlabel_size=18, **kwargs):
         """Show image using matplotlib method imshow"""
         if not "cmap" in kwargs.keys():
             kwargs["cmap"] = self.get_cmap(**kwargs)

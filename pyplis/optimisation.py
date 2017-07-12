@@ -669,6 +669,7 @@ class MultiGaussFit(object):
         info = []
         int_vals = [] # integral values of overlapping gaussians
         all_gaussians = self.gaussians()
+        
         for gauss in all_gaussians:
             mu, sigma = gauss[1], gauss[2]
             gs = self.get_all_gaussians_within_sigma_range(mu, sigma, 
@@ -706,7 +707,7 @@ class MultiGaussFit(object):
         """
         if sigma_tol_overlaps is None:
             sigma_tol_overlaps = self.sigma_tol_overlaps
-            
+    
         info, ints = self.find_overlaps(sigma_tol_overlaps)
         #the peak index with largest integral value for integrated superposition
         #of all gaussians which are within 3sigma of this peak
@@ -726,7 +727,14 @@ class MultiGaussFit(object):
         add_g = self.get_all_gaussians_out_of_sigma_range(mu,
                                                           sigma,
                                                           sigma_tol_overlaps)
-                                                             
+          
+#==============================================================================
+#         print "Retrieved main peak parameters: %.3f +/- %.3f" %(mu, sigma)
+#         print "Gauss overlap tol.: %d" %sigma_tol_overlaps
+#         print "No. of additional Gaussians (excluded from stats): %d" %len(add_g)
+#         for g in add_g:
+#             print g
+#==============================================================================
         return (mu, sigma, ints[ind], add_g)
         
     def analyse_fit_result_old(self, sigma_tol=None):

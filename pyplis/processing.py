@@ -617,7 +617,10 @@ class LineOnImage(object):
         y0, y1 = self.y0 + int(dy), self.y1 + int(dy)
         return LineOnImage(x0, y0, x1, y1,
                            normal_orientation=self.normal_orientation,
-                           line_id=line_id)
+                           line_id=line_id,
+                           color=self.color,
+                           linestyle=self.linestyle,
+                           pyrlevel_def=self.pyrlevel_def)
         
         
     def convert(self, to_pyrlevel=0, to_roi_abs=[0, 0, 9999, 9999]):
@@ -979,7 +982,8 @@ class LineOnImage(object):
     """Plotting / visualisation etc...
     """
     def plot_line_on_grid(self, img_arr=None, ax=None, include_normal=False,
-                          include_roi_rot=False, include_roi=False, **kwargs):
+                          include_roi_rot=False, include_roi=False, 
+                          annotate_normal=False, **kwargs):
         """Draw this line on the image
         
         Parameters
@@ -992,6 +996,16 @@ class LineOnImage(object):
             matplotlib axes object. Is created if unspecified. Leave 
             :param:`img_arr` empty if you want the line to be drawn onto an
             already existing image (plotted in ax)
+        include_normal : bool
+            if True, the line normal vector is drawn
+        include_roi_rot : bool
+            if True, a line-orientation specific ROI is drawn 
+        include_roi : bool
+            if True, an ROI is drawn which spans the i,j range of the image
+            covered by the line
+        annotate_normal : bool
+            if True, the normal vector is annotated (only if include_normal is
+            set True)
         **kwargs : 
             additional keyword arguments for plotting of line (please use 
             following keys: marker for marker style, mec for marker 
@@ -1030,13 +1044,20 @@ class LineOnImage(object):
             ax.set_xlim([0,img_arr.shape[1]])
             ax.set_ylim([img_arr.shape[0],0])
         if include_normal:
-            mag = self.norm * 0.03 #3 % of length of line
+            mag = self.norm * 0.06 #3 % of length of line
             n = self.normal_vector * mag
             xm, ym = self.center_pix
             epx, epy = n[0], n[1]
             c = p[0].get_color()
+            
             ax.arrow(xm, ym, epx, epy, head_width=mag/2, head_length=mag,
                      fc=c, ec=c)
+            if annotate_normal:
+                ax.text(xm + epx*2, ym + epy*3, r'$\hat{n}$', 
+                        color=c,
+                        fontweight='bold',
+                        fontsize=18)
+                
         if include_roi:
             x0, y0, w, h = roi2rect(self.roi)
             ax.add_patch(Rectangle((x0, y0), w, h, fc="none", ec=c))

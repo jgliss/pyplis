@@ -1063,8 +1063,7 @@ class MeasGeometry(object):
 
         cam_azims = [(az - self.cam["azim_err"])%360,
                      (az + self.cam["azim_err"])%360]
-        print plume_dirs
-        print cam_azims
+
         azrads = deg2rad(cam_azims)
         pdrads = deg2rad(plume_dirs)
         dists = []
