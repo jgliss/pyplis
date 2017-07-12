@@ -1,11 +1,9 @@
-Pyplis is a Python toolbox for the analysis of UV SO2 camera data. The software package includes a comprehensive collection of algorithms for the analysis of such data, for instance:
+Pyplis is a Python toolbox for the analysis of UV SO2 camera data. The software package includes a comprehensive collection of algorithms for the analysis of such data.
 
 Main features
 =============
 
-- Support of many common image formats including (`FITS format <https://de.wikipedia.org/wiki/Flexible_Image_Transport_System>`__)
-- Easy and flexible setup for data import and camera specifications 
-- Detailed analysis of the measurement geometry including automized retrieval of distances to the emission plume and/or to topographic features in the camera images (down to pixel-level)
+ - Detailed analysis of the measurement geometry including automized retrieval of distances to the emission plume and/or to topographic features in the camera images (down to pixel-level)
 - Several routines for retrieval of plume background intensities (either from plume images directly or using an additional sky reference image).
 - Automatic cell calibration
 - Correction for cross-detector variations in SO2 sensitivity (due to wavelength shifts of filter transmission windows) using masks retrieved from cell calibration data
@@ -13,6 +11,8 @@ Main features
 - Plume velocity retrieval either using an optical flow analysis or using signal cross correlation
 - Histogram based post analysis of optical flow field for motion estimates in low contrast image regions (where optical flow fails to detect motion)
 - Routine for image based light dilution correction
+- Support of many common image formats including (`FITS format <https://de.wikipedia.org/wiki/Flexible_Image_Transport_System>`__)
+- Easy and flexible setup for data import and camera specifications
   
 .. note::
 
