@@ -11,14 +11,14 @@ Todo
 """
 from numpy import mgrid,vstack,int32,sqrt,arctan2,rad2deg, asarray, sin, cos,\
     logical_and, histogram, ceil, roll, argmax, arange, ndarray,\
-    deg2rad, nan, dot, mean, nonzero
+    deg2rad, nan, dot, mean
 from numpy.linalg import norm
 from traceback import format_exc
 from copy import deepcopy
 from warnings import warn
 from datetime import datetime
 from collections import OrderedDict as od
-from matplotlib.pyplot import subplots, figure, GridSpec
+from matplotlib.pyplot import subplots, figure, GridSpec, Line2D, Circle
 from matplotlib.patches import Rectangle
 from matplotlib.dates import DateFormatter
 from scipy.ndimage.filters import median_filter, gaussian_filter
@@ -78,11 +78,12 @@ def get_veff(normal_vec, dir_mu, dir_sigma, len_mu, len_sigma, pix_dist_m=1.0,
     # the actual predominant displacement vector
     vec = asarray([sin(deg2rad(dir_mu)),
                       -cos(deg2rad(dir_mu))]) * len_mu
+    
     len_mu_eff = dot(normal_vec, vec)
 
     # effective velocity corresponding to predominant displacement vector
     veff = len_mu_eff * pix_dist_m / del_t             
-                
+    
     #now calculate 4 effective velocities as uncertainty estimate
     dirs = [dir_mu - dir_sigma * sigma_tol, dir_mu + dir_sigma * sigma_tol]
     lens = [len_mu - len_sigma * sigma_tol, len_mu + len_sigma * sigma_tol]
@@ -97,7 +98,7 @@ def get_veff(normal_vec, dir_mu, dir_sigma, len_mu, len_sigma, pix_dist_m=1.0,
             veffs.append(len_mu_eff * pix_dist_m / del_t)
     diff = abs(veff - asarray(veffs))
     verr = diff.std()
-    print "Retrieved eff. velocity v = %.2f +/- %.2f" %(veff, verr)
+    #print "Retrieved eff. velocity v = %.2f +/- %.2f" %(veff, verr)
     return (veff, verr)
     
 def find_signal_correlation(first_data_vec, next_data_vec, 
@@ -602,9 +603,11 @@ class LocalPlumeProperties(object):
         vec = self.displacement_vector(idx)
         if normal_vec is None:
             normal_vec = vec / norm(vec)
-        print "DIR_MU=%.2f\nLEN_MU=%.2f\nDT=%.2fs" %(self.dir_mu[idx],
-                                                     self.len_mu[idx],
-                                                     self.del_t[idx])
+#==============================================================================
+#         print "DIR_MU=%.2f\nLEN_MU=%.2f\nDT=%.2fs" %(self.dir_mu[idx],
+#                                                      self.len_mu[idx],
+#                                                      self.del_t[idx])
+#==============================================================================
         v, verr = get_veff(normal_vec, self.dir_mu[idx], self.dir_sigma[idx],
                            self.len_mu[idx], self.len_sigma[idx],
                            pix_dist_m=pix_dist_m,
@@ -1047,6 +1050,9 @@ class FarnebackSettings(object):
         self._display = od([("disp_skip"            ,   10),
                             ("disp_len_thresh"      ,   1)])
         
+        #for test
+        self._update_i_min = True
+        self._update_i_max = True
         
         self.update(**settings)
     
@@ -1218,8 +1224,7 @@ class FarnebackSettings(object):
     @roi_abs.setter
     def roi_abs(self, val):
         if not check_roi(val):
-            raise ValueError("Invalid ROI, need list [x0, y0, x1, y1], "
-                "got %s" %val)
+            raise ValueError("Invalid ROI: %s" %val)
         self._analysis["roi_abs"] = val
         
     @property
@@ -1497,8 +1502,10 @@ class OptflowFarneback(object):
         roi = map_roi(self.settings.roi_rad_abs, img.edit_log["pyrlevel"])
         sub = img.img[roi[1]:roi[3], roi[0]:roi[2]]
         i_min, i_max = max([0, sub.min()]), sub.max()
-        self.settings.i_min = i_min
-        self.settings.i_max = i_max
+        if self.settings._update_i_min:
+            self.settings.i_min = i_min
+        if self.settings._update_i_max:
+            self.settings.i_max = i_max
 #==============================================================================
 #         print ("Updated contrast range in optflow (ROI=%s), i_min=%.1e, "
 #             "i_max=%.1e" %(roi, i_min, i_max))
@@ -2034,7 +2041,7 @@ class OptflowFarneback(object):
 #==============================================================================
         mu, sigma = self.mu_sigma_from_moments(count, bins)
         #sigma = max_len - mu
-        print("Avg. displ. length: %.1f +/- %.1f" %(mu, sigma))
+        #print("Avg. displ. length: %.1f +/- %.1f" %(mu, sigma))
         return (mu, sigma)
         
     def fit_length_histo(self, count, bins, noise_amp=None,
@@ -2189,7 +2196,6 @@ class OptflowFarneback(object):
              tot_num, 
              add_gaussians) = fit.analyse_fit_result(sigma_tol_overlaps=
                                                      sigma_tol + 1)
-            
             sign_addgauss = sum([fit.integrate_gauss(*g) for g 
                                  in add_gaussians]) / tot_num
             #sign = int(fit.integrate_gauss(*g) * 100 / tot_num)
@@ -2209,7 +2215,7 @@ class OptflowFarneback(object):
 #             dir_mu, dir_sigma = self.mu_sigma_from_moments(count, bins)
 #             add_gaussians = []
 #==============================================================================
-        
+
         res["_dir_mu"] = dir_mu
         res["_dir_sigma"] = dir_sigma
         res["_add_gauss_dir"] = add_gaussians
@@ -2384,9 +2390,10 @@ class OptflowFarneback(object):
         if apply_fit:
             fit, ok = self.fit_orientation_histo(count, bins, **fit_settings)
             if fit.has_results():
-                mu, sigma,_,_ = fit.analyse_fit_result()
-                print "Fitted sigma (orientation histo): %.2f" %sigma
-                dir_tol = self.settings.hist_sigma_tol * sigma
+                sigma_tol = self.settings.hist_sigma_tol
+                mu, sigma,_,_ = fit.analyse_fit_result(sigma_tol_overlaps=
+                                                     sigma_tol + 1)
+                dir_tol = sigma_tol * sigma
                 fit.plot_multi_gaussian(ax=ax, label="Multi-Gauss fit",
                                         color=color)
                 tit += (r": $\mu (+/-\sigma$) = %.1f (+/- %.1f)" 
@@ -2518,7 +2525,7 @@ class OptflowFarneback(object):
         mask = pix_mask
         c="g"
         if isinstance(line, LineOnImage):
-            print "Using rotated ROI mask for pixel access"""
+            #print "Using rotated ROI mask for pixel access"""
             m = line.get_rotated_roi_mask(self.flow.shape[:2])
             if mask is None:
                 mask = m
@@ -2617,12 +2624,14 @@ class OptflowFarneback(object):
         Axes
             the plot axes
         """
+        ax_in = False
         if self.flow is None:
             print "Could not draw flow, no flow available"
             return
         if ax is None:
             fig, ax = subplots(1,1)
         else:
+            ax_in = True
             fig = ax.figure
         
         i_min, i_max = self.current_contrast_range()
@@ -2636,7 +2645,7 @@ class OptflowFarneback(object):
         if img.is_tau: #invert intensities
             disp = (255 - disp)
         
-        if add_cbar:
+        if add_cbar and not ax_in:
             disp_temp = ax.imshow(disp, cmap="gray")
             fig.colorbar(disp_temp, ax=ax)
 
@@ -2644,37 +2653,44 @@ class OptflowFarneback(object):
        
         lines = self.calc_flow_lines(in_roi, roi_rel,
                                      include_short_vecs=include_short_vecs)
-        tit = r"1. img"
+        
+        #tit = r"1. img"
         x0, y0, w, h = roi2rect(roi_rel)
         if not in_roi and w < disp.shape[1]:
             ax.add_patch(Rectangle((x0, y0), w, h, fc="none", ec="c"))
             x0, y0 = 0, 0
+#==============================================================================
+#         else:
+#             tit += " (in ROI)"
+#==============================================================================
+        if ax_in:
+            for (x1, y1), (x2, y2) in lines:
+                ax.add_artist(Line2D([x0 + x1, x0 + x2], [y0 + y1, y0 + y2],
+                                    color="lime"))
+                ax.add_patch(Circle((x0 + x2, y0 + y2), 1, ec="r", fc="r"))    
         else:
-            tit += " (in ROI)"
-        print "Drawing optical flow field into plot..."
-        for (x1, y1), (x2, y2) in lines:
-            line(disp, (x0 + x1, y0 + y1), (x0 + x2, y0 + y2),(0, 255, 255), 1)
-            circle(disp, (x0 + x2, y0 + y2), 1, (255, 0, 0), -1)
-        ax.imshow(disp)
+            for (x1, y1), (x2, y2) in lines:
+                line(disp, (x0 + x1, y0 + y1), (x0 + x2, y0 + y2),(0, 255, 255), 1)
+                circle(disp, (x0 + x2, y0 + y2), 1, (255, 0, 0), -1)
+        
+        if not ax_in:
+            ax.imshow(disp)
         if in_roi:
             set_ax_lim_roi(roi_rel, ax)
             #img = img.crop(roi_abs=roi_abs, new_img=True)
-#==============================================================================
-#         for (x1, y1), (x2, y2) in lines:
-#             ax.add_artist(Line2D([x0 + x1, x0 + x2], [y0 + y1, y0 + y2],
-#                                 color="c"))
-#             ax.add_patch(Circle((x0 + x2, y0 + y2), 1, ec="r", fc="r"))
-#         #ax.imshow(disp)
-#==============================================================================
         
-        try:
-            tit += (r": %s \n $\Delta$t (next) = %.2f s" %(\
-                self.get_img_acq_times()[0].strftime("%H:%M:%S"), self.del_t))
-            tit = tit.decode("string_escape")
-        except:
-            pass
+        #ax.imshow(disp)
         
-        #ax.set_title(tit, fontsize=12)
+#==============================================================================
+#         try:
+#             tit += (r": %s \n $\Delta$t (next) = %.2f s" %(\
+#                 self.get_img_acq_times()[0].strftime("%H:%M:%S"), self.del_t))
+#             tit = tit.decode("string_escape")
+#         except:
+#             pass
+#         
+#         #ax.set_title(tit, fontsize=12)
+#==============================================================================
         return ax    
         
     def live_example(self):

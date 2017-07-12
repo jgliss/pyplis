@@ -68,7 +68,7 @@ class EmissionRateSettings(object):
             bg_roi_abs = settings["bg_roi"]
             del settings["bg_roi"]
             
-        self.velo_modes = od([("glob"               ,   True),
+        self.velo_modes = od([("glob"          ,   True),
                               ("flow_raw"      ,   False),
                               ("flow_histo"    ,   False),
                               ("flow_hybrid"   ,   False)])
@@ -76,7 +76,7 @@ class EmissionRateSettings(object):
         # empirically determined intrinsic error of farneback optical flow
         # with respect to the effective velocities (i.e. dot product of optical
         # flow vector with PCS normal).
-        self.optflow_err_rel_veff = 0.05                     
+        self.optflow_err_rel_veff = 0.15                     
         self.pcs_lines = od() 
         
         # Dictionary that will be filled with flags (in method add_pcs_line) 
@@ -900,6 +900,7 @@ class EmissionRateAnalysis(object):
             raise TypeError("Need ImgList, got %s" %type(imglist))
            
         self.imglist = imglist
+        self._imglist_optflow = None
         self.settings = EmissionRateSettings(**settings)
 
         #Retrieved emission rate results are written into the following 
@@ -933,6 +934,43 @@ class EmissionRateAnalysis(object):
         for warning in self.warnings:
             warn(warning)
     
+    @property
+    def imglist_optflow(self):
+        """Image list supposed to be used for optical flow retrieval
+        
+        Is required to have the same number of images than analysis list. If
+        this list is not set explicitely, then the optical flow is calculated
+        from the analysis list (default setting).
+        
+        This feature was introduced, since it was empirically found, that 
+        images that are dilution corrected, often cause problems with the 
+        optical flow retrieval, due to the applied threshold
+        
+        .. note:
+        
+            Beta version
+            
+        """
+        if not isinstance(self._imglist_optflow, ImgList):
+            return self.imglist
+        return self._imglist_optflow
+        
+    @imglist_optflow.setter
+    def imglist_optflow(self, val):
+        if val is self.imglist:
+            raise IOError("Input list for optical flow retrieval is the same"
+                " as current analysis list")
+        if isinstance(val, ImgList) and val.nof == self.imglist.nof:
+            val.goto_img(self.imglist.cfn)
+            print "Setting list for optflow retrieval, current mode status:"
+            for k, v in val._list_modes.iteritems():
+                print "%s: %s" %(k, v)
+            
+            self._imglist_optflow = val
+            self.imglist.link_imglist(self._imglist_optflow)
+        else:
+            raise IOError("Failed to assign optical flow image list")
+            
     @property
     def pcs_lines(self):
         """Dictionary containing PCS retrieval lines assigned to settings class
@@ -996,7 +1034,7 @@ class EmissionRateAnalysis(object):
         """Checks if image list is ready and includes all relevant info"""
         
         lst = self.imglist
-        
+    
         if not lst.darkcorr_mode:
             self.warnings.append("Dark image correction is not activated in "
                 "image list")
@@ -1020,8 +1058,8 @@ class EmissionRateAnalysis(object):
             except:
                 self.warnings.append("Global velocity is not available, try "
                     " activating optical flow")
-                lst.optflow_mode = True
-                lst.optflow.plot_flow_histograms()
+                self.imglist_optflow.optflow_mode = True
+                self.imglist_optflow.optflow.plot_flow_histograms()
                 
                 self.settings.velo_flow_histo = True
         try:
@@ -1179,6 +1217,7 @@ class EmissionRateAnalysis(object):
         if stop_index is None:
             stop_index = lst.nof - 1 
         
+        flow = self.imglist_optflow.optflow
         s = self.settings
         results = self.init_results()
         dists, dist_errs = self.get_pix_dist_info_all_lines()
@@ -1193,13 +1232,13 @@ class EmissionRateAnalysis(object):
         # init parameters for main loop
         mmol = s.mmol    
         if self.flow_required:
-            lst.optflow_mode = True
+            self.imglist_optflow.optflow_mode = True
         else:
             lst.optflow_mode = False #should be much faster
         ts, bg_mean, bg_std = [], [], []
         counter = 0
-        fl_sigma_tol = lst.optflow.settings.hist_sigma_tol
-        fl_min_len = lst.optflow.settings.min_length        
+        fl_sigma_tol = flow.settings.hist_sigma_tol
+        fl_min_len = flow.settings.min_length        
         roi_bg_abs = self.settings.bg_roi_abs
         velo_modes = s.velo_modes
         min_cd = s.min_cd
@@ -1207,6 +1246,8 @@ class EmissionRateAnalysis(object):
         pnum = int(10**exponent(stop_index - start_index)/4.0)
         imin, imax = s.ref_check_lower_lim, s.ref_check_upper_lim
         for k in range(start_index, stop_index):
+            print ("IMG_LIST / FLOWLIST CFN: %d / %d (SAME %d)" 
+                    %(lst.cfn, self.imglist_optflow.cfn, lst is self.imglist_optflow)) 
             img = lst.current_img()
             t = lst.current_time()
             ts.append(t)
@@ -1256,11 +1297,11 @@ class EmissionRateAnalysis(object):
                         res["glob"]._velo_eff_err.append(vglob_err)
                     dx, dy = None, None  
                     if velo_modes["flow_raw"]:
-                        delt = lst.optflow.del_t
+                        delt = flow.del_t
                         
                         # retrieve diplacement vectors along line
-                        dx = pcs.get_line_profile(lst.optflow.flow[:,:,0])
-                        dy = pcs.get_line_profile(lst.optflow.flow[:,:,1])
+                        dx = pcs.get_line_profile(flow.flow[:,:,0])
+                        dy = pcs.get_line_profile(flow.flow[:,:,1])
                         
                         # detemine array containing effective velocities 
                         # through the line using dot product with line normal
@@ -1297,7 +1338,7 @@ class EmissionRateAnalysis(object):
                         else:                            
                             # get mask specifying plume pixels
                             mask = lst.get_thresh_mask(min_cd)
-                            props.get_and_append_from_farneback(lst.optflow,
+                            props.get_and_append_from_farneback(flow,
                                                                 line=pcs,
                                                                 pix_mask=mask)
                             idx = -1
@@ -1329,15 +1370,15 @@ class EmissionRateAnalysis(object):
                             else:                            
                                 # get mask specifying plume pixels
                                 mask = lst.get_thresh_mask(min_cd)
-                                props.get_and_append_from_flow(lst.optflow,
+                                props.get_and_append_from_flow(flow,
                                                                line=pcs,
                                                                pix_mask=mask)
                                 idx = -1
                         
                         if dx is None:
                             # extract raw diplacement vectors along line
-                            dx = pcs.get_line_profile(lst.optflow.flow[:,:,0])
-                            dy = pcs.get_line_profile(lst.optflow.flow[:,:,1])
+                            dx = pcs.get_line_profile(flow.flow[:,:,0])
+                            dy = pcs.get_line_profile(flow.flow[:,:,1])
                         
                         if verr is None:
                             # get effective velocity through the pcs based on 
@@ -1358,9 +1399,11 @@ class EmissionRateAnalysis(object):
                         
                         min_len = max([min_len, fl_min_len])
                         
-                        print "LEN_MU: %.2f" %props.len_mu[idx] 
-                        print "LEN_SIGMA: %.2f" %props.len_sigma[idx] 
-                        print "MIN LENGTH: %s" %min_len
+#==============================================================================
+#                         print "LEN_MU: %.2f" %props.len_mu[idx] 
+#                         print "LEN_SIGMA: %.2f" %props.len_sigma[idx] 
+#                         print "MIN LENGTH: %s" %min_len
+#==============================================================================
                         dir_min = (props.dir_mu[idx] - 
                                    fl_sigma_tol * props.dir_sigma[idx])
                         dir_max = (props.dir_mu[idx] + 
@@ -1379,12 +1422,12 @@ class EmissionRateAnalysis(object):
             
                         vec = props.displacement_vector(idx)
                                             
-                        flc = lst.optflow.replace_trash_vecs(displ_vec=vec, 
-                                                             min_len=min_len,
-                                                             dir_low=dir_min, 
-                                                             dir_high=dir_max)
+                        flc = flow.replace_trash_vecs(displ_vec=vec, 
+                                                      min_len=min_len,
+                                                      dir_low=dir_min, 
+                                                      dir_high=dir_max)
                         
-                        delt = lst.optflow.del_t
+                        delt = flow.del_t
                         dx = pcs.get_line_profile(flc.flow[:,:,0])
                         dy = pcs.get_line_profile(flc.flow[:,:,1])
                         veff_arr = dot(n, (dx, dy))[cond] * distarr / delt
@@ -1394,7 +1437,7 @@ class EmissionRateAnalysis(object):
                         veff_avg = veff_arr.mean()
                         fl_err = veff_avg * self.settings.optflow_err_rel_veff
                         
-                        print "Assumed intrinsic optflow error veff=%.2f m/s" %fl_err
+                        #print "Assumed intrinsic optflow error veff=%.2f m/s" %fl_err
                         # neglect uncertainties in the successfully constraint
                         # flow vectors along the pcs by initiating an zero 
                         # array ...
@@ -1413,9 +1456,11 @@ class EmissionRateAnalysis(object):
             
             
                         
-                        print "Fraction of bad vectors along %s): %.3f" %(pcs_id, frac_bad)
-                        print "Kappa: %.3f %%" %(ica_fac_ok)
-                        print "Resulting mean velocity (hybrid) = %.2f +/- %.2f" %(veff_avg, veff_err_avg)
+#==============================================================================
+#                         print "Fraction of bad vectors along %s): %.3f" %(pcs_id, frac_bad)
+#                         print "Kappa: %.3f %%" %(ica_fac_ok)
+#==============================================================================
+                        print "Avg. eff. velocity (hybrid) = %.2f +/- %.2f" %(veff_avg, veff_err_avg)
                         res["flow_hybrid"]._start_acq.append(t)                                
                         res["flow_hybrid"]._phi.append(phi)
                         res["flow_hybrid"]._phi_err.append(phi_err)
