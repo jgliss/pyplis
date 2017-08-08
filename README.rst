@@ -3,15 +3,15 @@ Pyplis is a Python toolbox for the analysis of UV SO2 camera data. The software 
 Main features
 =============
 
- - Detailed analysis of the measurement geometry including automized retrieval of distances to the emission plume and/or to topographic features in the camera images (down to pixel-level)
-- Several routines for retrieval of plume background intensities (either from plume images directly or using an additional sky reference image).
-- Automatic cell calibration
-- Correction for cross-detector variations in SO2 sensitivity (due to wavelength shifts of filter transmission windows) using masks retrieved from cell calibration data
-- DOAS calibration routine including two methods to identify the field of view of a DOAS instrument within the camera images
-- Plume velocity retrieval either using an optical flow analysis or using signal cross correlation
-- Histogram based post analysis of optical flow field for motion estimates in low contrast image regions (where optical flow fails to detect motion)
-- Routine for image based light dilution correction
-- Support of many common image formats including (`FITS format <https://de.wikipedia.org/wiki/Flexible_Image_Transport_System>`__)
+- Detailed analysis of the measurement geometry including automised retrieval of distances to the emission plume and/or to topographic features in the camera images (at pixel-level).
+- Several routines for the retrieval of plume background intensities (either from plume images directly or using an additional sky reference image).
+- Automatic analysis of cell calibration data.
+- Correction for cross-detector variations in the SO2 sensitivity arising from wavelength shifts in the filter transmission windows.
+- DOAS calibration routine including two methods to identify the field of view of a DOAS instrument within the camera images.
+- Plume velocity retrieval either using an optical flow analysis or using signal cross correlation.
+- Histogram based post analysis of optical flow field for gas velocity analysis in low contrast image regions, where the optical flow fails to detect motion.
+- Routine for image based correction of the signal dilution effect based on contrast variations of dark terrain features located at different distances in the images.
+- Support of standard image formats including (`FITS format <https://de.wikipedia.org/wiki/Flexible_Image_Transport_System>`__)
 - Easy and flexible setup for data import and camera specifications
   
 .. note::
