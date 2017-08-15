@@ -26,7 +26,7 @@ from ex04_prep_aa_imglist import prepare_aa_image_list
 PEAK_SIGMA_TOL=2
 
 # perform histogram analysis for all images in time series
-HISTO_ANALYSIS_ALL = 1
+HISTO_ANALYSIS_ALL = 0
 HISTO_ANALYSIS_START_IDX = 0
 HISTO_ANALYSIS_STOP_IDX = None#207
 
@@ -123,7 +123,6 @@ if __name__ == "__main__":
     
     s.roi_rad = ROI_CONTRAST
     
-
     aa_list.optflow_mode = True
 
     plume_mask = pyplis.Img(aa_list.get_thresh_mask(MIN_AA))

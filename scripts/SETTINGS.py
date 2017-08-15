@@ -9,7 +9,7 @@ from os.path import join
 from optparse import OptionParser
 
 # the pyplis version for which these scripts
-SCRIPTS_VERSION = "0.11"
+SCRIPTS_VERSION = "0.12"
 
 SAVEFIGS = 1 # save plots from this script in SAVE_DIR
 DPI = 150 #pixel resolution for saving

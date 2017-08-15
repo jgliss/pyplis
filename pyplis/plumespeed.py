@@ -2624,16 +2624,21 @@ class OptflowFarneback(object):
         Axes
             the plot axes
         """
-        ax_in = False
+        draw_img = True
+        
         if self.flow is None:
             print "Could not draw flow, no flow available"
             return
-        if ax is None:
-            fig, ax = subplots(1,1)
-        else:
-            ax_in = True
-            fig = ax.figure
-        
+        try:
+            if ax is None:
+                fig, ax = subplots(1,1)
+            else:
+                if len(ax.images) > 0:
+                    draw_img = False
+                fig = ax.figure
+        except:
+            warn("Could not draw optical flow, invalid input for parameter ax")
+            return 0
         i_min, i_max = self.current_contrast_range()
     
         img = self.images_input["this"]
@@ -2645,7 +2650,7 @@ class OptflowFarneback(object):
         if img.is_tau: #invert intensities
             disp = (255 - disp)
         
-        if add_cbar and not ax_in:
+        if add_cbar and draw_img:
             disp_temp = ax.imshow(disp, cmap="gray")
             fig.colorbar(disp_temp, ax=ax)
 
@@ -2663,7 +2668,7 @@ class OptflowFarneback(object):
 #         else:
 #             tit += " (in ROI)"
 #==============================================================================
-        if ax_in:
+        if not draw_img:
             for (x1, y1), (x2, y2) in lines:
                 ax.add_artist(Line2D([x0 + x1, x0 + x2], [y0 + y1, y0 + y2],
                                     color="lime"))
@@ -2673,7 +2678,7 @@ class OptflowFarneback(object):
                 line(disp, (x0 + x1, y0 + y1), (x0 + x2, y0 + y2),(0, 255, 255), 1)
                 circle(disp, (x0 + x2, y0 + y2), 1, (255, 0, 0), -1)
         
-        if not ax_in:
+        if draw_img:
             ax.imshow(disp)
         if in_roi:
             set_ax_lim_roi(roi_rel, ax)
