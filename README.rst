@@ -11,7 +11,7 @@ Main features
 - Plume velocity retrieval either using an optical flow analysis or using signal cross correlation.
 - Histogram based post analysis of optical flow field for gas velocity analysis in low contrast image regions, where the optical flow fails to detect motion.
 - Routine for image based correction of the signal dilution effect based on contrast variations of dark terrain features located at different distances in the images.
-- Support of standard image formats including (`FITS format <https://de.wikipedia.org/wiki/Flexible_Image_Transport_System>`__)
+- Support of standard image formats including `FITS format <https://de.wikipedia.org/wiki/Flexible_Image_Transport_System>`__
 - Easy and flexible setup for data import and camera specifications
   
 .. note::
@@ -64,7 +64,7 @@ In case the installation fails make sure that all dependencies (see above) are i
 Code documentation
 ==================
 
-The code documentation of pyplis is hosted `here <http://pyplis.readthedocs.io/en/latest/code_lib.html>`__. 
+The code documentation of Pyplis and more information is hosted on `Read the Docs <http://pyplis.readthedocs.io/en/latest/code_lib.html>`__. 
 
 Getting started
 ===============
