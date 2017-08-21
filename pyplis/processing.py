@@ -17,7 +17,7 @@ This module contains the following processing classes and methods:
 from numpy import vstack, ogrid, empty, ones, asarray, ndim, round, hypot,\
     linspace, sum, dstack, float32, zeros, poly1d, polyfit, argmin, where,\
     logical_and, rollaxis, complex, angle, array, ndarray, cos, sin,\
-    arctan, dot, int32, pi, isnan, nan
+    arctan, dot, int32, pi, isnan, nan, delete
     
 from numpy.linalg import norm
 from scipy.ndimage import map_coordinates 
@@ -1771,8 +1771,12 @@ class ImgStack(object):
                 spec_idxs_final.append(idx)
                 del_ts_abs.append(min(del_ts_temp))
                 img_idxs.append(matches[argmin(del_ts_temp)])
-    
+        
         series_new = time_series[spec_idxs_final]
+        try:
+            series_new.fit_errs = time_series.fit_errs[spec_idxs_final]
+        except:
+            pass
         stack_new = self.stack[img_idxs]
         texps_new = asarray(self.texps[img_idxs])
         start_acq_new = asarray(self.start_acq[img_idxs])
@@ -1781,7 +1785,7 @@ class ImgStack(object):
                                  start_acq=start_acq_new, texps=texps_new)
         stack_obj_new.roi_abs = self.roi_abs
         stack_obj_new.add_data = series_new
-        return stack_obj_new, series_new
+        return (stack_obj_new, series_new)
             
     def _merge_tseries_cross_interpolation(self, time_series,
                                            itp_type="linear"):
@@ -1806,16 +1810,23 @@ class ImgStack(object):
         
         #interpolate exposure times
         s0 = Series(self.texps, time_stamps)
-        df0 = concat([s0, time_series], axis=1).interpolate(itp_type).dropna()
-        
+        try:
+            errs = Series(time_series.fit_errs, time_series.index)
+            df0 = concat([s0, time_series, errs], axis=1).\
+                                interpolate(itp_type).dropna()
+        except:
+            df0 = concat([s0, time_series], axis=1).\
+                                interpolate(itp_type).dropna()
         new_num = len(df0[0])
         if not new_num >= self.num_of_imgs:
-            raise ValueError("Unexpected error, length of merged data array does"
-                "not exceed length of inital image stack...")
+            raise ValueError("Unexpected error, length of merged data "
+                             "array does not exceed length of inital image "
+                             "stack...")
         #create new arrays for the merged stack
         new_stack = empty((new_num, h, w))
         new_acq_times = df0[0].index
         new_texps = df0[0].values
+        
         
         for i in range(h):
             for j in range(w):
@@ -1824,7 +1835,7 @@ class ImgStack(object):
                 #get series from stack at current pixel
                 series_stack = Series(stack[:, i, j], time_stamps)
                 #create a dataframe
-                df = concat([series_stack, df0[1]], axis = 1).\
+                df = concat([series_stack, df0[1]], axis=1).\
                     interpolate(itp_type).dropna()
                 #throw all N/A values
                 #df = df.dropna()
@@ -1836,7 +1847,13 @@ class ImgStack(object):
         stack_obj.roi_abs = self.roi_abs
         #print new_stack.shape, new_acq_times.shape, new_texps.shape
         stack_obj.set_stack_data(new_stack, new_acq_times, new_texps)
-        return stack_obj, df[1]
+        
+        new_series = df[1]
+        try:
+            new_series.fit_errs = df0[2].values
+        except:
+            print "Failed to access / process errors on time series data"
+        return (stack_obj, new_series)
         
         
     def _merge_tseries_average(self, time_series):
@@ -1913,8 +1930,14 @@ class ImgStack(object):
         stack_obj.roi_abs = self.roi_abs
         stack_obj.set_stack_data(new_stack, asarray(new_acq_times), 
                                  asarray(new_texps))
-        time_series = time_series.drop(time_series.index[bad_indices])
-        return stack_obj, time_series
+        
+        tseries = time_series.drop(time_series.index[bad_indices])
+        try:
+            errs = delete(time_series.fit_errs, bad_indices)
+            tseries.fit_errs = errs
+        except:
+            pass
+        return (stack_obj, tseries)
     
     """Helpers
     """
@@ -1926,7 +1949,12 @@ class ImgStack(object):
 #==============================================================================
         cond = logical_and(time_series.index >= self.start,
                            time_series.index <= self.stop)
-        return time_series[cond]
+        new = time_series[cond]
+        try:
+            new.fit_errs = new.fit_errs[cond]
+        except:
+            pass
+        return new
         
     def total_time_period_in_seconds(self):
         """Returns start time stamp of first image"""
@@ -2118,22 +2146,22 @@ class ImgStack(object):
         self.stack_id = hdu[0].header["stack_id"]
         try:
             times = hdu[1].data["start_acq"].byteswap().newbyteorder()
-            self.start_acq = [datetime.strptime(x, "%Y%m%d%H%M%S%f") 
-                              for x in times]
+            self.start_acq = asarray([datetime.strptime(x, "%Y%m%d%H%M%S%f") 
+                              for x in times])
         except:
             warn("Failed to import acquisition times")
         try:
-            self.texps = hdu[1].data["texps"].byteswap().newbyteorder()
+            self.texps = asarray(hdu[1].data["texps"].byteswap().newbyteorder())
         except:
             warn("Failed to import exposure times")
         try:
-            self._access_mask = hdu[1].data["_access_mask"].byteswap().\
-                                newbyteorder()
+            self._access_mask = asarray(hdu[1].data["_access_mask"].\
+                                        byteswap().newbyteorder())
         except:
             warn("Failed to import data access mask")    
         try:
-            self.add_data = hdu[1].data["add_data"].byteswap().\
-                            newbyteorder()
+            self.add_data = asarray(hdu[1].data["add_data"].byteswap().\
+                            newbyteorder())
         except:
             warn("Failed to import data additional data")
         self.roi_abs = hdu[2].data["roi_abs"].byteswap().\
