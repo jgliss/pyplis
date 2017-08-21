@@ -53,7 +53,7 @@ class PlumeBackgroundModel(object):
         self.surface_fit_mask = None
         self.surface_fit_pyrlevel = 4
         self.surface_fit_polyorder = 2
-            
+    
         #: Rectangle for scaline of background image
         #: corr modes: 1 - 6
         self.scale_rect = None
@@ -89,8 +89,11 @@ class PlumeBackgroundModel(object):
         if isinstance(plume_init, Img):
             self.mode = 1
             self.guess_missing_settings(plume_init)
-            self.surface_fit_mask = ones(plume_init.img.shape, dtype=bool)
-    
+            self.surface_fit_mask = ones(plume_init.img.shape, 
+                                         dtype=bool)
+        
+        self.last_settings = self.settings_dict()
+        
     @property
     def mode(self):
         """Current modelling mode"""
@@ -150,7 +153,7 @@ class PlumeBackgroundModel(object):
         return True
         
     def mean_in_rects(self, img):
-        """Determine ``(mean, min, max)`` intensity in all reference rectangles
+        """Determine ``(mean, min, max)`` intensity in reference rectangles
         
         Parameters
         ----------
@@ -177,6 +180,7 @@ class PlumeBackgroundModel(object):
     def update(self, **kwargs):
         """Update class attributes
         :param **kwargs:
+            
         """
         for k, v in kwargs.iteritems():
             self.__setitem__(k, v)
@@ -251,31 +255,6 @@ class PlumeBackgroundModel(object):
         if not self._check_rect(self.xgrad_rect, plume):
             self.xgrad_rect = res["xgrad_rect"]
     
-    def settings_dict(self):
-        """Write current sky reference areas and masks into dictionary"""
-        d = {}
-        d["mode"] = self.mode
-        d["surface_fit_mask"] = self.surface_fit_mask 
-        d["surface_fit_pyrlevel"] = self.surface_fit_pyrlevel
-        d["surface_fit_polyorder"] = self.surface_fit_polyorder
-        d["scale_rect"] = self.scale_rect
-        d["ygrad_rect"] = self.ygrad_rect
-        
-        d["ygrad_line_colnum"] = self.ygrad_line_colnum
-        d["ygrad_line_polyorder"] = self.ygrad_line_polyorder
-        d["ygrad_line_startrow"] = self.ygrad_line_startrow
-        d["ygrad_line_stoprow"] = self.ygrad_line_stoprow
-        d["ygrad_line_mask"] = self.ygrad_line_mask
-        
-        d["xgrad_rect"] = self.xgrad_rect
-    
-        d["xgrad_line_rownum"] = self.xgrad_line_rownum
-        d["xgrad_line_polyorder"] = self.xgrad_line_polyorder
-        d["xgrad_line_stopcol"] = self.xgrad_line_stopcol
-        d["xgrad_line_startcol"] = self.xgrad_line_startcol
-        d["xgrad_line_mask"] = self.xgrad_line_mask
-        return d
-        
     def bg_from_poly_surface_fit(self, plume, mask=None, polyorder=2,
                                  pyrlevel=4):
         """Applies poly surface fit to plume image for bg retrieval
@@ -579,7 +558,7 @@ class PlumeBackgroundModel(object):
     """Plotting"""
     def plot_sky_reference_areas(self, plume):
         """Plot the current sky ref areas into a plume image"""
-        d = self.sky_ref_areas_to_dict()
+        d = self.settings_dict()
         return plot_sky_reference_areas(plume, d)
         
     def plot_tau_result(self, tau_img=None, tau_min=None, tau_max=None,
@@ -736,21 +715,48 @@ class PlumeBackgroundModel(object):
         return fig
         
     """Helpers"""
-    def sky_ref_areas_to_dict(self):
-        """Create a dictionary with the current sky reference area settings"""
-        results = {}
-
-        results["ygrad_line_colnum"] = self.ygrad_line_colnum
-        results["ygrad_line_stoprow"] = self.ygrad_line_stoprow
-        results["ygrad_line_startrow"] = self.ygrad_line_startrow
+    def settings_dict(self):
+        """Write current sky reference areas and masks into dictionary"""
+        d = {}
+        d["mode"] = self.mode
+        d["surface_fit_mask"] = self.surface_fit_mask 
+        d["surface_fit_pyrlevel"] = self.surface_fit_pyrlevel
+        d["surface_fit_polyorder"] = self.surface_fit_polyorder
+        d["scale_rect"] = self.scale_rect
+        d["ygrad_rect"] = self.ygrad_rect
         
-        results["xgrad_line_rownum"] = self.xgrad_line_rownum
-        results["xgrad_line_startcol"] = self.xgrad_line_startcol
-        results["xgrad_line_stopcol"] = self.xgrad_line_stopcol
-        results["scale_rect"] = self.scale_rect
-        results["ygrad_rect"] = self.ygrad_rect
-        results["xgrad_rect"] = self.xgrad_rect
-        return results
+        d["ygrad_line_colnum"] = self.ygrad_line_colnum
+        d["ygrad_line_polyorder"] = self.ygrad_line_polyorder
+        d["ygrad_line_startrow"] = self.ygrad_line_startrow
+        d["ygrad_line_stoprow"] = self.ygrad_line_stoprow
+        d["ygrad_line_mask"] = self.ygrad_line_mask
+        
+        d["xgrad_rect"] = self.xgrad_rect
+    
+        d["xgrad_line_rownum"] = self.xgrad_line_rownum
+        d["xgrad_line_polyorder"] = self.xgrad_line_polyorder
+        d["xgrad_line_stopcol"] = self.xgrad_line_stopcol
+        d["xgrad_line_startcol"] = self.xgrad_line_startcol
+        d["xgrad_line_mask"] = self.xgrad_line_mask
+        return d
+        
+#==============================================================================
+#     def sky_ref_areas_to_dict(self):
+#         """Create a dictionary with the current sky reference area settings"""
+#         results = {}
+# 
+#         results["ygrad_line_colnum"] = self.ygrad_line_colnum
+#         results["ygrad_line_stoprow"] = self.ygrad_line_stoprow
+#         results["ygrad_line_startrow"] = self.ygrad_line_startrow
+#         
+#         results["xgrad_line_rownum"] = self.xgrad_line_rownum
+#         results["xgrad_line_startcol"] = self.xgrad_line_startcol
+#         results["xgrad_line_stopcol"] = self.xgrad_line_stopcol
+#         results["scale_rect"] = self.scale_rect
+#         results["ygrad_rect"] = self.ygrad_rect
+#         results["xgrad_rect"] = self.xgrad_rect
+#         return results
+#==============================================================================
     
     @property
     def mode_info_dict(self):

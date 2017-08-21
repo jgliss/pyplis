@@ -1427,10 +1427,10 @@ class ImgStack(object):
             raise MemoryError("Could not initiate empty 3D numpy array "
                 "(d, h, w): (%s, %s, %s)" %(img_num, height, width))
         self.start_acq = asarray([datetime(1900,1,1)] * img_num)
-        self.texps = zeros(img_num, dtype = float32)
-        self.add_data = zeros(img_num, dtype = float32)
+        self.texps = zeros(img_num, dtype=float32)
+        self.add_data = zeros(img_num, dtype=float32)
         
-        self._access_mask = zeros(img_num, dtype = bool)
+        self._access_mask = zeros(img_num, dtype=bool)
         
         if img_prep is None:
             img_prep = {"pyrlevel"     :   0}
