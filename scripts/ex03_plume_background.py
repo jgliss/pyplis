@@ -108,7 +108,7 @@ def autosettings_vs_manual_settings(bg_model):
     here
     """
     auto_params = pyplis.plumebackground.find_sky_reference_areas(plume)
-    current_params = bg_model.sky_ref_areas_to_dict()
+    current_params = bg_model.settings_dict()
                                                                 
     fig, axes = subplots(1, 2, figsize = (16, 6))                                                                
     axes[0].set_title("Manually set parameters")

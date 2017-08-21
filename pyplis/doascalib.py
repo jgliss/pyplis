@@ -31,9 +31,10 @@ from .setupclasses import Camera
 
 
 class DoasCalibData(object):
-    """Object representing DOAS calibration data"""
-    def __init__(self, tau_vec=[], doas_vec=[], time_stamps=[],
-                 calib_id="", fov=None, camera=None, polyorder=1):
+    """Class containing DOAS calibration data"""
+    def __init__(self, tau_vec=[], doas_vec=[], doas_vec_err=[], 
+                 time_stamps=[], calib_id="", fov=None, camera=None, 
+                 polyorder=1):
         """Class initialisation
         
         :param ndarray tau_vec: tau data vector for calibration data
@@ -161,7 +162,7 @@ class DoasCalibData(object):
             return False
         return True
         
-    def fit_calib_polynomial(self, polyorder=None, plot=False):
+    def fit_calib_polynomial(self, polyorder=None, weighted=True, plot=False):
         """Fit calibration polynomial to current data
         
         Parameters
