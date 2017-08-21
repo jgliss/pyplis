@@ -31,26 +31,37 @@ from .setupclasses import Camera
 
 
 class DoasCalibData(object):
-    """Class containing DOAS calibration data"""
+    """Class containing DOAS calibration data
+    
+    Parameters
+    ----------
+    tau_vec : ndarray
+        tau data vector for calibration data
+    doas_vec : ndarray
+        DOAS-CD data vector for calibration data
+    doas_vec_err : ndarray
+        Fit errors of DOAS-CDs
+    time_stamps : ndarray
+        array with datetime objects containing time stamps 
+        (e.g. start acquisition) of calibration data
+    calib_id : str
+        calibration ID (e.g. "aa", "tau_on", "tau_off")
+    camera : Camera
+        camera object (not necessarily required). A camera can be assigned 
+        in order to convert the FOV extend from pixel coordinates into 
+        decimal degrees
+        
+    """
     def __init__(self, tau_vec=[], doas_vec=[], doas_vec_err=[], 
                  time_stamps=[], calib_id="", fov=None, camera=None, 
                  polyorder=1):
-        """Class initialisation
         
-        :param ndarray tau_vec: tau data vector for calibration data
-        :param ndarray doas_vec: doas CD data vector for calibration data
-        :param ndarray time_stamps: array with datetime objects containing 
-            time stamps (e.g. start acquisition) of calibration data
-        :param str calib_id: calibration ID (e.g. "aa", "tau_on", "tau_off")
-        :param Camera camera: camera object (not necessarily required). 
-            A camera can be assigned in order to convert the FOV extend from
-            pixel coordinates into decimal degrees
-        
-        """
         #tau data vector within FOV
-        self.tau_vec = tau_vec 
+        self.tau_vec = asarray(tau_vec) 
         #doas data vector
-        self.doas_vec = doas_vec 
+        self.doas_vec = asarray(doas_vec) 
+        self.doas_vec_err = asarray(doas_vec_err)
+        
         self.time_stamps = time_stamps
         self.calib_id = calib_id
         
@@ -162,13 +173,21 @@ class DoasCalibData(object):
             return False
         return True
         
-    def fit_calib_polynomial(self, polyorder=None, weighted=True, plot=False):
+    def fit_calib_polynomial(self, polyorder=None, weighted=True, 
+                             weights_how="rel", plot=False):
         """Fit calibration polynomial to current data
         
         Parameters
         ----------
         polyorder : :obj:`int`, optional
-            update current polyorder 
+            update current polyorder
+        weighted : bool
+            performs weighted fit based on DOAS errors in ``doas_vec_err``
+            (if available), defaults to True
+        weights_how : str
+            use "rel" if relative errors are supposed to be used (i.e.
+            w=CD/CD_sigma) or "abs" if absolute error is supposed to be 
+            used (i.e. w=1/CD_sigma).
         plot : bool
             If True, the calibration curve and the polynomial are plotted
         
@@ -177,6 +196,10 @@ class DoasCalibData(object):
         poly1d
             calibration polynomial
         """
+        if not weights_how in ["rel", "abs"]:
+            raise IOError("Invalid input for parameter weights_how:"
+                          "Use rel for relative errors or abs for absolute"
+                          "errors for calculation of weights")
         if not self.has_calib_data():
             raise ValueError("Calibration data is not available")
             
@@ -187,7 +210,23 @@ class DoasCalibData(object):
             raise ValueError("Encountered nans in data")
         
         exp = exponent(self.doas_vec.max())
-        coeffs, cov = polyfit(self.tau_vec, self.doas_vec / 10**exp, polyorder,  cov=True)
+        ws = ones(len(self.doas_vec))
+        if weighted:
+            if not len(self.doas_vec) == len(self.doas_vec_err):
+                warn("Could not perform weighted calibration fit: "
+                     "Length mismatch between DOAS data vector"
+                     " and corresponding error vector")
+            else:
+                try:
+                    if weights_how == "abs":
+                        ws = 1 / self.doas_vec_err
+                    else:
+                        ws = self.doas_vec / self.doas_vec_err
+                    ws = ws / max(ws)
+                except:
+                    warn("Failed to calculate weights")
+        coeffs, cov = polyfit(self.tau_vec, self.doas_vec/10**exp, 
+                              polyorder, w=ws, cov=True)
         self.polyorder = polyorder
         self.poly = poly1d(coeffs * 10**exp)
         self.cov = cov * 10**(2*exp)
@@ -351,10 +390,14 @@ class DoasCalibData(object):
                 
         ax.plot(self.tau_vec, cds, ls="", marker=".",
                 label="Data %s" %add_label_str, **kwargs)
-            
+        try:
+            ax.errorbar(self.tau_vec, cds, yerr=self.doas_vec_err, 
+                        fmt=None, color="#919191")
+        except:
+            warn("No DOAS-CD errors available")
         try:
             ax.plot(x, cds_poly, ls="-", marker="",
-                    label = "Fit result", **kwargs)
+                    label="Fit result", **kwargs)
                     
         except TypeError:
             print "Calibration poly probably not fitted"
@@ -783,7 +826,8 @@ class DoasFOVEngine(object):
             return
         
         new_stack, new_doas_series = self.img_stack.merge_with_time_series(
-                                        self.doas_series, method=merge_type)
+                                        self.doas_series, 
+                                        method=merge_type)
         if len(new_doas_series) == new_stack.shape[0]:
             self.img_stack = new_stack
             self.doas_series = new_doas_series
@@ -806,7 +850,7 @@ class DoasFOVEngine(object):
             raise ValueError("DOAS correlation image object could not be "
                 "determined: inconsistent array lengths, please perform time"
                 "merging first")
-        self.update_search_settings(method = search_type, **kwargs)
+        self.update_search_settings(method=search_type, **kwargs)
         if search_type == "pearson":
             corr_img, _ = self._det_correlation_image_pearson(
                                                     **self._settings)
@@ -816,7 +860,8 @@ class DoasFOVEngine(object):
         else:
             raise ValueError("Invalid search type %s: choose from "
                              "pearson or ifr" %search_type)
-        corr_img = Img(corr_img, pyrlevel=self.img_stack.img_prep["pyrlevel"])
+        corr_img = Img(corr_img, pyrlevel=
+                       self.img_stack.img_prep["pyrlevel"])
         #corr_img.pyr_up(self.img_stack.img_prep["pyrlevel"])
         self.calib_data.fov.corr_img = corr_img
         self.calib_data.fov.img_prep = self.img_stack.img_prep
@@ -916,6 +961,10 @@ class DoasFOVEngine(object):
             self.calib_data.fov.fov_mask = fov_mask
             self.calib_data.tau_vec = tau_vec
             self.calib_data.doas_vec = doas_vec
+            try:
+                self.calib_data.doas_vec_err = self.doas_series.fit_errs
+            except:
+                pass
             self.calib_data.time_stamps = self.img_stack.time_stamps
             return 
         
@@ -931,6 +980,10 @@ class DoasFOVEngine(object):
             self.calib_data.fov.fov_mask = fov_mask            
             self.calib_data.tau_vec = tau_vec
             self.calib_data.doas_vec = self.doas_data_vec
+            try:
+                self.calib_data.doas_vec_err = self.doas_series.fit_errs
+            except:
+                pass
             self.calib_data.time_stamps = self.img_stack.time_stamps
         else:
             raise ValueError("Invalid search method...")

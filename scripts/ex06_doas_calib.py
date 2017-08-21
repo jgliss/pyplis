@@ -161,9 +161,9 @@ if __name__ == "__main__":
     stack, aa_list = get_stack()
     
     doas_time_series = load_doas_results()
-    s = pyplis.doascalib.DoasFOVEngine(stack, doas_time_series, maxrad = 10)
-    calib_pears = s.perform_fov_search(method = "pearson")
-    calib_ifr= s.perform_fov_search(method = "ifr", ifrlbda = 2e-3)
+    s = pyplis.doascalib.DoasFOVEngine(stack, doas_time_series, maxrad=10)
+    calib_pears = s.perform_fov_search(method="pearson")
+    calib_ifr= s.perform_fov_search(method="ifr", ifrlbda=2e-3)
     
     #plot the FOV search results
     ax0 = calib_pears.fov.plot()
