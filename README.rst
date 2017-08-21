@@ -99,7 +99,6 @@ TODO's
 1. Write high level analysis class for signal cross correlation (currently only a low level method exists).
 #. Automatic velocity cross correlation analysis from image list objects
 #. Automatic and continuous DOAS / cell calibration data
-#. Weigthed fitting of calibration curve
   
 Future developments / ideas
 ===========================
