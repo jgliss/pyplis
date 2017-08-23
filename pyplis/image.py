@@ -115,7 +115,8 @@ class Img(object):
                               ("gascalib"   ,   0), # image is gas CD image
                               ("is_bin"     ,   0),
                               ("is_inv"     ,   0),
-                              ("others"     ,   0)])# boolean 
+                              ("others"     ,   0),
+                              ])# boolean 
         
         self._roi_abs = [0, 0, 9999, 9999] #will be set on image load
         
@@ -134,13 +135,14 @@ class Img(object):
                         ("file_name"     ,   ""),
                         ("file_type"     ,   ""),
                         ("device_id"     ,   ""),
-                        ("ser_no"        ,   "")])
+                        ("ser_no"        ,   ""),
+                        ("img_idx"       ,   0)])
                         
         
         try:
-            temp = import_method(input)            
-            input = temp[0]
-            meta_info.update(temp[1])
+            data, add_meta = import_method(input)            
+            input = data
+            meta_info.update(add_meta)
         except:
             pass
           
