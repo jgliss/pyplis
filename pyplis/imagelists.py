@@ -2045,10 +2045,10 @@ class ImgList(BaseImgList):
         """Update the current background image object
         
         Check input background image and, in case a vignetting mask is not 
-        available in this list, determine a vignetting mask from the background
-        image. Furthermore, if the input image is not blurred it is blurred 
-        using current list blurring factor and in case the latter is 0, then 
-        it is blurred with a Gaussian filter of width 1.
+        available in this list, determine a vignetting mask from the 
+        background image. Furthermore, if the input image is not blurred it 
+        is blurred using current list blurring factor and in case the 
+        latter is 0, then it is blurred with a Gaussian filter of width 1.
         
         The image is then stored twice, 1. as is and 2. corrected for 
         vignetting.
@@ -2108,8 +2108,10 @@ class ImgList(BaseImgList):
         (:class:`OptflowFarneback` object) using method :func:`set_images`
         
         Raises
-        
-        object, i.e. `self.loaded_images["this"]` and `self.loaded_images["next"]`
+        ------
+        IndexError
+            object, i.e. `self.loaded_images["this"]` and 
+            `self.loaded_images["next"]`
         """
         if self.cfn == self.nof - 1:
             self.optflow.reset_flow()
