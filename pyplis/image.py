@@ -138,11 +138,12 @@ class Img(object):
                         ("ser_no"        ,   ""),
                         ("img_idx"       ,   0)])
                         
-        
+        print meta_info
         try:
-            data, add_meta = import_method(input)            
+            data, meta_info = import_method(input, meta_info) 
+            print meta_info
             input = data
-            meta_info.update(add_meta)
+            #meta_info.update(add_meta)
         except:
             pass
           
