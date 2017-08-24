@@ -359,7 +359,7 @@ class DoasCalibData(object):
         except:
             print "Failed to import calibration doas data vector"
         try:
-            self.doas_vec = hdu[2].data["doas_vec_err"].byteswap().newbyteorder()
+            self.doas_vec_err = hdu[2].data["doas_vec_err"].byteswap().newbyteorder()
         except:
             print "Failed to import DOAS fit error information in calib data"
         try:
