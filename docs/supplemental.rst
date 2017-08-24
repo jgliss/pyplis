@@ -1,6 +1,6 @@
-********
-Download
-********
+**********************
+Supplementary material
+**********************
 
 Pyplis download area
 
@@ -15,11 +15,5 @@ Download the poster :download:`PDF here <_downloads/poster_egu2017.pdf>`
   :title:
 
   Pyplis poster for the EGU General Assembly meeting, Vienna, April 2017
-
-*********
-Changelog
-*********
-
-.. include:: ../CHANGELOG.rst
 
 
