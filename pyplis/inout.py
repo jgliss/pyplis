@@ -232,8 +232,7 @@ def get_camera_info(cam_id):
                 if cam_id in l:
                     found = 1  
                     dat["cam_ids"]=l
-    print ("Camera info for cam_id %s could not be found" %cam_id)
-    return dat
+    raise IOError("Camera info for cam_id %s could not be found" %cam_id)
 
 def save_new_default_camera(info_dict):
     """Saves new default camera to data file *cam_info.txt*

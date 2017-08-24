@@ -75,8 +75,10 @@ class CameraBaseInfo(object):
          
         try:
             self.load_default(cam_id)
-        except:
-            pass
+        except Exception as e:
+            if cam_id is not None:
+                warn("Failed to load camera information for cam_id %s:\n%s " 
+                        %(cam_id, repr(e)))
         type_conv = self._type_dict
         for k,v in kwargs.iteritems():
             if type_conv.has_key(k):

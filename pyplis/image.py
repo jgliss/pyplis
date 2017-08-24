@@ -182,7 +182,11 @@ class Img(object):
     
     def reload(self):
         """Try reload from file"""
-        self.__init__(self.meta["path"])
+        file_path = self.meta["path"]
+        if not exists(file_path):
+            warn("Image reload failed, no valid filepath set in meta info")
+        else:
+            self.__init__(input=file_path)
         
     def load_input(self, input):
         """Try to load input as numpy array and additional meta data"""
@@ -213,8 +217,12 @@ class Img(object):
         return hist, bins
             
     def get_brightness_range(self):
-        """Analyses the Histogram to retrieve a suited brightness range (i.e. 
-        for diplaying the image)            
+        """Analyses the Histogram to retrieve a suited brightness range
+                
+        Note
+        ----
+        Currently not in use (was originally used for App)
+        
         """
         hist, bins = self.make_histogram()
         thresh = hist.max() * 0.03
