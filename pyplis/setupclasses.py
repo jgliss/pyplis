@@ -917,7 +917,10 @@ class MeasSetup(BaseSetup):
     def camera(self, value):
         """Setter of private attribute source
         
-        :param Source value: a source object
+        Parameters
+        ----------
+        value : Camera
+            :obj:`Camera` object
         """
         if not isinstance(value, Camera):
             raise TypeError("Invalid input type, need Camera object")

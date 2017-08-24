@@ -96,7 +96,7 @@ if __name__ == "__main__":
     
     # Create the Dataset object (see ex01)
     ds = create_dataset()
-    
+
     # execute function defined above (see above for definition and information)
     geom_corr, map = find_viewing_direction(ds.meas_geometry)
 
