@@ -213,6 +213,8 @@ if __name__ == "__main__":
         pass
     calib_pears.save_as_fits(save_dir=SAVE_DIR, 
                              save_name="ex06_doascalib_aa.fts")
+    calib_ifr.save_as_fits(save_dir=SAVE_DIR,
+                           save_name="ex06_doascalib_aa_ifr_method.fts")
     
     # Print the results of the FOV search
     print calib_ifr.fov

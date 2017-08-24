@@ -138,7 +138,6 @@ class Img(object):
                         ("ser_no"        ,   ""),
                         ("img_idx"       ,   0)])
                         
-        print meta_info
         try:
             data, meta_info = import_method(input, meta_info) 
             print meta_info
