@@ -14,7 +14,7 @@ from os.path import join, exists, isdir, abspath, basename, dirname
 from traceback import format_exc
 from warnings import warn
 
-from matplotlib.pyplot import subplots, rcParams
+from matplotlib.pyplot import subplots
 from matplotlib.patches import Circle, Ellipse
 from matplotlib.cm import RdBu
 from matplotlib.dates import DateFormatter
@@ -96,10 +96,13 @@ class DoasCalibData(object):
     @property
     def calib_id_str(self):
         """Return plot string for calibration ID"""
+        idx=0
+        if self.calib_id.split("_")[1].lower() == "aa":
+            idx=1
         try:
-            return CALIB_ID_STRINGS[self.calib_id.split("_")[0]]
+            return CALIB_ID_STRINGS[self.calib_id.split("_")[idx]]
         except:
-            return self.calib_id.split("_")[0]
+            return self.calib_id.split("_")[idx]
             
     @property
     def coeffs(self):
@@ -235,9 +238,8 @@ class DoasCalibData(object):
         return self.poly
     
     def save_as_fits(self, save_dir=None, save_name=None):
-        """Save stack as FITS file
+        """Save calibration data as FITS file
         
-                
         """
         if not len(self.doas_vec) == len(self.tau_vec):
             raise ValueError("Could not save calibration data, mismatch in "
@@ -263,37 +265,45 @@ class DoasCalibData(object):
         fov_mask.header["calib_id"] = self.calib_id
         fov_mask.header.append()
         
-        rd = self.fov.result_pearson
-        try:
-            fov_mask.header.update(cx_rel=rd["cx_rel"], cy_rel=rd["cy_rel"],\
-                                   rad_rel=rd["rad_rel"])
-        except:
-            print "(Saving calib data): Position of FOV not available"
-        
+        ifr_res = []        
+        if self.fov.method == "pearson":
+            rd = self.fov.result_pearson
+            try:
+                fov_mask.header.update(cx_rel=rd["cx_rel"], cy_rel=rd["cy_rel"],\
+                                       rad_rel=rd["rad_rel"])
+            except:
+                warn("Position of FOV (pearson method) not available")
+            
+        elif self.fov.method == "ifr":
+            ifr_res = self.fov.result_ifr["popt"]
+
         try:
             hdu_cim = fits.ImageHDU(data = self.fov.corr_img.img)        
         except:
             hdu_cim = fits.ImageHDU()
-            print "(Saving calib data): FOV search correlation image not available"
+            warn("FOV search correlation image not available")
         
         tstamps = [x.strftime("%Y%m%d%H%M%S%f") for x in self.time_stamps]
-        col1 = fits.Column(name = "time_stamps", format = "25A", array =\
-            tstamps)
-        col2 = fits.Column(name = "tau_vec", format = "D", array =\
-                                                        self.tau_vec)
-        col3 = fits.Column(name = "doas_vec", format = "D", array =\
-                                                        self.doas_vec)
-        cols = fits.ColDefs([col1, col2, col3])
+        col1 = fits.Column(name="time_stamps", format="25A", array=tstamps)
+        col2 = fits.Column(name="tau_vec", format="D", array=self.tau_vec)
+        col3 = fits.Column(name="doas_vec", format="D", array=self.doas_vec)
+        col4 = fits.Column(name="doas_vec_err", format="D", array=self.doas_vec_err)
+        
+                                                        
+        cols = fits.ColDefs([col1, col2, col3, col4])
         arrays = fits.BinTableHDU.from_columns(cols)
                                             
-        roi = fits.BinTableHDU.from_columns([fits.Column(name = "roi",\
-                                format = "I", array = self.fov.roi_abs)])
+        roi = fits.BinTableHDU.from_columns([fits.Column(name="roi",
+                                                         format="I", 
+                                                         array=self.fov.roi_abs)])
+        col_ifr = fits.Column(name="ifr_res", format="D", array=ifr_res)
+        res_ifr = fits.BinTableHDU.from_columns([col_ifr])
         #==============================================================================
         # col1 = fits.Column(name = 'target', format = '20A', array=a1)
         # col2 = fits.Column(name = 'V_mag', format = 'E', array=a2)
         #==============================================================================
         
-        hdulist = fits.HDUList([fov_mask, hdu_cim, arrays, roi])
+        hdulist = fits.HDUList([fov_mask, hdu_cim, arrays, roi, res_ifr])
         fpath = join(save_dir, save_name)
         try:
             remove(fpath)
@@ -327,6 +337,7 @@ class DoasCalibData(object):
                 self.fov.search_settings[k] = val
             elif k in self.fov.result_pearson.keys():
                 self.fov.result_pearson[k] = val
+            
         try:
             self.fov.corr_img = Img(hdu[1].data.byteswap().newbyteorder())
         except:
@@ -347,7 +358,16 @@ class DoasCalibData(object):
             self.doas_vec = hdu[2].data["doas_vec"].byteswap().newbyteorder()
         except:
             print "Failed to import calibration doas data vector"
-            
+        try:
+            self.doas_vec = hdu[2].data["doas_vec_err"].byteswap().newbyteorder()
+        except:
+            print "Failed to import DOAS fit error information in calib data"
+        try:
+            self.fov.result_ifr["popt"] =\
+                hdu[4].data["ifr_res"].byteswap().newbyteorder()
+        except:
+            print ("Failed to import array containing IFR optimisation "
+                    " results from FOV search")
         self.fov.roi_abs = hdu[3].data["roi"].byteswap().newbyteorder()
     
     @property
@@ -391,8 +411,9 @@ class DoasCalibData(object):
         ax.plot(self.tau_vec, cds, ls="", marker=".",
                 label="Data %s" %add_label_str, **kwargs)
         try:
+            print "Blaaa"
             ax.errorbar(self.tau_vec, cds, yerr=self.doas_vec_err, 
-                        fmt=None, color="#919191")
+                        marker="None", ls=" ", c="#b3b3b3")
         except:
             warn("No DOAS-CD errors available")
         try:
@@ -444,7 +465,7 @@ class DoasCalibData(object):
         r = self.slope_err / self.slope
         return val * r
         
-    def __call__(self, value,  **kwargs):
+    def __call__(self, value, **kwargs):
         """Define call function to apply calibration
         
         :param float value: tau or AA value

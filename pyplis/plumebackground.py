@@ -337,6 +337,8 @@ class PlumeBackgroundModel(object):
         if mode != 0:
             if not isinstance(bg_img, Img):
                 bg_img = self.get_current("bg_raw")
+            if not bg_img.edit_log["darkcorr"]:
+                warn("Sky BG image is not corrected for dark current")
             bg = bg_img.img
             if not plume_img.is_vigncorr is bg_img.is_vigncorr:
                 raise AttributeError("Cannot model tau image: plume img and "
