@@ -28,9 +28,8 @@ if GEONUMAVAILABLE:
     from geonum.topodata import TopoAccessError
 
 class MeasGeometry(object):
-    """Class containing features related to measurement geometry"""
+    """Class for calculations and management of the measurement geometry"""
     def __init__(self, source_info={}, cam_info={}, wind_info={}):
-        """Class initialisation"""
         self.geo_setup = GeoSetup()
         
         self.source     =   od([("name"         ,   ""),
@@ -65,7 +64,8 @@ class MeasGeometry(object):
         self.update_source_specs(source_info)
         self.update_cam_specs(cam_info)
         self.update_wind_specs(wind_info)
-        self.update_geosetup()
+        if any([bool(x)==True for x in [source_info, cam_info, wind_info]]):
+            self.update_geosetup()
     
     @property
     def cam_id(self):
@@ -151,14 +151,13 @@ class MeasGeometry(object):
         return cam_ok, source_ok
         
     def update_geosetup(self):
-        """Update the current ``self.geo_setup`` object with coordinates, 
-        borders etc...
-        
-        .. note:: 
-        
-            the borders of the range are determined considering cam pos, source
-            pos and the position of the cross section of viewing direction with 
-            plume
+        """Update the current GeoSetup object
+            
+        Note
+        ----
+        The borders of the range are determined considering cam pos, source
+        pos and the position of the cross section of viewing direction with 
+        plume
             
         """   
         cam_ok, source_ok = self._check_geosetup_info()
@@ -203,12 +202,14 @@ class MeasGeometry(object):
                             self._map_extend_km(), to_square = True)
             print "MeasGeometry was updated and fulfills all requirements"
             return True
+        
         elif cam_ok:
             cam_view_vec = GeoVector3D(azimuth = self.cam["azim"], elevation =\
                 self.cam["elev"], dist_hor = mag, anchor = cam, name = "cfov")
             self.geo_setup.add_geo_vector(cam_view_vec)
             print "MeasGeometry was updated but misses source specifications"
         print "MeasGeometry not (yet) ready for analysis"
+        
         return False
             
     

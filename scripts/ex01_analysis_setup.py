@@ -44,7 +44,7 @@ check_version()
 
 import pyplis as pyplis
 from datetime import datetime
-from matplotlib.pyplot import show
+from matplotlib.pyplot import show, close
 
 
 ### IMPORT GLOBAL SETTINGS
@@ -84,7 +84,8 @@ def create_dataset():
     #cam = pyplis.setup.Camera(cam_id, filter_list=filters, lon=15.1129,
     #                           lat=37.73122)
 
-    cam = pyplis.setupclasses.Camera(cam_id, filter_list=filters, **geom_cam)
+    cam = pyplis.setupclasses.Camera(cam_id, filter_list=filters, 
+                                     **geom_cam)
     
     ### Load default information for Etna
     source = pyplis.setupclasses.Source("etna")
@@ -98,7 +99,8 @@ def create_dataset():
 
     ### Create BaseSetup object (which creates the MeasGeometry object)
     stp = pyplis.setupclasses.MeasSetup(IMG_DIR, start, stop, camera=cam,
-                                         source=source, wind_info=wind_info)
+                                        source=source, 
+                                        wind_info=wind_info)
     
     ### Create analysis object (from BaseSetup)
     # The dataset takes care of finding all vali
@@ -107,6 +109,7 @@ def create_dataset():
 
 ### SCRIPT MAIN FUNCTION    
 if __name__ == "__main__":
+    close("all")
     ds = create_dataset()
     img = ds.get_list("on").current_img()
     
