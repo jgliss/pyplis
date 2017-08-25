@@ -207,15 +207,15 @@ def get_camera_info(cam_id):
         darkinfo = []
         found = 0
         for ll in f:
-            for ll in f:
-                line = ll.rstrip()
+            line = ll.rstrip()
+            if line:
                 if "END" in line and found:
                     dat["default_filters"] = filters
                     dat["dark_info"] = darkinfo
                     return dat
                 spl = line.split(":")
                 if found:
-                    if not any([line[0] == x for x in["#"]]):
+                    if line[0] != "#":
                         spl = line.split(":")
                         k = spl[0].strip()
                         if k == "dark_info":

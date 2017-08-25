@@ -682,6 +682,42 @@ class Img(object):
         """Returns maximum value of current image data"""
         return self.img.max()
     
+    def set_val_below_thresh(self, val, threshold):
+        """Sets value in all pixels with intensities below threshold
+        
+        Note
+        ----
+        Modifies this Img object
+        
+        Parameters
+        ----------
+        val : float
+            new value for all pixels below the input threshold
+        threshold : float
+            considered intensity threshold
+        """
+        mask = self.img < threshold
+        self.img[mask] = val
+        self.edit_log["others"] = True
+    
+    def set_val_above_thresh(self, val, threshold):
+        """Sets value in all pixels with intensities above threshold
+        
+        Note
+        ----
+        Modifies this Img object
+        
+        Parameters
+        ----------
+        val : float
+            new value for all pixels above the input threshold
+        threshold : float
+            considered intensity threshold
+        """
+        mask = self.img > threshold
+        self.img[mask] = val
+        self.edit_log["others"] = True
+        
     def blend_other(self, other, fac=0.5):
         """Blends another image to this and returns new Img object
         

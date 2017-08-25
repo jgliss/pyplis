@@ -109,6 +109,11 @@ def create_dataset():
 if __name__ == "__main__":
     ds = create_dataset()
     img = ds.get_list("on").current_img()
+    
+    #Set pixel intensities below 2000 to 0 (method of Img class)
+    img.set_val_below_thresh(val=0, threshold=2000)
+    #show modified image
+    img.show()
     print str(img) #the image object has an informative string representation
     
     
