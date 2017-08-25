@@ -72,14 +72,30 @@ class Dataset(object):
         self.lists_access_info = od()
     
         ok = self.load_input(input)
-    
+        
         if init and ok:                                               
             self.init_image_lists()
+        else:
+            self.create_lists_default()
                                                         
     def load_input(self, input):
-        """Extract information from input and set / update self.setup"""
+        """Extract information from input and set / update self.setup
+        
+        Parameters
+        ----------
+        input 
+            Usable ``input`` includes :class:`MeasSetup` instance or a 
+            valid image directory.
+            
+        Returns
+        -------
+        bool 
+            ``True``, if input could be utilised, ``False`` if not
+            
+        """
         if self.set_setup(input):
             return 1
+        print "Creating empty MeasSetup within Dataset"
         self.setup = MeasSetup()
         if input is None:
             return 0
@@ -88,21 +104,46 @@ class Dataset(object):
                   "directory: %s" %input)
             self.change_img_base_dir(input)
         else:
-            msg=("Invalid input: %s.\n Require MeasSetup or valid "
-                 "directory containing images" %type(input))
-            raise TypeError(msg)   
-        
+            raise TypeError("Invalid input: %s.\n Require MeasSetup or "
+                            "valid directory containing images" 
+                            %type(input))   
         return 0
     
     def set_setup(self, stp):
-        """Set the current :class:`MeasSetup` object"""
+        """Set the current measurement setup
+        
+        Parameters
+        ----------
+        stp : MeasSetup
+           Class containing information about measurement setup
+           
+        """
         if isinstance(stp, MeasSetup):
-            print "Updating setup in Dataset"
+            print "Updating measurement setup in Dataset"
             self.setup = stp
             return 1
         return 0
-        
-    def init_all_img_lists(self):
+    
+    def init_image_lists(self):
+        """"Create and fill image lists"""
+        #: create img list objects for each filter and for dark / offset lists
+        self.create_lists_cam() 
+        return self.fill_image_lists()
+     
+    def create_lists_default(self):
+        """Initialisation of default lists (if camera specs not available)"""
+        self._lists_intern = od()
+        for key, f in self.filters.filters.iteritems():
+            l = self.lst_type(list_id=key, list_type=f.type, 
+                              camera=self.camera, 
+                              geometry=self.meas_geometry)
+            l.filter = f
+            if not self._lists_intern.has_key(f.meas_type_acro):
+                self._lists_intern[f.meas_type_acro] = od()
+            self._lists_intern[f.meas_type_acro][f.acronym] = l
+            self.lists_access_info[f.id] = [f.meas_type_acro, f.acronym]
+            
+    def create_lists_cam(self):
         """Initialisation of all image lists, old lists are deleted"""
         self._lists_intern = od()
         for key, f in self.filters.filters.iteritems():
@@ -130,72 +171,12 @@ class Dataset(object):
             self._lists_intern[item.meas_type_acro][item.acronym] = l
             self.lists_access_info[item.id] = [item.meas_type_acro,\
                                                             item.acronym]
-    
-    def get_all_filepaths(self):
-        """Gets all valid file paths"""
-        print "\nSEARCHING VALID FILE PATHS IN\n%s\n" %self.base_dir
-        
-        p = self.base_dir
-        ftype = self.file_type
-        if not isinstance(ftype, str):
-            print ("file_type not specified in Dataset..."
-                "Using all files and file_types")
-            self.setup.options["USE_ALL_FILES"] = True
-            self.setup.options["USE_ALL_FILE_TYPES"] = True
-     
-        if p is None or not exists(p):
-            message = ('Error: path %s does not exist' %p)
-            print message 
-            return []
-        
-        if not self.INCLUDE_SUB_DIRS:
-            print "Exclude files from subdirectories"
-            if self.USE_ALL_FILE_TYPES:
-                print "Using all file types"
-                all_paths = [join(p, f) for f in listdir(p) if 
-                             isfile(join(p, f))]
-            else:
-                print "Using only %s files" %self.file_type
-                all_paths = [join(p, f) for f in listdir(p) if
-                             isfile(join(p, f)) and f.endswith(ftype)]
             
-        else:
-            print "Include files from subdirectories"
-            all_paths = []
-            if self.USE_ALL_FILE_TYPES:
-                print "Using all file types"
-                for path, subdirs, files in walk(p):
-                   for filename in files:
-                       all_paths.append(join(path, filename))
-            else:
-                print "Using only %s files" %ftype
-                for path, subdirs, files in walk(p):
-                    for filename in files:
-                        if filename.endswith(ftype):
-                            all_paths.append(join(path, filename))
-    
-        all_paths.sort() 
-        print ("Total number of files found %s" %len(all_paths))
-        
-        return all_paths
-    
-
-    def init_image_lists(self):
-        """"Wrapper for :func:`fill_image_lists`"""
-        return self.fill_image_lists()
-        
     def fill_image_lists(self):
-        """Import all images and create image list objects"""
-        
-        print "\n+++++++++++++++++++++++++++++++++++++++++++++++++"
-        print "+++++++++ INIT IMAGE LISTS IN DATASET +++++++++++"
-        print "+++++++++++++++++++++++++++++++++++++++++++++++++\n"
-        
+        """Import all images and fill image list objects"""        
         warnings = []
         cam = self.camera
-        
-        #: create img list objects for each filter and for dark / offset lists
-        self.init_all_img_lists() 
+    
         #: check if image filetype is specified and if not, set option to use 
         #: all file types
         self._check_file_type() 
@@ -230,8 +211,8 @@ class Dataset(object):
         #: Set option to use all files in case acquisition time stamps cannot
         #: be accessed from filename
         if not flags["start_acq"]:
-            print ("Acquisition time access from filename not possible, using "
-                "all files")
+            print ("Acquisition time access from filename not possible, "
+                   "using all files")
             self.setup.options["USE_ALL_FILES"] = True
         
         #: Separate the current list based on specified time stamps
@@ -282,11 +263,84 @@ class Dataset(object):
             pass
         [warn(x) for x in warnings]
         return True
+    
+    def get_all_filepaths(self):
+        """Find all valid image filepaths in current base directory
+        
+        Returns
+        -------
+        list
+            list containing all valid image file paths (Note, that these
+            include all files found in the folder(s) in case the file
+            type is not explicitely set in the camera class.)
+            
+        """
+        print "\nSEARCHING VALID FILE PATHS IN\n%s\n" %self.base_dir
+        
+        p = self.base_dir
+        ftype = self.file_type
+        if not isinstance(ftype, str):
+            print ("file_type not specified in Dataset..."
+                "Using all files and file_types")
+            self.setup.options["USE_ALL_FILES"] = True
+            self.setup.options["USE_ALL_FILE_TYPES"] = True
+     
+        if p is None or not exists(p):
+            message = ('Error: path %s does not exist' %p)
+            print message 
+            return []
+        
+        if not self.INCLUDE_SUB_DIRS:
+            print ("Image search is only performed in specified directory "
+                   "and does not include subdirectories")
+            if self.USE_ALL_FILE_TYPES:
+                print "Using all file types"
+                all_paths = [join(p, f) for f in listdir(p) if 
+                             isfile(join(p, f))]
+            else:
+                print "Using only %s files" %self.file_type
+                all_paths = [join(p, f) for f in listdir(p) if
+                             isfile(join(p, f)) and f.endswith(ftype)]
+            
+        else:
+            print ("Image search includes files from subdirectories")
+            all_paths = []
+            if self.USE_ALL_FILE_TYPES:
+                print "Using all file types"
+                for path, subdirs, files in walk(p):
+                   for filename in files:
+                       all_paths.append(join(path, filename))
+            else:
+                print "Using only %s files" %ftype
+                for path, subdirs, files in walk(p):
+                    for filename in files:
+                        if filename.endswith(ftype):
+                            all_paths.append(join(path, filename))
+    
+        all_paths.sort() 
+        print ("Total number of files found %s" %len(all_paths))
+        
+        return all_paths
         
     def check_filename_info_access(self, filepath):
         """Checks which information can be accessed from file name
         
-        :param str filepath: image file path        
+        The access test is performed based on the filename access 
+        information specified in the :class:`Camera` object of the 
+        measurement setup
+        
+        Parameters
+        ----------
+        filepath : str
+            valid file path of an example image
+            
+        Returns
+        -------
+        dict
+            Dictionary containing information about which meta inforamtion
+            could be identified from the image file path based on the 
+            current camera
+            
         """
         err = self.camera.get_img_meta_from_filename(filepath)[4]
         for item in err:
@@ -299,8 +353,8 @@ class Dataset(object):
         :param str p: new path
         """
         if not exists(img_dir):
-            msg = ("Could not update base_dir, input path %s does not exist" 
-                                                                    %img_dir)
+            msg = ("Could not update base_dir, input path %s does not "
+                   "exist" %img_dir)
             print msg
             self.warnings.append(msg)
             return 0
@@ -693,11 +747,18 @@ class Dataset(object):
  
     
     def load_images(self):
-        """This function loads the current images in all ImageLists in the 
-        :mod:`SortedList` object of this :mod:`Dataset`.
+        """This function loads the current images in all image lists
+        
+        Note
+        ----
+        Gives warning for lists containing no images
+        
         """  
         for lst in self.all_lists():
-            lst.load()    
+            if lst.nof > 0:
+                lst.load()    
+            else:
+                warn("No images available in list %s" %lst.list_id)
         
     def update_image_prep_settings(self, **settings):
         """Update image preparation settings in all image lists"""
@@ -1041,3 +1102,11 @@ class Dataset(object):
         for k, v in tm.iteritems():
             lists[k].activate_tau_mode(v)
         return axes
+    
+    """
+    OLD METHODS (RENAMED)
+    """
+    def init_all_img_lists(self):
+        """Wrapper method for create_lists_cam"""
+        warn("Old name of method create_lists_cam")
+        return self.create_lists_cam()

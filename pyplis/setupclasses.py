@@ -691,7 +691,9 @@ class BaseSetup(object):
         try:
             self._start = to_datetime(val)
         except:
-            warn("Input %s could not be assigned to start time in setup" %val)
+            if val is not None:
+                warn("Input %s could not be assigned to start time in "
+                     "setup" %val)
     
     @property
     def stop(self):
@@ -703,7 +705,9 @@ class BaseSetup(object):
         try:
             self._stop = to_datetime(val)
         except:
-            warn("Input %s could not be assigned to stop time in setup" %val)
+            if val is not None:
+                warn("Input %s could not be assigned to stop time in "
+                     "setup" %val)
             
     def check_timestamps(self):
         """Check if timestamps are valid and set to current time if not"""
@@ -844,15 +848,20 @@ class BaseSetup(object):
         return s   
     
 class MeasSetup(BaseSetup):
-    """**Setup class for plume image data** 
+    """Setup class for plume image data
     
     In this class, everything related to a full measurement setup is 
-    defined, i.e. includes image base directory, start / stop time stamps, 
-    :class:`Source`, :class:`Camera` and meteorology information (wind 
-    direction and velocity, stored as Python dictionary). 
-    :class:`MeasSetup` objects are the default input for 
-    :class:`pyplis.dataset.Dataset` objects (i.e. also 
-    :class:)
+    defined. This includes the image base directory, start / stop time 
+    stamps (if applicable), specifications of the emission source (i.e.
+    :class:`Source` object), camera specifications (i.e. :class:`Camera` 
+    object) as well as meteorology information (i.e. wind direction and 
+    velocity). The latter is not represented as an own class in Pyplis but
+    is stored as a Python dictionary. :class:`MeasSetup` objects are the 
+    default input for :class:`pyplis.dataset.Dataset` objects (i.e. also 
+    :class:`pyplis.cellcalib.CellCalibEngine`).
+    
+    Attributes
+    ----------
     """
     def __init__(self, base_dir=None, start=None, stop=None, camera=None,
                  source=None, wind_info=None, cell_info_dict={}, rects={},
@@ -886,12 +895,13 @@ class MeasSetup(BaseSetup):
                              ("vel"     ,   None),    
                              ("vel_err" ,   None)])
                           
-        self.meas_geometry = MeasGeometry()
-        
         if isinstance(wind_info, dict):
             self.update_wind_info(wind_info)
-            
-        self.update_meas_geometry()
+        
+        self.meas_geometry = MeasGeometry(self.source.to_dict(),
+                                          self.camera.to_dict(), 
+                                          self.wind_info)    
+        #self.update_meas_geometry()
     
     @property
     def source(self):
@@ -907,6 +917,7 @@ class MeasSetup(BaseSetup):
         if not isinstance(value, Source):
             raise TypeError("Invalid input type, need Source object")
         self._cam_source_dict["source"] = value
+        
     
     @property
     def camera(self):
@@ -1007,6 +1018,7 @@ class MeasSetup(BaseSetup):
     
     def update_meas_geometry(self):
         """Update the meas geometry based on current settings"""
+        print "Updating MeasGeometry in MeasSetup class"
         self.meas_geometry.__init__(self.source.to_dict(),\
                         self.camera.to_dict(), self.wind_info)
         

@@ -6,10 +6,44 @@ from collections import OrderedDict as od
 from pandas import Series
 from os.path import basename, exists
 from warnings import warn
-from .inout import get_camera_info, save_new_default_camera
+from .inout import get_camera_info, save_new_default_camera, get_cam_ids
 import custom_image_import
-
         
+def identify_camera_from_filename(filepath):
+    """Identify camera based on image filepath convention
+    
+    Parameters
+    ----------
+    filepath : str
+        valid image file path
+    
+    Returns
+    -------
+    str
+       ID of Camera that matches best
+       
+    Raises
+    ------
+    IOError
+        Exception is raised if no match can be found
+    """
+    if not exists(filepath):
+        warn("Invalid file path")
+    cam_id = None
+    all_ids = get_cam_ids()
+    max_match_num = 0
+    for cid in all_ids:
+        cam = CameraBaseInfo(cid)
+        cam.get_img_meta_from_filename(filepath)
+        matches = sum(cam._fname_access_flags.values())
+        if matches > max_match_num:
+            max_match_num = matches
+            cam_id = cid
+    if max_match_num == 0:
+        raise IOError("Camera type could not be identified based on input"
+                      "file name %s" %basename(filepath))
+    return cam_id
+    
 class CameraBaseInfo(object):
     """Low level base class for camera specific information 
     
