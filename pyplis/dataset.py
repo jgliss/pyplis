@@ -5,7 +5,7 @@ automated separation of image files by their type (e.g. on-band, off-band,
 dark, offset) using information from a file naming convention specified 
 within a :class:`Camera` object.
 """
-from os.path import exists, join, isfile
+from os.path import exists, join, isfile, isdir
 from os import listdir, walk
 from warnings import warn
 from datetime import datetime, date
@@ -31,7 +31,38 @@ class Dataset(object):
     meteorological wind direction, start / stop time stamps and the image 
     base directory.
     
-    This object finds all images in the 
+    Attributes
+    ----------
+    setup : MeasSetup
+        class containing measurement setup information
+    lst_type : object
+        default type of ImgList objects (cf. :class:`CellCalibEngine`)
+    lists_access_info : OrderedDict
+        dictionary filled on data import based on camera specifications. 
+        Used to map API IDs of filters and dark / offset information 
+        (e.g. "on", "off", "dark0") onto internal list keys. It is normally
+        not required to use this dictionary or apply changes to it. 
+        For EC2 camera standard this will look like::
+            
+            >>> self.lists_access_info
+            OrderedDict([('on', ['F01', 'F01']),
+                         ('off', ['F02', 'F02']),
+                         ('offset0', ['D0L', 'D0L']),
+                         ('dark0', ['D1L', 'D1L']),
+                         ('offset1', ['D0H', 'D0H']),
+                         ('dark1', ['D1H', 'D1H'])])
+    
+    Parameters
+    ----------
+    input
+        Usable ``input`` includes :class:`MeasSetup` instance or a valid
+        image directory. ``input`` is passed to :func:`load_input`.
+    lst_type : object
+        default type of image list objects (e.g. :class:`ImgList`, 
+        :class:`CellImgList`), defaults to :class:`ImgList`.
+    init : bool
+        init
+    
     """
     def __init__(self, input=None, lst_type=ImgList, init=1):
         self.setup = None
@@ -40,36 +71,33 @@ class Dataset(object):
         self._lists_intern = od()
         self.lists_access_info = od()
     
-        self.load_input(input)
+        ok = self.load_input(input)
     
-        if init:                                               
+        if init and ok:                                               
             self.init_image_lists()
                                                         
     def load_input(self, input):
         """Extract information from input and set / update self.setup"""
-        print "Checking and loading input in Dataset"
         if self.set_setup(input):
             return 1
-        msg = ("Input is not MeasSetup, create new (default) MeasSetup object")
-        print msg
         self.setup = MeasSetup()
-        if input == None:
-            return 1
-        if isinstance(input, str) and exists(input):            
-            msg = ("Input is filepath, assuming this to be image base path: "
-                "updating base_dir variable in self.setup")
-            print msg
+        if input is None:
+            return 0
+        if isinstance(input, str) and isdir(input):            
+            print("Updating base_dir variable in self.setup with input "
+                  "directory: %s" %input)
             self.change_img_base_dir(input)
         else:
-            msg=("Unkown input setup type: " + str(type(input)))
+            msg=("Invalid input: %s.\n Require MeasSetup or valid "
+                 "directory containing images" %type(input))
             raise TypeError(msg)   
         
-        return 1
+        return 0
     
     def set_setup(self, stp):
         """Set the current :class:`MeasSetup` object"""
         if isinstance(stp, MeasSetup):
-            print "Updating setup in Dataset...."
+            print "Updating setup in Dataset"
             self.setup = stp
             return 1
         return 0
@@ -79,7 +107,8 @@ class Dataset(object):
         self._lists_intern = od()
         for key, f in self.filters.filters.iteritems():
             l = self.lst_type(list_id=key, list_type=f.type, 
-                              camera=self.camera, geometry=self.meas_geometry)
+                              camera=self.camera, 
+                              geometry=self.meas_geometry)
             l.filter = f
             if not self._lists_intern.has_key(f.meas_type_acro):
                 self._lists_intern[f.meas_type_acro] = od()
@@ -87,8 +116,8 @@ class Dataset(object):
             self.lists_access_info[f.id] = [f.meas_type_acro, f.acronym]
             
         if not bool(self.camera.dark_info):
-            msg = ("Warning: dark image lists could not be initiated, no dark "
-                "image file information available in `self.camera`")
+            msg = ("Warning: dark image lists could not be initiated, no "
+                   "dark image file information available in self.camera")
             print msg
             return 0    
         
