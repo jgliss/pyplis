@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 """
-This module contains several setup classes related to measurement data and 
-analysis, the most important ones are:
+The Pyplis *setupclasses.py* module contains several setup classes which 
+allow to specify relevant parameters for the emission-rate analysis.
+The most important ones are:
 
     1. :class:`Source`: emission source specifications
     #. :class:`FilterSetup`: collection of interference filters used
