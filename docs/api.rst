@@ -8,15 +8,31 @@ API
   
 Setup classes
 =============
+
+.. automodule:: pyplis.setupclasses
+   :members:
+   :undoc-members:
    
 Data Set object
 ===============
+
+.. automodule:: pyplis.dataset
+   :members:
+   :undoc-members:
    
 Measurement geometry
 ====================
 
+.. automodule:: pyplis.geometry
+   :members:
+   :undoc-members:
+
 Image base module
 =================
+
+.. automodule:: pyplis.image
+   :members:
+   :undoc-members:
 
 Image list objects
 ==================
@@ -35,6 +51,9 @@ Processing module
 Plume background analysis
 =========================
 
+.. automodule:: pyplis.plumebackground
+   :members:
+   :undoc-members:
 
 Plume velocity analysis
 =======================
@@ -45,12 +64,24 @@ Plume velocity analysis
 
 Cell calibration
 ================
+
+.. automodule:: pyplis.cellcalib
+   :members:
+   :undoc-members:
    
 DOAS calibration
 ================
+
+.. automodule:: pyplis.doascalib
+   :members:
+   :undoc-members:
    
 Emission rate retrieval
 =======================
+
+.. automodule:: pyplis.fluxcalc
+   :members:
+   :undoc-members:
    
 Signal dilution correction
 ==========================
@@ -81,6 +112,10 @@ Mathematical model functions
       
 I/O routines
 ============
+
+.. automodule:: pyplis.inout
+   :members:
+   :undoc-members:
 
 Helper functions
 ================
