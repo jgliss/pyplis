@@ -15,6 +15,9 @@
 import sys
 import os
 import shlex
+import matplotlib
+
+matplotlib.use('agg')
 
 with open(os.path.join("..", "VERSION.rst")) as f:
     __version__ = f.readline()
@@ -29,8 +32,6 @@ class Mock(MagicMock):
     @classmethod
     def __getattr__(cls, name):
         return Mock()
-
-autodoc_mock_imports = ['_tkinter']
 
 MOCK_MODULES = [
     'mpl_toolkits.basemap',
