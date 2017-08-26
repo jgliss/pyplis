@@ -30,6 +30,8 @@ class Mock(MagicMock):
     def __getattr__(cls, name):
         return Mock()
 
+autodoc_mock_imports = ['_tkinter']
+
 MOCK_MODULES = [
     'mpl_toolkits.basemap',
     'cv2',
