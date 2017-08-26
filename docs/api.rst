@@ -18,10 +18,6 @@ Measurement geometry
 Image base module
 =================
 
-.. automodule:: pyplis.image
-   :members:
-   :undoc-members:
-
 Image list objects
 ==================
 
@@ -31,6 +27,7 @@ Image list objects
    
 Processing module
 =================
+
 .. automodule:: pyplis.processing
    :members:
    :undoc-members:
@@ -38,9 +35,6 @@ Processing module
 Plume background analysis
 =========================
 
-.. automodule:: pyplis.plumebackground
-   :members:
-   :undoc-members:
 
 Plume velocity analysis
 =======================
@@ -51,24 +45,12 @@ Plume velocity analysis
 
 Cell calibration
 ================
-
-.. automodule:: pyplis.cellcalib
-   :members:
-   :undoc-members:
    
 DOAS calibration
 ================
-
-.. automodule:: pyplis.doascalib
-   :members:
-   :undoc-members:
    
 Emission rate retrieval
 =======================
-
-.. automodule:: pyplis.fluxcalc
-   :members:
-   :undoc-members:
    
 Signal dilution correction
 ==========================
@@ -100,10 +82,6 @@ Mathematical model functions
 I/O routines
 ============
 
-.. automodule:: pyplis.inout
-   :members:
-   :undoc-members:
-
 Helper functions
 ================
 
@@ -113,6 +91,7 @@ Helper functions
    
 Forms and geometrical objects
 =============================
+
 .. automodule:: pyplis.forms
    :members:
    :undoc-members:
