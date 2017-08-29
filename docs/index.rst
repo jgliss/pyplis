@@ -39,6 +39,7 @@ Click `here to see a video showing an animation of Mt. Etna SO2 emissions record
    examples
    api
    supplemental
+   changelog
    
 Indices and tables
 ==================

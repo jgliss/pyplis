@@ -97,3 +97,19 @@ After release 0.11.2 (not yet released)
 #. Changed all names in :mod:`fluxcalc.py` related to optical flow based velocity retrievals which included ``farneback`` to ``flow`` (not downward compatible)
 
 #. New class ``EmissionRateRatio`` in :mod:`fluxcalc`  
+
+22/05 - 29/08/2017 (v0.11.4 -> v0.12.0)
+=======================================
+
+1. Removed some bugs
+
+#. Added functionality to :class:`Img` objects
+
+#. DOAS calibration data can now be fitted using weighted regression based on DOAS fit errors. Note, that new default is weighted fitting, if applicable (i.e. if uncertainties are available).
+
+#. New class :class:`VeloCrossCorrEngine` in :mod:`plumespeed.py` for high level computing of cross correlation based velocity retrievals.
+
+  ..note:: 
+    This includes changes in example script 8, which now uses the new class. Thus, running the current version of example script 8 will not work with older versions of Pyplis.  
+    
+#. Started with implementation of test suite using pytest

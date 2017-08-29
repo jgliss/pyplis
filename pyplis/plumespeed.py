@@ -11,7 +11,7 @@ Todo
 """
 from numpy import mgrid,vstack,int32,sqrt,arctan2,rad2deg, asarray, sin, cos,\
     logical_and, histogram, ceil, roll, argmax, arange, ndarray,\
-    deg2rad, nan, dot, mean
+    deg2rad, nan, dot, mean, isnan, float32, sum, empty
 from numpy.linalg import norm
 from traceback import format_exc
 from copy import deepcopy
@@ -35,13 +35,14 @@ from cv2 import calcOpticalFlowFarneback, OPTFLOW_FARNEBACK_GAUSSIAN,\
 from .helpers import bytescale, check_roi, map_roi, roi2rect, set_ax_lim_roi,\
     nth_moment, rotate_xtick_labels
 from .optimisation import MultiGaussFit
-from .processing import LineOnImage
+from .processing import LineOnImage, ProfileTimeSeriesImg
 from .image import Img
+from .geometry import MeasGeometry
 #LABEL_SIZE=rcParams["font.size"]+ 2
 
-def get_veff(normal_vec, dir_mu, dir_sigma, len_mu, len_sigma, pix_dist_m=1.0, 
-             del_t=1.0, sigma_tol=2):
-    """Calculate effective velocity through line element with normal vector n
+def get_veff(normal_vec, dir_mu, dir_sigma, len_mu, len_sigma, 
+             pix_dist_m=1.0, del_t=1.0, sigma_tol=2):
+    """Calculate effective velocity through line element with normal n
     
     The velocity is estimated based on a provided displacement angle and 
     magnitude which is converted into dx and dy displacement and projected to 
@@ -51,7 +52,8 @@ def get_veff(normal_vec, dir_mu, dir_sigma, len_mu, len_sigma, pix_dist_m=1.0,
     Parameters
     ----------
     normal_vec : array
-        2D normal vector relative to which the effective velocity is retrieved
+        2D normal vector relative to which the effective velocity is 
+        retrieved
     dir_mu : float
         expectation value of displacement orientation angle in degrees 
         (e.g. retrieved using histogram analysis)
@@ -104,8 +106,11 @@ def get_veff(normal_vec, dir_mu, dir_sigma, len_mu, len_sigma, pix_dist_m=1.0,
 def find_signal_correlation(first_data_vec, next_data_vec, 
                             time_stamps=None, reg_grid_tres=None, 
                             freq_unit="S", itp_method="linear", 
-                            cut_border_idx=0, sigma_smooth=1, plot=False):
+                            cut_border_idx=0, sigma_smooth=1, plot=False,
+                            **kwargs):
     """Determines cross correlation from two ICA time series
+    
+    This is
     
     Parameters
     ----------
@@ -148,8 +153,7 @@ def find_signal_correlation(first_data_vec, next_data_vec,
         - *array*: retrieved correlation coefficients for all shifts 
         - *Series*: analysis signal 1. data vector 
         - *Series*: analysis signal 2. data vector 
-        - *Series*: analysis signal 2. data vector shifted using ``lag``
-        
+        - *Series*: analysis signal 2. data vector shifted using ``lag`    
     """
     if not all([isinstance(x, ndarray) for x in\
                     [first_data_vec, next_data_vec]]):
@@ -181,9 +185,6 @@ def find_signal_correlation(first_data_vec, next_data_vec,
         
         s1 = Series(first_data_vec, time_stamps)
         s2 = Series(next_data_vec, time_stamps)
-        fig, ax = subplots(1,2)
-        s1.plot(ax=ax[0])
-        s2.plot(ax=ax[1])
         # this try except block was inserted due to bug when using code in 
         # exception statement with pandas > 0.19, it worked, though with 
         # pandas v0.16
@@ -247,6 +248,550 @@ def find_signal_correlation(first_data_vec, next_data_vec,
     lag = argmax(coeffs) * lag_fac
     return lag, coeffs, s1_ana, s2_ana, max_coeff_signal, ax
 
+class VeloCrossCorrEngine(object):
+    """Class for plume velocity retrieval using cross-correlation method
+    
+    This class can be used to calculate the plume velocity based on a 
+    cross-correlation analysis of two ICA time-series retrieved from a set
+    of plume images between two (ideally parallel) plume intersection 
+    lines.
+    
+    Attributes
+    ----------
+    profile_images : dict
+        dictionary containing PCS profile images, which are 
+        :class:`ProfileTimeSeriesImg` and where the x-axis corresponds to 
+        the image index (time) and the y-axis the corresponding line 
+        profiles for each of the two PCS lines. These images can be saved
+        as FITS and reload, which can accelarate a reanalysis process (the
+        bottleneck of the cross correlation analysis is loading all images
+        in the list and retrieving the actual PCS profiles along both 
+        lines). Valid keys: ``pcs`` and ``pcs_offset``.
+    
+    results : dict
+        results of cross-correlation analysis, will be filled in 
+        :func:`get_velocity`.
+    
+    Parameters
+    ----------
+    imglist
+        Image list used to retrieve time series of integrated column 
+        amounts along 2 suitable plume intersections used for velocity
+        retrieval
+    pcs : LineOnImage
+        Plume cross section line used for velocity retrieval
+    pcs_offset : LineOnImage
+        Second (shifted to ``pcs``) PCS line used for velocity retrieval
+    meas_geometry
+        optional: :class:`MeasGeometry` object used to calculate in-plume
+        pix-to-pix distances. If None, then the :class:`MeasGeometry` 
+        object of the assigned :class:`ImgList` (:attr:`imglist`) is used.
+    **settings
+        optional keyword args passed to :func:`find_signal_correlation` 
+        (used in class method :func:`get_velocity`).
+        
+    """
+    def __init__(self, imglist, pcs, pcs_offset=None, 
+                 meas_geometry=None, **settings):
+        
+        self._imglist = None
+        self._lines = {"pcs"            :   None,
+                       "pcs_offset"     :   None}
+        
+        self.profile_images = {"pcs"        :   None,
+                               "pcs_offset" :   None}
+        
+        self.imglist = imglist
+        self._meas_geometry = None
+        
+        self.results = {"velo"              :   nan,
+                        "lag"               :   nan,
+                        "coeffs"            :   None,
+                        "ica_tseries_pcs"   :   None, 
+                        "ica_tseries_offset":   None, 
+                        "ica_tseries_shift" :   None}
+        
+        #see :func:`find_signal_correlation` for details about parameters
+        self.settings = {"reg_grid_tres"    :   None, 
+                         "freq_unit"        :   "S", 
+                         "itp_method"       :   "linear", 
+                         "cut_border_idx"   :   0,
+                         "sigma_smooth"     :   1}
+        
+        self.update_settings(settings)
+        self.pcs = pcs
+        
+        try:
+            self.pcs_offset = pcs_offset
+        except:
+            pass
+        
+        try:
+            self.meas_geometry = meas_geometry
+        except:
+            pass
+      
+    def update_settings(self, settings_dict):
+        """Update valid settings for cross correlation retrieval
+        
+        Parameters
+        ----------
+        settings_dict : dict
+            dictionary containing new settings
+        """
+        for k, v in settings_dict.iteritems():
+            if self.settings.has_key(k):
+                print ("Updating cross-correlation search setting %s=%s" 
+                       %(k, v))
+                self.settings[k] = v
+    
+    @property
+    def velocity(self):
+        """Retrieved plume velocity
+        
+        Raises
+        ------
+        ValueError
+            if velocity is nan (default). 
+        """
+        v = self.results["velo"]
+        if isnan(v):
+            raise ValueError("Velocity is NaN, correlation analysis"
+                             " performed?")
+        return v
+    
+    @property
+    def correlation_lag(self):
+        """Time lag showing highest correlation between two ICA time-series
+        
+        Raises
+        ------
+        ValueError
+            if velocity is nan (default). 
+            
+        """
+        lag = self.results["lag"]
+        if isnan(lag):
+            raise ValueError("Correlation lag is not available, analysis"
+                             " performed?")
+        return lag
+          
+    @property
+    def pcs(self):
+        """The PCS line used for the velocity retrieval"""
+        return self._lines["pcs"]
+    
+    @pcs.setter
+    def pcs(self, val):
+        if not isinstance(val, LineOnImage):
+            raise IOError("Invalid input, need LineOnImage object")
+        self._lines["pcs"] = val
+    
+    @property
+    def pcs_offset(self):
+        """The PCS offset line used for the velocity retrieval"""
+        return self._lines["pcs_offset"]
+    
+    @pcs_offset.setter
+    def pcs_offset(self, val):
+        if not isinstance(val, LineOnImage):
+            raise IOError("Invalid input, need LineOnImage object")
+        self._lines["pcs_offset"] = val
+    
+    @property
+    def imglist(self):
+        """The image list supposed to be used for the analysis"""
+        return self._imglist
+    
+    @imglist.setter
+    def imglist(self, val):
+        self.check_list(val)
+        self._imglist = val
+    
+    @property
+    def meas_geometry(self):
+        """Return measurement geometry from image list"""
+        if isinstance(self._meas_geometry, MeasGeometry):
+            return self._meas_geometry
+        else:
+            try:
+                return self.imglist.meas_geometry
+            except:
+                raise AttributeError("Could not access measurement geometry "
+                                     "from image list. Check if an image list "
+                                     "is set using self.imglist")
+                
+    @meas_geometry.setter
+    def meas_geometry(self, val):
+        if not isinstance(val, MeasGeometry):
+            raise IOError("Invalid input: need MeasGeometry object")
+        self._meas_geometry = val
+    
+    @property
+    def pcs_profile_pics(self):
+        """Checks and, if applicable, returns current PCS profile images"""
+        img1 = self.profile_images["pcs"]
+        img2 = self.profile_images["pcs_offset"]
+        if not all([isinstance(x, ProfileTimeSeriesImg) for x in 
+                    [img1, img2]]):
+            raise ValueError("Could not access ProfileTimeSeriesImg "
+                             "objects for the two PCS lines. You can "
+                             "calculate them "
+                             "from the image list using method "
+                             "get_pcs_tseries_from_list or, if available, "
+                             "reload existing images using method"
+                             "load_pcs_profile_img")
+                             
+        if not img1.pyrlevel == img2.pyrlevel:
+            raise ValueError("Existing profile images are at different "
+                             "pyramid levels")
+        return (img1, img2)
+    
+    def get_pcs_tseries_from_list(self, start_idx=0, stop_idx=None):
+        """Reload profile time series pictures from AA img list
+        
+        Loop over images in image list and extract cross section profiles 
+        for each of the 2 provided plume cross section lines. The profiles 
+        are written into a :class:`ProfileTimeSeriesImg` which can be 
+        stored as FITS file.
+        """
+        from pyplis.imagelists import BaseImgList
+        lst = self.imglist
+        
+        pcs1 = self.pcs.convert(to_pyrlevel=lst.pyrlevel, 
+                                to_roi_abs=lst.roi_abs)
+        pcs2 = self.pcs_offset.convert(to_pyrlevel=lst.pyrlevel,
+                                       to_roi_abs=lst.roi_abs)
+        if not isinstance(lst, BaseImgList):
+            raise AttributeError("Image list is not set")
+            
+        dist_img = self.get_pix_dist_img(lst.pyrlevel)
+        
+        # go to first image in list
+        lst.goto_img(start_idx)
+            
+        if stop_idx is None:
+            stop_idx = lst.nof
+            
+        num = stop_idx - start_idx
+        if not num > 20:
+            raise ValueError("Please set start / stop indices such that "
+                             "at least 20 images are used for cross "
+                             "correlation analysis")
+        # get the number of datapoints of the first profile line (the second one
+        # has the same length in this case, since it was created from the first 
+        # one using pcs1.offset(pixel_num=40), see above..
+        profile_len = len(pcs1.get_line_profile(dist_img.img))
+        
+        # now create two empty 2D numpy arrays with height == profile_len and
+        # width == number of images in aa_list
+        profiles1 = empty((profile_len, num), dtype=float32)
+        profiles2 = empty((profile_len, num), dtype=float32)
+        
+        # for each of the 2 lines, extract pixel to pixel distances from the 
+        # provided dist_img (comes from measurement geometry) which is required 
+        # in order to perform integration along the profiles 
+        dists_pcs1 = pcs1.get_line_profile(dist_img.img) #pix to pix dists line 1
+        dists_pcs2 = pcs2.get_line_profile(dist_img.img) #pix to pix dists line 2
+    
+        # loop over all images in list, extract profiles and write in the 
+        # corresponding column of the profile picture
+        times=[]
+        for k in range(num):
+            if k % 25 == 0:
+                print "Loading PCS profiles from list: %d (%d)" %(k, num)
+            img = lst.current_img().img
+            profiles1[:,k] = pcs1.get_line_profile(img)
+            profiles2[:,k] = pcs2.get_line_profile(img)
+            times.append(lst.current_time())
+            lst.next_img()
+         
+        #mutiply pix to pix dists to the AA profiles in the 2 images
+        profiles1 = profiles1 * dists_pcs1.reshape((len(dists_pcs1), 1)) 
+        profiles2 = profiles2 * dists_pcs2.reshape((len(dists_pcs2), 1)) 
+        
+        # Get dictionary containing image preparation information
+        img_prep = lst.current_img().edit_log
+        
+        # now create 2 ProfileTimeSeriesImg objects from the 2 just determined
+        # images and include meta information (e.g. time stamp vector, image
+        # preparation information)
+        prof_pic1 = ProfileTimeSeriesImg(profiles1, time_stamps=times,
+                                         img_id=pcs1.line_id,
+                                         profile_info_dict=pcs1.to_dict(),
+                                         **img_prep) 
+                                         
+        prof_pic2 = ProfileTimeSeriesImg(profiles2, time_stamps=times,
+                                         img_id=pcs2.line_id, 
+                                         profile_info_dict=pcs2.to_dict(),
+                                         **img_prep)
+                                                
+    
+        # save the two profile pics (these files are used in the main function
+        # of this script in case they exist and option RELOAD = 0)
+        self.profile_images["pcs"] = prof_pic1
+        self.profile_images["pcs_offset"] = prof_pic2
+        
+        return prof_pic1, prof_pic2
+    
+    def run(self, **settings):
+        """Applies correlation algorithm to ICA time series of both lines
+        
+        Parameters
+        ----------
+        **settings
+            optional keyword args passed to :func:`find_signal_correlation`
+        """
+        self.update_settings(settings)
+        prof_pic1, prof_pic2 = self.pcs_profile_pics
+        pcs1 = self.pcs.convert(prof_pic1.pyrlevel, prof_pic1.roi_abs)
+        pcs2 = self.pcs_offset.convert(prof_pic2.pyrlevel, 
+                                       prof_pic2.roi_abs)
+        dist_img = self.get_pix_dist_img(pyrlevel=prof_pic1.pyrlevel)
+        
+        # Integrate the profiles for each image (y axis in profile images)
+        icas1 = sum(prof_pic1.img, axis=0)
+        icas2 = sum(prof_pic2.img, axis=0)
+        times = prof_pic1.time_stamps
+        
+        res = find_signal_correlation(icas1, icas2, times, **self.settings)
+        lag = res[0]
+        
+        #Average pix-to-pix distances for both lines
+        pix_dist_avg_line1 = pcs1.get_line_profile(dist_img.img).mean()
+        pix_dist_avg_line2 = pcs2.get_line_profile(dist_img.img).mean()
+        
+        #Take the mean of those to determine distance between both lines in m
+        pix_dist_avg = mean([pix_dist_avg_line1, pix_dist_avg_line2])
+                
+        v = pcs1.dist_other(pcs2) * pix_dist_avg / lag 
+        
+        self.results = {"velo"                 :   v, #m/s
+                        "lag"                  :   lag, #s
+                        "coeffs"               :   res[1],
+                        "ica_tseries_pcs"      :   res[2], 
+                        "ica_tseries_offset"   :   res[3], 
+                        "ica_tseries_shift"    :   res[4]}
+        return v
+    
+    def create_parallel_pcs_offset(self, offset_pix=50, color="lime",
+                                   linestyle="--"):
+        """Creates an offset line to the current PCS used for retrieval
+        
+        Parameters
+        ----------
+        offset_pix : int
+            Distance of new line to current PCS line (in normal direction).
+            The distance is calculated in detector coordinates on pyramid 
+            level 0.
+            
+        Returns
+        -------
+        LineOnImage
+            Translated PCS line
+        """
+        pcs = self.pcs
+        pyrlevel = pcs.pyrlevel_def
+        if pyrlevel != 0:
+            pcs = pcs.convert(to_pyrlevel=0)
+        pcs_offs = pcs.offset(pixel_num=offset_pix)
+        if pyrlevel != 0:
+            pcs_offs = pcs_offs.convert(to_pyrlevel=pyrlevel)
+        pcs_offs.line_id = "pcs_offset"
+        pcs_offs.color = color
+        pcs_offs.linestyle = linestyle
+        self.pcs_offset = pcs_offs
+        return pcs_offs
+        
+    def check_list(self, lst):
+        """Checks if imglist is ready for velocity analysis
+        
+        Parameters
+        ----------
+        lst : BaseImgList
+            the image list object supposed to be checked
+            
+        Returns
+        -------
+        bool
+            True, if list is okay, False if not
+        """
+        from pyplis.imagelists import BaseImgList
+        if not isinstance(lst, BaseImgList):
+            raise TypeError("Invalid input, need BaseImgList class "
+                            "or inherited")
+        if not lst.nof:
+            raise AttributeError("List contains no images")
+
+        elif lst.nof < 20:
+            warn("List contains less than 20 images, cross-correlation "
+                 "analysis is likely to fail")
+        try:
+            lst.meas_geometry.get_all_pix_to_pix_dists()
+        except:
+            raise AttributeError("Failed to access pixel-to-pixel "
+                                 "distances from MeasGeometry (attribute "
+                                 "of list)")
+
+    def get_pix_dist_img(self, pyrlevel=0):
+        """Image specifying pix-to-pix distances for each pixel
+        
+        The image is loaded from the current :class:`MeasGeometry` object
+        assigned to the image list.
+        """
+        return self.meas_geometry.get_all_pix_to_pix_dists(pyrlevel)[0]
+        
+    def load_pcs_profile_img(self, file_path, line_id="pcs"):
+        """Tries to load ICA profile time series image from FITS file
+        
+        Parameters
+        ----------
+        file_path : ProfileTimeSeriesImg
+            valid file path to profile time-series image
+        line_id : str
+            specify to which line the image belongs
+        """
+        if not line_id in ["pcs", "pcs_offset"]:
+            raise IOError("Invalid line ID %s: choose from pcs or offset"
+                          %line_id)
+        img = ProfileTimeSeriesImg()
+        img.load_fits(file_path)
+        l = LineOnImage()
+        l.from_dict(img.profile_info)
+        
+        self.profile_images[line_id] = img
+        self._lines[line_id] = l
+    
+    def save_pcs_profile_images(self, save_dir=None, 
+                                fname1="profile_tseries_pcs.fts",
+                                fname2="profile_tseries_offset.fts"):
+        """Save current ICA profile time series images as FITS file
+        
+        Note
+        ----
+        Existing files will be overwritten without warning
+        
+        Parameters
+        ----------
+        save_dir : str
+            Directory where images are saved (if None, use current
+            directory)
+        fname1 : str
+            name of first profile image
+        fname2 : str
+            name of second profile image
+            
+        """
+        if save_dir is None:
+            save_dir = "."
+        
+        img1, img2 = self.pcs_profile_pics
+        img1.save_as_fits(save_dir, fname1)
+        img2.save_as_fits(save_dir, fname2)
+
+    def plot_pcs_lines(self, img=None, **kwargs):
+        """Plot current PCS retrieval lines into image
+        
+        Parameters
+        ----------
+        img
+            optional: example plume image (:class:`Img` object). If None, 
+            then the current image of :attr:`imglist` is used
+        **kwargs
+            additional keyword arguments passed to :func:`show` of 
+            :class:`Img` object. This can also be used to pass an axes
+            instance using keyword ``ax``, for instance if this is supposed
+            to be plotted into a subplot.
+        
+        Returns
+        -------
+        ax
+            matplotlib axes instance
+        """
+        if not isinstance(img, Img):
+            img = self.imglist.this
+    
+        ax = img.show(**kwargs)
+        ax.set_title("")
+        pcs1 = self.pcs.convert(img.pyrlevel, img.roi_abs)
+        pcs2 = self.pcs_offset.convert(img.pyrlevel, img.roi_abs)
+        pcs1.plot_line_on_grid(ax=ax)
+        pcs2.plot_line_on_grid(ax=ax)
+        return ax
+    
+    def plot_ica_tseries_overlay(self, ax=None):
+        """Plots the ICA time-series of the analysed signals
+        
+        Note
+        ----
+        Only works after cross-correlation analysis is performed
+        
+        """
+        if ax is None:
+            fig, ax = subplots(1,1)
+            
+        res = self.results
+        lag = self.correlation_lag
+        s_pcs = res["ica_tseries_pcs"]
+        index = s_pcs.index.to_pydatetime()
+        s_offs = res["ica_tseries_offset"]
+        s_shift = res["ica_tseries_shift"]
+    
+        #plot original ICA time series along pcs 1
+        ax = s_pcs.plot(ax=ax, style="--", color=self.pcs.color, 
+                   label="%s (original)" %self.pcs.line_id)
+        # plot shifted time series along pcs 1 and apply light fill
+        s_shift.plot(ax=ax, style="-", color=self.pcs.color, 
+                     label="%s (lag: %.1f s)" %(self.pcs.line_id, lag))
+        ax.fill_between(index, s_shift.values, 
+                         color=self.pcs.color, alpha=0.05)
+        
+        s_offs.plot(ax=ax, style="-", color=self.pcs_offset.color, 
+                    label=self.pcs_offset.line_id)
+        
+        ax.set_ylabel("ICA [m]")
+        #ax.xaxis.set_major_formatter(DateFormatter("%H:%M"))
+        #ax[0,].set_title("Original time series", fontsize = 10)
+        ax.grid()
+        ax.legend(loc="best", fancybox=True, framealpha=0.5, fontsize=12) 
+        return ax
+        
+    def plot_corrcoeff_tseries(self, add_lag=True, ax=None, **kwargs):
+        """Plot time series of correlation coefficients
+        
+        Parameters
+        ----------
+        add_lag : bool
+            if True, a vertical line is added at x-position showing 
+            maximum correlation
+        ax
+            matplotlib axes object
+            
+        Returns
+        -------
+        
+        """
+        if ax is None:
+            fig, ax = subplots(1,1)
+        coeffs = self.results["coeffs"]
+        if coeffs is None:
+            raise ValueError("Correlation coefficients could not be "
+                             "accessed from results dictionary. Analysis "
+                             "performed?")
+        lag = self.results["lag"]
+        ax.set_xlabel(r"$\Delta$t [s]")
+        ax.grid()
+        #ax[1].set_xlabel("Shift")
+        ax.set_ylabel("Correlation coefficient")
+        x = arange(0, len(coeffs), 1) * lag / argmax(coeffs)
+        
+        ax.plot(x, coeffs, **kwargs)
+        
+        if add_lag:
+            ax.plot([lag, lag], [0, 1], "--", **kwargs)
+            ax.set_title("Max correlation @ %.2f s" %lag)
+        return ax
+    
 class LocalPlumeProperties(object):
     """Class to store results about local properties of plume displacement
     

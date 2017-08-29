@@ -96,10 +96,8 @@ The latter searches all paths provided in the file **_paths.txt** whenever acces
 TODO's
 ======
 
-1. Write high level analysis class for signal cross correlation (currently only a low level method exists).
-#. Automatic velocity cross correlation analysis from image list objects
+1. Automatic velocity cross correlation analysis from image list objects
 #. Automatic and continuous DOAS / cell calibration data
-#. DoasCalibData: save as FITS method: store also 
   
 Future developments / ideas
 ===========================

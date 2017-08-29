@@ -82,7 +82,8 @@ def load_doas_results():
     # specifying the identification string of the species in the result file
     # headers and the second entry is a list specifying all fit scenario IDs
     # from which this species is supposed to be imported (here only f01)
-    fit_import_info = {"so2" : ["SO2_Hermans_298_air_conv_satCorr1e18", ["f01"]
+    fit_import_info = {"so2" : ["SO2_Hermans_298_air_conv_satCorr1e18", 
+                                ["f01"]
                                ]}
     
     # Create a result import setup for the DOAS data based on the import 
@@ -129,7 +130,8 @@ def make_aa_stack_from_list(aa_list, roi_abs=None, pyrlevel=None,
             remove(stack_path)
         except:
             pass    
-        stack.save_as_fits(save_dir=save_dir, save_name="ex06_aa_imgstack.fts")  
+        stack.save_as_fits(save_dir=save_dir, 
+                           save_name="ex06_aa_imgstack.fts")  
     return stack
 
 def get_stack(reload_stack=RELOAD_STACK, stack_path=STACK_PATH,
