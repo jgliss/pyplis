@@ -1175,16 +1175,33 @@ class LineOnImage(object):
         return [self.x0, self.y0, self.x1, self.y1]
         
     def to_dict(self):
-        """Returns ID, coordinates and pyramide level in dictionary"""
+        """Writes relevant parameters to dictionary"""
         return {"class"                 :   "LineOnImage",
                 "line_id"               :   self.line_id,
+                "color"                 :   self.color,
+                "linestyle"             :   self.linestyle,
                 "x0"                    :   self.x0,
                 "y0"                    :   self.y0,
                 "x1"                    :   self.x1, 
                 "y1"                    :   self.y1,
-                "normal_orientation"    :   self.normal_orientation,
-                "pyrlevel"              :   self.pyrlevel, 
-                "roi_abs"               :   self.roi_abs}
+                "_normal_orientation"   :   self._normal_orientation,
+                "_pyrlevel_def"         :   self._pyrlevel_def, 
+                "_roi_abs_def"          :   self._roi_abs_def}
+    
+    def from_dict(self, settings_dict):
+        """Load line parameters from dictionary
+        
+        Parameters
+        ----------
+        settings_dict : dict
+            dictionary containing line parameters (cf. :func:`to_dict`)
+        """
+        for k, v in settings_dict.iteritems():
+            if self.__dict__.has_key(k):
+                self.__dict__[k] = v
+        
+        self.check_coordinates()
+        self.prepare_coords()
     
     @property
     def orientation_info(self):
@@ -1284,22 +1301,7 @@ class ProfileTimeSeriesImg(Img):
                 self.start.strftime("%H%M"), self.stop.strftime("%H%M"))
         else:
             save_name = save_name.split(".")[0] + ".fts"
-            
-        ### OLD
-#==============================================================================
-#         try:
-#             save_name = save_name.split(".")[0]
-#         except:
-#             pass
-#         if save_dir is None:
-#             save_dir = getcwd()
-#         if save_name is None:
-#             save_name = "pyplis_profile_tseries_id_%s_%s_%s_%s.fts"\
-#                 %(self.img_id, self.start.strftime("%Y%m%d"),\
-#                 self.start.strftime("%H%M"), self.stop.strftime("%H%M"))
-#         else:
-#             save_name = save_name + ".fts"
-#==============================================================================
+    
         hdu = fits.PrimaryHDU()
         time_strings = [x.strftime("%Y%m%d%H%M%S%f") for x in self.time_stamps]
         col1 = fits.Column(name = "time_stamps", format = "25A", array =\
@@ -1312,8 +1314,8 @@ class ProfileTimeSeriesImg(Img):
         hdu.header.update(self.edit_log)
         hdu.header["img_id"] = self.img_id
         for key, val in self.profile_info.iteritems():
-            if key == "roi_abs":
-                hdu.header["roi_abs"] = dumps(val)
+            if key == "_roi_abs_def":
+                hdu.header["_roi_abs_def"] = dumps(val)
             else:
                 hdu.header[key] = val
     
@@ -1331,14 +1333,15 @@ class ProfileTimeSeriesImg(Img):
         d = {"LineOnImage"  :   LineOnImage().to_dict().keys()}
         return d[profile_type]
         
-    def load_fits(self, file_path, profile_type = "LineOnImage"):
+    def load_fits(self, file_path, profile_type="LineOnImage"):
         """Load stack object (fits)
         
         :param str file_path: file path of fits image
         """
         
         if not exists(file_path):
-            raise IOError("Img could not be loaded, path does not exist")
+            raise IOError("Img could not be loaded, path %s does not "
+                          "exist" %file_path)
         hdu = fits.open(file_path)
         self.img = asarray(hdu[0].data)
         prep = Img().edit_log
@@ -1353,7 +1356,7 @@ class ProfileTimeSeriesImg(Img):
             if k in prep.keys():
                 self.edit_log[k] = val
             elif k in profile_keys:
-                if k == "roi_abs":
+                if k == "_roi_abs_def":
                     self.profile_info[k] = loads(val)
                 else:
                     self.profile_info[k] = val

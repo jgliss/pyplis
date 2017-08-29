@@ -94,10 +94,7 @@ class Source(object):
     
     @property
     def geo_data(self):
-        """Returns dictionary containing lon, lat and altitude
-        
-        :rtype: dict
-        """
+        """Dictionary containing lon, lat and altitude"""
         return od([("lon"          ,   self.lon),
                    ("lat"          ,   self.lat),
                    ("altitude"     ,   self.altitude)])
@@ -118,7 +115,10 @@ class Source(object):
     def to_dict(self):
         """Returns dictionary of all parameters
         
-        :return: dictionary representation of class
+        Returns
+        -------
+        dict
+            dictionary representation of class
         """
         d = self.geo_data
         d["name"] = self.name
@@ -128,10 +128,16 @@ class Source(object):
     def load_source_info(self, info_dict):
         """Try access default information of source
         
-        :param dict info_dict: dictonary containing source information 
-            (valid keys are keys of dictionary ``self._type_dict``, e.g. 
-            ``lon``, ``lat``, ``altitude``) 
-        :return: bool, success
+        Parameters
+        ----------
+        info_dict : dict 
+            dictonary containing source information (valid keys are all 
+            keys ``self._type_dict``, e.g. ``lon``, ``lat``, ``altitude``) 
+        
+        Returns
+        -------
+        bool 
+            success
         """
         types = self._type_dict
         if not isinstance(info_dict, dict):
@@ -188,9 +194,7 @@ class Source(object):
                     print res.keys()
                     print "Retry..."
         return res
-    """
-    Helpers
-    """
+
     def _all_params(self):
         """Return list of all relevant source attributes"""
         return self._type_dict.keys()    
@@ -224,20 +228,24 @@ class FilterSetup(object):
     """A collection of :class:`pyplis.utils.Filter` objects
     
     This collection specifies a filter setup for a camera. A typical setup 
-    would be one on and one off band filter. 
+    would be one on and one off band filter.
+    
+    Parameters
+    ----------
+    filters : list
+        list of :class:`pyplis.utils.Filter` objects specifying 
+        camera filter setup
+    default_key_on : str
+        string ID of default on band filter (only relevant if collection 
+        contains more than one on band filter)
+    default_key_off : str
+        string ID of default off band filter (only relevant if collection 
+        contains more than one off band filter)
+        
     """
     def __init__(self, filter_list=[], default_key_on=None,
                  default_key_off=None):
-        """Class initialisation
-        
-        :param list filters: list of :class:`pyplis.utils.Filter` objects
-            specifying camera filter setup
-        :param str default_key_on: string ID of default on band filter (only
-            relevant if collection contains more than one on band filter)
-        :param str default_key_off: string ID of default off band filter (only
-            relevant if collection contains more than one off band filter)
-        
-        """
+    
         self.init_filters(filter_list)
         
         self.default_key_on = None
@@ -247,16 +255,45 @@ class FilterSetup(object):
     
     @property
     def on_band(self):
-        """Returns default on band filter"""
+        """Default on band filter"""
         return self.filters[self.default_key_on]
     
     @property
     def off_band(self):
-        """Returns default on band filter"""
+        """Default on band filter"""
         try:
             return self.filters[self.default_key_off]    
         except:
             raise TypeError("Collection does not contain off band filter")
+    
+    @property
+    def ids_off(self):
+        """List with all offband filter ids"""
+        return self.get_ids_on_off()[1]
+        
+    @property
+    def ids_on(self):
+        """List with all onband filter ids"""
+        return self.get_ids_on_off()[0]
+        
+    @property
+    def has_on(self):
+        """Check if collection contains an onband filter"""
+        if bool(self.ids_on):
+            return True
+        return False
+    
+    @property
+    def has_off(self):
+        """Check if collection contains an onband filter"""
+        if bool(self.ids_off):
+            return True
+        return False
+    
+    @property
+    def number_of_filters(self):
+        """Returns the current number of filters in this collection"""
+        return len(self.filters)
             
     def init_filters(self, filters):
         """Initiate the filter collection (old settings will be deleted)
@@ -264,10 +301,11 @@ class FilterSetup(object):
         The filters will be written into the dictionary ``self.filters``
         in the list order, keys are the filter ids
         
-        :param list filters: list of :class:`pyplis.utils.Filter` objects
+        Parameters
+        ----------
+        filters : list
+            list of :class:`pyplis.utils.Filter` objects
             specifying camera filter setup
-        
-        
         """
         self.filters = od()
         try:
@@ -282,7 +320,10 @@ class FilterSetup(object):
     def update_filters_from_dict(self, filter_dict):
         """Add filter objects from a dictionary
         
-        :param dict filter_dict: dictionary, containing filter information
+        Parameters
+        ----------
+        filter_dict : dict
+            dictionary, containing filter information
         """
         for f in filter_dict.values():
             if isinstance(f, Filter):
@@ -297,12 +338,14 @@ class FilterSetup(object):
         If input parameters are unspecified, the first entries from the current 
         setup are used.
         
-        :param str default_key_on: string ID of default on band filter (only
+        Parameters
+        ----------
+        default_key_on : str
+            string ID of default on band filter (only
             relevant if collection contains more than one on band filter)
-        :param str default_key_off: string ID of default off band filter (only
-            relevant if collection contains more than one off band filter)
-            
-        
+        default_key_off : str
+            string ID of default off band filter (only relevant if 
+            collection contains more than one off band filter)
         """
         ids_on, ids_off = self.get_ids_on_off()
         if not ids_on:
@@ -329,35 +372,15 @@ class FilterSetup(object):
             if self.default_key_off is None or not self.default_key_off in ids_off:
                 print "Updating default offband in FilterSetup %s" %ids_off[0]
                 self.default_key_off = ids_off[0]
-                
-    @property
-    def ids_off(self):
-        """Get list with all offband filter ids"""
-        return self.get_ids_on_off()[1]
-        
-    @property
-    def ids_on(self):
-        """Get list with all onband filter ids"""
-        return self.get_ids_on_off()[0]
-        
-    @property
-    def has_on(self):
-        """Check if collection contains an onband filter"""
-        if bool(self.ids_on):
-            return True
-        return False
-    
-    @property
-    def has_off(self):
-        """Check if collection contains an onband filter"""
-        if bool(self.ids_off):
-            return True
-        return False    
         
     def get_ids_on_off(self):
         """Get all filters sorted by their type (On or Off)
         
-        :returns:
+        Returns
+        -------
+        tuple
+            2-element tuple containing
+            
             - list, contains all on band IDs
             - list, contains all off band IDs
         """
@@ -368,25 +391,21 @@ class FilterSetup(object):
             elif self.filters[key].type == "off":
                 ids_off.append(key)
         return ids_on, ids_off
-        
-    """
-    Helpers
-    """      
-    @property
-    def number_of_filters(self):
-        """Returns the current number of filters in this collection"""
-        return len(self.filters)
-    
-    """
-    Helpers, convenience stuff...
-    """
+             
     def print_setup(self):
-        """Prints the current setup"""
+        """Print the current setup
+        
+        Returns
+        -------
+        str
+            print string representation
+        """
         s=("pyplis FilterSetup\n------------------------------\n"
             "All filters:\n\n")
         for flt in self.filters.values():
             s += ("%s" %flt)
         s += "Default Filter: %s\n\n" %self.default_key_on
+        print s
         return s
     
     def __call__(self, filter_id):
@@ -409,43 +428,52 @@ class Camera(CameraBaseInfo):
     """Base class to specify a camera setup
     
     Class representing a UV camera system including detector specifications, 
-    optics, file naming convention and :class:`FilterSetup`
+    optics, file naming convention and :class:`FilterSetup`.
+    
+    Parameters
+    ----------
+    cam_id : str 
+        camera ID (e.g "ecII"), if this ID corresponds to one of the 
+        default cameras, the information is automatically loaded from 
+        supplementary file *cam_info.txt* 
+    filter_list : list
+        list containing :class:`pyplis.utils.Filter` objects specifying 
+        the camera filter setup. If unspecified (empty list) and input 
+        param ``cam_id`` is a valid default ID, then the default filter 
+        setup of the camera will be loaded.
+    default_filter_on : str
+        string ID of default on band filter (only relevant if collection 
+        contains more than one on band filter)
+    default_filter_off : str
+        string ID of default off band filter (only relevant if collection 
+        contains more than one off band filter)
+    ser_no : int
+        optional, camera serial number
+    **geom_info :  
+        additional keyword args specifying geometrical information, e.g. 
+        lon, lat, altitude, elev, azim
+        
+    Examples
+    --------
+    Example creating a new camera (using ECII default info with custom
+    filter setup)::
+    
+        import pyplis
+
+        #the custom filter setup
+        filters= [pyplis.utils.Filter(type="on", acronym="F01"),
+                  pyplis.utils.Filter(type="off", acronym="F02")]
+        
+        cam = pyplis.setupclasses.Camera(cam_id=ecII", filter_list=filters,
+                                          lon=15.11, lat=37.73, elev=18.0,
+                                          elev_err=3, azim=270.0,
+                                          azim_err=10.0, focal_lengh=25e-3)
+        print cam
+    
     """
     def __init__(self, cam_id=None, filter_list=[], default_filter_on=None,
                  default_filter_off=None, ser_no=9999, **geom_info):
-        """Initiation of object
         
-        :param str cam_id: camera ID (e.g "ecII"), if this ID corresponds to 
-            one of the default cameras, the information is automatically 
-            loaded from supplementary file *cam_info.txt* 
-        :param list filter_list: list containing :class:`pyplis.utils.Filter`
-            objects specifying the camera filter setup. If unspecified (empty
-            list) and input param ``cam_id`` is a valid default ID, then the 
-            default filter setup of the camera will be loaded.
-        :param str default_filter_on: string ID of default on band filter (only
-            relevant if collection contains more than one on band filter)
-        :param str default_filter_off: string ID of default off band filter (only
-            relevant if collection contains more than one off band filter)
-        :param int ser_no (9999): optional, camera serial number
-        :param **geom_info: additional keyword args specifying geometrical 
-            information, e.g. lon, lat, altitude, elev, azim
-            
-        Example creating a new camera (using ECII default info with custom
-        filter setup)::
-        
-            import pyplis
-    
-            #the custom filter setup
-            filters= [pyplis.utils.Filter(type="on", acronym="F01"),
-                      pyplis.utils.Filter(type="off", acronym="F02")]
-            
-            cam = pyplis.setupclasses.Camera(cam_id=ecII", filter_list=filters,
-                                              lon=15.11, lat=37.73, elev=18.0,
-                                              elev_err=3, azim=270.0,
-                                              azim_err=10.0, focal_lengh=25e-3)
-            print cam
-            
-        """
         super(Camera, self).__init__(cam_id)
     
         #specify the filters used in the camera and the main filter (e.g. On)        
@@ -456,8 +484,8 @@ class Camera(CameraBaseInfo):
                              ("azim"        ,   None),
                              ("azim_err"    ,   None),
                              ("elev"        ,   None),
-                             ("elev_err"    ,   None),
-                             ("alt_offset"  ,   0.0)])
+                             ("elev_err"    ,   None), 
+                             ("alt_offset"  ,   0.0)]) 
         
         for k, v in geom_info.iteritems():
             self[k] = v
@@ -470,12 +498,11 @@ class Camera(CameraBaseInfo):
     
     @property
     def lon(self):
-        """Returns longitude"""
+        """Camera longitude"""
         return self.geom_data["lon"]
 
     @lon.setter
     def lon(self, val):
-        """Set longitude"""
         if not -180 <= val <= 180:
             raise ValueError("Invalid input for longitude, must be between"
                 "-180 and 180")
@@ -483,39 +510,51 @@ class Camera(CameraBaseInfo):
     
     @property
     def lat(self):
-        """Returns latitude"""
+        """Camera latitude"""
         return self.geom_data["lat"]
 
     @lat.setter
     def lat(self, val):
-        """Set longitude"""
         if not -90 <= val <= 90:
             raise ValueError("Invalid input for longitude, must be between"
                 "-90 and 90")
         self.geom_data["lat"] = val
-        
+       
     def update_settings(self, **settings):
-        """Update geometry info in self.geom_data
+        """Wrapper (old name) for :func:`update`"""
+        warn("Old name of method update")
+        self.update(**settings)
         
-        :param dict geom_info_dict: dictionary containing valid geometry info
-            (see dict ``self.geom_data`` for valid input keys)
+    def update(self, **settings):
+        """Update camera parameters
+        
+        Parameters
+        ----------
+        settings : dict
+            dictionary containing camera parametrs (valid keys are 
+            all keys of ``self.__dict__`` and from dictionary 
+            ``self.geom_data``)
         """
         for key, val in settings.iteritems():
             self[key] = val
            
     def prepare_filter_setup(self, filter_list=None, default_key_on=None,
                              default_key_off=None):
-        """Create :class:`FilterSetup` object (collection of bandpass filters)
+        """Create :class:`FilterSetup` object
         
-        :param list filter_list: list containing :class:`pyplis.utils.Filter`
-            objects
-        :param default_filter_on: string specifiying the string ID of the 
-            main onband filter of the camera (usually "on"). If unspecified 
-            (None), then the ID of the first available on bandfilter in the 
-            filter input list will be used.
-        :param default_filter_off: string specifiying the string ID of the 
-            main offband filter of the camera (usually "on"). If unspecified 
-            (None), then the ID of the first available off band filter in the 
+        Parameters
+        ----------
+        filter_list : list
+            list containing :class:`pyplis.utils.Filter` objects
+        default_filter_on : str 
+            string specifiying the string ID of the main onband filter of 
+            the camera (usually "on"). If unspecified (None), then the 
+            ID of the first available on bandfilter in the filter input 
+            list will be used.
+        default_filter_off : str
+            string specifiying the string ID of the main offband filter 
+            of the camera (usually "on"). If unspecified (None), then the 
+            ID of the first available off band filter in the 
             filter input list will be used.
         """
         if not isinstance(filter_list, list) or not bool(filter_list):
@@ -541,13 +580,23 @@ class Camera(CameraBaseInfo):
             d[key] = val
         return d
         
-    def change_camera(self, cam_id = None, make_new = False, **kwargs):
+    def change_camera(self, cam_id=None, make_new=False, **kwargs):
         """Change current camera type
         
-        :param str cam_id: ID of new camera
-        :param bool make_new: if True, a new instance will be created and 
-            returned
-        :param **kwargs: additional keyword args (see :func:`__init__`)
+        Parameters
+        ----------
+        cam_id : str
+            ID of new camera
+        make_new : bool
+            if True, a new instance will be created and returned
+        **kwargs
+            additional keyword args (see :func:`__init__`)
+            
+        Returns
+        -------
+        Camera
+            either this object (if :param:`make_new` is False) or else, new
+            instance
         """
         if not "geom_data" in kwargs:
             kwargs["geom_data"] = self.geom_data
@@ -556,34 +605,46 @@ class Camera(CameraBaseInfo):
         
         self.__init__(cam_id, **kwargs)
         return self
-
-    """Simple processing stuff
-    """
+    
     def dx_to_decimal_degree(self, pix_num_x):
         """Convert horizontal distance (in pixel units) into angular range
         
-        :param int pix_num_x: number of pixels for which angular range is 
-            determined        
+        Parameters
+        ----------
+        pix_num_x : int
+            number of pixels for which angular range is determined    
+        
+        Returns
+        -------
+        float
+            dx in units of decimal degrees
         """
         try:
             len_phys = self.pix_width * pix_num_x
             return rad2deg(arctan(len_phys / self.focal_length))
         except:
-            raise MetaAccessError("Please check availability of focal length, "
-                "and pixel pitch (pix_width)")
+            raise MetaAccessError("Please check availability of focal "
+                                  "length, and pixel pitch (pix_width)")
     
     def dy_to_decimal_degree(self, pix_num_y):
         """Convert vertical distance (in pixel units) into angular range
         
-        :param int pix_num_y: number of pixels for which angular range is 
-            determined        
+        Parameters
+        ----------
+        pix_num_y : int 
+            number of pixels for which angular range is determined    
+            
+        Returns
+        -------
+        float
+            dy in units of decimal degrees
         """
         try:
             len_phys = self.pix_height * pix_num_y
             return rad2deg(arctan(len_phys / self.focal_length))
         except:
-            raise MetaAccessError("Please check availability of focal length, "
-                "and pixel pitch (pix_height)")
+            raise MetaAccessError("Please check availability of focal "
+                                  "length, and pixel pitch (pix_height)")
         
     """Magic methods
     """
@@ -649,19 +710,19 @@ class BaseSetup(object):
         #. :attr:`USE_ALL_FILE_TYPES`
         #. :attr:`INCLUDE_SUB_DIRS`
         
+    Parameters
+    ----------
+    base_dir : str
+        Path were e.g. imagery data lies
+    start : datetime
+        start time of Dataset (can also be datetime.time)
+    stop : datetime 
+        stop time of Dataset (can also be datetime.time)
+    **opts
+        setup options for file import (see specs above)
     """
     __metaclass__ = ABCMeta
     def __init__(self, base_dir, start, stop, **opts):
-        """Class initialisation
-        
-        :param str base_dir: Path were e.g. imagery data lies
-        :param datetime start: start time of Dataset (can also be 
-            datetime.time)
-        :param datetime stop: stop time of Dataset (can also be datetime.time)
-        :param **opts: setup options for file handling (currently only 
-            INCLUDE_SUB_DIRS option)
-            
-        """
         self.base_dir = base_dir
         self.save_dir = base_dir
         
@@ -684,7 +745,7 @@ class BaseSetup(object):
     
     @property
     def start(self):
-        """Getter / setter method for start time"""
+        """Start time of setup"""
         return self._start
         
     @start.setter
@@ -698,7 +759,7 @@ class BaseSetup(object):
     
     @property
     def stop(self):
-        """Getter / setter method for start time"""
+        """Stop time of setup"""
         return self._stop
         
     @stop.setter
@@ -709,16 +770,6 @@ class BaseSetup(object):
             if val is not None:
                 warn("Input %s could not be assigned to stop time in "
                      "setup" %val)
-            
-    def check_timestamps(self):
-        """Check if timestamps are valid and set to current time if not"""
-        if not isinstance(self.start, datetime):
-            self.options["USE_ALL_FILES"] = True
-            self.start = datetime(1900, 1, 1)
-        if not isinstance(self.stop, datetime):
-            self.stop = datetime(1900, 1, 1)
-        if self.start > self.stop:
-            self.start, self.stop = self.stop, self.start
             
     @property
     def USE_ALL_FILES(self):
@@ -731,7 +782,6 @@ class BaseSetup(object):
     
     @USE_ALL_FILES.setter
     def USE_ALL_FILES(self, value):
-        """Setter for this option"""
         if not value in [0, 1]:
             raise ValueError("need boolean")
         self.options["USE_ALL_FILES"] = bool(value)
@@ -746,7 +796,6 @@ class BaseSetup(object):
     
     @SEPARATE_FILTERS.setter
     def SEPARATE_FILTERS(self, value):
-        """Setter for this option"""
         if not value in [0, 1]:
             raise ValueError("need boolean")
         self.options["SEPARATE_FILTERS"] = value
@@ -763,7 +812,6 @@ class BaseSetup(object):
     
     @USE_ALL_FILE_TYPES.setter
     def USE_ALL_FILE_TYPES(self, value):
-        """Setter for this option"""
         if not value in [0, 1]:
             raise ValueError("need boolean")
         self.options["USE_ALL_FILE_TYPES"] = value
@@ -778,20 +826,31 @@ class BaseSetup(object):
     
     @INCLUDE_SUB_DIRS.setter
     def INCLUDE_SUB_DIRS(self, value):
-        """Setter for this option"""
         if not value in [0, 1]:
             raise ValueError("need boolean")
         self.options["INCLUDE_SUB_DIRS"] = value
-                
+    
+    def check_timestamps(self):
+        """Check if timestamps are valid and set to current time if not"""
+        if not isinstance(self.start, datetime):
+            self.options["USE_ALL_FILES"] = True
+            self.start = datetime(1900, 1, 1)
+        if not isinstance(self.stop, datetime):
+            self.stop = datetime(1900, 1, 1)
+        if self.start > self.stop:
+            self.start, self.stop = self.stop, self.start
+            
     def base_info_check(self):
         """Checks if all necessary information if available 
         
         Checks if path and times are valid
         
-        :returns: tuple, containing
+        Returns
+        -------
+            2-element tuple, containing
+            
             - bool, True or False
             - str, information
-            
         """
         ok = 1
         s=("Base info check\n-----------------------------\n")
@@ -809,26 +868,19 @@ class BaseSetup(object):
         return (ok, s)
     
     def _check_if_number(self, val):
-        """Check if input is integer or float and not nan"""
+        """Check if input is integer or float and not nan
+        
+        Parameters
+        ----------
+        val
+            object to be tested
+            
+        Returns
+        -------
+        bool
+        """
         return isnum(val)
     
-#==============================================================================
-#     def set_save_dir(self,p):
-#         """set the base path for results to be stored"""
-#         if not path.exists(p):
-#             print ("Could not set save base path in\n\n" + self._save_name
-#                 + ":\nPath does not exist")
-#             return
-#         self.save_dir = p
-#         
-#     @property
-#     def _save_name(self):
-#         """Name according to saving convention"""
-#         d = self.start.strftime('%Y%m%d')
-#         i, f = self.start.strftime('%H%M'),self.stop.strftime('%H%M')
-#         return "pyplis_setup_%s_%s_%s_%s" %(self.id, d, i, f)
-#     
-#==============================================================================
     def _dict_miss_info_str(self, key, val):
         """string notification for invalid value"""
         return "Missing / wrong information: %s, %s\n" %(key, val)
@@ -861,22 +913,26 @@ class MeasSetup(BaseSetup):
     default input for :class:`pyplis.dataset.Dataset` objects (i.e. also 
     :class:`pyplis.cellcalib.CellCalibEngine`).
     
-    Attributes
+    Parameters
     ----------
+    base_dir : str
+        Path were e.g. imagery data lies
+    start : datetime
+        start time of Dataset (may as well be datetime.time)
+    stop : datetime
+        stop time of Dataset (may as well be datetime.time)
+    camera : Camera
+        general information about the camera used
+    source : Source
+        information about emission source (e.g. lon, lat, altitude)
+    **opts : 
+        setup options for file handling (currently only INCLUDE_SUB_DIRS 
+        option)
     """
     def __init__(self, base_dir=None, start=None, stop=None, camera=None,
                  source=None, wind_info=None, cell_info_dict={}, rects={},
                  lines={}, **opts):
-        """
-        :param str base_dir: Path were e.g. imagery data lies
-        :param datetime start: start time of Dataset
-        :param datetime stop: stop time of Dataset
-        :param Camera camera: general information about the camera used
-        :param Source source: emission source object 
-        :param **opts: setup options for file handling (currently only 
-            INCLUDE_SUB_DIRS option)
-            
-        """
+    
         super(MeasSetup, self).__init__(base_dir, start, stop, **opts)
         self.id = "meas"
         
@@ -906,15 +962,11 @@ class MeasSetup(BaseSetup):
     
     @property
     def source(self):
-        """Getter of property source"""
+        """Emission source"""
         return self._cam_source_dict["source"]
     
     @source.setter
     def source(self, value):
-        """Setter of private attribute source
-        
-        :param Source value: a source object
-        """
         if not isinstance(value, Source):
             raise TypeError("Invalid input type, need Source object")
         self._cam_source_dict["source"] = value
@@ -922,32 +974,29 @@ class MeasSetup(BaseSetup):
     
     @property
     def camera(self):
-        """Getter of property source"""
+        """Camera"""
         return self._cam_source_dict["camera"]
     
     @camera.setter
     def camera(self, value):
-        """Setter of private attribute source
-        
-        Parameters
-        ----------
-        value : Camera
-            :obj:`Camera` object
-        """
         if not isinstance(value, Camera):
             raise TypeError("Invalid input type, need Camera object")
         self._cam_source_dict["camera"] = value
             
     def update_wind_info(self, info_dict):
-        """Update current wind info dict using valid entries from input dict"""
+        """Update wind info dict using valid entries from input dict
+        
+        Parameters
+        ----------
+        info_dict : dict
+            dictionary containing wind information
+        """
         for key, val in info_dict.iteritems():
             if self.wind_info.has_key(key):
                 self.wind_info[key] = val
     
     def base_info_check(self):
-        """Checks if all necessary information if available in order to create
-        a DataSet object and determine measurement geometry for all sources
-        """
+        """Checks if all req. info is available"""
         ok = 1
         s = ("Base info check\n-----------------------------\n")
         if not self.base_dir or not exists(self.base_dir):
@@ -964,8 +1013,9 @@ class MeasSetup(BaseSetup):
         return ok, s
             
     def check_geometry_info(self):
-        """Checks if all necessary information is available for the determination 
-        of measurement geometry, these are:
+        """Checks if all req. info for measurement geometry is available 
+        
+        Relevant parameters are:
         
             1. Lon, Lat of
                 i. source
@@ -1028,9 +1078,7 @@ class MeasSetup(BaseSetup):
         s = super(BaseSetup, self).__str__() + "\n"
         return s + "Camera: %s\nSource: %s" %(self.camera.cam_id,\
                                                         self.source.name)
-    
-    """Magic methods
-    """
+
     def __setitem__(self, key, value):
         """Update class item"""
         if self.__dict__.has_key(key):
@@ -1054,33 +1102,7 @@ class MeasSetup(BaseSetup):
             for key, val in self.cell_info_dict.iteritems():
                 s += "%s: %s +/- %s\n" %(key, val[0], val[1]) 
         return s
-#==============================================================================
-#     @property
-#     def _save_name(self):
-#         """Returns the save name using pyplis naming convention"""
-#         name = super(BaseSetup, self)._save_name
-#         try:
-#             name += "_%s" %self.source.name
-#         except:
-#             name += "_noSource"
-#         try:
-#             name += "_%s_%s" %(self.camera.cam_id, self.camera.ser_no)
-#         except:
-#             name += "_NoCamID_NoCamSerNo"
-#         return name
-#         
-#     def save(self, p = None):
-#         """save this object at a given location"""
-#         if p is None:
-#             p = self.save_dir
-#         if not path.exists(p):
-#             self.save_dir = p = getcwd()
-#         name = self._save_name + ".stp"
-#         f_dir = path.join(p, name)
-#         dump(self, open(f_dir, "wb"))
-#         return f_dir
-#     
-#==============================================================================
+
 #==============================================================================
 #     def edit_in_gui(self):
 #         """Edit the current dataSet object"""
