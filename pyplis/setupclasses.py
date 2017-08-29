@@ -519,7 +519,72 @@ class Camera(CameraBaseInfo):
             raise ValueError("Invalid input for longitude, must be between"
                 "-90 and 90")
         self.geom_data["lat"] = val
-       
+    
+    @property
+    def altitude(self):
+        """Camera altitude in m
+        
+        Note
+        ----
+        This is typically the local topography altitude, which can for 
+        instance be accessed using :func:`get_altitude_srtm`. Potential 
+        offsets (e.g. due to tripod or measurement from a house roof), you 
+        can use :attr:`alt_offset`.
+        """
+        return self.geom_data["altitude"]
+
+    @altitude.setter
+    def altitude(self, val):
+        self.geom_data["altitude"] = val
+        
+    @property
+    def elev(self):
+        """Viewing elevation angle (center pixel) in degrees
+        
+        0 refers to horizon, 90 to zenith
+        """
+        return self.geom_data["elev"]
+
+    @elev.setter
+    def elev(self, val):
+        self.geom_data["elev"] = val
+    
+    @property
+    def elev_err(self):
+        """Uncertainty in viewing elevation angle in degrees"""
+        return self.geom_data["elev_err"]
+
+    @elev_err.setter
+    def elev_err(self, val):
+        self.geom_data["elev_err"] = val
+    
+    @property
+    def azim(self):
+        """Viewing azimuth angle in deg relative to north (center pixel)"""
+        return self.geom_data["azim"]
+
+    @azim.setter
+    def azim(self, val):
+        self.geom_data["azim"] = val
+    
+    @property
+    def azim_err(self):
+        """Uncertainty in viewing azimuth angle in degrees"""
+        return self.geom_data["azim_err"]
+
+    @azim_err.setter
+    def azim_err(self, val):
+        self.geom_data["azim_err"] = val
+        
+    @property
+    def alt_offset(self):
+        """Height of camera position above topography in m"""
+        return self.geom_data["alt_offset"]
+
+    @alt_offset.setter
+    def alt_offset(self, val):
+        self.geom_data["alt_offset"] = val
+        
     def update_settings(self, **settings):
         """Wrapper (old name) for :func:`update`"""
         warn("Old name of method update")
@@ -537,7 +602,23 @@ class Camera(CameraBaseInfo):
         """
         for key, val in settings.iteritems():
             self[key] = val
-           
+
+    def get_altitude_srtm(self):
+        """Try load camera altitude based on lon, lat and SRTM topo data
+
+        Note
+        ----
+        Requires :mod:`geonum` package to be installed and :attr:`lon` and
+        :attr:`lat` to be set.
+        """           
+        try:
+            from geonum import GeoPoint
+            lon, lat = float(self.lon), float(self.lat)
+            self.altitude = GeoPoint(lat, lon).altitude
+        except Exception as e:
+            warn("Failed to automatically access local topography altitude"
+                 " at camera position using SRTM data: %s" %repr(e))
+            
     def prepare_filter_setup(self, filter_list=None, default_key_on=None,
                              default_key_off=None):
         """Create :class:`FilterSetup` object
