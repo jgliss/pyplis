@@ -211,41 +211,20 @@ class MeasGeometry(object):
         print "MeasGeometry not (yet) ready for analysis"
         
         return False
-            
-    
-    def set_wind_default(self, cam_view_vec, source2cam_vec):
-        """Set default wind direction 
-        
-        Default wind direction is assumed to be perpendicular on the CFOV 
-        azimuth of the camera viewing direction. The wind direction is 
-        estimated based on the position of the source in the image, i.e. if the
-        source is in the left image half, the wind is set such, that the plume 
-        points into the right direction in the image plane, else to the left.
-        
-        :param GeoVector3D cam_view_vec: geo vector of camera viewing direction
-        :param GeoVector3D source2cam_vec: geo vector between camera and 
-            source
-        """
-        raise NotImplementedError
                                                  
     def get_coordinates_imgborders(self):
         """Get elev and azim angles corresponding to camera FOV"""
-        try:
-            det_width = self.cam["pix_width"] * self.cam["pixnum_x"]
-            det_height = self.cam["pix_height"] * self.cam["pixnum_y"]
-            del_az = rad2deg(arctan(det_width /\
-                    (2.0 * self.cam["focal_length"])))
-            del_elev = rad2deg(arctan(det_height/\
-                    (2.0 * self.cam["focal_length"])))
-        
-            return {"azim_left"     :   self.cam["azim"] - del_az,
-                    "azim_right"    :   self.cam["azim"] + del_az,
-                    "elev_bottom"   :   self.cam["elev"] - del_elev,
-                    "elev_top"      :   self.cam["elev"] + del_elev}
-        except:
-            print ("Failed to retrieve coordinates of image borders in "
-                "MeasGeometry, check camera specs: %s" %self.cam)
-            return False
+        det_width = self.cam["pix_width"] * self.cam["pixnum_x"]
+        det_height = self.cam["pix_height"] * self.cam["pixnum_y"]
+        del_az = rad2deg(arctan(det_width /\
+                (2.0 * self.cam["focal_length"])))
+        del_elev = rad2deg(arctan(det_height/\
+                (2.0 * self.cam["focal_length"])))
+    
+        return {"azim_left"     :   self.cam["azim"] - del_az,
+                "azim_right"    :   self.cam["azim"] + del_az,
+                "elev_bottom"   :   self.cam["elev"] - del_elev,
+                "elev_top"      :   self.cam["elev"] + del_elev}
     
     def horizon_analysis(self, skip_cols=30):
         """Searches pixel coordinates of horizon for image columns
@@ -874,7 +853,7 @@ class MeasGeometry(object):
             pass
         return m
         
-    def draw_azrange_fov_3d(self, m, fc = "lime", ec = "none", alpha = 0.8):
+    def draw_azrange_fov_3d(self, m, fc="lime", ec="none", alpha=0.8):
         """Insert the camera FOV in a 2D map
         
         :param geonum.mapping.Map m: the map object
