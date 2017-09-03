@@ -2691,7 +2691,10 @@ class OptflowFarneback(object):
         # total number of vectors in ROI)                    
         if min_count_frac is None:
             min_count_frac = self.settings.min_count_frac
-    
+        try:
+            pix_mask = pix_mask.img
+        except:
+            pass
         #init pixel access mask 
         mask = pix_mask
         if isinstance(line, LineOnImage):
