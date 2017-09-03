@@ -563,7 +563,7 @@ class PlumeBackgroundModel(object):
         d = self.settings_dict()
         return plot_sky_reference_areas(plume, d)
         
-    def plot_tau_result(self, tau_img=None, tau_min=None, tau_max=None,
+    def plot_tau_result_old(self, tau_img=None, tau_min=None, tau_max=None,
                         edit_profile_labels=True, legend_loc=3, **add_lines):
         """Plot current tau image including all reference areas 
         
@@ -686,9 +686,9 @@ class PlumeBackgroundModel(object):
             _range = high - low
             lbls = [0]
             if high > 0 and high/_range > 0.2:
-                lbls.append(high - _range * .05)
+                lbls.append(high - _range * .1)
             if low < 0 and abs(low)/high > 0.5:
-                lbls.insert(0, low + _range*.05)
+                lbls.insert(0, low + _range*.1)
             ax[1].get_xaxis().set_ticks(lbls)
             lbl_str = ["%.2f" %lbl for lbl in lbls]
             ax[1].set_xlim([low, high])
@@ -702,9 +702,9 @@ class PlumeBackgroundModel(object):
             _range = high - low
             lbls = [0]
             if high > 0 and high / _range > 0.2:
-                lbls.append(high - _range*.05)
+                lbls.append(high - _range*.1)
             if low < 0 and abs(low) / high > 0.5:
-                lbls.insert(0, low + _range *.05)
+                lbls.insert(0, low + _range *.1)
             ax[2].get_yaxis().set_ticks(lbls)
             lbl_str = ["%.2f" %lbl for lbl in lbls]
             ax[2].set_ylim([low, high])
@@ -715,7 +715,190 @@ class PlumeBackgroundModel(object):
         fig.suptitle("CORR_MODE: %s" %self.CORR_MODE, fontsize=16)
         ax[0].legend(loc=legend_loc, fancybox=True, framealpha=0.7, fontsize=11)
         return fig
+    
+    def plot_tau_result(self, tau_img=None, tau_min=None, tau_max=None,
+                        edit_profile_labels=True, legend_loc=3, 
+                        figheight=8, add_mode_info=False, 
+                        fsize_legend=12, fsize_labels=16,
+                        **add_lines):
+        """Plot current tau image including all reference areas 
         
+        Parameters
+        ----------
+        tau_img : Img
+            the tau image to be displayed
+        tau_min : :obj:`float`, optional
+            lower tau boundary to be displayed
+        tau_max : :obj:`float`, optional
+            upper tau boundary for colormap
+        edit_profile_labels : bool
+            beta version of smart layout for axis labels from profile 
+            subplots
+        legend_loc : int
+            number ID for specifying legend position
+        figheight : int
+            figure height in inches (dpi=matplotlib default)
+        add_mode_info : bool
+            if True, information about the used correction mode is 
+            included in the plot
+        **kwargs: 
+            additional lines to be plotted, e.g.:: 
+                pcs = [300, 400, 500, 600]
+        """
+        tau = tau_img
+        if not isinstance(tau, Img):
+            tau = self._current_imgs["tau"]
+        if not isinstance(tau, Img):
+            raise AttributeError("No tau image available in "
+                                 "background model")
+        tau = tau.duplicate().to_pyrlevel(0)
+        tmin = tau_min
+        tmax = tau_max
+        if tau_max is None:
+            tau_max = tau.max()
+        if tau_min is None:
+            tau_min = - tau_max
+        cmap = shifted_color_map(tau_min, tau_max)
+        ax = []
+        figheight = 8
+        #margins (left, bottom, top, inner)
+        lm, bm, tm, im = 0.10, 0.10, 0.02, 0.01
+        tau_frac = 0.7
+        h0, w0 = tau.shape
+        R = w0 / float(h0)
+        
+        d_panels = 1 - tm - bm - im - tau_frac
+        
+        fig = figure(figsize=(R*figheight, figheight))
+        
+        ax.append(fig.add_axes([lm, bm, 
+                                tau_frac, tau_frac]))
+        
+        ax.append(fig.add_axes([lm + tau_frac + im, bm,
+                                d_panels, tau_frac]))
+        
+        ax.append(fig.add_axes([lm, bm + tau_frac + im,
+                                tau_frac, d_panels]))
+        
+        if self.CORR_MODE == 0:
+            ax.append(fig.add_axes([lm + tau_frac + im,
+                                    bm + tau_frac + im,
+                                    d_panels, d_panels]))
+            palette = colors.ListedColormap(['white', 'lime'])
+            norm = colors.BoundaryNorm([0, .5, 1], palette.N)
+    
+            ax[3].imshow(self.surface_fit_mask, cmap=palette, norm=norm,
+                         alpha=.7)
+
+            ax[3].set_xticklabels([])
+            ax[3].set_yticklabels([])
+        
+        ax[0].imshow(tau.img, cmap=cmap, vmin=tau_min, vmax=tau_max)
+        
+        ax[0].plot([self.ygrad_line_colnum, self.ygrad_line_colnum],
+                   [0, h0],"-b", label="vert profile")
+        ax[0].plot([0, w0],[self.xgrad_line_rownum, self.xgrad_line_rownum],
+                    "-c", label="hor profile")
+        for k, l in add_lines.iteritems():
+            try:
+                x0, y0, x1, y1 = l.to_list()
+                c = l.color
+            except:
+                x0, y0, x1, y1 = l
+                c="g"
+        
+            ax[0].plot([x0, x1],[y0,y1], "-", lw=2, c=c, label=k)
+    
+        ax[0].set_xlim([0, w0 - 1])
+        ax[0].set_ylim([h0 - 1, 0])
+        
+        
+        xs, ys, ws, hs = _roi_coordinates(self.scale_rect)
+        ax[0].add_patch(Rectangle((xs, ys), ws, hs, ec="lime",fc="lime",
+                        label="scale_rect", alpha=0.3))
+        
+        xs, ys, ws, hs = _roi_coordinates(self.ygrad_rect)
+        ax[0].add_patch(Rectangle((xs, ys), ws, hs, ec="b",fc="b",
+                        label="ygrad_rect", alpha=0.3))
+        
+        xs, ys, ws, hs = _roi_coordinates(self.xgrad_rect)
+        ax[0].add_patch(Rectangle((xs, ys), ws, hs, ec="c",fc="c",
+                        label="xgrad_rect", alpha=0.3))
+                                                
+        ax[2].set_xticklabels([])
+        ax[1].set_yticklabels([])
+        
+        
+        
+        #plot vertical profile
+        lvert = LineOnImage(self.ygrad_line_colnum, 0, 
+                            self.ygrad_line_colnum,
+                            h0 - 1, line_id="vert")
+        p_vert = lvert.get_line_profile(tau.img) 
+            
+        ax[1].plot(p_vert, arange(0, len(p_vert), 1), "-b",
+                   label="vert profile")
+        ax[1].yaxis.tick_right()   
+        ax[1].set_ylim([h0 - 1, 0])
+        setp(ax[1].xaxis.get_majorticklabels(), rotation = 15)
+        ax[1].yaxis.tick_right()   
+        
+        #plot horizontal profile
+        line_hor = LineOnImage(0, self.xgrad_line_rownum, w0 - 1,
+                               self.xgrad_line_rownum, line_id="hor")
+        p_hor = line_hor.get_line_profile(tau.img)
+        ax[2].plot(arange(0, len(p_hor), 1), p_hor, "-c",
+                   label="hor profile")
+        #ax[2].get_yaxis().set_ticks(horYLabels)
+        #ax[2].set_ylim([-.05,.25])
+        ax[2].set_xlim([0, w0 - 1])
+    
+        #subplots_adjust(wspace=0.02, hspace=0.02)
+        ax[2].axhline(0, ls = "--", color = "k")
+        ax[1].axvline(0, ls = "--", color = "k")
+        
+        if edit_profile_labels:
+            low, high = tmin, tmax
+            if low is None:
+                low = p_vert.min()
+            if high is None:
+                high = p_vert.max()
+            _range = high - low
+            lbls = [0]
+            if high > 0 and high/_range > 0.2:
+                lbls.append(high - _range * .1)
+            if low < 0 and abs(low)/high > 0.5:
+                lbls.insert(0, low + _range*.1)
+            ax[1].get_xaxis().set_ticks(lbls)
+            lbl_str = ["%.2f" %lbl for lbl in lbls]
+            ax[1].set_xlim([low, high])
+            ax[1].set_xticklabels(lbl_str)                
+            
+            low, high = tmin, tmax
+            if low is None:
+                low = p_hor.min()
+            if high is None:
+                high = p_hor.max()
+            _range = high - low
+            lbls = [0]
+            if high > 0 and high / _range > 0.2:
+                lbls.append(high - _range*.1)
+            if low < 0 and abs(low) / high > 0.5:
+                lbls.insert(0, low + _range *.1)
+            ax[2].get_yaxis().set_ticks(lbls)
+            lbl_str = ["%.2f" %lbl for lbl in lbls]
+            ax[2].set_ylim([low, high])
+            ax[2].set_yticklabels(lbl_str)         
+            
+        ax[1].set_xlabel(r"$\tau$", fontsize=fsize_labels)
+        ax[2].set_ylabel(r"$\tau$", fontsize=fsize_labels)  
+        if add_mode_info:
+            ax[0].set_xlabel("CORR_MODE: %s" %self.CORR_MODE, 
+                             fontsize=fsize_labels)
+        ax[0].legend(loc=legend_loc, fancybox=True, framealpha=0.7, 
+                     fontsize=fsize_legend)
+        return fig
+    
     """Helpers"""
     def settings_dict(self):
         """Write current sky reference areas and masks into dictionary"""

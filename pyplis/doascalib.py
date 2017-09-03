@@ -392,7 +392,8 @@ class DoasCalibData(object):
         s = "(%s)E%+d" %(p, exp)
         return s.replace("x", r"$\tau$")
         
-    def plot(self, add_label_str="", shift_yoffset=False, ax=None, **kwargs):
+    def plot(self, add_label_str="", shift_yoffset=False, ax=None, 
+             **kwargs):
         """Plot calibration data and fit result
         
         Parameters
