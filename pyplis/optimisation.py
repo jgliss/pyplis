@@ -69,18 +69,35 @@ def dilution_corr_fit(rads, dists, rad_ambient, i0_guess=None,
     
     return least_squares(errfun, guess, args = (dists, rads), bounds=bounds)
 
-def gauss_fit_2d(img_arr, cx, cy, g2d_asym = True,\
-        g2d_super_gauss = True, g2d_crop = True, g2d_tilt = False, **kwargs):
+def gauss_fit_2d(img_arr, cx, cy, g2d_asym=True, g2d_super_gauss=True, 
+                 g2d_crop=True, g2d_tilt=False, **kwargs):
     """Apply 2D gauss fit to input image at its maximum pixel coordinate
     
-    :param corr_img: correlation image
-    :param float cx: x position of peak in image (used for initial guess)
-    :param float cy: y position of peak in image (used for initial guess)
-    :param bool g2d_asym: allow for assymetric shape (sigmax != sigmay), True
-    :param bool g2d_super_gauss: allow for supergauss fit, True
-    :param bool g2d_crop: if True, set outside (1/e amplitude) datapoints = 0,
-        True
-    :param bool g2d_tilt: allow gauss to be tilted with respect to x/y axis
+    Parameters
+    ----------
+    corr_img : array
+        correlation image
+    cx : float 
+        x-position of peak in image (used for initial guess)
+    cy : float
+        y-position of peak in image (used for initial guess)
+    g2d_asym : bool
+        allow for assymetric shape (sigmax != sigmay), True
+    g2d_super_gauss : bool
+        allow for supergauss fit, True
+    g2d_crop : bool
+        if True, set outside (1/e amplitude) datapoints = 0, True
+    g2d_tilt : bool
+        allow gauss to be tilted with respect to x/y axis
+        
+    Returns
+    -------
+    tuple
+        3-element tuple containing
+        
+        - array (popt): optimised multi-gauss parameters
+        - 2d array (pcov): estimated covariance of popt
+        - 2d array: correlation image
     """
     xgrid, ygrid = mesh_from_img(img_arr)
     amp = img_arr[cy, cx]

@@ -53,7 +53,7 @@ RELOAD_STACK = 0
 #the result from pyrlevel=2, another stack is determined at pyrlevel = 0 
 #(i.e. in full resolution) within ROI around the center position from 
 #pyrlevel=2
-DO_FINE_SEARCH = 0
+DO_FINE_SEARCH = 1
 PYRLEVEL_ROUGH_SEARCH = 2
 
 ### RELEVANT DIRECTORIES AND PATHS
@@ -65,7 +65,7 @@ DOAS_DATA_DIR = join(IMG_DIR, "..", "spectra", "plume_prep", "min10Scans",
 STACK_PATH = join(SAVE_DIR, "ex06_aa_imgstack.fts")
 
 ### SCRIPT FUNCTION DEFINITIONS                    
-def load_doas_results():
+def load_doas_results(lt_to_utc_shift=timedelta(-1./12)):
     """ Specify DOAS data import from DOASIS fit result files
     
     In order to perform the DOAS FOV search, as many spectrum datapoints 
@@ -82,7 +82,8 @@ def load_doas_results():
     # specifying the identification string of the species in the result file
     # headers and the second entry is a list specifying all fit scenario IDs
     # from which this species is supposed to be imported (here only f01)
-    fit_import_info = {"so2" : ["SO2_Hermans_298_air_conv_satCorr1e18", ["f01"]
+    fit_import_info = {"so2" : ["SO2_Hermans_298_air_conv_satCorr1e18", 
+                               ["f01"]
                                ]}
     
     # Create a result import setup for the DOAS data based on the import 
@@ -102,7 +103,7 @@ def load_doas_results():
     # be shifted (2h back) to match the camera data time stamps (which are in 
     # UTC), otherwise the temporal merging of the two datasets (for the DOAS
     # calibration) does not work
-    results_utc = doas_dataset.get_results("so2", "f01").shift(timedelta(-1./12))
+    results_utc = doas_dataset.get_results("so2", "f01").shift(lt_to_utc_shift)
     return results_utc
 
 def make_aa_stack_from_list(aa_list, roi_abs=None, pyrlevel=None,
@@ -129,7 +130,8 @@ def make_aa_stack_from_list(aa_list, roi_abs=None, pyrlevel=None,
             remove(stack_path)
         except:
             pass    
-        stack.save_as_fits(save_dir=save_dir, save_name="ex06_aa_imgstack.fts")  
+        stack.save_as_fits(save_dir=save_dir, 
+                           save_name="ex06_aa_imgstack.fts")  
     return stack
 
 def get_stack(reload_stack=RELOAD_STACK, stack_path=STACK_PATH,
@@ -183,29 +185,19 @@ if __name__ == "__main__":
     ax2.set_xlim([0, 0.20])
     ax2.legend(loc=4, fancybox=True, framealpha=0.7, fontsize=11)
     axes = [ax0, ax1, ax2]
+    
     if DO_FINE_SEARCH:    
-        """Get position in absolute coordinates and perform a fov search within
-        ROI around result from pearson fov search at full resolution 
-        (pyrlevel=0)
+        """Perform FOV search within ROI around result from pearson fov 
+        search at full resolution (pyrlevel=0)
         """
         if aa_list is None:
             aa_list = prepare_aa_image_list()
-        extend = calib_pears.fov.pixel_extend(abs_coords=True)
-        pos_x, pos_y = calib_pears.fov.pixel_position_center(abs_coords=True)
-
-        del stack # make space for new stack
-        #create ROI around center position of FOV
-        roi = [ pos_x - 5*extend, pos_y - 5*extend,
-                pos_x + 5*extend, pos_y + 5*extend]
-                
-        stack = make_aa_stack_from_list(aa_list, roi_abs=roi, pyrlevel=0, 
-                                        save=0)
-        s = pyplis.doascalib.DoasFOVEngine(stack, doas_time_series,
-                                           pearson_max_radius=30)
-        calib_pears_fine = s.perform_fov_search(method = "pearson")
-        calib_pears_fine.fit_calib_polynomial()
-        axes.append(calib_pears_fine.plot())
-        axes.append(calib_pears_fine.fov.plot())
+        s_fine = s.run_fov_fine_search(aa_list, doas_time_series, 
+                                       method="pearson")
+    
+        calib_pears_fine = s_fine.calib_data
+        calib_pears_fine.plot()
+        calib_pears_fine.fov.plot()
         
     try:
         remove(join(SAVE_DIR, "ex06_doascalib_aa.fts"))
@@ -213,10 +205,9 @@ if __name__ == "__main__":
         pass
     calib_pears.save_as_fits(save_dir=SAVE_DIR, 
                              save_name="ex06_doascalib_aa.fts")
+    calib_ifr.save_as_fits(save_dir=SAVE_DIR,
+                           save_name="ex06_doascalib_aa_ifr_method.fts")
     
-    # Print the results of the FOV search
-    print calib_ifr.fov
-    print calib_pears.fov
     
     ### IMPORTANT STUFF FINISHED
     if SAVEFIGS:

@@ -182,7 +182,7 @@ file_type:tif
 main_filter_id:on
 meas_type_pos:3
 DARK_CORR_OPT:2
-focal_length:None
+focal_length:35.8e-3
 pix_height:None
 pix_width:None
 pixnum_x:512
