@@ -1005,7 +1005,7 @@ class PlumeBackgroundModel(object):
             self.mode = value
             
     def __call__(self, plume, bg, **kwargs):
-        return self.get_model(plume, bg, **kwargs)
+        return self.get_tau_image(plume, bg, **kwargs)
 
 def _mean_in_rect(img_array, rect=None):
     """Helper to get mean and standard deviation of pixels within rectangle

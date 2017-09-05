@@ -1573,6 +1573,11 @@ class ImgList(BaseImgList):
     @bg_img.setter
     def bg_img(self, val):
         self.set_bg_img(val)
+    
+    @property
+    def dark_img(self):
+        """Current dark image"""
+        return self.get_dark_image()
         
     @property
     def bg_list(self):
@@ -2329,12 +2334,11 @@ class ImgList(BaseImgList):
             return 0
         del self.linked_lists[list_id]
         del self.linked_indices[list_id]
-    
-        
-    def link_dark_offset_lists(self, list_dict):
+      
+    def link_dark_offset_lists(self, *lists):
         """Assign dark and offset image lists to this object
         
-        Set dark and offset image lists: get "closest-in-time" indices of dark 
+        Assign dark and offset image lists: get "closest-in-time" indices of dark 
         list with respect to the capture times of the images in this list. Then
         get "closest-in-time" indices of offset list with respect to dark list.
         The latter is done to ensure, that dark and offset set used for image
@@ -2359,7 +2363,7 @@ class ImgList(BaseImgList):
         # relevant for the HD cam), requires flag: texp_access = True (see 
         # above)
         dtexp_dark, dtexp_offset = 999999, 999999
-        for lst in list_dict.values():
+        for lst in lists:
             if isinstance(lst, DarkImgList):
                 if lst.list_type == "dark":
                     try:

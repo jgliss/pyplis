@@ -489,14 +489,14 @@ class Dataset(object):
         """Assign dark and offset lists to image lists ``self.lists``
         
         Assign dark and offset lists in filter lists for automatic dark and
-        offset correction. The lists are set dependent on the read_gain mode of
-        the detector
+        offset correction. The lists are set dependent on the read_gain 
+        mode of the detector
         
         :param ImgList into_list (None): optional input, if specified, the dark 
             assignment is performed only in the input list
         """    
         if isinstance(into_list, ImgList):            
-            into_list.link_dark_offset_lists(self.dark_lists_with_data)
+            into_list.link_dark_offset_lists(*self.dark_lists_with_data.values())
             return True
         
 #==============================================================================
@@ -513,7 +513,8 @@ class Dataset(object):
                     for dark_mtype in self.camera.dark_meas_type_acros:
                         for dark_acro in self.camera.dark_acros:
                             try:
-                                if lst.filter.acronym in dark_acro:
+                                if lst.filter.acronym in dark_acro and\
+                                    lst.filter.meas_type_acro == dark_mtype:
                                     dark_lst = self._lists_intern[dark_mtype]\
                                                                     [dark_acro]
                                     if isinstance(dark_lst, DarkImgList):
@@ -554,7 +555,7 @@ class Dataset(object):
                 else:
                     print ("Assigning dark/offset lists %s to image list %s\n"
                             %(lists.keys(), filter_id))
-                    lst.link_dark_offset_lists(lists)
+                    lst.link_dark_offset_lists(*lists.values())
         return True
         
     def get_all_dark_offset_lists(self):
