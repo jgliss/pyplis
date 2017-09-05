@@ -1526,10 +1526,11 @@ class ImgList(BaseImgList):
         """Change current list calibration mode"""
         if val == self._list_modes["gascalib"]:
             return
-        if val:    
+        if val:
+            if not self.tau_mode:
+                warn("Calib mode was activated without active tau mode")
             if not self.aa_mode:
-                self.aa_mode = True
-                print "Activated AA mode in image list"
+                warn("Calib mode was activated without active AA mode")
             if not self.sensitivity_corr_mode:
                 warn("AA sensitivity correction mode is deactivated. This "
                     "may yield erroneous results at the image edges")
@@ -1831,7 +1832,7 @@ class ImgList(BaseImgList):
                         "modelling mode to 0 using self.bg_model.mode=0)" 
                         %self.list_id)
                 bg_img = self.bg_img
-            self.bg_model.get_tau_image(cim, bg_img)
+            self.bg_model.get_tau_image(self.this, bg_img)
             self.vigncorr_mode = vc
         self._list_modes["tau"] = val
         self.load()
@@ -3047,9 +3048,10 @@ class ImgList(BaseImgList):
                 
                 img = img / self.aa_corr_mask
                 img.edit_log["senscorr"] = 1
-            if self.calib_mode:
-                img.img = self.calib_data(img.img)
-                img.edit_log["gascalib"] = True
+        # Direct calibration of tau images possible
+        if self.calib_mode:
+            img.img = self.calib_data(img.img)
+            img.edit_log["gascalib"] = True
     
         img.to_pyrlevel(self.img_prep["pyrlevel"])
         if self.img_prep["crop"]:
@@ -3098,4 +3100,425 @@ class CellImgList(ImgList):
         self.cell_id = cell_id
         self.gas_cd = gas_cd
         self.gas_cd_err = gas_cd_err
-                   
+
+from astropy.io import fits
+import numpy as np
+        
+class ImgListMultiFits(ImgList):
+    """Image list object which can be used with mulitple fit files (comtessa project)
+    
+    Additional features:
+        
+            1. Indexing using double index: Filename and image plane
+            2. Function which returns a DataFrame of all available data
+            
+    Parameters
+    ----------
+    files : list
+        list containing image file paths, defaults to ``[]`` (i.e. empty list)
+    list_id : :obj:`str`, optional
+        string ID of this list, defaults to None
+    list_type : :obj:`str`, optional
+        string specifying type of image data in this list (e.g. on, off)
+    camera : :obj:`Camera`, optional
+        camera specifications, defaults to None
+    geometry : :obj:`MeasGeometry`, optional
+        measurement geometry
+    init : bool
+        if True, the first two images in list ``files`` are loaded
+    
+    """
+    
+    def __init__(self, files=[], meta=None, list_id=None, list_type=None, camera=None,
+                 geometry=None, init=True):
+        ''' let's assume I already detected all relevant fits files and give them as a parameter
+        Load ALL images inside the files (only multiple of minute intervals possible)
+        Alternatively, the the imagelist can be loaded by giving a meta DataFrame
+        --> speed up the initialisation; in this case self.fitsfiles can remain empty
+        
+        Camera can be defined by loading the first image (fov, pixel, etc...)
+        '''
+        # uses the init method from ImgList but does not load the files!
+        super(ImgListMultiFits, self).__init__(files, list_id, list_type, camera, 
+                                      geometry, init=False)
+        
+        # redefinition of several paramters and new parameter
+
+        # n files with m_n images
+        # datafiles (every file only once)
+        # only needed for fast referencing
+        # make a function/property out of it!
+        self.fitsfiles = files
+        
+        if isinstance(meta, DataFrame):
+            try:
+                self.metaData = meta
+            except:
+                self.metaData = self.get_img_meta_all()
+        else:
+            self.metaData = self.get_img_meta_all()
+
+        # filename subindex (file is repeated m_n times)
+        self.files = self.metaData['file'].values
+        # image plane subindex
+        self.img_plane = self.metaData['hdu_nr'].values
+                                      
+        if self.data_available and init:
+            self.load()
+
+
+################################################################################
+    def get_img_meta_from_filename(self, file_path):
+        """Loads and prepares img meta input dict for Img object
+        
+        Note
+        ----
+        Convenience method only rewritten in order to not break the code.
+        Loads meta data of first image plane in fits file_path
+        
+        Parameters
+        ----------
+        file_path : str 
+            file path of image
+        
+        Returns
+        -------
+        dict
+            dictionary containing retrieved values for ``start_acq`` and 
+            ``texp``
+        """
+        hdulist = fits.open(file_path)
+        time = datetime.strptime(hdulist[0].header['ENDTIME'], '%Y.%m.%dZ%H:%M:%S.%f') 
+        texp = int(hdulist[0].header['EXP'])
+        return {"start_acq" : time, "texp": texp}
+    
+    
+        
+    def get_img_meta_all_filenames(self):   
+        """ returns the same data as expected
+        from ImgList.get_img_meta_all_filenames()
+        
+        Note
+        ----
+        Convenience method only rewritten in order to not break the code
+        
+        Returns
+        -------
+        tuple
+            2-element tuple containing
+            
+            - list, list containing all retrieved acq. time stamps
+            - list, containing all retrieved exposure times
+
+        """
+        meta = self.metaData
+        times = meta.start_acq.values
+        texps = meta.exposure.values         
+        return times, texps
+    
+    
+    def get_img_meta_all(self):
+        import pandas as pd
+        """ Load all available meta data from fits files
+        
+        Note:
+            For some reason memmap=True works in fits.open() only when
+            do_not_scale_image_data=False. With memmap=True the (image) data
+            is not directly loaded in memory and thus saves processing time.
+            Due to do_not_scale_image_data=False, the images cannot be used
+            for evaluation. In this function only the headers should be readout,
+            thus it can be used
+            
+        return:
+            dataFrame containing all metadata"""
+            
+        imgFile = []
+        imgFilehdu = []
+        imgFileTime = []
+        imgFileExp = []
+        imgFileTemp = []
+        
+        # Exatract information of every image in every fits file in fitsFile
+        for filePath in self.fitsfiles:
+            #open the file, returning a list containg Header-Data Units (HDU)
+            hdulist = fits.open(filePath,
+                            memmap=True, #data is not read all at once)
+                            do_not_scale_image_data=False) # Should be True, see Note
+            imgPerFile = np.size(hdulist)
+            hdulist.close()
+            for hdu in range(imgPerFile):    
+                # Info needed for loading the image            
+                imgFile.append(filePath)
+                imgFilehdu.append(hdu)              
+                # Info from header
+                imageHeader = hdulist[hdu].header
+                ### TODO Load as dictionary
+                imgFileTime.append(imageHeader['ENDTIME'])
+                imgFileExp.append(int(imageHeader['EXP']))
+                imgFileTemp.append(int(imageHeader['TCAM']))
+           
+        imgFileDatetime = [ datetime.strptime(time, '%Y.%m.%dZ%H:%M:%S.%f' ) for time in imgFileTime]
+            
+        meta = DataFrame(data={'img_id':arange(0,len(imgFile),1),
+                               'file':imgFile,
+                               'hdu_nr':imgFilehdu,
+                               'exposure':imgFileExp,
+                               'temperature':imgFileTemp,
+                               'start_acq':imgFileDatetime},
+                                index=imgFileDatetime)
+        meta.index = pd.to_datetime(meta.index)
+        return meta
+        
+###############################################################################
+    
+    def load_img(self, index):
+        """ Load an image
+        Don't apply any image processing!
+         Check out if this could be put inro camera.import method
+         """
+        img_file = self.files[index]
+        img_hdu = self.img_plane[index]            
+        hdulist = fits.open(img_file)#,
+                            #memmap=True,
+                            #do_not_scale_image_data=False) #memmap keyword: data is not read all at once
+        image = hdulist[img_hdu].data
+        hdulist.close() #close the file, the header is stil available
+        # load meta data
+        imageHeader = hdulist[img_hdu].header
+        imageMeta = {"start_acq"    : datetime.strptime(imageHeader['ENDTIME'],
+                                                        '%Y.%m.%dZ%H:%M:%S.%f'),
+                    "texp"         : int(imageHeader['EXP']),
+                    "temperature"  : int(imageHeader['TCAM'])}
+
+        # replace binary time stamp
+        image[0,0:14] = image[1,0:14]            
+        #Define pyplis image
+        return Img(image, **imageMeta)
+        
+
+    """INDEX AND IMAGE LOAD MANAGEMENT"""
+    def load(self):
+        """Try load current and next image"""
+        self.update_index_linked_lists() #based on current index in this list
+        
+        ### redefine load funtion
+        #if not super(ImgList, self).load():
+        #    print ("Image load aborted...")
+        #    return False
+        
+        ### Parent funtions
+        
+        """Load current image
+        
+        Try to load the current file ``self.files[self.cfn]`` and if remove the 
+        file from the list if the import fails
+        Raises
+        ------
+        
+        Returns
+        -------
+        bool
+            if True, image was loaded, if False not        
+        """
+        if not self._auto_reload:
+            print ("Automatic image reload deactivated in image list %s"\
+                                                                %self.list_id)
+            return False        
+        try:
+    
+            img = self.load_img(self.index)
+            self.loaded_images["this"] = img
+            self._load_edit.update(img.edit_log)
+            
+            if img.vign_mask is not None:
+                self.vign_mask = img.vign_mask
+            
+            self.update_prev_next_index()
+            self._apply_edit("this")
+                    
+        except IOError:
+            warn("Invalid file encountered at list index %s, file will"
+                " be removed from list" %self.index)
+            self.pop()
+            if self.nof == 0:
+                raise IndexError("No filepaths left in image list...")
+            self.load()
+            
+        except IndexError:
+            try:
+                self.init_filelist()
+                self.load()
+            except:
+                raise IndexError("Could not load image in list %s: file list "
+                    " is empty" %(self.list_id))
+        
+        if self.nof > 1:                
+            self.loaded_images["next"] = self.load_img(self.next_index)
+            self._apply_edit("next")
+        else:
+            #self.loaded_images["prev"] = self.loaded_images["this"]
+            self.loaded_images["next"] = self.loaded_images["this"]
+            
+        if self.optflow_mode:  
+            try:
+                self.set_flow_images()
+                self.optflow.calc_flow()
+            except IndexError:
+                warn("Reached last index in image list, optflow_mode will be "
+                        "deactivated")
+                self.optflow_mode = 0
+        return True
+
+            
+    def load_next(self):
+        """Load next image in list"""
+        if self.nof < 2 or not self._auto_reload:
+            print ("Could not load next image, number of files in list: " +
+                str(self.nof))
+            return False
+        self.index = self.next_index
+        self.update_prev_next_index()
+        
+        self.update_index_linked_lists() #loads new images in all linked lists
+        
+        #self.loaded_images["prev"] = self.loaded_images["this"]
+        self.loaded_images["this"] = self.loaded_images["next"]
+        
+        self.loaded_images["next"] = self.load_img(self.next_index)
+        self._apply_edit("next")
+        if self.optflow_mode:  
+            try:
+                self.set_flow_images()
+                self.optflow.calc_flow()
+            except IndexError:
+                warn("Reached last index in image list, optflow_mode will be "
+                    "deactivated")
+                self.optflow_mode = 0
+        return True
+
+    def activate_tau_mode(self, val=1):
+            """Activate tau mode
+            
+            In tau mode, images will be loaded as tau images (if background image
+            data is available). 
+            
+            Parameters
+            ----------
+            val : bool
+                new mode
+                
+            """
+            if val is self.tau_mode: #do nothing
+                return
+            if val:
+                if self.this.edit_log["is_tau"]:
+                    warn("Cannot activate tau mode in image list %s: "
+                         "current image is already a tau image"
+                         %self.list_id)
+                    return
+                vc = self.vigncorr_mode
+                self.vigncorr_mode = False
+                cim = self.load_img(self.index) # this was changed
+                bg_img = None
+                self.bg_model.set_missing_ref_areas(cim)
+                try:
+                    dark = self.get_dark_image("this")
+                    cim.subtract_dark_image(dark)
+                except:
+                    warn("Dark images not available")
+                if self.bg_model.mode == 0:
+                    
+                    print("Customed changed by Solvejg."
+                          "Surface map is calcualted on intensity thresholds"
+                          "directly in plumebackground model.")
+#                    print ("Background correction mode is 0, initiating settings "
+#                        "for poly surface fit")
+#                    try:
+#                        mask = self.prepare_bg_fit_mask(dilation=True)
+#                        self.bg_model.surface_fit_mask = mask
+#                    except:
+#                        warn("Background access mask could not be retrieved for "
+#                            "PolySurfaceFit in background model of image list %s"
+#                            %self.list_id)
+                    
+                else:
+                    if not self.has_bg_img():
+                        raise AttributeError("no background image available in "
+                            "list %s, please set a suitable background image "
+                            "using method set_bg_img, or change current bg " 
+                            "modelling mode to 0 using self.bg_model.mode=0)" 
+                            %self.list_id)
+                    bg_img = self.bg_img
+                self.bg_model.get_tau_image(cim, bg_img)
+                self.vigncorr_mode = vc
+            self._list_modes["tau"] = val
+            self.load()
+
+        
+    def change_index(self, idx):
+        """Change current image based on index of file list
+        
+        :param idx: index in `self.files` which is supposed to be loaded
+        
+        Dependend on the input index, the following scenarii are possible:
+        If..
+        
+            1. idx < 0 or idx > `self.nof`
+                then: do nothing (return)
+            #. idx == `self.index`
+                then: do nothing
+            #. idx == `self.next_index`
+                then: call :func:`next_img`
+            #. idx == `self.prev_index`
+                then: call :func:`prev_img`
+            #. else
+                then: call :func:`goto_img`
+        """
+        if not -1 < idx < self.nof or idx == self.index:
+            return
+        elif idx == self.next_index:
+            self.next_img()
+            return
+        elif idx == self.prev_index:
+            self.prev_img()
+            return
+        #: goto_img calls :func:`load` which calls prepare_additional_data
+        self.goto_img(idx)
+
+        return self.loaded_images["this"]
+    
+    def activate_vigncorr(self, val=True):
+        """Activate / deactivate vignetting correction on image load
+        
+        Note
+        ----
+        
+        Requires ``self.vign_mask`` to be set or an background image 
+        to be available (from which ``self.vign_mask`` is then determined)
+        
+        Parameters
+        ----------
+        val : bool
+            new mode
+        """
+        if val is self.vigncorr_mode: #do nothing
+            return
+        elif val:
+            if self.this.edit_log["vigncorr"]:
+                warn("Cannot activate vignetting correction in image list %s: "
+                     "current image is already corrected for vignetting"
+                     %self.list_id)
+                return 
+            if isinstance(self.vign_mask, Img):
+                self.vign_mask = self.vign_mask.img
+            if not isinstance(self.vign_mask, ndarray):
+                self.det_vign_mask_from_bg_img()
+            sh = (self.load_img(self.index)).img.shape
+            #sh = Img(self.files[self.cfn],
+            #        import_method=self.camera.image_import_method).img.shape
+            if not self.vign_mask.shape == sh:
+                raise ValueError("Shape of vignetting mask %s deviates from "
+                            "raw img shape %s" %(list(self.vign_mask.shape),
+                            list(sh)))
+        self._list_modes["vigncorr"] = val
+        self.load()
