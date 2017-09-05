@@ -7,9 +7,12 @@ from pyplis import __version__, LineOnImage
 from numpy import subtract
 from os.path import join
 from optparse import OptionParser
+from matplotlib import rcParams
+rcParams.update({'figure.autolayout': True})
+rcParams.update({'font.size': 13})
 
 # the pyplis version for which these scripts
-SCRIPTS_VERSION = "0.12"
+SCRIPTS_VERSION = "0.13"
 
 SAVEFIGS = 1 # save plots from this script in SAVE_DIR
 DPI = 150 #pixel resolution for saving
@@ -41,9 +44,6 @@ LINES = [PCS1, PCS2]
 
 OPTPARSE = OptionParser(usage='')
 OPTPARSE.add_option('--show', dest="show", default=SCREENPRINT)
-
-from matplotlib import rcParams
-rcParams.update({'font.size': 13})
 
 def check_version():
     v_code = [int(x) for x in __version__.split(".")[:2]]

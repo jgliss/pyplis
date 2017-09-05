@@ -14,7 +14,7 @@ from os.path import join, exists, isdir, abspath, basename, dirname
 from traceback import format_exc
 from warnings import warn
 
-from matplotlib.pyplot import subplots, rcParams
+from matplotlib.pyplot import subplots
 from matplotlib.patches import Circle, Ellipse
 from matplotlib.cm import RdBu
 from matplotlib.dates import DateFormatter
@@ -79,7 +79,7 @@ class DoasCalibData(object):
     
     @property
     def start(self):
-        """Return start datetime"""
+        """Start time of calibration data (datetime)"""
         try:
             return self.time_stamps[0]
         except TypeError:
@@ -87,7 +87,7 @@ class DoasCalibData(object):
     
     @property
     def stop(self):
-        """Return start datetime"""
+        """Stop time of calibration data (datetime)"""
         try:
             return self.time_stamps[-1]
         except TypeError:
@@ -95,53 +95,61 @@ class DoasCalibData(object):
     
     @property
     def calib_id_str(self):
-        """Return plot string for calibration ID"""
+        """String for calibration ID"""
+        idx=0
+        if self.calib_id.split("_")[1].lower() == "aa":
+            idx=1
         try:
-            return CALIB_ID_STRINGS[self.calib_id.split("_")[0]]
+            return CALIB_ID_STRINGS[self.calib_id.split("_")[idx]]
         except:
-            return self.calib_id.split("_")[0]
+            return self.calib_id.split("_")[idx]
             
     @property
     def coeffs(self):
-        """return poly1d object of current coefficients"""
+        """Coefficients of current calibration polynomial"""
         return self.poly.coeffs 
         
     @property
     def slope(self):
-        """returns slope of current calib curve"""
+        """Slope of current calib curve"""
         return self.coeffs[-2]
         
     @property
     def slope_err(self):
-        """returns slope error of current calib curve"""
+        """Slope error of current calib curve"""
         return sqrt(self.cov[-2][-2])
     
     @property
     def y_offset(self):
-        """return y axis offset of calib curve"""
+        """Y-axis offset of calib curve"""
         return self.coeffs[-1]
     
     @property
     def y_offset_err(self):
-        """return error of y axis offset of calib curve"""
+        """Error of y axis offset of calib curve"""
         return sqrt(self.cov[-1][-1])
         
     @property
     def doas_tseries(self):
-        """Return pandas Series object of doas data"""
+        """Pandas Series object of doas data"""
         return Series(self.doas_vec, self.time_stamps)
     
     @property
     def tau_tseries(self):
-        """Return pandas Series object of tau data"""
+        """Pandas Series object of tau data"""
         return Series(self.tau_vec, self.time_stamps)
     
     @property
     def tau_range(self):
-        """Returns range of tau values extended by 5%
+        """Range of tau values extended by 5%
         
-        :return float tau_min: lower end of tau range
-        :return float tau_max: upper end of tau range
+        Returns
+        -------
+        tuple
+            2-element tuple, containing
+            
+            - float, tau_min: lower end of tau range
+            - float, tau_max: upper end of tau range
         """
         tau = self.tau_vec
         taumin, taumax = tau.min(), tau.max()
@@ -152,7 +160,7 @@ class DoasCalibData(object):
     
     @property
     def doas_cd_range(self):
-        """Returns range of DOAS cd values extended by 5%"""
+        """Range of DOAS cd values extended by 5%"""
         cds = self.doas_vec
         cdmin, cdmax = cds.min(), cds.max()
         if cdmin > 0:
@@ -235,9 +243,14 @@ class DoasCalibData(object):
         return self.poly
     
     def save_as_fits(self, save_dir=None, save_name=None):
-        """Save stack as FITS file
+        """Save calibration data as FITS file
         
-                
+        Parameters
+        ----------
+        save_dir : str
+            save directory, if None, the current working directory is used
+        save_name : str
+            filename of the FITS file (if None, use pyplis default naming)
         """
         if not len(self.doas_vec) == len(self.tau_vec):
             raise ValueError("Could not save calibration data, mismatch in "
@@ -245,13 +258,13 @@ class DoasCalibData(object):
         if not len(self.time_stamps) == len(self.doas_vec):
             self.time_stamps = asarray([datetime(1900,1,1)] *\
                                                 len(self.doas_vec))
-        
-        save_dir = abspath(save_dir) #returns abspath of current wkdir if None
+        #returns abspath of current wkdir if None
+        save_dir = abspath(save_dir) 
         if not isdir(save_dir): #save_dir is a file path
             save_name = basename(save_dir)
             save_dir = dirname(save_dir)
         if save_name is None:
-            save_name = "pyplis_doascalib_id_%s_%s_%s_%s.fts" %(\
+            save_name = "doascalib_id_%s_%s_%s_%s.fts" %(\
                 self.calib_id, self.start.strftime("%Y%m%d"),\
                 self.start.strftime("%H%M"), self.stop.strftime("%H%M"))
         else:
@@ -263,37 +276,45 @@ class DoasCalibData(object):
         fov_mask.header["calib_id"] = self.calib_id
         fov_mask.header.append()
         
-        rd = self.fov.result_pearson
-        try:
-            fov_mask.header.update(cx_rel=rd["cx_rel"], cy_rel=rd["cy_rel"],\
-                                   rad_rel=rd["rad_rel"])
-        except:
-            print "(Saving calib data): Position of FOV not available"
-        
+        ifr_res = []        
+        if self.fov.method == "pearson":
+            rd = self.fov.result_pearson
+            try:
+                fov_mask.header.update(cx_rel=rd["cx_rel"], cy_rel=rd["cy_rel"],\
+                                       rad_rel=rd["rad_rel"])
+            except:
+                warn("Position of FOV (pearson method) not available")
+            
+        elif self.fov.method == "ifr":
+            ifr_res = self.fov.result_ifr["popt"]
+
         try:
             hdu_cim = fits.ImageHDU(data = self.fov.corr_img.img)        
         except:
             hdu_cim = fits.ImageHDU()
-            print "(Saving calib data): FOV search correlation image not available"
+            warn("FOV search correlation image not available")
         
         tstamps = [x.strftime("%Y%m%d%H%M%S%f") for x in self.time_stamps]
-        col1 = fits.Column(name = "time_stamps", format = "25A", array =\
-            tstamps)
-        col2 = fits.Column(name = "tau_vec", format = "D", array =\
-                                                        self.tau_vec)
-        col3 = fits.Column(name = "doas_vec", format = "D", array =\
-                                                        self.doas_vec)
-        cols = fits.ColDefs([col1, col2, col3])
+        col1 = fits.Column(name="time_stamps", format="25A", array=tstamps)
+        col2 = fits.Column(name="tau_vec", format="D", array=self.tau_vec)
+        col3 = fits.Column(name="doas_vec", format="D", array=self.doas_vec)
+        col4 = fits.Column(name="doas_vec_err", format="D", array=self.doas_vec_err)
+        
+                                                        
+        cols = fits.ColDefs([col1, col2, col3, col4])
         arrays = fits.BinTableHDU.from_columns(cols)
                                             
-        roi = fits.BinTableHDU.from_columns([fits.Column(name = "roi",\
-                                format = "I", array = self.fov.roi_abs)])
+        roi = fits.BinTableHDU.from_columns([fits.Column(name="roi",
+                                                         format="I", 
+                                                         array=self.fov.roi_abs)])
+        col_ifr = fits.Column(name="ifr_res", format="D", array=ifr_res)
+        res_ifr = fits.BinTableHDU.from_columns([col_ifr])
         #==============================================================================
         # col1 = fits.Column(name = 'target', format = '20A', array=a1)
         # col2 = fits.Column(name = 'V_mag', format = 'E', array=a2)
         #==============================================================================
         
-        hdulist = fits.HDUList([fov_mask, hdu_cim, arrays, roi])
+        hdulist = fits.HDUList([fov_mask, hdu_cim, arrays, roi, res_ifr])
         fpath = join(save_dir, save_name)
         try:
             remove(fpath)
@@ -304,7 +325,10 @@ class DoasCalibData(object):
     def load_from_fits(self, file_path):
         """Load stack object (fits)
         
-        :param str file_path: file path of stack
+        Parameters
+        ----------
+        file_path : str
+            file path of calibration data
         """
         if not exists(file_path):
             raise IOError("DoasCalibData object could not be loaded, "
@@ -327,6 +351,7 @@ class DoasCalibData(object):
                 self.fov.search_settings[k] = val
             elif k in self.fov.result_pearson.keys():
                 self.fov.result_pearson[k] = val
+            
         try:
             self.fov.corr_img = Img(hdu[1].data.byteswap().newbyteorder())
         except:
@@ -347,7 +372,16 @@ class DoasCalibData(object):
             self.doas_vec = hdu[2].data["doas_vec"].byteswap().newbyteorder()
         except:
             print "Failed to import calibration doas data vector"
-            
+        try:
+            self.doas_vec_err = hdu[2].data["doas_vec_err"].byteswap().newbyteorder()
+        except:
+            print "Failed to import DOAS fit error information in calib data"
+        try:
+            self.fov.result_ifr["popt"] =\
+                hdu[4].data["ifr_res"].byteswap().newbyteorder()
+        except:
+            print ("Failed to import array containing IFR optimisation "
+                    " results from FOV search")
         self.fov.roi_abs = hdu[3].data["roi"].byteswap().newbyteorder()
     
     @property
@@ -358,7 +392,8 @@ class DoasCalibData(object):
         s = "(%s)E%+d" %(p, exp)
         return s.replace("x", r"$\tau$")
         
-    def plot(self, add_label_str="", shift_yoffset=False, ax=None, **kwargs):
+    def plot(self, add_label_str="", shift_yoffset=False, ax=None, 
+             **kwargs):
         """Plot calibration data and fit result
         
         Parameters
@@ -391,8 +426,9 @@ class DoasCalibData(object):
         ax.plot(self.tau_vec, cds, ls="", marker=".",
                 label="Data %s" %add_label_str, **kwargs)
         try:
+            print "Blaaa"
             ax.errorbar(self.tau_vec, cds, yerr=self.doas_vec_err, 
-                        fmt=None, color="#919191")
+                        marker="None", ls=" ", c="#b3b3b3")
         except:
             warn("No DOAS-CD errors available")
         try:
@@ -444,7 +480,7 @@ class DoasCalibData(object):
         r = self.slope_err / self.slope
         return val * r
         
-    def __call__(self, value,  **kwargs):
+    def __call__(self, value, **kwargs):
         """Define call function to apply calibration
         
         :param float value: tau or AA value
@@ -496,7 +532,10 @@ class DoasFOV(object):
     @property
     def method(self):
         """Returns search method"""
-        return self.search_settings["method"]
+        try:
+            return self.search_settings["method"]
+        except KeyError:
+            raise ValueError("No information about FOV search available")
     
     @property
     def pyrlevel(self):
@@ -542,9 +581,30 @@ class DoasFOV(object):
         
         """
         if self.method == "pearson":
-            raise TypeError("Invalid value: method pearson does not have FOV "
-                "shape parameters, call self.radius to retrieve disk radius")
+            raise TypeError("Invalid value: method pearson does not have "
+                            "FOV shape parameters, call self.radius to "
+                            "retrieve disk radius")
         return self.result_ifr["popt"]
+    
+    @property
+    def x_abs(self):
+        return self.pos_abs[0]
+    
+    @property
+    def y_abs(self):
+        return self.pos_abs[1]
+    
+    @property
+    def sigma_x_abs(self):
+        if self.method == "pearson":
+            return self.radius_rel * 2**self.pyrlevel
+        return self.popt[3] * 2**self.pyrlevel
+    
+    @property
+    def sigma_y_abs(self):
+        if self.method == "pearson":
+            return self.radius_rel * 2**self.pyrlevel
+        return (self.popt[3] / self.popt[4]) * 2 ** self.pyrlevel
     
     def _max_extend_rel(self):
         """Returns maximum pixel extend of FOV
@@ -566,7 +626,7 @@ class DoasFOV(object):
         ext_rel = self._max_extend_rel()
         if not abs_coords:
             return ext_rel
-        return ext_rel*2**2
+        return ext_rel*2**self.pyrlevel
     
     @property
     def pos_abs(self):
@@ -635,8 +695,7 @@ class DoasFOV(object):
         Saves this object as DoasCalibData::
         
             d = DoasCalibData(fov = self)
-            d.save_as_fits(**kwargs)
-            
+            d.save_as_fits(**kwargs)  
         """
         d = DoasCalibData(fov=self)
         d.save_as_fits(**kwargs)
@@ -743,6 +802,115 @@ class DoasFOVEngine(object):
         self.update_search_settings(**settings) 
         self.method = method
     
+    @property
+    def maxrad(self):
+        """For Pearson method: maximum expected disk radius of FOV
+        
+        Note
+        ----
+        this radius is considered independent of the current pyramid level
+        of the image stack, hence, if it is set 20 and the pyramid level of
+        the stack is 2, then, the FOV disk radius (in detector coords) may
+        be 80.
+        """
+        return self._settings["maxrad"]
+    
+    @maxrad.setter
+    def maxrad(self, val):
+        self._settings["maxrad"] = val
+        
+    @property
+    def ifrlbda(self):
+        """For IFR method: allow asymmetric 2d gauss fit"""
+        return self._settings["ifrlbda"]
+    
+    @ifrlbda.setter
+    def ifrlbda(self, val):
+        self._settings["ifrlbda"] = val
+        
+    @property
+    def g2dasym(self):
+        """For IFR method: allow asymmetric 2d gauss fit"""
+        return self._settings["g2dasym"]
+    
+    @g2dasym.setter
+    def g2dasym(self, val):
+        if not val in [True, False]:
+            raise ValueError("Invalid input value: require boolean")
+        self._settings["g2dasym"] = val
+        
+    @property
+    def g2dsuper(self):
+        """For IFR method: use supergauss parametrisation"""
+        return self._settings["g2dsuper"]
+    
+    @g2dsuper.setter
+    def g2dsuper(self, val):
+        if not val in [True, False]:
+            raise ValueError("Invalid input value: require boolean")
+        self._settings["g2dsuper"] = val
+        
+    @property
+    def g2dcrop(self):
+        """For IFR method: crop gaussian FOV parametrisation at sigma"""
+        return self._settings["g2dcrop"]
+    
+    @g2dcrop.setter
+    def g2dcrop(self, val):
+        if not val in [True, False]:
+            raise ValueError("Invalid input value: require boolean")
+        self._settings["g2dcrop"] = val
+        
+    @property
+    def g2dtilt(self):
+        """For IFR method: allow supergauss-fit to be tilted"""
+        return self._settings["g2dtilt"]
+    
+    @g2dtilt.setter
+    def g2dtilt(self, val):
+        if not val in [True, False]:
+            raise ValueError("Invalid input value: require boolean")
+        self._settings["g2dtilt"] = val
+        
+    @property
+    def blur(self):
+        """Sigma of gaussian blurring filter applied to correlation image
+        
+        The filter is applied to the correlation image before finding the 
+        position of the maximum, defaults to 4.
+        """
+        return self._settings["blur"]
+    
+    @blur.setter
+    def blur(self, val):
+        self._settings["blur"] = val
+        
+    @property
+    def mergeopt(self):
+        """Option for temporal merging of stack and DOAS vector
+        
+        Choose from ``average, nearest, interpolation``
+        """
+        return self._settings["mergeopt"]
+    
+    @mergeopt.setter
+    def mergeopt(self, val):
+        if not val in ["average", "nearest", "interpolation"]:
+            raise ValueError("Invalid method: choose from average, "
+                             "nearest or interpolation")
+        self._settings["mergeopt"] = val
+        
+    @property
+    def method(self):
+        """Method used for FOV search (e.g. pearson, ifr)"""
+        return self._settings["method"]
+    
+    @method.setter
+    def method(self, val):
+        if not val in ["pearson", "ifr"]:
+            raise ValueError("Invalid method: choose from pearson or ifr")
+        self._settings["method"] = val
+        
     def update_search_settings(self, **settings):
         """Update current search settings
         
@@ -804,9 +972,59 @@ class DoasFOVEngine(object):
         self.calib_data.fov.search_settings = deepcopy(self._settings)
         
         return self.calib_data
+      
+    def run_fov_fine_search(self, img_list, doas_series, extend_fac=3, 
+                            **settings):    
+        """Get FOV position in full resolution
         
+        Note
+        ----
+        1. Only works if FOV search (i.e. :func:`perform_fov_search`) was 
+        already performed. 
+        #. This method requires some time as it needs to
+        recompute a cropped image stack in full resolution from the 
+        provided img_list. 
+        #. This method deletes the current image stack in this objects.
+        #. Uses the same search settings as set in this class (i.e. method, 
+        etc.)
+            
+        Parameters
+        ----------
+        img_list : BaseImgList
+            image list used to calculate cropped stack
+        doas_series : DoasResults
+            original DOAS time series (i.e. not merged in time with image
+            data, needs to be provided since the one stored within this 
+            class is modified during the first FOV search)
+        extend_fac : int
+            factor determining crop ROI based on the current pixel extend
+            of the FOV 
+            
+        Returns
+        -------
+        DoasFOVEngine
+            new instance containing results from fine search
+        """
+        self.update_search_settings(**settings)
+        try:
+            extend = self.calib_data.fov.pixel_extend(abs_coords=True)
+            pos_x, pos_y = self.calib_data.fov.pixel_position_center(abs_coords=True)
+            
+            del self.img_stack # make space for new stack
+            #create ROI around center position of FOV
+            roi = [ pos_x-extend_fac*extend, pos_y-extend_fac*extend,
+                    pos_x+extend_fac*extend, pos_y+extend_fac*extend]
                     
-    def merge_data(self, merge_type="average"):
+            stack = img_list.make_stack(pyrlevel=0, roi_abs=roi)
+            s = DoasFOVEngine(stack, self.doas_series, **self._settings)
+            calib=s.perform_fov_search()
+            calib.fit_calib_polynomial()
+            return s
+        
+        except Exception as e:
+            raise Exception("Failed to perform fine search: %s" %repr(e))
+                        
+    def merge_data(self, merge_type=None):
         """Merge stack data and DOAS vector in time
         
         Wrapper for :func:`merge_with_time_series` of :class:`ImgStack`
@@ -824,7 +1042,8 @@ class DoasFOVEngine(object):
             print ("Data merging unncessary, img stack and DOAS vector are "
                    "already merged in time")
             return
-        
+        if merge_type is None:
+            merge_type = self._settings["mergeopt"]
         new_stack, new_doas_series = self.img_stack.merge_with_time_series(
                                         self.doas_series, 
                                         method=merge_type)
@@ -991,10 +1210,11 @@ class DoasFOVEngine(object):
     def fov_radius_search(self, cx, cy):
         """Search the FOV disk radius around center coordinate
         
-        The search varies the radius around the center coordinate and extracts
-        image data time series from average values of all pixels falling into 
-        the current disk. These time series are correlated with spectrometer
-        data to find the radius showing highest correlation.
+        The search varies the radius around the center coordinate and 
+        extracts image data time series from average values of all pixels 
+        falling into the current disk. These time series are correlated 
+        with spectrometer data to find the radius showing highest 
+        correlation.
         
         :param int cx: pixel x coordinate of center position
         :param int cy: pixel y coordinate of center position
@@ -1047,22 +1267,40 @@ class DoasFOVEngine(object):
                       g2dcrop=True, g2dtilt=False, blur=4, **kwargs):
         """Apply 2D gauss fit to correlation image
         
-        :param corr_img: correlation image
-        :param bool asym: super gauss assymetry
-        :param bool super_gauss
-        :param int smooth_sigma_max_pos: width of gaussian smoothing kernel 
-            convolved with correlation image in order to identify position of
-            maximum
-        
+        Parameters
+        ----------
+        corr_img : arrax
+            correlation image
+        g2dasym : bool
+            allow for assymetric shape (sigmax != sigmay), True
+        g2dsuper: bool
+            allow for supergauss fit, True
+        g2dcrop : bool
+            if True, set outside (1/e amplitude) datapoints = 0, True
+        g2dtilt : bool 
+            allow gauss to be tilted with respect to x/y axis
+        blur : int
+            width of gaussian smoothing kernel convolved with correlation 
+            image in order to identify position of maximum
+            
+        Returns
+        -------
+        tuple
+            3-element tuple containing
+            
+            - array (popt): optimised multi-gauss parameters
+            - 2d array (pcov): estimated covariance of popt
+            - 2d array: correlation image
         """
         xgrid, ygrid = mesh_from_img(corr_img)
         # apply maximum of filtered image to initialise 2D gaussian fit
         (cy, cx) = get_img_maximum(corr_img, blur)
         # constrain fit, if requested
-        (popt, pcov, fov_mask) = gauss_fit_2d(corr_img, cx, cy, g2dasym,\
-            g2d_super_gauss = g2dsuper, g2d_crop = g2dcrop,\
-                                            g2d_tilt = g2dtilt, **kwargs)
-        # normalise
+        (popt, pcov, fov_mask) = gauss_fit_2d(corr_img, cx, cy, g2dasym,
+                                              g2d_super_gauss=g2dsuper, 
+                                              g2d_crop=g2dcrop,
+                                              g2d_tilt=g2dtilt, **kwargs)
+
         return (popt, pcov, fov_mask)
     
     #function convolving the image stack with the obtained FOV distribution    

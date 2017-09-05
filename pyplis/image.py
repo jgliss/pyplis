@@ -115,7 +115,8 @@ class Img(object):
                               ("gascalib"   ,   0), # image is gas CD image
                               ("is_bin"     ,   0),
                               ("is_inv"     ,   0),
-                              ("others"     ,   0)])# boolean 
+                              ("others"     ,   0),
+                              ])# boolean 
         
         self._roi_abs = [0, 0, 9999, 9999] #will be set on image load
         
@@ -134,13 +135,14 @@ class Img(object):
                         ("file_name"     ,   ""),
                         ("file_type"     ,   ""),
                         ("device_id"     ,   ""),
-                        ("ser_no"        ,   "")])
+                        ("ser_no"        ,   ""),
+                        ("img_idx"       ,   0)])
                         
-        
         try:
-            temp = import_method(input)            
-            input = temp[0]
-            meta_info.update(temp[1])
+            data, meta_info = import_method(input, meta_info) 
+            print meta_info
+            input = data
+            #meta_info.update(add_meta)
         except:
             pass
           
@@ -180,7 +182,11 @@ class Img(object):
     
     def reload(self):
         """Try reload from file"""
-        self.__init__(self.meta["path"])
+        file_path = self.meta["path"]
+        if not exists(file_path):
+            warn("Image reload failed, no valid filepath set in meta info")
+        else:
+            self.__init__(input=file_path)
         
     def load_input(self, input):
         """Try to load input as numpy array and additional meta data"""
@@ -211,8 +217,12 @@ class Img(object):
         return hist, bins
             
     def get_brightness_range(self):
-        """Analyses the Histogram to retrieve a suited brightness range (i.e. 
-        for diplaying the image)            
+        """Analyses the Histogram to retrieve a suited brightness range
+                
+        Note
+        ----
+        Currently not in use (was originally used for App)
+        
         """
         hist, bins = self.make_histogram()
         thresh = hist.max() * 0.03
@@ -672,6 +682,42 @@ class Img(object):
         """Returns maximum value of current image data"""
         return self.img.max()
     
+    def set_val_below_thresh(self, val, threshold):
+        """Sets value in all pixels with intensities below threshold
+        
+        Note
+        ----
+        Modifies this Img object
+        
+        Parameters
+        ----------
+        val : float
+            new value for all pixels below the input threshold
+        threshold : float
+            considered intensity threshold
+        """
+        mask = self.img < threshold
+        self.img[mask] = val
+        self.edit_log["others"] = True
+    
+    def set_val_above_thresh(self, val, threshold):
+        """Sets value in all pixels with intensities above threshold
+        
+        Note
+        ----
+        Modifies this Img object
+        
+        Parameters
+        ----------
+        val : float
+            new value for all pixels above the input threshold
+        threshold : float
+            considered intensity threshold
+        """
+        mask = self.img > threshold
+        self.img[mask] = val
+        self.edit_log["others"] = True
+        
     def blend_other(self, other, fac=0.5):
         """Blends another image to this and returns new Img object
         

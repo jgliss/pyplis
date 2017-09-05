@@ -206,34 +206,35 @@ def get_camera_info(cam_id):
         filters = []
         darkinfo = []
         found = 0
-        for line in f: 
-            if "END" in line and found:
-                dat["default_filters"] = filters
-                dat["dark_info"] = darkinfo
-                return dat
-            spl = line.split(":")
-            if found:
-                if not any([line[0] == x for x in["#","\n"]]):
-                    spl = line.split(":")
-                    k = spl[0].strip()
-                    if k == "dark_info":
-                        l = [x.strip() for x in spl[1].split("#")[0].split(',')]
-                        darkinfo.append(l)
-                    elif k == "filter":
-                        l = [x.strip() for x in spl[1].split("#")[0].split(',')]
-                        filters.append(l)
-                    else:
-                        data_str = spl[1].split("#")[0].strip()
-                        if any([data_str == x for x in ["''", '""']]):
-                            data_str = ""
-                        dat[k] = data_str
-            if spl[0] == "cam_ids":
-                l = [x.strip() for x in spl[1].split("#")[0].split(',')]
-                if cam_id in l:
-                    found = 1  
-                    dat["cam_ids"]=l
-    print ("Camera info for cam_id %s could not be found" %cam_id)
-    return dat
+        for ll in f:
+            line = ll.rstrip()
+            if line:
+                if "END" in line and found:
+                    dat["default_filters"] = filters
+                    dat["dark_info"] = darkinfo
+                    return dat
+                spl = line.split(":")
+                if found:
+                    if line[0] != "#":
+                        spl = line.split(":")
+                        k = spl[0].strip()
+                        if k == "dark_info":
+                            l = [x.strip() for x in spl[1].split("#")[0].split(',')]
+                            darkinfo.append(l)
+                        elif k == "filter":
+                            l = [x.strip() for x in spl[1].split("#")[0].split(',')]
+                            filters.append(l)
+                        else:
+                            data_str = spl[1].split("#")[0].strip()
+                            if any([data_str == x for x in ["''", '""']]):
+                                data_str = ""
+                            dat[k] = data_str
+                if spl[0] == "cam_ids":
+                    l = [x.strip() for x in spl[1].split("#")[0].split(',')]
+                    if cam_id in l:
+                        found = 1  
+                        dat["cam_ids"]=l
+    raise IOError("Camera info for cam_id %s could not be found" %cam_id)
 
 def save_new_default_camera(info_dict):
     """Saves new default camera to data file *cam_info.txt*

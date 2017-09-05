@@ -8,7 +8,7 @@ Image list objects of pyplis library
        the attribute :attr:`files` is changed in an image list (e.g. in
        :func:`clear`, :func:`pop`)
 """
-from numpy import asarray, zeros, argmin, arange, ndarray, float32, ceil,\
+from numpy import asarray, zeros, argmin, arange, ndarray, float32,\
     isnan, logical_or, ones, uint8, finfo, exp
 from datetime import timedelta, datetime, date
 #from bunch import Bunch
@@ -1522,22 +1522,10 @@ class ImgList(BaseImgList):
         return self._list_modes["gascalib"]
         
     @calib_mode.setter
-    def calib_mode(self, val):
+    def calib_mode(self, value):
         """Change current list calibration mode"""
-        if val == self._list_modes["gascalib"]:
-            return
-        if val:    
-            if not self.aa_mode:
-                self.aa_mode = True
-                print "Activated AA mode in image list"
-            if not self.sensitivity_corr_mode:
-                warn("AA sensitivity correction mode is deactivated. This "
-                    "may yield erroneous results at the image edges")
-            self.calib_data(self.current_img())
-            
-        self._list_modes["gascalib"] = val
-        self.load()
-    
+        self.activate_calib_mode(value)
+        
     @property
     def ext_coeff(self):
         """Current extinction coefficient"""
@@ -1810,6 +1798,11 @@ class ImgList(BaseImgList):
             self.vigncorr_mode = False
             cim = Img(self.files[self.cfn],
                       import_method=self.camera.image_import_method)
+            try:
+                dark = self.get_dark_image("this")
+                cim.subtract_dark_image(dark)
+            except:
+                warn("Dark images not available")
             bg_img = None
             self.bg_model.set_missing_ref_areas(cim)
             if self.bg_model.mode == 0:
@@ -1849,12 +1842,17 @@ class ImgList(BaseImgList):
             then the first offband list found is used)
             #. The number of images in the off band list must exceed a minimum
             of 50% of the images in this list
+         
+        Parameters
+        ----------
+        val : bool
+            Activate / deactivate AA mode
             
         """
         if val is self.aa_mode:
             return
         if not self.list_type == "on":
-            raise TypeError("This list is not an on band list")
+            raise TypeError("AA mode could not be actu")
         aa_test = None
         if val:
             if self.this.edit_log["is_aa"]:
@@ -1890,6 +1888,23 @@ class ImgList(BaseImgList):
 
         return aa_test
     
+    def activate_calib_mode(self, value=1):
+        """Activate calibration mode"""
+        if value == self._list_modes["gascalib"]:
+            return
+        if value:    
+            if not self.aa_mode:
+                #self.aa_mode = True
+                warn("List is not in AA mode")
+                
+            if not self.sensitivity_corr_mode:
+                warn("AA sensitivity correction mode is deactivated. This "
+                    "may yield erroneous results at the image edges")
+            self.calib_data(self.current_img())
+            
+        self._list_modes["gascalib"] = value
+        self.load()
+        
     def activate_optflow_mode(self, val=True, draw=False):
         """Activate / deactivate optical flow calculation on image load
         
@@ -2045,10 +2060,10 @@ class ImgList(BaseImgList):
         """Update the current background image object
         
         Check input background image and, in case a vignetting mask is not 
-        available in this list, determine a vignetting mask from the background
-        image. Furthermore, if the input image is not blurred it is blurred 
-        using current list blurring factor and in case the latter is 0, then 
-        it is blurred with a Gaussian filter of width 1.
+        available in this list, determine a vignetting mask from the 
+        background image. Furthermore, if the input image is not blurred it 
+        is blurred using current list blurring factor and in case the 
+        latter is 0, then it is blurred with a Gaussian filter of width 1.
         
         The image is then stored twice, 1. as is and 2. corrected for 
         vignetting.
@@ -2108,8 +2123,10 @@ class ImgList(BaseImgList):
         (:class:`OptflowFarneback` object) using method :func:`set_images`
         
         Raises
-        
-        object, i.e. `self.loaded_images["this"]` and `self.loaded_images["next"]`
+        ------
+        IndexError
+            object, i.e. `self.loaded_images["this"]` and 
+            `self.loaded_images["next"]`
         """
         if self.cfn == self.nof - 1:
             self.optflow.reset_flow()
@@ -3047,10 +3064,11 @@ class ImgList(BaseImgList):
                 
                 img = img / self.aa_corr_mask
                 img.edit_log["senscorr"] = 1
-            if self.calib_mode:
-                img.img = self.calib_data(img.img)
-                img.edit_log["gascalib"] = True
-    
+        
+        if self.calib_mode:
+            img.img = self.calib_data(img.img)
+            img.edit_log["gascalib"] = True
+
         img.to_pyrlevel(self.img_prep["pyrlevel"])
         if self.img_prep["crop"]:
             img.crop(self.roi_abs)
