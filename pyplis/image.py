@@ -136,6 +136,7 @@ class Img(object):
                         ("file_type"     ,   ""),
                         ("device_id"     ,   ""),
                         ("ser_no"        ,   ""),
+                        ("temperature"   ,   0),   # temperature in Celsius
                         ("img_idx"       ,   0)])
                         
         try:
