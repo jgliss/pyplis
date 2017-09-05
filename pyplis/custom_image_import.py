@@ -91,6 +91,29 @@ def load_hd_new(file_path, meta={}):
 
     return (img, meta)
 
+
+from astropy.io import fits
+def load_comtessa(file_path, meta={}):
+        """ Load an image
+        Don't apply any image processing!
+         Check out if this could be put inro camera.import method
+         """           
+        hdulist = fits.open(file_path)
+        img_hdu = meta['img_idx']
+        image = hdulist[img_hdu].data
+        # load meta data
+        imageHeader = hdulist[img_hdu].header
+        imageMeta = {"start_acq"    : datetime.strptime(imageHeader['ENDTIME'],
+                                                        '%Y.%m.%dZ%H:%M:%S.%f'),
+                    "texp"         : int(imageHeader['EXP']),
+                    "temperature"  : int(imageHeader['TCAM']),
+                    "img_idx"       : meta['img_idx']}
+
+        # replace binary time stamp
+        image[0,0:14] = image[1,0:14]            
+        #Define pyplis image
+        return (image, imageMeta) 
+
 if __name__ == "__main__":
     from os.path import join
     import matplotlib.pyplot as plt
@@ -113,4 +136,5 @@ if __name__ == "__main__":
     im1, meta1 = load_hd_new(p_hdnew)
     ax1.imshow(im1)
     print meta1
-    
+
+   
