@@ -29,7 +29,7 @@ from os import getcwd
 from pandas import Series, DataFrame
 
 from cv2 import calcOpticalFlowFarneback, OPTFLOW_FARNEBACK_GAUSSIAN,\
-    cvtColor,COLOR_GRAY2BGR,line,circle,VideoCapture,COLOR_BGR2GRAY,\
+    cvtColor, COLOR_GRAY2BGR, line, circle, VideoCapture, COLOR_BGR2GRAY,\
     waitKey, imshow
 
 from .helpers import bytescale, check_roi, map_roi, roi2rect, set_ax_lim_roi,\
@@ -2107,15 +2107,29 @@ class OptflowFarneback(object):
             3D numpy array containing flow displacement field (is also
             assigned to :attr:`flow`)
         """
+        # Update images if provided
         if all([isinstance(x, Img) for x in [this_img, next_img]]):
             self.set_images(this_img, next_img)
             
         settings = self.settings._flow_algo
-        #print "Calculating Farneback optical flow"
-        self.flow = calcOpticalFlowFarneback(self.images_prep["this"],
-                                             self.images_prep["next"], 
-                                             flags=OPTFLOW_FARNEBACK_GAUSSIAN,
-                                             **settings)
+        
+        #move this somewhere else if this change is kept
+        # how do you do this in a clean way?
+        import cv2
+        cv2version = cv2.__version__
+        if cv2version.split(".")[0] < 3:
+            # OpenCV v2.x
+            self.flow = calcOpticalFlowFarneback(self.images_prep["this"],
+                                                 self.images_prep["next"], 
+                                                 flags=OPTFLOW_FARNEBACK_GAUSSIAN,
+                                                 **settings)
+        else:
+            # OpenCV v3.x (this should also work for OpenCV v2.x --> test)
+            self.flow = calcOpticalFlowFarneback(self.images_prep["this"],
+                                                 self.images_prep["next"],
+                                                 flow=None,
+                                                 flags=OPTFLOW_FARNEBACK_GAUSSIAN,
+                                                 **settings)
         return self.flow 
         
     def get_flow_in_roi(self, roi_rel=None):
