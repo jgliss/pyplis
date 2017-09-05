@@ -21,7 +21,7 @@ Valid keys for import of image meta information:
       
 """
 from matplotlib.pyplot import imread
-from numpy import swapaxes, flipud, asarray
+from numpy import swapaxes, flipud, asarray, rot90
 from warnings import warn
 from cv2 import resize
 from os.path import basename
@@ -84,7 +84,8 @@ def load_hd_new(file_path, meta={}):
         - dict, dictionary containing meta information
     """
     im = open_pil(file_path)
-    img = asarray(im)[::-1, 0::] #flip
+    #img = asarray(im)[::-1, 0::] #flip
+    img = rot90(rot90(asarray(im)))
     meta["texp"] = float(im.tag_v2[270].split(" ")[0].split("s")[0])
     meta["start_acq"] = datetime.strptime("_".join(basename(file_path)
                             .split("_")[:3]), "%Y%m%d_%H%M%S_%f")
@@ -94,23 +95,23 @@ def load_hd_new(file_path, meta={}):
 if __name__ == "__main__":
     from os.path import join
     import matplotlib.pyplot as plt
-    
+    import numpy as np
     plt.close("all")
-    
-    base_dir = r"D:/OneDrive - Universitetet i Oslo/python27/my_data/piscope/"
-    
-    # load and display HD custom image
-    p_hd = join(base_dir, "HD_cam_raw_data/23/06353343_M_B0_19.tiff")
 
-    fig, ax = plt.subplots(1,1)
-    im, meta = load_hd_custom(p_hd)
-    ax.imshow(im)
-    print meta
-    
     # load and display HD new image
-    p_hdnew = join(base_dir, "HD_newcam_juan_test_data/20161208_145201_785_M_B.tif")
+    p_hdnew = 'C:/Users/Jonas/OneDrive - Universitetet i Oslo/research/Collaborations/juan_cameval_test/MMM/Measurements/20170304_131230_510_M_A.tif'
     fig1, ax1 = plt.subplots(1,1)
-    im1, meta1 = load_hd_new(p_hdnew)
-    ax1.imshow(im1)
-    print meta1
+    dat = open_pil(p_hdnew)
+    from time import time
+    t0=time()
+    img = np.fliplr(np.flipud(asarray(dat)))
+    t1=time()
     
+    img = np.rot90(np.rot90(asarray(dat)))
+    t2=time()
+    dt1 = t1-t0
+    dt2 = t2-t1
+    
+    DT = dt2 - dt1
+    
+    plt.imshow(img)
