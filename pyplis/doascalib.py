@@ -2,7 +2,8 @@
 """This module contains features related to DOAS calibration including
 FOV search engines"""
 from numpy import min, arange, asarray, zeros, linspace, column_stack,\
-    ones, nan, float32, polyfit, poly1d, sqrt, isnan, round
+    ones, nan, float32, polyfit, poly1d, sqrt, isnan, round,\
+    concatenate
 from scipy.stats.stats import pearsonr 
 from datetime import datetime 
 from scipy.sparse.linalg import lsmr
@@ -182,7 +183,9 @@ class DoasCalibData(object):
         return True
         
     def fit_calib_polynomial(self, polyorder=None, weighted=True, 
-                             weights_how="rel", plot=False):
+                             weights_how="rel",
+                             through_origin=False,
+                             plot=False):
         """Fit calibration polynomial to current data
         
         Parameters
@@ -196,6 +199,9 @@ class DoasCalibData(object):
             use "rel" if relative errors are supposed to be used (i.e.
             w=CD/CD_sigma) or "abs" if absolute error is supposed to be 
             used (i.e. w=1/CD_sigma).
+        through_origin : bool
+            if True, the fit is forced to cross the coordinate origin (
+            done by adding data points)
         plot : bool
             If True, the calibration curve and the polynomial are plotted
         
@@ -233,7 +239,14 @@ class DoasCalibData(object):
                     ws = ws / max(ws)
                 except:
                     warn("Failed to calculate weights")
-        coeffs, cov = polyfit(self.tau_vec, self.doas_vec/10**exp, 
+        tau_vals = self.tau_vec
+        cds = self.doas_vec/10**exp
+        if through_origin:
+            num = len(tau_vals)
+            tau_vals = concatenate([tau_vals, zeros(num)])
+            cds = concatenate([cds, zeros(num)])
+            ws = concatenate([ws, ones(num)])
+        coeffs, cov = polyfit(tau_vals, cds, 
                               polyorder, w=ws, cov=True)
         self.polyorder = polyorder
         self.poly = poly1d(coeffs * 10**exp)

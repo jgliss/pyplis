@@ -35,7 +35,7 @@ from cv2 import calcOpticalFlowFarneback, OPTFLOW_FARNEBACK_GAUSSIAN,\
 from .helpers import bytescale, check_roi, map_roi, roi2rect, set_ax_lim_roi,\
     nth_moment, rotate_xtick_labels
 from .optimisation import MultiGaussFit
-from .processing import LineOnImage, ProfileTimeSeriesImg
+from .processing import LineOnImage, ProfileTimeSeriesImg, ImgStack
 from .image import Img
 from .geometry import MeasGeometry
 #LABEL_SIZE=rcParams["font.size"]+ 2
@@ -179,7 +179,7 @@ def find_signal_correlation(first_data_vec, next_data_vec,
                 reg_grid_tres = int(reg_grid_tres * 1000)
             else:
                 freq_unit = "S"
-                
+        print reg_grid_tres, freq_unit
         delt_str = "%d%s" %(reg_grid_tres, freq_unit)
         print "Delta t string for resampling: %s" %delt_str
         
@@ -291,7 +291,7 @@ class VeloCrossCorrEngine(object):
         (used in class method :func:`get_velocity`).
         
     """
-    def __init__(self, imglist, pcs, pcs_offset=None, 
+    def __init__(self, imglist=None, pcs=None, pcs_offset=None, 
                  meas_geometry=None, **settings):
         
         self._imglist = None
@@ -301,7 +301,10 @@ class VeloCrossCorrEngine(object):
         self.profile_images = {"pcs"        :   None,
                                "pcs_offset" :   None}
         
-        self.imglist = imglist
+        try:
+            self.imglist = imglist
+        except:
+            pass
         self._meas_geometry = None
         
         self.results = {"velo"              :   nan,
@@ -447,13 +450,120 @@ class VeloCrossCorrEngine(object):
                              "pyramid levels")
         return (img1, img2)
     
+    def get_pcs_tseries_from_imgstack(self, stack, start_idx=0, 
+                                      stop_idx=None):
+        """Loads PCS profile time series pictures from image stack
+        
+        Parameters
+        ----------
+        stack : ImgStack
+            stack containing OD or AA images
+        start_idx : int
+            index of first considered image in list
+        stop_idx : int
+            last considered index in image list
+            
+        Returns
+        -------
+        tuple
+            2-element tuple containing :class:`ProfileTimeSeriesImg` for 
+            both PCS lines
+        """
+        if not isinstance(stack, ImgStack):
+            raise IOError("Invalid input type, got %s, need ImgStack"
+                          %type(stack))
+            
+        pcs1 = self.pcs.convert(to_pyrlevel=stack.pyrlevel, 
+                                to_roi_abs=stack.roi_abs)
+        pcs2 = self.pcs_offset.convert(to_pyrlevel=stack.pyrlevel,
+                                       to_roi_abs=stack.roi_abs)
+        
+        dist_img = self.get_pix_dist_img(stack.pyrlevel)
+        
+        if stop_idx is None or stop_idx > stack.shape[0]:
+            stop_idx = stack.shape[0]
+            
+        num = stop_idx - start_idx
+        if not num > 20:
+            raise ValueError("Please set start / stop indices such that "
+                             "at least 20 images are used for cross "
+                             "correlation analysis")
+        # get the number of datapoints of the first profile line (the second one
+        # has the same length in this case, since it was created from the first 
+        # one using pcs1.offset(pixel_num=40), see above..
+        profile_len = len(pcs1.get_line_profile(dist_img.img))
+        
+        # now create two empty 2D numpy arrays with height == profile_len and
+        # width == number of images in aa_list
+        profiles1 = empty((profile_len, num), dtype=float32)
+        profiles2 = empty((profile_len, num), dtype=float32)
+        
+        # for each of the 2 lines, extract pixel to pixel distances from the 
+        # provided dist_img (comes from measurement geometry) which is required 
+        # in order to perform integration along the profiles 
+        dists_pcs1 = pcs1.get_line_profile(dist_img.img) #pix to pix dists line 1
+        dists_pcs2 = pcs2.get_line_profile(dist_img.img) #pix to pix dists line 2
+    
+        # loop over all images in list, extract profiles and write in the 
+        # corresponding column of the profile picture
+        times=[]
+        data = stack.stack
+        for k in range(num):
+            if k % 25 == 0:
+                print "Loading PCS profiles from stack: %d (%d)" %(k, num)
+            img = data[k]
+            profiles1[:,k] = pcs1.get_line_profile(img)
+            profiles2[:,k] = pcs2.get_line_profile(img)
+            times.append(stack.time_stamps[k])
+         
+        #mutiply pix to pix dists to the AA profiles in the 2 images
+        profiles1 = profiles1 * dists_pcs1.reshape((len(dists_pcs1), 1)) 
+        profiles2 = profiles2 * dists_pcs2.reshape((len(dists_pcs2), 1)) 
+        
+        # Get dictionary containing image preparation information
+        img_prep = stack.img_prep
+        
+        # now create 2 ProfileTimeSeriesImg objects from the 2 just determined
+        # images and include meta information (e.g. time stamp vector, image
+        # preparation information)
+        prof_pic1 = ProfileTimeSeriesImg(profiles1, time_stamps=times,
+                                         img_id=pcs1.line_id,
+                                         profile_info_dict=pcs1.to_dict(),
+                                         **img_prep) 
+                                         
+        prof_pic2 = ProfileTimeSeriesImg(profiles2, time_stamps=times,
+                                         img_id=pcs2.line_id, 
+                                         profile_info_dict=pcs2.to_dict(),
+                                         **img_prep)
+                                                
+    
+        # save the two profile pics (these files are used in the main function
+        # of this script in case they exist and option RELOAD = 0)
+        self.profile_images["pcs"] = prof_pic1
+        self.profile_images["pcs_offset"] = prof_pic2
+        
+        return (prof_pic1, prof_pic2)
+    
     def get_pcs_tseries_from_list(self, start_idx=0, stop_idx=None):
-        """Reload profile time series pictures from AA img list
+        """Load profile time series pictures from AA img list
         
         Loop over images in image list and extract cross section profiles 
         for each of the 2 provided plume cross section lines. The profiles 
         are written into a :class:`ProfileTimeSeriesImg` which can be 
         stored as FITS file.
+        
+        Parameters
+        ----------
+        start_idx : int
+            index of first considered image in list
+        stop_idx : int
+            last considered index in image list
+            
+        Returns
+        -------
+        tuple
+            2-element tuple containing :class:`ProfileTimeSeriesImg` for 
+            both PCS lines
         """
         from pyplis.imagelists import BaseImgList
         lst = self.imglist
@@ -686,6 +796,7 @@ class VeloCrossCorrEngine(object):
             save_dir = "."
         
         img1, img2 = self.pcs_profile_pics
+        
         img1.save_as_fits(save_dir, fname1)
         img2.save_as_fits(save_dir, fname2)
 
