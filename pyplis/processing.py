@@ -1327,10 +1327,15 @@ class ProfileTimeSeriesImg(Img):
         hdulist = fits.HDUList([hdu, arrays])
         path = join(save_dir, save_name)
         if exists(path):
-            print "Stack already exists at %s and will be overwritten" %path
-            remove(path)
-
-        hdulist.writeto(path)
+            try:
+                print "Image already exists at %s and will be overwritten" %path
+                remove(path)
+            except:
+                warn("Failed to delete existing file...")
+        try:
+            hdulist.writeto(path)
+        except:
+            warn("Failed to save FITS File (check previous warnings)")
     
     def _profile_dict_keys(self, profile_type = "LineOnImage"):
         """Returns profile dictionary keys for input profile type"""
@@ -2212,10 +2217,17 @@ class ImgStack(object):
         hdulist = fits.HDUList([hdu, arrays, roi_abs])
         path = join(save_dir, save_name)
         if exists(path):
-            print "Stack already exists at %s and will be overwritten" %path
-            remove(path)
-
-        hdulist.writeto(path)
+            try:
+                print ("Stack already exists at %s and will be overwritten" 
+                       %path)
+                remove(path)
+            except:
+                warn("Failed to delete existing file...")
+        try:
+            hdulist.writeto(path)
+        except:
+            warn("Failed to save stack to FITS File "
+                 "(check previous warnings)")
         
     """Magic methods"""
     def __str__(self):
