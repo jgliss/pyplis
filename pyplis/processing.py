@@ -17,7 +17,7 @@ This module contains the following processing classes and methods:
 from numpy import vstack, ogrid, empty, ones, asarray, ndim, round, hypot,\
     linspace, sum, dstack, float32, zeros, poly1d, polyfit, argmin, where,\
     logical_and, rollaxis, complex, angle, array, ndarray, cos, sin,\
-    arctan, dot, int32, pi, isnan, nan, delete
+    arctan, dot, int32, pi, isnan, nan, delete, mean
     
 from numpy.linalg import norm
 from scipy.ndimage import map_coordinates 
@@ -320,7 +320,8 @@ class LineOnImage(object):
         self.linestyle = linestyle
         if x0 > x1:
             x0, y0, x1, y1 = x1, y1, x0, y0
-            
+        elif x0 == x1 and y0 > y1:
+            y0, y1 = y1, y0
         self.x0 = x0 #start x coordinate
         self.y0 = y0 #start y coordinate
         self.x1 = x1 #stop x coordinate
@@ -582,8 +583,8 @@ class LineOnImage(object):
         dx0, dy0 = other.x0 - self.x0, other.y0 - self.y0
         dx1, dy1 = other.x1 - self.x1, other.y1 - self.y1
         if dx1 != dx0 or dy1 != dy0:
-            raise ValueError("Lines are not parallel...")
-        return norm([dx0, dy0])
+            warn("Lines are not parallel...")
+        return mean([norm([dx0, dy0]), norm([dx1, dy1])])
         
     def offset(self, pixel_num=20, line_id=None):
         """Returns a new line shifted within normal direction
@@ -1315,7 +1316,10 @@ class ProfileTimeSeriesImg(Img):
         hdu.header["img_id"] = self.img_id
         for key, val in self.profile_info.iteritems():
             if key == "_roi_abs_def":
-                hdu.header["_roi_abs_def"] = dumps(val)
+                try:
+                    hdu.header["_roi_abs_def"] = dumps(val)
+                except:
+                    warn("Failed to write roi_abs_def")
             else:
                 hdu.header[key] = val
     
