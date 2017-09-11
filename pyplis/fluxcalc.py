@@ -1369,8 +1369,8 @@ class EmissionRateAnalysis(object):
                                 idx = k
                             else:                            
                                 # get mask specifying plume pixels
-                                mask = lst.get_thresh_mask(min_cd)
-                                props.get_and_append_from_flow(flow,
+                                mask = lst.get_thresh_mask(min_cd)        
+                                props.get_and_append_from_farneback(flow,
                                                                line=pcs,
                                                                pix_mask=mask)
                                 idx = -1
