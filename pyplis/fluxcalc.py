@@ -1246,8 +1246,13 @@ class EmissionRateAnalysis(object):
         pnum = int(10**exponent(stop_index - start_index)/4.0)
         imin, imax = s.ref_check_lower_lim, s.ref_check_upper_lim
         for k in range(start_index, stop_index):
-            print ("IMG_LIST / FLOWLIST CFN: %d / %d (SAME %d)" 
-                    %(lst.cfn, self.imglist_optflow.cfn, lst is self.imglist_optflow)) 
+            if k%20 == 0:
+                print ("Running emission rate retrieval, current image "
+                       "index: %d | %d" %(k, stop_index))
+# =============================================================================
+#             print ("IMG_LIST / FLOWLIST CFN: %d / %d (SAME %d)" 
+#                     %(lst.cfn, self.imglist_optflow.cfn, lst is self.imglist_optflow)) 
+# =============================================================================
             img = lst.current_img()
             t = lst.current_time()
             ts.append(t)
@@ -1460,7 +1465,7 @@ class EmissionRateAnalysis(object):
 #                         print "Fraction of bad vectors along %s): %.3f" %(pcs_id, frac_bad)
 #                         print "Kappa: %.3f %%" %(ica_fac_ok)
 #==============================================================================
-                        print "Avg. eff. velocity (hybrid) = %.2f +/- %.2f" %(veff_avg, veff_err_avg)
+                        #print "Avg. eff. velocity (hybrid) = %.2f +/- %.2f" %(veff_avg, veff_err_avg)
                         res["flow_hybrid"]._start_acq.append(t)                                
                         res["flow_hybrid"]._phi.append(phi)
                         res["flow_hybrid"]._phi_err.append(phi_err)
