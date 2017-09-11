@@ -332,7 +332,7 @@ class DilutionCorr(object):
         ax.set_ylabel("Radiances [DN]", fontsize=LABEL_SIZE)
         ax.set_title(r"$I_A$ = %.1f" %rad_ambient, fontsize=LABEL_SIZE+2)
         ax.grid()
-        ax = rotate_ytick_labels(ax, deg=45, va="center")
+        #ax = rotate_ytick_labels(ax, deg=45, va="center")
         ax.legend(loc="best", fancybox=True, framealpha=0.5, fontsize=13)
         return ax
     

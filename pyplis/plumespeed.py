@@ -1253,7 +1253,7 @@ class LocalPlumeProperties(object):
             - :obj:`float`: magnitude of effective velocity
             - :obj:`float`: uncertainty of effective velocity
         """
-        print "GETTING VELOCITY AT %s" %self.start_acq[idx]
+        #print "GETTING VELOCITY AT %s" %self.start_acq[idx]
         if pix_dist_m_err is None:
             pix_dist_m_err = pix_dist_m * 0.05
         vec = self.displacement_vector(idx)
