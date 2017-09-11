@@ -120,8 +120,11 @@ def load_comtessa(file_path, meta={}):
     imageHeader = hdulist[img_hdu].header
     imageMeta = {"start_acq"    : datetime.strptime(imageHeader['ENDTIME'],
                                                         '%Y.%m.%dZ%H:%M:%S.%f'),
-                "texp"         : int(imageHeader['EXP']),
-                "temperature"  : int(imageHeader['TCAM']),
+                "stop_acq"    : datetime.strptime(imageHeader['ENDTIME'],
+                                                        '%Y.%m.%dZ%H:%M:%S.%f'),
+                # Exposure time meta is in seconds
+                "texp"         : float(imageHeader['EXP']) / 1000,
+                "temperature"  : float(imageHeader['TCAM']),
                 "img_idx"       : meta['img_idx']}
 
     # replace binary time stamp

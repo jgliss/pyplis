@@ -136,12 +136,12 @@ class Img(object):
                         ("file_type"     ,   ""),
                         ("device_id"     ,   ""),
                         ("ser_no"        ,   ""),
-                        ("temperature"   ,   0),   # temperature in Celsius
-                        ("img_idx"       ,   0)])
+                        ("temperature"   ,   float(0.0)),   # temperature in Celsius
+                        ("img_idx"       ,   int(0))])
                         
         try:
             data, meta_info = import_method(input, meta_info) 
-            print meta_info
+            #print meta_info
             input = data
             #meta_info.update(add_meta)
         except:
