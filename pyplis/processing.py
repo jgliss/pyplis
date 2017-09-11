@@ -473,6 +473,7 @@ class LineOnImage(object):
     def rect_roi_rot(self):
         """Rectangle specifying coordinates of ROI aligned with line normal"""
         try:
+            print("lala in rect_roi_rot")
             if not self._rect_roi_rot.shape == (5,2):
                 raise Exception
         except:
@@ -799,7 +800,7 @@ class LineOnImage(object):
 #             dx0 = -dx0
 #             dy0 = -dy0
 #==============================================================================
-        x0 = self.x0 + int(dx0)    
+        x0 = self.x0 + int(dx0)
         y0 = self.y0 + int(dy0)
         offs = array([x0, y0])
         
@@ -880,10 +881,16 @@ class LineOnImage(object):
             bool array that can be used to access pixels within the ROI
         """
         try:
+            print("Try at least")
+            if self._last_rot_roi_mask==None:
+                print("Was never initialised.")
             if not self._last_rot_roi_mask.shape == shape:
+                print("something is wrong")
                 raise Exception
             mask = self._last_rot_roi_mask
+            print("all as planed")
         except:
+            print("entered exception")
             mask = zeros(shape)
             rect = self.rect_roi_rot
             poly = array([rect], dtype=int32)
@@ -1741,7 +1748,8 @@ class ImgStack(object):
                 return self._merge_tseries_average(time_series, **kwargs)
             except:
                 print ("Failed to merge data using method average, trying "
-                       "method nearest instead")
+                       "method nearest instead. Average method is only "
+                       "compatible with input from pydoas library.")
                 method = "nearest"
         if method == "nearest":
             return self._merge_tseries_nearest(time_series, **kwargs)
@@ -1829,7 +1837,6 @@ class ImgStack(object):
         new_stack = empty((new_num, h, w))
         new_acq_times = df0[0].index
         new_texps = df0[0].values
-        
         
         for i in range(h):
             for j in range(w):

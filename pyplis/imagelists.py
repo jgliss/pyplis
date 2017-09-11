@@ -644,7 +644,7 @@ class BaseImgList(object):
         
         self.auto_reload = False
         if pyrlevel is not None and pyrlevel != _pyrlevel:
-            print ("Changing image list pyrlevel from %d to %d"\
+            print("Changing image list pyrlevel from %d to %d"\
                                             %(_pyrlevel, pyrlevel))
             self.pyrlevel = pyrlevel
         if check_roi(roi_abs):
@@ -681,7 +681,7 @@ class BaseImgList(object):
             exp = 1
         for k in range(num):
             if k % exp == 0:
-                print ("Building img-stack from list %s, progress: (%s | %s)" 
+                print("Building img-stack from list %s, progress: (%s | %s)" 
                        %(lid, k, num-1))
             img = self.loaded_images["this"]
             #print im.meta["start_acq"]
@@ -700,7 +700,7 @@ class BaseImgList(object):
         stack.texps = asarray(stack.texps)
         stack.roi_abs = self._roi_abs
         
-        print ("Img stack calculation finished, rolling back to intial list"
+        print("Img stack calculation finished, rolling back to intial list"
             "state:\npyrlevel: %d\ncrop modus: %s\nroi (abs coords): %s "
             %(_pyrlevel, _crop, _roi))
         self.auto_reload = False
@@ -3303,8 +3303,9 @@ class ImgListMultiFits(ImgList):
         imageHeader = hdulist[img_hdu].header
         imageMeta = {"start_acq"    : datetime.strptime(imageHeader['ENDTIME'],
                                                         '%Y.%m.%dZ%H:%M:%S.%f'),
-                    "texp"         : int(imageHeader['EXP']),
-                    "temperature"  : int(imageHeader['TCAM'])}
+                    "texp"          : float(imageHeader['EXP']),
+                    "temperature"   : float(imageHeader['TCAM']),
+                    "img_idx"       : index}
 
         # replace binary time stamp
         image[0,0:14] = image[1,0:14]            
