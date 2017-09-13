@@ -1250,8 +1250,9 @@ class EmissionRateAnalysis(object):
         pnum = int(10**exponent(stop_index - start_index)/4.0)
         imin, imax = s.ref_check_lower_lim, s.ref_check_upper_lim
         for k in range(start_index, stop_index):
-            print ("IMG_LIST / FLOWLIST CFN: %d / %d (SAME %d)" 
-                    %(lst.cfn, self.imglist_optflow.cfn, lst is self.imglist_optflow)) 
+            #Don't get this output anyway...
+            #print ("IMG_LIST / FLOWLIST CFN: %d / %d (SAME %d)" 
+            #        %(lst.cfn, self.imglist_optflow.cfn, lst is self.imglist_optflow)) 
             img = lst.current_img()
             t = lst.current_time()
             ts.append(t)

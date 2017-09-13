@@ -3303,7 +3303,7 @@ class ImgListMultiFits(ImgList):
         imageHeader = hdulist[img_hdu].header
         imageMeta = {"start_acq"    : datetime.strptime(imageHeader['ENDTIME'],
                                                         '%Y.%m.%dZ%H:%M:%S.%f'),
-                    "texp"          : float(imageHeader['EXP']),
+                    "texp"          : float(imageHeader['EXP']) / 1000,
                     "temperature"   : float(imageHeader['TCAM']),
                     "img_idx"       : index}
 
