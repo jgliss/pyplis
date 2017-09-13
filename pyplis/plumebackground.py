@@ -358,7 +358,7 @@ class PlumeBackgroundModel(object):
         if isinstance(base_mask, ndarray):
             mask[base_mask==0]=0
         return mask
-        
+    
     
     def get_tau_image(self, plume_img, bg_img=None, update_imgs=False, 
                       **kwargs):
@@ -403,42 +403,34 @@ class PlumeBackgroundModel(object):
         if plume_img.is_tau:
             raise AttributeError("Input image is already tau image")
         plume = plume_img.img
-        if mode != 0:
-            if not isinstance(bg_img, Img):
-                bg_img = self.get_current("bg_raw")
-            if not bg_img.edit_log["darkcorr"]:
-                warn("Sky BG image is not corrected for dark current")
-            bg = bg_img.img
-            if not bg_img.edit_log["darkcorr"]:
-                warn("Sky BG image is not corrected for dark current")
-
-            if not plume_img.is_vigncorr is bg_img.is_vigncorr:
-                raise AttributeError("Cannot model tau image: plume img and "
-                                     "sky radiance image have different "
-                                     "vignetting correction states.")
-        tau = None
-        if mode == 0: #no sky radiance image, poly surface fit
+        #tau = None
+        #no sky radiance image, poly surface fit
+        if mode == 0: 
             # retrieve an individual mask
             self.surface_fit_mask = self.get_surface_fit_mask(plume_img,
                                                               self.surface_fit_mask_vmin,
                                                               self.surface_fit_mask_vmax)
-            
-            (bg, fit)=self.bg_from_poly_surface_fit(plume,
+            (bg, fit) = self.bg_from_poly_surface_fit(plume,
                                                     self.surface_fit_mask,
                                                     self.surface_fit_polyorder,
                                                     self.surface_fit_pyrlevel)
-            r = bg / plume
-            #make sure no 0 values or neg. numbers are in the image
-            r[r<=0] = finfo(float).eps
-            tau = log(r)
-    
+            tau = _calculate_tau(plume, bg)
+
+        
+        # Sky radiance image was provided a bg_img
         else:
+            if not isinstance(bg_img, Img):
+                bg_img = self.get_current("bg_raw")
+            if not bg_img.edit_log["darkcorr"]:
+                warn("Sky BG image is not corrected for dark current")
+            if not plume_img.is_vigncorr is bg_img.is_vigncorr:
+                raise AttributeError("Cannot model tau image: plume img and "
+                                     "sky radiance image have different "
+                                     "vignetting correction states.")
+            bg = bg_img.img                
             #bg_norm = scale_bg_img(bg, plume, self.scale_rect)
-            r = bg / plume
-            #make sure no 0 values or neg. numbers are in the image
-            r[r<=0] = finfo(float).eps
-            tau = log(r)
-            if mode != 99:
+            tau = _calculate_tau(plume, bg)
+            if mode != 99: # 99 is "use as is" mode
                 tau = self.correct_tau_curvature_ref_areas(tau)
             
         tau_img = plume_img.duplicate()
@@ -493,20 +485,13 @@ class PlumeBackgroundModel(object):
                                                             mask, po, pyr)
             (bg_off, fit_off) = self.bg_from_poly_surface_fit(plume_off,
                                                               mask, po, pyr)
-            r_on = bg_on / plume_on.img
-            #make sure no 0 values or neg. numbers are in the image
-            r_on[r_on <= 0] = finfo(float).eps
-            
-            r_off = bg_off / plume_off.img
-            #make sure no 0 values or neg. numbers are in the image
-            r_off[r_off <= 0] = finfo(float).eps
-            aa = log(r_on) - log(r_off)
+            tau_on = _calculate_tau(plume_on.img, bg_on)
+            tau_off = _calculate_tau(plume_off.img, bg_off)
+            aa = tau_on - tau_off
         else:
-            r1 = bg_on.img / plume_on.img
-            r1[r1<=0] = finfo(float).eps
-            r2 = bg_off.img / plume_off.img
-            r2[r2<=0] = finfo(float).eps
-            aa = log(r1) - log(r2)
+            tau_on = _calculate_tau(plume_on, bg_on)
+            tau_off = _calculate_tau(plume_off, bg_off)
+            aa = tau_on - tau_off
             if mode != 99:               
                 aa = self.correct_tau_curvature_ref_areas(aa)
         
@@ -1058,6 +1043,33 @@ class PlumeBackgroundModel(object):
             
     def __call__(self, plume, bg, **kwargs):
         return self.get_model(plume, bg, **kwargs)
+
+def _calculate_tau(plume, bg):
+    """ Calculate the tau image of a plume and background image
+    
+    :param (ndarray, Img) bg: background image
+    :param (ndarray, Img) plume: plume image
+    :return ndarray: plume tau image        
+    """
+    
+    # Extract image data array in case input is of type pyplis.Img
+    try:
+        bg = bg.img
+    except:
+        pass
+    try:
+        plume = plume.img
+    except:
+        pass    
+    
+    if not bg.shape == plume.shape:
+        raise Exception('Input images have not the same shape.')
+        
+    radiance_ratio = bg / plume
+    #make sure no 0 values or neg. numbers are in the image
+    radiance_ratio[radiance_ratio<=0] = finfo(float).eps
+    tau = log(radiance_ratio)
+    return tau
 
 def _mean_in_rect(img_array, rect=None):
     """Helper to get mean and standard deviation of pixels within rectangle
