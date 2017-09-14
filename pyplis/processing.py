@@ -473,7 +473,6 @@ class LineOnImage(object):
     def rect_roi_rot(self):
         """Rectangle specifying coordinates of ROI aligned with line normal"""
         try:
-            print("lala in rect_roi_rot")
             if not self._rect_roi_rot.shape == (5,2):
                 raise Exception
         except:
@@ -881,16 +880,11 @@ class LineOnImage(object):
             bool array that can be used to access pixels within the ROI
         """
         try:
-            print("Try at least")
             if self._last_rot_roi_mask==None:
-                print("Was never initialised.")
             if not self._last_rot_roi_mask.shape == shape:
-                print("something is wrong")
                 raise Exception
             mask = self._last_rot_roi_mask
-            print("all as planed")
         except:
-            print("entered exception")
             mask = zeros(shape)
             rect = self.rect_roi_rot
             poly = array([rect], dtype=int32)
