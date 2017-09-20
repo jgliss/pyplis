@@ -880,7 +880,7 @@ class LineOnImage(object):
             bool array that can be used to access pixels within the ROI
         """
         try:
-            if self._last_rot_roi_mask==None:
+            #if self._last_rot_roi_mask==None:
             if not self._last_rot_roi_mask.shape == shape:
                 raise Exception
             mask = self._last_rot_roi_mask
