@@ -1088,22 +1088,34 @@ class BaseImgList(object):
         self.index = num
         self.load()
         return self.loaded_images["this"]
-        
-    def next_img(self):
+    
+    def goto_next(self):
         """Go to next image 
         
         Calls :func:`load_next` 
         """
         self.load_next()
         return self.loaded_images["this"]
-            
-    def prev_img(self):
+    
+    def goto_prev(self):
         """Go to previous image
         
         Calls :func:`load_prev`
         """
         self.load_prev()
         return self.loaded_images["this"]
+    
+    def next_img(self):
+        """ Wrapper for self.goto_next() 
+        """
+        warn('Depreciation warning: Use goto_next() instead.')
+        return self.goto_next()
+            
+    def prev_img(self):
+        """Wrapper for self.goto_next() 
+        """
+        warn('Depreciation warning: Use goto_prev() instead.')
+        return self.goto_prev()
     
     def append(self, file_path):
         """Append image file to list
@@ -3247,7 +3259,13 @@ class ImgListMultiFits(ImgList):
             
         return:
             dataFrame containing all metadata"""
-            
+        
+        if self.fitsfiles == []:
+            print("ImgListMultiFits was intialised without providing the "
+                  "fitsfile (e.g. only by meta file). self.get_img_meta_all "
+                  "will return the existing metaData.")
+            return self.metaData
+        
         imgFile = []
         imgFilehdu = []
         imgFileTime = []
