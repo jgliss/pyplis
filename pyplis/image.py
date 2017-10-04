@@ -140,7 +140,9 @@ class Img(object):
                         ("img_idx"       ,   int(0)),    # index in multi-img file formats as *.fits
                         ("custom1"       ,   nan),  # 3 dummy attributes which can be used for custom defined parameters
                         ("custom2"       ,   nan),
-                        ("custom3"       ,   nan)])
+                        ("custom3"       ,   nan),
+                        ("custom_float"  ,   float(0.0)),
+                        ("custom_dt"     ,   datetime(1900, 1, 1))],)
                         
         try:
             data, meta_info = import_method(input, meta_info) 
