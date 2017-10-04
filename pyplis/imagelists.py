@@ -3233,6 +3233,10 @@ class ImgListMultiFits(ImgList):
             ``texp``
         """
         
+        warn('This method does not make a lot of sense for the ImgListMultiFits!'
+             ' Returns the meta data of the first image in file_path.'
+             ' metaData attribute to access meta information.')
+        
         hdulist = fits.open(file_path)
         # Load the image
         image = hdulist[0].data
