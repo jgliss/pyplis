@@ -1203,8 +1203,8 @@ if __name__ == "__main__":
                      
         windDefaultInfo= {"dir"     : 270,
                           "dir_err"  : 15.0,
-                          "vel"     : 4.43,
-                          "vel_err"  : 1.0}
+                          "velo"     : 4.43,
+                          "velo_err"  : 1.0}
                       
                      
         opticsCam={"focal_length"    :   12.0e-3,

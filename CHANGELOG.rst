@@ -101,7 +101,7 @@ After release 0.11.2 (not yet released)
 22/05 - 29/08/2017 (v0.11.4 -> v0.12.0)
 =======================================
 
-1. Removed some bugs
+1. Minor bug fixes
 
 #. Added functionality to :class:`Img` objects
 
@@ -113,3 +113,18 @@ After release 0.11.2 (not yet released)
     This includes changes in example script 8, which now uses the new class. Thus, running the current version of example script 8 will not work with older versions of Pyplis.  
     
 #. Started with implementation of test suite using pytest
+
+30/08 - 05/10/2017 (v0.12.0 -> v0.13.4)
+=======================================
+
+1. Minor bug fixes
+
+#. Improved convenience functionality of classes in :mod:`doascalib` by adding some @property decorators.
+
+#. New high-level default method :func:`run_fov_fine_search` in :class:`DoasFOVEngine`
+
+#. Renamed key vor wind velocity (and error) in :class:`MeasGeometry` from "vel" to "velo" 
+
+#. New method :func:`find_movement` in :mod:`plumespeed`. The method performs an iterative computation of the optical flow between two images under variation of the considered input brightness ranges.
+
+#. Improved functionality for automised retrieval of sky-background pixels in an plume image (now uses new method :func:`find_movement` to identify and exclude pixels showing motion.
