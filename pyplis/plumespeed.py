@@ -1,17 +1,11 @@
 # -*- coding: utf-8 -*-
 """
-Module containing features related to plume velocity analysis
-
-Todo
-----
-
-    1. Make class for signal cross correlation analysis (high level) based on
-       image list (cf. methods in ex08)
-       
+Module containing features related to plume velocity analysis       
 """
-from numpy import mgrid,vstack,int32,sqrt,arctan2,rad2deg, asarray, sin, cos,\
-    logical_and, histogram, ceil, roll, argmax, arange, ndarray,\
-    deg2rad, nan, dot, mean, isnan, float32, sum, empty
+from numpy import mgrid,vstack,int32,sqrt,arctan2,rad2deg, asarray, sin,\
+    cos, logical_and, histogram, ceil, roll, argmax, arange, ndarray,\
+    deg2rad, nan, dot, mean, isnan, float32, sum, empty, uint8, ones,\
+    zeros_like
 from numpy.linalg import norm
 from traceback import format_exc
 from copy import deepcopy
@@ -30,7 +24,7 @@ from pandas import Series, DataFrame
 
 from cv2 import calcOpticalFlowFarneback, OPTFLOW_FARNEBACK_GAUSSIAN,\
     cvtColor,COLOR_GRAY2BGR,line,circle,VideoCapture,COLOR_BGR2GRAY,\
-    waitKey, imshow
+    waitKey, imshow, dilate, erode, pyrDown, pyrUp
 
 from .helpers import bytescale, check_roi, map_roi, roi2rect, set_ax_lim_roi,\
     nth_moment, rotate_xtick_labels
@@ -1686,7 +1680,7 @@ class FarnebackSettings(object):
     def __init__(self, **settings):
         self._contrast = od([("i_min"       ,   0),
                              ("i_max"       ,   1e30),
-                             ("roi_rad_abs"     ,   [0, 0, 9999, 9999]),
+                             ("roi_rad_abs" ,   [0, 0, 9999, 9999]),
                              ("auto_update" ,   True)])
         
         self._flow_algo = od([("pyr_scale"  ,   0.5), 
@@ -3404,6 +3398,151 @@ class OptflowFarneback(object):
                     return val[item]
             except:
                 pass 
+
+def find_movement(first_img, next_img, pyrlevel=2, num_contrast_ivals=8,
+                  ival_overlap=0.05, imin=None, imax=None,
+                  apply_erosion=True, erosion_kernel_size=20,
+                  apply_dilation=True, dilation_kernel_size=20,
+                  **optflow_settings):
+    """Iterative movement search algorithm using optical flow
+    
+    This algorithm searches for pixels containing movement between two 
+    consecutive images. This is done by using an optical flow algorithm 
+    which computes the optical flow field between the two images for a 
+    series of different input contrast intervals (imin, imax). 
+    
+    Note
+    ----
+    This is a Beta version
+    
+    Parameters
+    ----------
+    first_img : Img
+        first image for computation of optical flow
+    next_img : Img
+        next image for computation of optical flow
+    pyrlevel : int
+        pyramid level for iterative analysis, default: 2
+    num_contrast_ivals : int
+        number of iterations (contrast intervals). The lower and upper 
+        values for each interval are determined based on the brightness 
+        range of the first image (or alternatively, the specified total
+        considered brightness range using input parameters :param:ìmin` and
+        :param:`imax`) divided by the number of specified 
+        intervals and the desired overlap between each interval 
+        (see :param:`ival_overlap`).
+    ival_overlap : float
+        percentage overlap between each of the intervals used to calculate
+        the optical flow, default is 0.05 (corresponding to 5%)
+    imin : :obj:`float`, optional
+        lower limit for considered intensity range, if not specified, the
+        minimum intensity of the first input image is used (at the 
+        specified pyramid level)
+    imax :  :obj:`float`, optional
+        upper limit for considered intensity range, if not specified, the
+        maximum intensity of the first input image is used (at the 
+        specified pyramid level)
+    apply_erosion : bool
+        if True, the OpenCV erosion algorithm is applied to the computed
+        mask specifying pixels containing movement
+    erosion_kernel_size : int
+        size of the erosion kernel applied to movement mask if
+        :param:`apply_erosion` is True. Note that the erosion is applied
+        to the mask at the specified input pyramid level (if e.g. a size 
+        of 20 pixels is used at pyramid level 2, this corresponds to 80 
+        pixels in the original image resolution)
+    apply_dilation : bool
+        if True, the OpenCV dilation algorithm is applied to the computed
+        mask specifying pixels containing movement (this is done after the
+        erosion is applied)
+    dilation_kernel_size : int
+        size of the dilation kernel applied to movement mask if
+        :param:`apply_dilation` is True. Note that the dilation is applied
+        to the mask at the specified input pyramid level (if e.g. a size 
+        of 20 pixels is used at pyramid level 2, this corresponds to 80 
+        pixels in the original image resolution)
+    **optflow_settings
+        additional keyword arguments specifying settings for optical 
+        flow computation
+        
+    Returns
+    -------
+    ndarray
+        2D-numpy boolean numpy array specifying pixels where movement was
+        detected during the iterative search in the different brightness
+        ranges. The pyramid level of the mask corresponds to the pyramid
+        level of the input images and not the the pyramid level, where
+        the computation was performed
+    """
+    if not all([isinstance(x, Img) for x in [first_img, next_img]]):
+        raise ValueError("Invalid input, need Img objects")
+    # make a copy of the images (the original input images remain unchanged)
+    first_img = first_img.duplicate()
+    next_img = next_img.duplicate()
+    pyrlevel_orig = first_img.pyrlevel
+    for img in [first_img, next_img]:
+        img.to_pyrlevel(pyrlevel)
+    if imin is None:
+        imin = first_img.min()
+    if imax is None:
+        imax = first_img.max()
+    
+    # detemine intervals for different brightness ranges for optical flow
+    # computation
+    delta = imax - imin
+    overlap = delta * 0.05
+    ivals = []
+    ival_w = delta / float(num_contrast_ivals)
+    low = imin
+    for num in range(num_contrast_ivals):
+        l = low - overlap
+        if l < 0:
+            l = 0
+        ivals.append([l, low + ival_w + overlap])
+        low += ival_w
+    
+    # create optical flow object
+    fl = OptflowFarneback(first_img, next_img, **optflow_settings)
+    
+    # initiate mask specifying movement pixels
+    cond_movement = zeros_like(first_img.img)
+    print fl.settings
+    print ("\nIterative movement search, varying input contrast range for"
+           " optflow calculation. Current contrast interval:")    
+    for ival in ivals:        
+        fl.settings.i_min=ival[0]
+        fl.settings.i_max=ival[1]
+        fl.prep_images()
+        fl.calc_flow()
+        len_im = Img(fl.get_flow_vector_length_img())
+    
+        c = (len_im.img > fl.settings.min_length).astype(uint8)
+        print ("Low: %.3f, High: %.3f, movement detected in %d pixels"
+               %(ival[0], ival[1], sum(c)))
+        cond_movement[c==1]=1
+    
+    if apply_erosion:
+        print "Applying erosion using kernel size: %d" %erosion_kernel_size
+        erosion_kernel = ones((erosion_kernel_size,
+                               erosion_kernel_size), dtype=uint8)   
+        cond_movement = erode(cond_movement, erosion_kernel)
+    
+    if apply_dilation:
+        print "Applying dilation using kernel size: %d" %dilation_kernel_size
+        dilation_kernel = ones((dilation_kernel_size,
+                               dilation_kernel_size), dtype=uint8)   
+        cond_movement = dilate(cond_movement, dilation_kernel)
+        
+    diff = pyrlevel - pyrlevel_orig
+    steps = range(abs(diff))
+    if diff > 0:
+        for k in steps:
+            cond_movement = pyrUp(cond_movement)
+    elif diff < 0:
+        for k in steps:
+            cond_movement = pyrDown(cond_movement)
+    
+    return cond_movement.astype(bool)
 
 ### OLD CLASS NAMES    
 class OpticalFlowFarnebackSettings(FarnebackSettings):
