@@ -96,6 +96,7 @@ _private
 
 # FITS files (.fts) in scripts_out folder
 scripts/scripts_out/*.fts
+scripts/scripts_out/*.fits
 
 # private scripts folder
 scripts/_private
