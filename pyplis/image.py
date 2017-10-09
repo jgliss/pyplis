@@ -146,7 +146,6 @@ class Img(object):
                         
         try:
             data, meta_info = import_method(input, meta_info) 
-            #print meta_info
             input = data
             #meta_info.update(add_meta)
         except:

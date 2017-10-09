@@ -21,7 +21,7 @@ Valid keys for import of image meta information:
       
 """
 from matplotlib.pyplot import imread
-from numpy import swapaxes, flipud, asarray
+from numpy import swapaxes, flipud, asarray, rot90
 from warnings import warn
 from cv2 import resize
 from os.path import basename
@@ -85,11 +85,11 @@ def load_hd_new(file_path, meta={}):
         - dict, dictionary containing meta information
     """
     im = open_pil(file_path)
-    img = asarray(im)[::-1, 0::] #flip
+    #img = asarray(im)[::-1, 0::] #flip
+    img = rot90(rot90(asarray(im)))
     meta["texp"] = float(im.tag_v2[270].split(" ")[0].split("s")[0])
     meta["start_acq"] = datetime.strptime("_".join(basename(file_path)
                             .split("_")[:3]), "%Y%m%d_%H%M%S_%f")
-
     return (img, meta)
 
 def _read_binary_timestamp(timestamp):
@@ -221,5 +221,3 @@ if __name__ == "__main__":
     img_c, meta_c = load_comtessa(path_comtessa, meta_comtessa)
     ax_c.imshow(img_c)
     print meta_c
-    
-   

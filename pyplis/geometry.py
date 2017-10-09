@@ -28,7 +28,38 @@ if GEONUMAVAILABLE:
     from geonum.topodata import TopoAccessError
 
 class MeasGeometry(object):
-    """Class for calculations and management of the measurement geometry"""
+    """Class for calculations and management of the measurement geometry
+    
+    Attributes
+    ----------
+    geo_setup : GeoSetup
+        class containing information about the current measurement setup.
+        Most of the relevant geometrical calculations are performed within
+        this object
+    source : dict
+        dictionary containing information about emission source (valid 
+        keys: ``name, lon, lat, altitude``)
+    wind : dict
+        dictionary containing information about meteorology at source 
+        position (valid keys: ``dir, dir_err, velo, velo_err``)
+    cam : dict
+        dictionary containing information about the camera (valid keys: 
+        ``cam_id, ser_no, lon, lat, altitude, elev, elev_err, azim, 
+        azim_err, focal_length, pix_width, pix_height, pixnum_x, pixnum_y
+        alt_offset``
+        
+    Parameters
+    ----------
+    source_info : dict
+        dictionary containing source parameters (see :attr:`source` for 
+        valid keys)
+    cam_info : dict
+        dictionary containing camera parameters (see :attr:`cam` for 
+        valid keys)
+    wind_info : dict
+        dictionary conatining meteorology information (see :attr:`wind`
+        for valid keys)
+    """
     def __init__(self, source_info={}, cam_info={}, wind_info={}):
         self.geo_setup = GeoSetup()
         
@@ -39,8 +70,8 @@ class MeasGeometry(object):
         
         self.wind       =   od([("dir"      ,   nan),
                                 ("dir_err"  ,   nan),
-                                ("vel"      ,   nan),
-                                ("vel_err"  ,   nan)])
+                                ("velo"      ,   nan),
+                                ("velo_err"  ,   nan)])
                                 
         self.cam        =   od([("cam_id"       ,   ""),
                                 ("ser_no"       ,   9999),
@@ -69,17 +100,22 @@ class MeasGeometry(object):
     
     @property
     def cam_id(self):
-        """Returns current cam ID"""
+        """ID of current camera"""
         return self.cam["cam_id"]
         
     def get_cam_specs(self, img_obj):
-        """Reads meta data relevant for geometry calculations from 
-        :class:`pyplis.Image.Img` objec
+        """Reads camera meta data from image meta data
             
             1. Focal length lense
             2. Image sensor
                 i. Pixel width
                 #. Pixel height
+        
+        Parameters
+        ----------
+        img_obj : Img
+            image data containing information about camera specs in meta
+            dictionary
         """
         #self.cam["pixLengthY"],self.cam["pixLengthX"]=img_obj.img.shape
         param_keys = ["focal_length","pix_width","pix_height"]
@@ -90,25 +126,37 @@ class MeasGeometry(object):
     def update_cam_specs(self, info_dict):
         """Update camera settings
         
-        :param dict info_dict: dictionary containing camera information        
+        Parameters
+        ----------
+        info_dict : dict
+            dictionary containing camera information (see :attr:`cam` for 
+            valid keys)       
         """
         for key, val in info_dict.iteritems():
-            if key in self.cam.keys():
+            if key in self.cam.keys() and val is not None:
                 self.cam[key] = val
         
     def update_source_specs(self, info_dict):
         """Update source settings
         
-        :param dict info_dict: dictionary containing source information        
+        Parameters
+        ----------
+        info_dict : dict
+            dictionary containing source information (see :attr:`source` 
+            for valid keys)       
         """
         for key, val in info_dict.iteritems():
-            if self.source.has_key(key):
+            if self.source.has_key(key) and val is not None:
                 self.source[key] = val
         
     def update_wind_specs(self, info_dict):
         """Update meteorological settings
         
-        :param dict info_dict: dictionary containing meterology information        
+        Parameters
+        ----------
+        info_dict : dict
+            dictionary containing meterology information (see :attr:`wind` 
+            for valid keys)        
         """
         changed = False
         if not isinstance(info_dict, dict):
@@ -122,15 +170,18 @@ class MeasGeometry(object):
     def _check_if_number(self, val):
         """Check if input is a number
         
-        :param val: object to be checked
+        Parameters
+        ----------
+        val 
+            object to be checked
         """
         if isinstance(val, (int, float)) and not isnan(val):
             return 1
         return 0
     
     def _check_geosetup_info(self):
-        """Checks if information is available to create points and vectors in 
-        ``self.geo_setup``"""
+        """Checks if relevant information for :attr:`geo_setup` is ready
+        """
         check = ["lon", "lat", "elev", "azim", "dir"]
         cam_ok, source_ok = True, True
         for key in check:
@@ -169,7 +220,6 @@ class MeasGeometry(object):
             self.geo_setup.add_geo_point(cam)
             
         if source_ok:       
-                                 
             print "Updating source in GeoSetup of MeasGeometry"
             source = GeoPoint(self.source["lat"], self.source["lon"],
                               self.source["altitude"], name="source")
@@ -181,17 +231,21 @@ class MeasGeometry(object):
             source2cam.name = "source2cam"
             #vector representing the camera center pix viewing direction (CFOV),
             #anchor at camera position
-            cam_view_vec = GeoVector3D(azimuth = self.cam["azim"], elevation =\
-                self.cam["elev"], dist_hor = mag, anchor = cam, name = "cfov")
-            print ("Updating source2cam and cam viewing direction vectors in "
-                                                "GeoSetup of MeasGeometry")
+            cam_view_vec = GeoVector3D(azimuth=self.cam["azim"], 
+                                       elevation=self.cam["elev"], 
+                                       dist_hor=mag, anchor=cam, 
+                                       name="cfov")
+            print ("Updating source2cam and cam viewing direction "
+                   "vectors in GeoSetup of MeasGeometry")
 
             #vector representing the emission plume 
             #(anchor at source coordinates)
-            plume_vec = GeoVector3D(azimuth = self.plume_dir[0],\
-                    dist_hor = mag, anchor = source, name = "plume_vec")
+            plume_vec = GeoVector3D(azimuth=self.plume_dir[0],
+                                    dist_hor=mag, anchor=source, 
+                                    name="plume_vec")
             
-            self.geo_setup.add_geo_vectors(source2cam, cam_view_vec, plume_vec)
+            self.geo_setup.add_geo_vectors(source2cam, cam_view_vec, 
+                                           plume_vec)
             #horizontal intersection of plume and viewing direction
             offs = plume_vec.intersect_hor(cam_view_vec)
             #Geopoint at intersection
@@ -987,7 +1041,7 @@ class MeasGeometry(object):
         return self.haversine(self.cam["lon"], self.cam["lat"],\
                                 self.source["lon"], self.source["lat"])
     
-    def _map_extend_km(self, fac = 5.0):
+    def _map_extend_km(self, fac=5.0):
         """Helper to estimate the extend of map borders for plotting
         
         :param float fac: fraction of geo length scale used to determine the
@@ -1110,8 +1164,8 @@ if __name__ == "__main__":
                      
         windDefaultInfo= {"dir"     : 320,
                           "dir_err"  : 15.0,
-                          "vel"     : 4.43,
-                          "vel_err"  : 1.0}
+                          "velo"     : 4.43,
+                          "velo_err"  : 1.0}
                       
                      
         cam_info={"id": "SO2 camera",
@@ -1149,8 +1203,8 @@ if __name__ == "__main__":
                      
         windDefaultInfo= {"dir"     : 270,
                           "dir_err"  : 15.0,
-                          "vel"     : 4.43,
-                          "vel_err"  : 1.0}
+                          "velo"     : 4.43,
+                          "velo_err"  : 1.0}
                       
                      
         opticsCam={"focal_length"    :   12.0e-3,
