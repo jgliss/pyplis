@@ -147,13 +147,23 @@ class Img(object):
         try:
             data, meta_info = import_method(input, meta_info) 
             input = data
+            #print('image: meta_info')
+            #print(meta_info)
             #meta_info.update(add_meta)
         except:
             pass
           
         for k, v in meta_info.iteritems():
-            if self.meta.has_key(k) and isinstance(v, type(self.meta[k])):
-                self.meta[k] = v
+            #print(k,v)
+            if self.meta.has_key(k):
+                if isinstance(v, type(self.meta[k])):
+                    self.meta[k] = v
+                else:
+                    warn("Provided meta_info when calling pyplis.Img has "
+                         "wrong type. Key " + str(k) + " is of type " + 
+                         str(type(v)) + " but has to be of type " + 
+                         str(type(self.meta[k])) +
+                         ". Img.meta[" + str(k) + "] was not updated." )                        
             elif self.edit_log.has_key(k):
                 self.edit_log[k] = v
         if input is not None:                              
