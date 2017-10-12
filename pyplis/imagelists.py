@@ -3259,7 +3259,7 @@ class ImgListMultiFits(ImgList):
         
         # Combine the temporary lists to a dataFrame and return it
         meta = DataFrame(data={'file'       : [file_path]*imgPerFile,
-                               'hdu_nr'     : range(imgPerFile),
+                               'hdu_nr'     : np.array(range(imgPerFile),dtype=int),
                                'start_acq'  : imgFileStart,
                                'stop_acq'   : imgFileStop,
                                'exposure'   : imgFileExp,
