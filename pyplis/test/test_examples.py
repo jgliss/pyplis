@@ -57,7 +57,8 @@ if exists(BASE_DIR):
                          camera=cam,
                          source=source, 
                          wind_info=wind_info,
-                         cell_info_dict=CALIB_CELLS)
+                         cell_info_dict=CALIB_CELLS,
+                         auto_topo_access=False)
         
     @pytest.fixture(scope="module")
     def calib_dataset():

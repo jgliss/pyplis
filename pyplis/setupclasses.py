@@ -1012,7 +1012,7 @@ class MeasSetup(BaseSetup):
     """
     def __init__(self, base_dir=None, start=None, stop=None, camera=None,
                  source=None, wind_info=None, cell_info_dict={}, rects={},
-                 lines={}, **opts):
+                 lines={}, auto_topo_access=True, **opts):
     
         super(MeasSetup, self).__init__(base_dir, start, stop, **opts)
         self.id = "meas"
@@ -1021,7 +1021,7 @@ class MeasSetup(BaseSetup):
             camera = Camera()
         if not isinstance(source, Source):
             source = Source()
-        
+        self.auto_topo_access = auto_topo_access
         self._cam_source_dict = {"camera"   :   camera,
                                  "source"   :   source}
         
@@ -1038,7 +1038,9 @@ class MeasSetup(BaseSetup):
         
         self.meas_geometry = MeasGeometry(self.source.to_dict(),
                                           self.camera.to_dict(), 
-                                          self.wind_info)    
+                                          self.wind_info,
+                                          auto_topo_access=
+                                          self.auto_topo_access)    
         #self.update_meas_geometry()
     
     @property
@@ -1152,13 +1154,14 @@ class MeasSetup(BaseSetup):
         """Update the meas geometry based on current settings"""
         print "Updating MeasGeometry in MeasSetup class"
         self.meas_geometry.__init__(self.source.to_dict(),\
-                        self.camera.to_dict(), self.wind_info)
+                        self.camera.to_dict(), self.wind_info,
+                        auto_topo_access=self.auto_topo_access)
         
     def short_str(self):
         """A short info string"""
         s = super(BaseSetup, self).__str__() + "\n"
-        return s + "Camera: %s\nSource: %s" %(self.camera.cam_id,\
-                                                        self.source.name)
+        return s + "Camera: %s\nSource: %s" %(self.camera.cam_id,
+                                              self.source.name)
 
     def __setitem__(self, key, value):
         """Update class item"""
