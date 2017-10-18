@@ -20,12 +20,10 @@ from warnings import warn
 from matplotlib.pyplot import figure
 from copy import deepcopy
 
-from pyplis import GEONUMAVAILABLE
 from .image import Img
 from .helpers import check_roi
-if GEONUMAVAILABLE:
-    from geonum import GeoSetup, GeoPoint, GeoVector3D, TopoData
-    from geonum.topodata import TopoAccessError
+from geonum import GeoSetup, GeoPoint, GeoVector3D, TopoData
+from geonum.topodata import TopoAccessError
 
 class MeasGeometry(object):
     """Class for calculations and management of the measurement geometry
@@ -60,8 +58,8 @@ class MeasGeometry(object):
         dictionary conatining meteorology information (see :attr:`wind`
         for valid keys)
     """
-    def __init__(self, source_info={}, cam_info={}, wind_info={}):
-        self.geo_setup = GeoSetup()
+    def __init__(self, source_info={}, cam_info={}, wind_info={},
+                 auto_topo_access=True):
         
         self.source     =   od([("name"         ,   ""),
                                 ("lon"          ,   nan),
@@ -90,6 +88,7 @@ class MeasGeometry(object):
                                 ('alt_offset'   ,   0.0)])  #altitude above 
                                                             #topo in m
         
+        self.auto_topo_access=auto_topo_access
         self.geo_setup = GeoSetup(id=self.cam_id)
         
         self.update_source_specs(source_info)
@@ -216,13 +215,15 @@ class MeasGeometry(object):
         if cam_ok:
             print "Updating camera in GeoSetup of MeasGeometry"
             cam = GeoPoint(self.cam["lat"], self.cam["lon"],
-                           self.cam["altitude"], name="cam")
+                           self.cam["altitude"], name="cam",
+                           auto_topo_access=self.auto_topo_access)
             self.geo_setup.add_geo_point(cam)
             
         if source_ok:       
             print "Updating source in GeoSetup of MeasGeometry"
             source = GeoPoint(self.source["lat"], self.source["lon"],
-                              self.source["altitude"], name="source")
+                              self.source["altitude"], name="source",
+                              auto_topo_access=self.auto_topo_access)
             self.geo_setup.add_geo_point(source)
 
         if cam_ok and source_ok:
@@ -252,14 +253,17 @@ class MeasGeometry(object):
             intersect = source + offs
             intersect.name = "intersect"
             self.geo_setup.add_geo_point(intersect)
-            self.geo_setup.set_borders_from_points(extend_km =\
-                            self._map_extend_km(), to_square = True)
+            self.geo_setup.set_borders_from_points(extend_km=
+                                                   self._map_extend_km(),
+                                                   to_square=True)
             print "MeasGeometry was updated and fulfills all requirements"
             return True
         
         elif cam_ok:
-            cam_view_vec = GeoVector3D(azimuth = self.cam["azim"], elevation =\
-                self.cam["elev"], dist_hor = mag, anchor = cam, name = "cfov")
+            cam_view_vec = GeoVector3D(azimuth=self.cam["azim"], 
+                                       elevation=self.cam["elev"], 
+                                       dist_hor=mag, anchor=cam, 
+                                       name="cfov")
             self.geo_setup.add_geo_vector(cam_view_vec)
             print "MeasGeometry was updated but misses source specifications"
         print "MeasGeometry not (yet) ready for analysis"
