@@ -1954,11 +1954,25 @@ class FarnebackSettings(object):
         """Return current pixel skip value for displaying flow field"""
         return self._display["disp_skip"]
     
+    @disp_skip.setter
+    def disp_skip(self, val):
+        try:
+            self._display["disp_skip"] = int(val)
+        except:
+            raise ValueError("Need number, got %s" %type(val))
+            
     @property
     def disp_len_thresh(self):
         """Return current pixel skip value for displaying flow field"""
         return self._display["disp_len_thresh"]    
     
+    @disp_len_thresh.setter
+    def disp_len_thresh(self, val):
+        try:
+            self._display["disp_len_thresh"] = float(val)
+        except:
+            raise ValueError("Need number, got %s" %type(val))
+            
     def duplicate(self):
         """Returns deepcopy of this object"""
         return deepcopy(self)
@@ -3202,7 +3216,8 @@ class OptflowFarneback(object):
         self.roi_abs = roi_temp
         return fig
         
-    def calc_flow_lines(self, in_roi=True, roi=None, include_short_vecs=False):
+    def calc_flow_lines(self, in_roi=True, roi=None, 
+                        extend_len_fac=1.0, include_short_vecs=False):
         """Determine line objects for visualisation of current flow field
         
         Parameters
@@ -3213,6 +3228,10 @@ class OptflowFarneback(object):
             :attr:`roi_abs` is used).
         roi : list
             Region of interest supposed to be displayed
+        extend_len_fac : float
+            factor by which length of vectors are extended
+        include_short_vecs : bool
+            if True, lines for short vectors are calculated as well
             
         Returns
         -------
@@ -3231,6 +3250,7 @@ class OptflowFarneback(object):
         #create and flatten a meshgrid 
         y, x = mgrid[step / 2: h : step, step / 2: w : step].reshape(2, -1)
         fx, fy = flow[y, x].T
+        fx, fy = fx*extend_len_fac, fy*extend_len_fac
         
         if not include_short_vecs and len_thresh > 0:
             #use only those flow vectors longer than the defined threshold
@@ -3250,7 +3270,8 @@ class OptflowFarneback(object):
         return self.draw_flow(**kwargs)
     
     def draw_flow(self, in_roi=False, roi_abs=None, add_cbar=False, 
-                  include_short_vecs=False, ax=None):
+                      include_short_vecs=False, extend_len_fac=1.0,
+                      linewidth=1, ax=None):
         """Draw the current optical flow field
         
         Parameters
@@ -3269,6 +3290,10 @@ class OptflowFarneback(object):
         include_short_vecs : bool
             if True, also vectors shorter than ``self.settings.min_length`` 
             are drawn
+        extend_len_fac : float
+            factor by which length of vectors are extended
+        linewidth : int
+            with of flow vector lines
         ax : Axes
             matplotlib axes object
             
@@ -3310,6 +3335,7 @@ class OptflowFarneback(object):
         disp = cvtColor(disp, COLOR_GRAY2BGR) 
        
         lines = self.calc_flow_lines(in_roi, roi_rel,
+                                     extend_len_fac=extend_len_fac,
                                      include_short_vecs=include_short_vecs)
         
         #tit = r"1. img"
@@ -3324,12 +3350,14 @@ class OptflowFarneback(object):
         if not draw_img:
             for (x1, y1), (x2, y2) in lines:
                 ax.add_artist(Line2D([x0 + x1, x0 + x2], [y0 + y1, y0 + y2],
-                                    color="lime"))
+                                    color="lime", linewidth=linewidth))
                 ax.add_patch(Circle((x0 + x2, y0 + y2), 1, ec="r", fc="r"))    
         else:
             for (x1, y1), (x2, y2) in lines:
-                line(disp, (x0 + x1, y0 + y1), (x0 + x2, y0 + y2),(0, 255, 255), 1)
-                circle(disp, (x0 + x2, y0 + y2), 1, (255, 0, 0), -1)
+                line(disp, (x0+x1, y0+y1), (x0+x2, y0+y2),
+                     color=(0, 255, 255), thickness=linewidth)
+                circle(disp, (x0+x2,y0+y2), linewidth, 
+                       (255, 0, 0), -1)
         
         if draw_img:
             ax.imshow(disp)
