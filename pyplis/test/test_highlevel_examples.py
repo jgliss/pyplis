@@ -1,6 +1,18 @@
 # -*- coding: utf-8 -*-
 """
-Pyplis test module for dataset.py base module of Pyplis
+Pyplis high level test module
+
+This module contains some highlevel tests with the purpose to ensure 
+basic functionality of the most important features for emission-rate 
+analyses.
+
+Note
+----
+The module is based on the dataset "testdata_minimal" which can be found
+in the GitHub repo in the folder "pyplis/data/". The dataset is based on 
+the official Pyplis testdata set which is used for the example scripts. 
+This minimal version does not contain all images and the images are reduced
+in size (Gauss-pyramid level 4).
 """
 
 from pyplis import Dataset, __dir__, Filter, Camera, Source, MeasSetup,\
@@ -84,6 +96,7 @@ if exists(BASE_DIR):
         
     @pytest.fixture(scope="module")
     def calib_dataset():
+        """Initiate calibration dataset"""
         stp = setup()
         stp.start = START_CALIB
         stp.stop = STOP_CALIB
@@ -97,17 +110,18 @@ if exists(BASE_DIR):
         stp = setup()
         stp.start = START_PLUME
         stp.stop = STOP_PLUME
-        print stp.start, stp.stop
         ### Create analysis object (from BaseSetup)
         # The dataset takes care of finding all vali
         return Dataset(stp)   
     
     @pytest.fixture
     def line(scope="module"):
+        """Create an example retrieval line"""
         return LineOnImage(108,71,125,44,pyrlevel_def=3, 
                            normal_orientation="left")
     
     def test_line():
+        """Test some features from example retrieval line"""
         l = line()
         
         n1,n2 = l.normal_vector
@@ -117,12 +131,14 @@ if exists(BASE_DIR):
         assert_almost_equal(vals, nominal, 2)
         
     def test_geometry():
+        """Test important results from geometrical calculations"""
         geom = plume_dataset().meas_geometry
         res = geom.get_all_pix_to_pix_dists()
         assert_almost_equal([1.9032587, 1.9032587, 10232.567],
                             [res[0].mean(), res[1].mean(), res[2].mean()],
                             3)
     def test_optflow():
+        """Test optical flow module"""
         flow = OptflowFarneback()
         flow.set_images(plume_img(), plume_img_next())
         flow.calc_flow()
@@ -150,6 +166,7 @@ if exists(BASE_DIR):
         
 if __name__=="__main__":
     import matplotlib.pyplot as plt
+    plt.rcParams["font.size"] =14
     plt.close("all")
     
     test_geometry()
@@ -157,7 +174,11 @@ if __name__=="__main__":
     flow = test_optflow()
     l=line()
     
+    ds = plume_dataset()
     
+    dsc = calib_dataset()
+    dsc.find_and_assign_cells_all_filter_lists()
+    dsc.plot_cell_search_result()
     #cell = calib_dataset()
 # =============================================================================
 #     cell.find_and_assign_cells_all_filter_lists()

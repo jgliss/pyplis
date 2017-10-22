@@ -833,6 +833,7 @@ class BaseSetup(object):
     def start(self, val):
         try:
             self._start = to_datetime(val)
+            self.USE_ALL_FILES = False
         except:
             if val is not None:
                 warn("Input %s could not be assigned to start time in "
@@ -847,6 +848,7 @@ class BaseSetup(object):
     def stop(self, val):
         try:
             self._stop = to_datetime(val)
+            self.USE_ALL_FILES = False
         except:
             if val is not None:
                 warn("Input %s could not be assigned to stop time in "
