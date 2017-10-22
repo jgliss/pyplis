@@ -4,7 +4,7 @@ Module containing features related to plume background analysis and tau
 image determination
 """
 from numpy import polyfit, poly1d, linspace, logical_and, log, full, argmin,\
-    gradient, nan, exp, ndarray, arange, ones, finfo, asarray, uint8
+    gradient, nan, exp, ndarray, arange, ones, finfo, asarray
 from matplotlib.patches import Rectangle
 from matplotlib.pyplot import GridSpec, figure, subplots_adjust, subplot,\
     subplots, setp
@@ -12,13 +12,12 @@ import matplotlib.colors as colors
 from collections import OrderedDict as od
 from scipy.ndimage.filters import gaussian_filter
 from warnings import warn
-from cv2 import dilate
 
 from .image import Img
 from .processing import LineOnImage
 from .optimisation import PolySurfaceFit
 from .helpers import shifted_color_map, _roi_coordinates
-from .plumespeed import OptflowFarneback, find_movement
+from .plumespeed import find_movement
 
 class PlumeBackgroundModel(object):
     """Class for plume background modelling and tau image determination
