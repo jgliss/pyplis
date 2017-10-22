@@ -96,6 +96,7 @@ class EmissionRateSettings(object):
         self.ref_check_lower_lim = ref_check_lower_lim
         self.ref_check_upper_lim = ref_check_upper_lim
         
+        self.velo_dir_multigauss = True
         self.senscorr = True #apply AA sensitivity correction
         self.min_cd = -1e30 #minimum required column density for retrieval [cm-2]
         self.mmol = MOL_MASS_SO2
@@ -407,7 +408,7 @@ class EmissionRates(object):
             f = self.stop.strftime("%H%M")
         except:
             d, i, f = "", "", ""    
-        return "pyplis_EmissionRateResults_%s_%s_%s.txt" %(d, i, f)
+        return "pyplis_EmissionRates_%s_%s_%s.txt" %(d, i, f)
         
     def mean(self):
         """Mean of emission rate time series"""
@@ -1115,7 +1116,7 @@ class EmissionRateAnalysis(object):
             res[line_id] = od()
             for mode, val in self.settings.velo_modes.iteritems():
                 if val:
-                    res[line_id][mode] = EmissionRateResults(line_id, mode)
+                    res[line_id][mode] = EmissionRates(line_id, mode)
         self.results = res
         self.check_pcs_plume_props()
         self.bg_roi_info = {"mean"  :   None, 
@@ -1181,7 +1182,7 @@ class EmissionRateAnalysis(object):
         Performs emission rate analysis for each line in ``self.pcs_lines`` 
         and for all plume velocity retrievals activated in 
         ``self.settings.velo_modes``. The results for each line and 
-        velocity mode are stored within :class:`EmissionRateResults` objects
+        velocity mode are stored within :class:`EmissionRates` objects
         which are saved in ``self.results[line_id][velo_mode]``, e.g.::
         
             res = self.results["bla"]["flow_histo"]
@@ -1242,17 +1243,11 @@ class EmissionRateAnalysis(object):
         roi_bg_abs = self.settings.bg_roi_abs
         velo_modes = s.velo_modes
         min_cd = s.min_cd
+        gauss_fit = s.velo_dir_multigauss
         lines = self.pcs_lines
         pnum = int(10**exponent(stop_index - start_index)/4.0)
         imin, imax = s.ref_check_lower_lim, s.ref_check_upper_lim
         for k in range(start_index, stop_index):
-            if k%20 == 0:
-                print ("Running emission rate retrieval, current image "
-                       "index: %d | %d" %(k, stop_index))
-# =============================================================================
-#             print ("IMG_LIST / FLOWLIST CFN: %d / %d (SAME %d)" 
-#                     %(lst.cfn, self.imglist_optflow.cfn, lst is self.imglist_optflow)) 
-# =============================================================================
             img = lst.current_img()
             t = lst.current_time()
             ts.append(t)
@@ -1343,12 +1338,15 @@ class EmissionRateAnalysis(object):
                         else:                            
                             # get mask specifying plume pixels
                             mask = lst.get_thresh_mask(min_cd)
-                            props.get_and_append_from_farneback(flow,
-                                                                line=pcs,
-                                                                pix_mask=mask)
+                            props.\
+                            get_and_append_from_farneback(flow,
+                                                          line=pcs,
+                                                          pix_mask=mask,
+                                                          dir_multi_gauss=
+                                                          gauss_fit)
                             idx = -1
                         
-                        print "IMGLIST CTIME: %s " %self.imglist.current_time()
+                        #print "IMGLIST CTIME: %s " %self.imglist.current_time()
                         # get effective velocity through the pcs based on 
                         # results from histogram analysis
                         (v, 
@@ -1356,7 +1354,7 @@ class EmissionRateAnalysis(object):
                                                     disterr, 
                                                     pcs.normal_vector,
                                                     sigma_tol=fl_sigma_tol)
-                        print "HISTO VEFF: %.2f" %v
+                        #print "HISTO VEFF: %.2f m/s" %v
                         phi, phi_err = det_emission_rate(cds, v, distarr, 
                                                          cds_err, verr, disterr, 
                                                          mmol)
@@ -1375,9 +1373,12 @@ class EmissionRateAnalysis(object):
                             else:                            
                                 # get mask specifying plume pixels
                                 mask = lst.get_thresh_mask(min_cd)        
-                                props.get_and_append_from_farneback(flow,
-                                                               line=pcs,
-                                                               pix_mask=mask)
+                                props.\
+                                get_and_append_from_farneback(flow,
+                                                              line=pcs,
+                                                              pix_mask=mask,
+                                                              dir_multi_gauss=
+                                                              gauss_fit)
                                 idx = -1
                         
                         if dx is None:

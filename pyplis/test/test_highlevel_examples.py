@@ -4,13 +4,16 @@ Pyplis test module for dataset.py base module of Pyplis
 """
 
 from pyplis import Dataset, __dir__, Filter, Camera, Source, MeasSetup,\
-    CellCalibEngine
+    CellCalibEngine, Img, OptflowFarneback, PlumeBackgroundModel,\
+    LineOnImage
 from os.path import join, exists
 from datetime import datetime
 from numpy.testing import assert_almost_equal
 import pytest
 
 BASE_DIR = join(__dir__, "data", "testdata_minimal")
+IMG_DIR = join(BASE_DIR, "images")
+
 START_PLUME = datetime(2015, 9, 16, 7, 10, 00)
 STOP_PLUME = datetime(2015, 9, 16, 7, 20, 00)
 
@@ -21,14 +24,33 @@ CALIB_CELLS = {'a37'    :   [8.59e17, 2.00e17],
                'a53'    :   [4.15e17, 1.00e17],
                'a57'    :   [19.24e17, 3.00e17]}
 
+PLUME_FILE = join(IMG_DIR, 
+                  'EC2_1106307_1R02_2015091607110434_F01_Etna.fts')
+PLUME_FILE_NEXT = join(IMG_DIR, 
+                       'EC2_1106307_1R02_2015091607113241_F01_Etna.fts')
+BG_FILE = join(IMG_DIR, 'EC2_1106307_1R02_2015091607022602_F01_Etna.fts')
+
 if exists(BASE_DIR):
-       
+     
     @pytest.fixture
-    def setup():
+    def plume_img(scope="module"):
+        return Img(PLUME_FILE).pyr_up(1)
+    
+    @pytest.fixture
+    def plume_img_next(scope="module"):
+        return Img(PLUME_FILE_NEXT).pyr_up(1)
+    
+    @pytest.fixture
+    def bg_img(scope="module"):
+        return Img(BG_FILE).pyr_up(1)
+    
+    
+    @pytest.fixture
+    def setup(scope="module"):
         cam_id = "ecII"
         
         ### Define camera (here the default ecII type is used)
-        img_dir = join(BASE_DIR, "images")
+        img_dir = IMG_DIR
         
         ### Load default information for Etna
         source = Source("etna")
@@ -79,6 +101,20 @@ if exists(BASE_DIR):
         ### Create analysis object (from BaseSetup)
         # The dataset takes care of finding all vali
         return Dataset(stp)   
+    
+    @pytest.fixture
+    def line(scope="module"):
+        return LineOnImage(108,71,125,44,pyrlevel_def=3, 
+                           normal_orientation="left")
+    
+    def test_line():
+        l = line()
+        
+        n1,n2 = l.normal_vector
+        
+        nominal = [32, 302.20, -0.84, -0.53]
+        vals = [l.length(), l.normal_theta, n1, n2]
+        assert_almost_equal(vals, nominal, 2)
         
     def test_geometry():
         geom = plume_dataset().meas_geometry
@@ -86,12 +122,42 @@ if exists(BASE_DIR):
         assert_almost_equal([1.9032587, 1.9032587, 10232.567],
                             [res[0].mean(), res[1].mean(), res[2].mean()],
                             3)
-    
-    
+    def test_optflow():
+        flow = OptflowFarneback()
+        flow.set_images(plume_img(), plume_img_next())
+        flow.calc_flow()
+        len_img = flow.get_flow_vector_length_img()
+        angle_img = flow.get_flow_orientation_img()
+        l = line()
+        res = flow.local_flow_params(line=l, dir_multi_gauss=False)
+        for k, v in res.iteritems():
+            print k, v
+        nominal = [2.0323,-43.881, -53.416, 14.551, 0.256, 0.062,
+                   28.07,0.910]
+        vals = [len_img.mean(), angle_img.mean(), res["_dir_mu"],
+                res["_dir_sigma"], res["_len_mu_norm"], 
+                res["_len_sigma_norm"], res["_del_t"], 
+                res["_significance"]]
+        assert_almost_equal(vals, nominal, 3)
+        return flow
+        
+    def test_bg_model():
+        m = PlumeBackgroundModel()
+        m.set_missing_ref_areas(plume_img())
+        
+        m.plot_sky_reference_areas(plume_img())
     
         
 if __name__=="__main__":
-    ds = plume_dataset()
+    import matplotlib.pyplot as plt
+    plt.close("all")
+    
+    test_geometry()
+    
+    flow = test_optflow()
+    l=line()
+    
+    
     #cell = calib_dataset()
 # =============================================================================
 #     cell.find_and_assign_cells_all_filter_lists()
