@@ -1811,8 +1811,8 @@ class ImgList(BaseImgList):
             bg_img = None
             self.bg_model.set_missing_ref_areas(cim)
             if self.bg_model.mode == 0:
-                print ("Background correction mode is 0, initiating settings "
-                    "for poly surface fit")
+                print ("Background correction mode is 0, initiating "
+                       "settings for poly surface fit")
                 try:
                     mask = self.prepare_bg_fit_mask(dilation=True)
                     self.bg_model.surface_fit_mask = mask
