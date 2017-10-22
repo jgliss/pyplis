@@ -89,4 +89,6 @@ def load_hd_new(file_path, meta={}):
     meta["texp"] = float(im.tag_v2[270].split(" ")[0].split("s")[0])
     meta["start_acq"] = datetime.strptime("_".join(basename(file_path)
                             .split("_")[:3]), "%Y%m%d_%H%M%S_%f")
+    
+    return (img, meta)
 
