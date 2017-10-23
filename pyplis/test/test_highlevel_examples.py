@@ -157,6 +157,19 @@ if exists(BASE_DIR):
         assert_almost_equal(vals, nominal, 3)
         return flow
         
+    def test_auto_cellcalib():
+        ds = calib_dataset()
+        ds.find_and_assign_cells_all_filter_lists()
+        keys = ["on", "off"]
+        nominal = [3, 3]
+        vals = []
+        for key in keys:
+            vals.append(len(ds.cell_lists[key]))
+            for lst in ds.cell_lists[key].values():
+                print lst.list_id
+        assert (nominal==vals)
+        
+    
     def test_bg_model():
         m = PlumeBackgroundModel()
         m.set_missing_ref_areas(plume_img())
@@ -174,11 +187,11 @@ if __name__=="__main__":
     flow = test_optflow()
     l=line()
     
+    test_auto_cellcalib()
+    
     ds = plume_dataset()
     
-    dsc = calib_dataset()
-    dsc.find_and_assign_cells_all_filter_lists()
-    dsc.plot_cell_search_result()
+    test_auto_cellcalib
     #cell = calib_dataset()
 # =============================================================================
 #     cell.find_and_assign_cells_all_filter_lists()

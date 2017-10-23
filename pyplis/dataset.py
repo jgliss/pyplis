@@ -965,7 +965,7 @@ class Dataset(object):
     @property
     def num_of_filters(self):
         """Returns the number of filters in ``self.filters``"""
-        return len(self.filters.keys())
+        return len(self.filters.filters.keys())
     
     @property
     def _fname_access_flags(self):
