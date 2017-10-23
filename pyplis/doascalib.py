@@ -439,7 +439,6 @@ class DoasCalibData(object):
         ax.plot(self.tau_vec, cds, ls="", marker=".",
                 label="Data %s" %add_label_str, **kwargs)
         try:
-            print "Blaaa"
             ax.errorbar(self.tau_vec, cds, yerr=self.doas_vec_err, 
                         marker="None", ls=" ", c="#b3b3b3")
         except:
