@@ -1811,8 +1811,8 @@ class ImgList(BaseImgList):
             bg_img = None
             self.bg_model.set_missing_ref_areas(cim)
             if self.bg_model.mode == 0:
-                print ("Background correction mode is 0, initiating settings "
-                    "for poly surface fit")
+                print ("Background correction mode is 0, initiating "
+                       "settings for poly surface fit")
                 try:
                     mask = self.prepare_bg_fit_mask(dilation=True)
                     self.bg_model.surface_fit_mask = mask
@@ -2588,102 +2588,57 @@ class ImgList(BaseImgList):
         self.vign_mask = mask
         return mask
     
-    def prepare_bg_fit_mask(self, dilation=False, dilate_kernel=None,
-                            optflow_blur=1, optflow_median=10, 
-                            plot_masks=False, **flow_settings):
-        """Prepare mask for background fit based on analysis of current image
+    def calc_sky_background_mask(self, lower_thresh=None,
+                                apply_movement_search=True,
+                                **settings_movement_search):
+        """Retrieve and set background mask for 2D poly surface fit
         
-        The mask is determined based on intensities in the 3 reference 
-        recangular areas in the plume background model (if they are not 
-        assigned then they are retrieved using :func:`set_missing_ref_areas`
-        in :attr:`bg_model`). Furthermore, an optical flow analysis is 
-        performed in order to exclude image pixels where movement could be 
-        detected.
+        Wrapper for method :func:`find_sky_background` 
+        
+        Calculates mask specifying sky radiance pixels for background 
+        modelling mode 0 
+        
+        Parameters
+        ----------
+        lower_thresh : :obj:`float`, optional
+            lower intensity threshold. If provided, this value is used, 
+            else, the minimum value is derived from the minimum intensity 
+            in the plume image within the current 3 sky reference 
+            rectangles 
+        **settings_movement_search
+            additional keyword arguments passed to :func:`find_movement`. 
+            Note that these may include settings for the optical flow 
+            calculation which are further passed to the 
+            initiation of the :class:`FarnebackSettings` class 
+        
+        Returns
+        -------
+        array
+            2D-numpy boolean numpy array specifying sky background pixels
+        """
+        mask = self.bg_model.\
+            calc_sky_background_mask(self.this, 
+                                     self.next,
+                                     lower_thresh,
+                                     apply_movement_search,
+                                     **settings_movement_search)
+        self.surface_fit_mask = mask
+        return mask
+    
+    def prepare_bg_fit_mask(self, **kwargs):
+        """Calculate mask specifying sky-reference pixels in current image
         
         Note
         ----
         
-        This is a beta version
+        1. The method was redefined and renamed, please see (and use) 
+            :func:`calc_sky_background_mask` instead
+        2. This is a beta version
         
-        Parameters
-        ----------
-        dilation : bool
-            if True, the mask is dilated
-        dilate_kernel : array
-            if None, uses 30x30 pix kernel
-        optflow_blur : int
-            amount of Gaussian blurring applied to images before optical flow
-            is determined
-        optflow_median : int
-            apply median filter of specified size to length image of optical 
-            flow vectors (can be useful in order to remove artifacts and only
-            mask out movement areas spanning a reasonable pixel neighbourhood)
-        plot_masks : bool
-            if True, creates subplot showing indidivual masks used to determine
-            the background mask (1. is based on intensity thresh, second based
-            on detected movement)
-        **flow_settings 
-            keyword arguments for optical flow settings
-            
-        Returns
-        -------
-        array 
-            mask specifying detected background pixels
-            
         """
-        # remember some settings
-        fl_mode = self.optflow_mode
-        bl = self.gaussian_blurring
-        s_temp = self.optflow.settings.duplicate()
+        warn("Old name (wrapper) for method calc_sky_background_mask")
         
-        img = self.current_img().duplicate()
-        mask = ones(img.shape)
-        
-        self.bg_model.set_missing_ref_areas(img)
-    
-        mean, low, high = self.bg_model.mean_in_rects(img)
-        thresh = mean - mean * 0.1
-    
-        cond_low = (img.img < thresh).astype(uint8)
-        
-        s = self.optflow.settings
-        s.auto_update = False
-        keys = flow_settings.keys()
-        if not "i_min" in keys:
-            flow_settings["i_min"] = low
-        elif not "i_max" in keys:
-            flow_settings["i_max"] = img.max()
-        
-        s.update(**flow_settings)
-        self.gaussian_blurring = optflow_blur
-        print "I MIN: %s" %self.optflow.settings.i_min
-        print "I MAX: %s" %self.optflow.settings.i_max
-        self.optflow_mode = True
-        len_im = Img(self.optflow.get_flow_vector_length_img())
-        if optflow_median > 0:
-            len_im = len_im.apply_median_filter(optflow_median)
-        cond_movement = (len_im.img > s.min_length).astype(uint8)
-        
-        if dilate:
-            if dilate_kernel is None:
-                dilate_kernel = ones((30, 30), dtype=uint8)   
-            cond_low = dilate(cond_low, dilate_kernel)
-            cond_movement = dilate(cond_movement, dilate_kernel)
-        
-        mask = mask * (1 - cond_low) * (1 - cond_movement)
-        
-        if plot_masks:
-            fig, ax = subplots(1,2, figsize=(18,8))
-            
-            ax[0].imshow(cond_low, cmap="gray")
-            ax[0].set_title("Below intensity thresh %.1f" %thresh)
-            ax[1].imshow(cond_movement, cmap="gray")
-            ax[1].set_title("Movement detected")
-        self.optflow.settings = s_temp
-        self.optflow_mode = fl_mode
-        self.gaussian_blurring = bl
-        self.bg_model.surface_fit_mask = mask
-        return mask.astype(bool)
+        return self.calc_sky_background_mask(**kwargs)
         
     def prep_data_dilutioncorr(self, tau_thresh=0.05, plume_pix_mask=None, 
                                plume_dists=None, ext_coeff=None):

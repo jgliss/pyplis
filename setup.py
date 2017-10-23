@@ -18,10 +18,10 @@ setup(
     name        =   'pyplis',
     version     =   version,
     author      =   'Jonas Gliss',
-    author_email=   'jg@nilu.no',
+    author_email=   'jonasgliss@gmail.com',
     license     =   'GPLv3+',
     url         =   'https://github.com/jgliss/pyplis',
-    description = ('A Python library for the analysis UV SO2 camera data'),
+    description = ('Python library for the analysis UV SO2 camera data'),
     long_description = readme,
     # See https://pypi.python.org/pypi?%3Aaction=list_classifiers
     classifiers=[
@@ -29,7 +29,7 @@ setup(
         #   3 - Alpha
         #   4 - Beta
         #   5 - Production/Stable
-        'Development Status :: 3 - Alpha',
+        'Development Status :: 5 - Production/Stable',
 
         # Indicate who your project is intended for
         'Intended Audience :: Science/Research',

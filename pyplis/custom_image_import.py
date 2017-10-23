@@ -89,29 +89,6 @@ def load_hd_new(file_path, meta={}):
     meta["texp"] = float(im.tag_v2[270].split(" ")[0].split("s")[0])
     meta["start_acq"] = datetime.strptime("_".join(basename(file_path)
                             .split("_")[:3]), "%Y%m%d_%H%M%S_%f")
-
+    
     return (img, meta)
 
-if __name__ == "__main__":
-    from os.path import join
-    import matplotlib.pyplot as plt
-    import numpy as np
-    plt.close("all")
-
-    # load and display HD new image
-    p_hdnew = 'C:/Users/Jonas/OneDrive - Universitetet i Oslo/research/Collaborations/juan_cameval_test/MMM/Measurements/20170304_131230_510_M_A.tif'
-    fig1, ax1 = plt.subplots(1,1)
-    dat = open_pil(p_hdnew)
-    from time import time
-    t0=time()
-    img = np.fliplr(np.flipud(asarray(dat)))
-    t1=time()
-    
-    img = np.rot90(np.rot90(asarray(dat)))
-    t2=time()
-    dt1 = t1-t0
-    dt2 = t2-t1
-    
-    DT = dt2 - dt1
-    
-    plt.imshow(img)

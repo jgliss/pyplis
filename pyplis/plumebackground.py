@@ -17,6 +17,7 @@ from .image import Img
 from .processing import LineOnImage
 from .optimisation import PolySurfaceFit
 from .helpers import shifted_color_map, _roi_coordinates
+from .plumespeed import find_movement
 
 class PlumeBackgroundModel(object):
     """Class for plume background modelling and tau image determination
@@ -254,6 +255,50 @@ class PlumeBackgroundModel(object):
             self.ygrad_rect = res["ygrad_rect"]
         if not self._check_rect(self.xgrad_rect, plume):
             self.xgrad_rect = res["xgrad_rect"]
+    
+    def calc_sky_background_mask(self, plume_img, next_img=None, 
+                                lower_thresh=None,
+                                apply_movement_search=True,
+                                **settings_movement_search):
+        """Retrieve and set background mask for 2D poly surface fit
+        
+        Wrapper for method :func:`find_sky_background` 
+        
+        Calculates mask specifying sky radiance pixels for modelling mode
+        0 (plume background retrieval directly from plume image without
+        an additional I0-image, using a 2D polynomial surface fit). The 
+        mask is stored in :attr:`surface_fit_mask`.
+        
+        Parameters
+        ----------
+        plume_img : Img
+            the plume image for which the sky background pixels are supposed
+            to be detected
+        next_img : :obj:`Img`, optional
+            second image used to compute the optical flow in :param:`plume_img`
+        lower_thresh : :obj:`float`, optional
+            lower intensity threshold. If provided, this value is used, 
+            else, the minimum value is derived from the minimum intensity 
+            in the plume image within the current 3 sky reference 
+            rectangles 
+        **settings_movement_search
+            additional keyword arguments passed to :func:`find_movement`. 
+            Note that these may include settings for the optical flow 
+            calculation which are further passed to the 
+            initiation of the :class:`FarnebackSettings` class 
+        
+        Returns
+        -------
+        array
+            2D-numpy boolean numpy array specifying sky background pixels
+        """
+        mask = find_sky_background(plume_img, next_img,
+                                   self.settings_dict(),
+                                   lower_thresh,
+                                   apply_movement_search,
+                                   **settings_movement_search)
+        self.surface_fit_mask = mask
+        return mask
     
     def bg_from_poly_surface_fit(self, plume, mask=None, polyorder=2,
                                  pyrlevel=4):
@@ -1287,3 +1332,86 @@ def plot_sky_reference_areas(plume_img, settings_dict, ax=None):
     ax.legend(loc="best", fancybox=True, framealpha=0.5, fontsize=10)
         
     return ax
+
+def find_sky_background(plume_img, next_img=None, 
+                        bgmodel_settings_dict={},
+                        lower_thresh=None,
+                        apply_movement_search=True,
+                        **settings_movement_search):
+    """Prepare mask for background fit based on analysis of current image
+    
+    The mask is determined by applying an intensity threshold to a plume 
+    image based on the intensities in 3 sky reference rectangles of an 
+    instance of the :class:`PlumeBackgroundModel` object. If not specified 
+    on input from an exisiting instance of the class (using 
+    :param:`bgmodel_settings_dict`), the 3 required reference areas are 
+    calculated automatically using :func:`find_sky_reference_areas`. 
+    Alternatively, the lower threshold can be provided on input using 
+    :param:`lower_thresh`.
+    Furthermore, pixels showing movement between the input image 
+    :param:`plume_img`and a second provided image (i.e. :param:`next_img`) 
+    can be excluded. The detection of movement between the two frames is
+    performed using the movement detection algorithm :func:`find_movement` 
+    (see :mod:`plumespeed`).
+    
+    Note
+    ----
+    1. This is a Beta version
+    2. The method requires images in radiances space (i.e. plume and
+        terrain pixels appear darkes than the sky background).
+    3. The input plume image should not contain clouds. If it does, it is
+        highly recommended to make use of the movement detection algorithm
+    
+    Parameters
+    ----------
+    plume_img : Img
+        the plume image for which the sky background pixels are supposed
+        to be detected
+    next_img : :obj:`Img`, optional
+        second image used to compute the optical flow in :param:`plume_img`
+    bgmodel_settings_dict : dict
+        dictionary containing information about sky reference areas (e.g.
+        created using :func:`settings_dict` from an existing instance of
+        the :class:`PlumeBackgroundModel`). If not specified, the required
+        reference rectangles (``scale_rect``, ``ygrad_rect``, 
+        ``xgrad_rect``) are determined automatically using 
+        :func:`find_sky_reference_areas`.
+    lower_thresh : :obj:`float`, optional
+        lower intensity threshold. If provided, this value is used rather
+        than the value derived from the 3 sky reference rectangles (see
+        :param:`bgmodel_settings_dict`)
+    **settings_movement_search
+        additional keyword arguments passed to :func:`find_movement`. 
+        Note that these may include settings for the optical flow 
+        calculation which are further passed to the 
+        initiation of the :class:`FarnebackSettings` class 
+    
+    Returns
+    -------
+    array
+        2D-numpy boolean numpy array specifying sky background pixels
+    """
+    if not isinstance(plume_img, Img):
+        raise ValueError("Invalid input for parameter plume_img: need"
+                         "Img object, got %s" %type(plume_img))
+    if plume_img.is_tau:
+        raise AttributeError("Input plume_img is an optical density image. "
+                             "This method only works for images in "
+                             "intensity mode where pixel values are gray "
+                             "values!")
+    if lower_thresh is None:
+        bg_model = PlumeBackgroundModel(**bgmodel_settings_dict)
+        bg_model.set_missing_ref_areas(plume_img)
+        mean, low, high = bg_model.mean_in_rects(plume_img)
+        lower_thresh = mean * 0.9
+
+    mask = (plume_img.img > lower_thresh)
+    if apply_movement_search:
+        if not isinstance(next_img, Img):
+            raise ValueError("Invalid input for parameter next_img: need"
+                             "Img object, got %s" %type(next_img))
+        no_movement =  ~find_movement(plume_img, next_img,
+                                      **settings_movement_search)
+        mask = mask * no_movement
+    
+    return mask.astype(bool)
