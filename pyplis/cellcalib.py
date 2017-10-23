@@ -1162,7 +1162,7 @@ class CellCalibEngine(Dataset):
         self._assign_calib_specs()
         self.add_search_results()
         self.check_all_lists()
-        self.cell_search_performed = 1
+        self.cell_search_performed=1
             
     def bg_img_available(self, filter_id):
         """Checks if a background image is available
@@ -1575,18 +1575,20 @@ class CellCalibEngine(Dataset):
         info = res.cell_info[filter_id]
         num = len(info)
         nums = [int(255.0 / k) for k in range(1, num+3)]
-        ts_all.plot(include_tit=include_tit, ax=ax, ls="--", c=cmap(nums[0]),
+        ts_all.plot(include_tit=include_tit, ax=ax, ls="--", 
+                    c=cmap(nums[0]),
                     label="Avg. pix intensities (%s)" %filter_id)
         
         ts = ts_all.index
-        dt = timedelta(0, (ts[-1] - ts[0]).total_seconds() /\
-                                                (len(ts_all) * 10))
+        dt = timedelta(0, (ts[-1]-ts[0]).total_seconds()/(len(ts_all)*10))
         
         k=2
         for cell in info.values():                
             lbl = (r"Cell %s: $S_{%s}$=%.2e cm$^{-2}$" 
-                    %(cell.img_list.cell_id, SPECIES_ID, cell.img_list.gas_cd))
-            p = ax.plot(cell.start_acq, cell.mean_vals,' o', color=cmap(nums[k]),
+                    %(cell.img_list.cell_id, SPECIES_ID, 
+                      cell.img_list.gas_cd))
+            p = ax.plot(cell.start_acq, cell.mean_vals,' o', 
+                        color=cmap(nums[k]),
                         ms=8, label=lbl, markeredgecolor="None", 
                         markeredgewidth=1)
             c = p[0].get_color()
@@ -1597,8 +1599,8 @@ class CellCalibEngine(Dataset):
         if filter_id in res.bg_info.keys():
             bg_info = res.bg_info[filter_id]
             c = cmap(nums[1])
-            ax.plot(bg_info.start_acq, bg_info.mean_vals,' o', color=c, ms=10,
-                    markerfacecolor="None", markeredgecolor=c,
+            ax.plot(bg_info.start_acq, bg_info.mean_vals,' o', color=c, 
+                    ms=10, markerfacecolor="None", markeredgecolor=c,
                     mew=2, label='BG image candidates')
             ts = PixelMeanTimeSeries(bg_info.mean_vals, bg_info.start_acq)
             ts.fit_polynomial(2)
