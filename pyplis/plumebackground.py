@@ -1306,7 +1306,8 @@ def plot_sky_reference_areas(plume_img, settings_dict, ax=None):
         fig, ax = subplots(1,1)
     r = settings_dict
     h0, w0 = plume.shape[:2]
-    ax.imshow(plume, cmap = "gray")
+    
+    ax.imshow(plume, cmap="gray")
     ax.plot([r["ygrad_line_colnum"], r["ygrad_line_colnum"]],
             [r["ygrad_line_startrow"], r["ygrad_line_stoprow"]],
             "-", c="lime", label = "vert profile")
