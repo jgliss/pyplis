@@ -20,12 +20,10 @@ from warnings import warn
 from matplotlib.pyplot import figure
 from copy import deepcopy
 
-from pyplis import GEONUMAVAILABLE
 from .image import Img
 from .helpers import check_roi
-if GEONUMAVAILABLE:
-    from geonum import GeoSetup, GeoPoint, GeoVector3D, TopoData
-    from geonum.topodata import TopoAccessError
+from geonum import GeoSetup, GeoPoint, GeoVector3D, TopoData
+from geonum.topodata import TopoAccessError
 
 class MeasGeometry(object):
     """Class for calculations and management of the measurement geometry
@@ -60,8 +58,8 @@ class MeasGeometry(object):
         dictionary conatining meteorology information (see :attr:`wind`
         for valid keys)
     """
-    def __init__(self, source_info={}, cam_info={}, wind_info={}):
-        self.geo_setup = GeoSetup()
+    def __init__(self, source_info={}, cam_info={}, wind_info={},
+                 auto_topo_access=True):
         
         self.source     =   od([("name"         ,   ""),
                                 ("lon"          ,   nan),
@@ -90,6 +88,7 @@ class MeasGeometry(object):
                                 ('alt_offset'   ,   0.0)])  #altitude above 
                                                             #topo in m
         
+        self.auto_topo_access=auto_topo_access
         self.geo_setup = GeoSetup(id=self.cam_id)
         
         self.update_source_specs(source_info)
@@ -216,13 +215,15 @@ class MeasGeometry(object):
         if cam_ok:
             print "Updating camera in GeoSetup of MeasGeometry"
             cam = GeoPoint(self.cam["lat"], self.cam["lon"],
-                           self.cam["altitude"], name="cam")
+                           self.cam["altitude"], name="cam",
+                           auto_topo_access=self.auto_topo_access)
             self.geo_setup.add_geo_point(cam)
             
         if source_ok:       
             print "Updating source in GeoSetup of MeasGeometry"
             source = GeoPoint(self.source["lat"], self.source["lon"],
-                              self.source["altitude"], name="source")
+                              self.source["altitude"], name="source",
+                              auto_topo_access=self.auto_topo_access)
             self.geo_setup.add_geo_point(source)
 
         if cam_ok and source_ok:
@@ -252,14 +253,17 @@ class MeasGeometry(object):
             intersect = source + offs
             intersect.name = "intersect"
             self.geo_setup.add_geo_point(intersect)
-            self.geo_setup.set_borders_from_points(extend_km =\
-                            self._map_extend_km(), to_square = True)
+            self.geo_setup.set_borders_from_points(extend_km=
+                                                   self._map_extend_km(),
+                                                   to_square=True)
             print "MeasGeometry was updated and fulfills all requirements"
             return True
         
         elif cam_ok:
-            cam_view_vec = GeoVector3D(azimuth = self.cam["azim"], elevation =\
-                self.cam["elev"], dist_hor = mag, anchor = cam, name = "cfov")
+            cam_view_vec = GeoVector3D(azimuth=self.cam["azim"], 
+                                       elevation=self.cam["elev"], 
+                                       dist_hor=mag, anchor=cam, 
+                                       name="cfov")
             self.geo_setup.add_geo_vector(cam_view_vec)
             print "MeasGeometry was updated but misses source specifications"
         print "MeasGeometry not (yet) ready for analysis"
@@ -1150,80 +1154,3 @@ class MeasGeometry(object):
                     return val[item]
             except:
                 pass
-
-if __name__ == "__main__":
-    from matplotlib.pyplot import close
-    close("all")
-    doGuallatiri=1
-    if doGuallatiri:
-        sourceName="Guallatiri"
-        guallatiriInfo = {"lon" : -69.090369,
-                          "lat" : -18.423672,
-                          "altitude": 6071.0,
-                          "id"  : "Guallatiri"}
-                     
-        windDefaultInfo= {"dir"     : 320,
-                          "dir_err"  : 15.0,
-                          "velo"     : 4.43,
-                          "velo_err"  : 1.0}
-                      
-                     
-        cam_info={"id": "SO2 camera",
-                  "focal_length"    :   25.0e-3,
-                   "pix_height"      :   4.65e-6,
-                   "pix_width"       :   4.65e-6,
-                   "pixnum_x"        :   1344,
-                   "pixnum_y"        :   1024}
-        
-        geomCam= {"lon"     :   -69.2139,
-                  "lat"     :   -18.4449,
-                  "altitude":   4243.0,
-                  "elev"    :   8.6,
-                  "elev_err" :   1.0,
-                  "azim"    :   81.0,
-                  "azim_err" :   3.0}
-        cam_info.update(geomCam)
-        #Line drawn on image
-        line=[(836, 896), (507, 761)]
-        
-        geom = MeasGeometry(guallatiriInfo,cam_info, windDefaultInfo)
-        m0 = geom.draw_map_2d()
-        
-        
-        profile = geom.cam_pos.get_elevation_profile(geo_point = geom.source_pos)           
-        profile.get_first_intersection(10, plot = 1)
-        profile.get_first_intersection(6, plot = 1)
-        
-        m1 = geom.draw_map_3d()
-        #1.ax.set_axis_off()
-    
-    else:
-        guallatiriInfo = {"lon" : 14.993435,
-                          "lat" : 37.751005}
-                     
-        windDefaultInfo= {"dir"     : 270,
-                          "dir_err"  : 15.0,
-                          "vel"     : 4.43,
-                          "vel_err"  : 1.0}
-                      
-                     
-        opticsCam={"focal_length"    :   12.0e-3,
-                   "pix_height"      :   4.65e-6,
-                   "pix_width"       :   4.65e-6,
-                   "pixnum_x"        :   1344,
-                   "pixnum_y"        :   1024}
-        
-        geomCam= {"lon"     :   15.016696,
-                  "lat"     :   37.765755,
-                  "elev"    :   10.85,
-                  "elev_err" :   1.0,
-                  "azim"    :   225.,
-                  "azim_err" :   3.0}
-                  
-        geom=MeasGeometry("ecII", 1234, "Etna",guallatiriInfo,geomCam,\
-                                        opticsCam, windDefaultInfo)
-        
-        fig = figure(figsize=(18,7))
-        #fig.suptitle('Camera viewing direction')
-        ax1 = fig.add_subplot(1, 2, 1)
-        ax2 = fig.add_subplot(1, 2,2, projection='3d')

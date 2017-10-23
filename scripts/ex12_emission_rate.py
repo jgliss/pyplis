@@ -43,12 +43,18 @@ PCS = LINES[0]
 PYRLEVEL = 1
 PLUME_VELO_GLOB = 4.29 #m/s
 PLUME_VELO_GLOB_ERR = 1.5
+# applies multi gauss fit to retrieve local predominant displacement 
+# direction, if False, then the latter is calculated from 1. and 2. moment
+# of histogram (Faster but more sensitive to additional peaks in histogram)
+HISTO_ANALYSIS_MULTIGAUSS = True
+#molar mass of SO2
 MMOL = 64.0638 #g/mol
-CD_MIN = 2.5e17
+# minimum required SO2-CD for emission-rate retrieval
+CD_MIN = 5e16
 
 START_INDEX = 0
 STOP_INDEX = None
-DO_EVAL = 1
+DO_EVAL = True
 
 # activate background check mode, if True, emission rates are only retrieved  for images
 # showing SO2-CDs within specified interval around zero in BG reference rectangle 
@@ -207,7 +213,9 @@ if __name__ == "__main__":
                                       velo_glob=PLUME_VELO_GLOB,
                                       velo_glob_err=PLUME_VELO_GLOB_ERR,
                                       ref_check_lower_lim=REF_CHECK_LOWER,
-                                      ref_check_upper_lim=REF_CHECK_UPPER)
+                                      ref_check_upper_lim=REF_CHECK_UPPER,
+                                      velo_dir_multigauss=
+                                      HISTO_ANALYSIS_MULTIGAUSS)
                                       
     ana.settings.ref_check_mode = REF_CHECK_MODE
     

@@ -27,6 +27,10 @@ PEAK_SIGMA_TOL=2
 
 # perform histogram analysis for all images in time series
 HISTO_ANALYSIS_ALL = 1
+# applies multi gauss fit to retrieve local predominant displacement 
+# direction, if False, then the latter is calculated from 1. and 2. moment
+# of histogram (Faster but more sensitive to additional peaks in histogram)
+HISTO_ANALYSIS_MULTIGAUSS = True
 HISTO_ANALYSIS_START_IDX = 0
 HISTO_ANALYSIS_STOP_IDX = None#207
 
@@ -150,10 +154,14 @@ if __name__ == "__main__":
             HISTO_ANALYSIS_STOP_IDX = aa_list.nof - 1
         for k in range(HISTO_ANALYSIS_START_IDX, HISTO_ANALYSIS_STOP_IDX):
             plume_mask = aa_list.get_thresh_mask(MIN_AA)
-            plume_props_l1.get_and_append_from_farneback(fl, line=PCS1,
-                                                         pix_mask=plume_mask)
-            plume_props_l2.get_and_append_from_farneback(fl, line=PCS2,
-                                                         pix_mask=plume_mask)
+            plume_props_l1.\
+            get_and_append_from_farneback(fl, line=PCS1,
+                                          pix_mask=plume_mask,
+                                          dir_multi_gauss=HISTO_ANALYSIS_MULTIGAUSS)
+            plume_props_l2.\
+            get_and_append_from_farneback(fl, line=PCS2,
+                                          pix_mask=plume_mask,
+                                          dir_multi_gauss=HISTO_ANALYSIS_MULTIGAUSS)
             aa_list.next_img()
             
 #==============================================================================
