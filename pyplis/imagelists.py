@@ -1899,7 +1899,7 @@ class ImgList(BaseImgList):
             return
         if value:    
             if not self.aa_mode:
-                #self.aa_mode = True
+                self.aa_mode = True
                 warn("List is not in AA mode")
                 
             if not self.sensitivity_corr_mode:

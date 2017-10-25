@@ -163,10 +163,13 @@ if exists(BASE_DIR):
         keys = ["on", "off"]
         nominal = [3, 3]
         vals = []
+        val = 0
         for key in keys:
             vals.append(len(ds.cell_lists[key]))
             for lst in ds.cell_lists[key].values():
-                print lst.list_id
+                print lst.cell_id
+                print lst.gas_cd
+                print lst.nof
         assert (nominal==vals)
         
     
@@ -188,10 +191,6 @@ if __name__=="__main__":
     l=line()
     
     test_auto_cellcalib()
-    
-    ds = plume_dataset()
-    
-    test_auto_cellcalib
     #cell = calib_dataset()
 # =============================================================================
 #     cell.find_and_assign_cells_all_filter_lists()
