@@ -1697,7 +1697,7 @@ class FarnebackSettings(object):
                              ("hist_dir_gnum_max"   ,   10),
                              ("hist_dir_binres"     ,   10)])
         
-        self._display = od([("disp_skip"            ,   10),
+        self._display = od([("disp_skip"            ,   20),
                             ("disp_len_thresh"      ,   1)])
         
         #for test
@@ -3281,7 +3281,7 @@ class OptflowFarneback(object):
     
     def draw_flow(self, in_roi=False, roi_abs=None, add_cbar=False, 
                       include_short_vecs=False, extend_len_fac=1.0,
-                      linewidth=1, ax=None):
+                      linewidth=1, color=None, ax=None):
         """Draw the current optical flow field
         
         Parameters
@@ -3304,6 +3304,9 @@ class OptflowFarneback(object):
             factor by which length of vectors are extended
         linewidth : int
             with of flow vector lines
+        color :
+            Color of vectors if flow field is plotted onto an already
+            plotted image.
         ax : Axes
             matplotlib axes object
             
@@ -3358,10 +3361,13 @@ class OptflowFarneback(object):
 #             tit += " (in ROI)"
 #==============================================================================
         if not draw_img:
+            if color is None:
+                color = "lime"
             for (x1, y1), (x2, y2) in lines:
-                ax.add_artist(Line2D([x0 + x1, x0 + x2], [y0 + y1, y0 + y2],
-                                    color="lime", linewidth=linewidth))
-                ax.add_patch(Circle((x0 + x2, y0 + y2), 1, ec="r", fc="r"))    
+                ax.add_artist(Line2D([x0+x1, x0+x2], [y0+y1, y0+y2],
+                                    color=color, linewidth=linewidth))
+                ax.add_patch(Circle((x0+x2, y0+y2), linewidth+1, 
+                                    ec=color, fc=color))    
         else:
             for (x1, y1), (x2, y2) in lines:
                 line(disp, (x0+x1, y0+y1), (x0+x2, y0+y2),
