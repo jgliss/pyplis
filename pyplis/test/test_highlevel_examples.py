@@ -161,16 +161,18 @@ if exists(BASE_DIR):
         ds = calib_dataset()
         ds.find_and_assign_cells_all_filter_lists()
         keys = ["on", "off"]
-        nominal = [3, 3]
-        vals = []
-        val = 0
+        nominal = [6, 844.03541, 353.96765]
+        mean = 0
+        bg_mean = ds.bg_lists["on"].this.mean() +\
+                  ds.bg_lists["off"].this.mean()
+        num = 0
         for key in keys:
-            vals.append(len(ds.cell_lists[key]))
             for lst in ds.cell_lists[key].values():
-                print lst.cell_id
-                print lst.gas_cd
-                print lst.nof
-        assert (nominal==vals)
+                mean += lst.this.mean()
+                num += 1
+        vals = [num, mean, bg_mean]
+        ds.plot_cell_search_result()
+        assert_almost_equal(nominal, vals, 5)
         
     
     def test_bg_model():
@@ -190,7 +192,9 @@ if __name__=="__main__":
     flow = test_optflow()
     l=line()
     
-    test_auto_cellcalib()
+    dsc = calib_dataset()
+    dsc.find_and_assign_cells_all_filter_lists()
+    
     #cell = calib_dataset()
 # =============================================================================
 #     cell.find_and_assign_cells_all_filter_lists()

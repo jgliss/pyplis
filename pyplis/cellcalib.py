@@ -1177,7 +1177,7 @@ class CellCalibEngine(Dataset):
                 return True
             raise Exception
         except:
-            self.check_image_lists(filter_id)
+            self.check_all_lists(filter_id)
             if isinstance(self.bg_lists[filter_id], Img):
                 return True
             return False
