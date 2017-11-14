@@ -48,6 +48,7 @@ Requirements are listed ordered in decreasing likelyhood to run into problems wh
   - latlon >= 1.0.2
   - srtm.py >= 0.3.2
   - pyproj  >= 1.9.5.1
+  - basemap >= 1.0.7
     
 - pandas == 0.16.2
 - matplotlib >= 1.4.3
@@ -57,6 +58,8 @@ Requirements are listed ordered in decreasing likelyhood to run into problems wh
 - pydoas >= 1.0.0
 
 We recommend using `Anaconda <https://www.continuum.io/downloads>`_ as package manager since it includes most of the required dependencies and is updated on a regular basis. Moreover, it is probably the most comfortable way to postinstall and upgrade dependencies such as OpenCV (`see here <http://stackoverflow.com/questions/23119413/how-to-install-python-opencv-through-conda>`__) or the scipy stack.
+
+Please, if you have problems installing Pyplis, contact us or better, raise an Issue.
 
 Installation
 ============

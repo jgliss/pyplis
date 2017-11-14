@@ -22,11 +22,9 @@ from os.path import join, abspath, dirname
 
 here = abspath(dirname(__file__))
 
-try:
-    with open(join(here,'README.rst'), encoding = 'utf-8') as file:
-        readme = file.read()
-except Exception as e:
-    readme = ("Failed to import README.rst, Exception: %s" %repr(e))
+with open(join(here,'README.rst'), encoding = 'utf-8') as file:
+    readme = file.read()
+    
 with open("VERSION.rst") as f:
     version = f.readline()
     f.close()
