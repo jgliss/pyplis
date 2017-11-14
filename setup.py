@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-#
+
 # Pyplis is a Python library for the analysis of UV SO2 camera data
 # Copyright (C) 2017 Jonas Gliß (jonasgliss@gmail.com)
 #
