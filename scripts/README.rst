@@ -1,5 +1,5 @@
 **********************
-pyplis example scripts
+Pyplis example scripts
 **********************
 
 Folder containing pyplis example scripts. Most of these scripts use the pyplis test dataset from Mt. Etna, which can be installed as described below. Old versions of the example scripts for previous pyplis versions can be found in the folder **old_versions**.
