@@ -1,3 +1,7 @@
+Author: Jonas Gliß
+Email: jonasgliss@gmail.com
+License: GPLv3+
+
 source_ids:guallatiri, Guallatiri
 name:Guallatiri
 lon:-69.090369

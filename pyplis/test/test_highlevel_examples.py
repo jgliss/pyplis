@@ -13,6 +13,10 @@ in the GitHub repo in the folder "pyplis/data/". The dataset is based on
 the official Pyplis testdata set which is used for the example scripts. 
 This minimal version does not contain all images and the images are reduced
 in size (Gauss-pyramid level 4).
+
+Author: Jonas Gliß
+Email: jonasgliss@gmail.com
+License: GPLv3+
 """
 
 from pyplis import Dataset, __dir__, Filter, Camera, Source, MeasSetup,\

@@ -1,6 +1,10 @@
 # -*- coding: utf-8 -*-
 """
 Pyplis test module for image.py base module of Pyplis
+
+Author: Jonas Gliß
+Email: jonasgliss@gmail.com
+License: GPLv3+
 """
 
 from pyplis import Img, __dir__
