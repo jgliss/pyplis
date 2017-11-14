@@ -1,8 +1,10 @@
 Author: Jonas Gliß
+
 Email: jonasgliss@gmail.com
+
 License: GPLv3+
 
-This folder contains supplementary data for pyplis
+This folder contains supplementary data for Pyplis
 ---------------------------------------------------
 
 The folder includes the following files:
