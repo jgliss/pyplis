@@ -1,4 +1,9 @@
 # -*- coding: utf-8 -*-
+"""
+Author: Jonas Gliß
+Email: jonasgliss@gmail.com
+License: GPLv3+
+"""
 from os.path import abspath, dirname
 from pkg_resources import get_distribution
 from matplotlib import rcParams
