@@ -840,7 +840,7 @@ class VeloCrossCorrEngine(object):
         pcs2.plot_line_on_grid(ax=ax)
         return ax
     
-    def plot_ica_tseries_overlay(self, ax=None):
+    def plot_ica_tseries_overlay(self, ylabel=None, ax=None):
         """Plots the ICA time-series of the analysed signals
         
         Note
@@ -870,7 +870,13 @@ class VeloCrossCorrEngine(object):
         s_offs.plot(ax=ax, style="-", color=self.pcs_offset.color, 
                     label=self.pcs_offset.line_id)
         
-        ax.set_ylabel("ICA [m]")
+        
+        if isinstance(ylabel, str):
+            ax.set_ylabel(ylabel)
+        else:
+            warn("No y-label provided, setting y-axis invisible, since ICA"
+                 "may also correspond to integrated optical densities")
+            ax.yaxis.set_visible(0)
         #ax.xaxis.set_major_formatter(DateFormatter("%H:%M"))
         #ax[0,].set_title("Original time series", fontsize = 10)
         ax.grid()

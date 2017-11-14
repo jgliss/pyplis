@@ -123,3 +123,6 @@ scripts/scripts_out/optflow_out
 
 # Batch files for running all scripts on Windows
 scripts/*.bat
+
+# auto_eval folder in scripts
+scripts/auto_eval/
