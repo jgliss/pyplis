@@ -116,6 +116,13 @@ I/O routines
 .. automodule:: pyplis.inout
    :members:
    :undoc-members:
+   
+Custom image import methods
+===========================
+
+.. automodule:: pyplis.custom_image_import
+   :members:
+   :undoc-members:
 
 Helper functions
 ================

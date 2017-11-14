@@ -1,26 +1,35 @@
 # -*- coding: utf-8 -*-
+#
+# Pyplis is a Python library for the analysis of UV SO2 camera data
+# Copyright (C) 2017 Jonas Gliß (jonasgliss@gmail.com)
+#
+# This program is free software: you can redistribute it and/or
+# modify it under the terms of the GNU General Public License a
+# published by the Free Software Foundation, either version 3 of
+# the License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
-Image list objects of pyplis library
-
-.. todo::
-
-    1. Update indices in linked lists and linked dark / offset lists whenever
-       the attribute :attr:`files` is changed in an image list (e.g. in
-       :func:`clear`, :func:`pop`)
+Image list objects of pyplis library   
 """
 from numpy import asarray, zeros, argmin, arange, ndarray, float32,\
-    isnan, logical_or, ones, uint8, finfo, exp
+    isnan, logical_or, uint8, finfo, exp
 from datetime import timedelta, datetime, date
 #from bunch import Bunch
 from pandas import Series, DataFrame
-from matplotlib.pyplot import figure, draw, subplots, ion, ioff, close
+from matplotlib.pyplot import figure, draw, ion, ioff, close
 from copy import deepcopy
 from scipy.ndimage.filters import gaussian_filter
 from warnings import warn
 from os.path import exists, abspath, dirname, join, basename
 from os import mkdir
 from collections import OrderedDict as od
-from cv2 import dilate
 
 from traceback import format_exc
 
