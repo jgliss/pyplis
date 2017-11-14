@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-
+#
 # Pyplis is a Python library for the analysis of UV SO2 camera data
 # Copyright (C) 2017 Jonas Gliß (jonasgliss@gmail.com)
 #
@@ -22,9 +22,11 @@ from os.path import join, abspath, dirname
 
 here = abspath(dirname(__file__))
 
-with open(join(here,'README.rst'), encoding = 'utf-8') as file:
-    readme = file.read()
-
+try:
+    with open(join(here,'README.rst'), encoding = 'utf-8') as file:
+        readme = file.read()
+except Exception as e:
+    readme = ("Failed to import README.rst, Exception: %s" %repr(e))
 with open("VERSION.rst") as f:
     version = f.readline()
     f.close()
