@@ -1,6 +1,12 @@
 # -*- coding: utf-8 -*-
 """
-pyplis module for image based light dilution correction
+Pyplis module for image based correction of the signal dilution effect
+
+Author: Jonas Gliß
+
+Email: jonasgliss@gmail.com
+
+License: GPLv3+
 """
 from numpy import asarray, linspace, exp, ones, nan
 from scipy.ndimage.filters import median_filter

@@ -56,7 +56,7 @@ setup(
                                        'data/*.fts'],
                     },
 
-    install_requires    =   ["progressbar"],
+    install_requires    =   [],
     dependency_links    =   [],   
     entry_points = {},#'console_scripts': ['sample=sample:main',],},
 )
