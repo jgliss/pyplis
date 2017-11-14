@@ -1,6 +1,6 @@
 Pyplis is a Python toolbox for the analysis of UV SO2 camera data. The software includes a comprehensive collection of algorithms for the analysis of such data.
 
-Contact: Jonas Gliﬂ (jonasgliss@gmail.com) 
+Contact: Jonas Gliss (jonasgliss@gmail.com) 
 
 Note
 ====
@@ -25,7 +25,7 @@ Main features
 Copyright
 =========
   
-Copyright (C) 2017 Jonas Gliﬂ (jonasgliss@gmail.com)
+Copyright (C) 2017 Jonas Gliss (jonasgliss@gmail.com)
 
 This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License a published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
 
