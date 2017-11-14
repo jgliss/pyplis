@@ -1,20 +1,23 @@
 # -*- coding: utf-8 -*-
+#
+# Pyplis is a Python library for the analysis of UV SO2 camera data
+# Copyright (C) 2017 Jonas Gliß (jonasgliss@gmail.com)
+#
+# This program is free software: you can redistribute it and/or
+# modify it under the terms of the GNU General Public License a
+# published by the Free Software Foundation, either version 3 of
+# the License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
-Module containing the :class:`MeasGeometry` object relevant for geometrical
-calculations 
-
-Author: Jonas Gliß
-Email: jonasgliss@gmail.com
-License: GPLv3+
-
-.. todo::
-
-    Geonum has 3rd party dependencies and success of installation can not 
-    be guaranteed. Therefore, include functionality here to  determine 
-    plume distances directly rather than relying on the functionality of 
-    :mod:`geonum`. In this case, however, mapping functionality and 
-    handling of topographic data will not work.
-    
+Pyplis module containing functionality for all relevant geometrical 
+calculations
 """
 from numpy import nan, arctan, deg2rad, linalg, sqrt, abs, array, radians,\
     sin, cos, arcsin, tan, rad2deg, zeros, linspace, isnan, asarray, ones,\

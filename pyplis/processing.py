@@ -1,17 +1,33 @@
 # -*- coding: utf-8 -*-
+#
+# Pyplis is a Python library for the analysis of UV SO2 camera data
+# Copyright (C) 2017 Jonas Gliß (jonasgliss@gmail.com)
+#
+# This program is free software: you can redistribute it and/or
+# modify it under the terms of the GNU General Public License a
+# published by the Free Software Foundation, either version 3 of
+# the License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
-This module contains the following processing classes and methods:
+This Pyplis module contains the following processing classes and methods:
 
-    1. :class:`PixelMeanTimeSeries`: storage and post analysis of time series
-        of average pixel intensities
-    #. :class:`LineOnImage`: data access along a line on a 2D discrete grid 
-        using interpolation
-    #. :class:`ProfileTimeSeriesImg`: expanded :class:`Img` object, where y 
-        axis corresponds to 1D profile data (e.g. line profile from an image)
-        and x corresponds to the time axis.
+    1. :class:`PixelMeanTimeSeries`: storage and post analysis of time\
+    series of average pixel intensities
+    #. :class:`LineOnImage`: data access along a line on a 2D discrete\
+    grid using interpolation
+    #. :class:`ProfileTimeSeriesImg`: expanded :class:`Img` object, where\
+    y axis corresponds to 1D profile data (e.g. line profile from an\
+    image) and x corresponds to the time axis.
     #. :class:`ImgStack`: Object for storage of 3D image data
-    #. :func:`model_dark_image`: method to model a dark image from a long and
-        short exposure dark
+    #. :func:`model_dark_image`: method to model a dark image from a long\
+    and short exposure dark
         
 """
 from numpy import vstack, ogrid, empty, ones, asarray, ndim, round, hypot,\

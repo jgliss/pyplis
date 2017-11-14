@@ -15,14 +15,15 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
-"""
-Pyplis Dataset module
- 
+""" 
 The :class:`Dataset` object is doing all sorts of stuff related to the 
 general data import setup, for instance the automated separation of image 
 files by their type (e.g. on-band, off-band, dark, offset) using 
 information from a file naming convention specified within a 
-:class:`Camera` object.
+:class:`Camera` object. For more information how to customise your data
+import see :mod:`pyplis.setupclasses` or read `this little introductory
+tutorial  
+<http://pyplis.readthedocs.io/en/latest/tutorials.html#primer-on-data-import>`_ 
 """
 from os.path import exists, join, isfile, isdir
 from os import listdir, walk

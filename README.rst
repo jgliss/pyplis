@@ -1,4 +1,12 @@
-Pyplis is a Python toolbox for the analysis of UV SO2 camera data. The software package includes a comprehensive collection of algorithms for the analysis of such data.
+Pyplis is a Python toolbox for the analysis of UV SO2 camera data. The software includes a comprehensive collection of algorithms for the analysis of such data.
+
+Contact: Jonas Gliﬂ (jonasgliss@gmail.com) 
+
+Note
+----
+
+The software was renamed from **piscope** to **pyplis** on 17.02.2017 
+
 
 Main features
 =============
@@ -14,10 +22,17 @@ Main features
 - Support of standard image formats including `FITS format <https://de.wikipedia.org/wiki/Flexible_Image_Transport_System>`__
 - Easy and flexible setup for data import and camera specifications
   
-.. note::
-
-  The software was renamed from **piscope** to **pyplis** on 17.02.2017 
+Copyright
+=========
   
+Copyright (C) 2017 Jonas Gliﬂ (jonasgliss@gmail.com)
+
+This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License a published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with this program. If not, see <http://www.gnu.org/licenses/>.
+
 Requirements
 ============
 
