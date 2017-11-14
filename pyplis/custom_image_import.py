@@ -1,17 +1,39 @@
 # -*- coding: utf-8 -*-
+#
+# Pyplis is a Python library for the analysis of UV SO2 camera data
+# Copyright (C) 2017 Jonas Gliß (jonasgliss@gmail.com)
+#
+# This program is free software: you can redistribute it and/or
+# modify it under the terms of the GNU General Public License a
+# published by the Free Software Foundation, either version 3 of
+# the License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
 Custom image load methods for different camera standards
 
 .. note::
 
-  This file can be used to include cusotmised image import method. Please re-install pyplis after defining your customised import method here. The method requires the following input / output:
+  This file can be used to include cusotmised image import method. Please 
+  re-install pyplis after defining your customised import method here. 
+  The method requires the following input / output:
   
     1. Input: ``str``, file_path ->  full file path of the image
-    2. Optional input: dict, dictionary specifying image meta information (e.g. extracted from file name before image load)
+    2. Optional input: dict, dictionary specifying image meta information 
+        (e.g. extracted from file name before image load)
     3. Two return parameters
     
       1. ``ndarray``, the image data (2D numpy array)
-      2. ``dict``, additional meta information (is required as return value, if no meta data is imported from your custom method, then simply return an empty dictionary. Please also make sure to use valid pyplis image meta data keys (listed below)
+      2. ``dict``, additional meta information (is required as return value
+        , if no meta data is imported from your custom method, then simply 
+        return an empty dictionary. Please also make sure to use valid 
+        pyplis image meta data keys (listed below)
       
 Valid keys for import of image meta information:
 
@@ -45,8 +67,8 @@ def load_hd_custom(file_path, meta={}):
     Images recorded with this camera type are stored as .tiff files and are
     
     :param file_path: image file path 
-    :param dict meta: optional, meta info dictionary to which additional meta
-        information is suppose to be appended
+    :param dict meta: optional, meta info dictionary to which additional 
+        meta information is suppose to be appended
     :return: 
         - ndarray, image data
         - dict, dictionary containing meta information
