@@ -3,6 +3,10 @@
 Module containing the :class:`MeasGeometry` object relevant for geometrical
 calculations 
 
+Author: Jonas Gliß
+Email: jonasgliss@gmail.com
+License: GPLv3+
+
 .. todo::
 
     Geonum has 3rd party dependencies and success of installation can not 
@@ -22,9 +26,12 @@ from copy import deepcopy
 
 from .image import Img
 from .helpers import check_roi
-from geonum import GeoSetup, GeoPoint, GeoVector3D, TopoData
-from geonum.topodata import TopoAccessError
-
+try:
+    from geonum import GeoSetup, GeoPoint, GeoVector3D, TopoData
+    from geonum.topodata import TopoAccessError
+except:
+    warn("Geonum library could not be found")
+    
 class MeasGeometry(object):
     """Class for calculations and management of the measurement geometry
     
