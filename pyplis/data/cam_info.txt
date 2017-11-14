@@ -1,3 +1,7 @@
+Author: Jonas Gliﬂ
+Email: jonasgliss@gmail.com
+License: GPLv3+
+
 This file contains information about pyplis default cameras
 -----------------------------------------------------------
 

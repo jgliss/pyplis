@@ -1,6 +1,10 @@
 # -*- coding: utf-8 -*-
 """
 Test environment for setupclasses.py module
+
+Author: Jonas Gliß
+Email: jonasgliss@gmail.com
+License: GPLv3+
 """
 
 from pyplis import setupclasses as scl
