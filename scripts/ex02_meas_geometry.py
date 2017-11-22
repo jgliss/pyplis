@@ -92,7 +92,7 @@ def plot_plume_distance_image(meas_geometry):
     # the vertical (in this case they are the same since pixel height and 
     # pixel width are the same for this detector). The third image gives 
     # camera to plume distances on a pixel basis
-    dist_img, _, plume_dist_img = meas_geometry.get_all_pix_to_pix_dists()
+    (dist_img, _, plume_dist_img) = meas_geometry.compute_all_integration_step_lengths()
     
     fig, ax = subplots(1, 2, figsize = (16,4))
     

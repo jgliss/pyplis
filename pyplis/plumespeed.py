@@ -747,7 +747,7 @@ class VeloCrossCorrEngine(object):
             warn("List contains less than 20 images, cross-correlation "
                  "analysis is likely to fail")
         try:
-            lst.meas_geometry.get_all_pix_to_pix_dists()
+            lst.meas_geometry.compute_all_integration_step_lengths()
         except:
             raise AttributeError("Failed to access pixel-to-pixel "
                                  "distances from MeasGeometry (attribute "
@@ -759,7 +759,8 @@ class VeloCrossCorrEngine(object):
         The image is loaded from the current :class:`MeasGeometry` object
         assigned to the image list.
         """
-        return self.meas_geometry.get_all_pix_to_pix_dists(pyrlevel)[0]
+        return (self.meas_geometry.\
+                    compute_all_integration_step_lengths(pyrlevel)[0])
         
     def load_pcs_profile_img(self, file_path, line_id="pcs"):
         """Tries to load ICA profile time series image from FITS file

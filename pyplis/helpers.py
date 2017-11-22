@@ -140,7 +140,7 @@ def isnum(val):
     
     :returns: bool, True or False    
     """
-    if isinstance(val, (int, float)) and not isnan(val):
+    if isinstance(val, (int, float, long)) and not isnan(val):
         return True
     return False
     

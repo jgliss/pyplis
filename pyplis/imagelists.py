@@ -331,7 +331,8 @@ class BaseImgList(object):
         if not isinstance(self.meas_geometry, MeasGeometry):
             return False
         try:
-            _, _, plume_dist_img = self.meas_geometry.get_all_pix_to_pix_dists()  
+            plume_dist_img = self.meas_geometry.\
+                compute_all_integration_step_lengths()[2]  
             print "Plume distances available, dist_avg = %.2f" %plume_dist_img.mean()
         except:
             return False
@@ -2715,8 +2716,9 @@ class ImgList(BaseImgList):
             try:
                 (_, 
                  _, 
-                 dists) = self.meas_geometry.get_all_pix_to_pix_dists(
-                             pyrlevel=self.pyrlevel) 
+                 dists)=\
+                 self.meas_geometry.compute_all_integration_step_lengths(
+                         pyrlevel=self.pyrlevel) 
                 dists = dists.img
             except:
                 raise ValueError("Measurement geometry not ready for access "

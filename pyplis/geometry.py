@@ -28,7 +28,7 @@ from matplotlib.pyplot import figure
 from copy import deepcopy
 
 from .image import Img
-from .helpers import check_roi
+from .helpers import check_roi, isnum
 try:
     from geonum import GeoSetup, GeoPoint, GeoVector3D, TopoData
     from geonum.topodata import TopoAccessError
@@ -37,6 +37,22 @@ except:
     
 class MeasGeometry(object):
     """Class for calculations and management of the measurement geometry
+
+    All calculations are based on provided information about camera (stored
+    in dictionary :attr:`cam`, check e.g. ``self.cam.keys()`` for valid keys), 
+    source (stored in dictionary :attr:`source`, check e.g. 
+    ``self.source.keys()`` for valid keys) and meteorological wind direction
+    (stored in dictionary :attr:`wind`). If you want to change these parameters
+    you can directly change the dictionaries, e.g.:: 
+        
+        self.cam["altitude"]=3000.0 #m
+        
+    or better, use the correpdonding update methods :func:`update_cam_specs`, 
+    :func:`update_source_specs` and :func:`update_wind_specs`. The latter 
+    by default also update the most important attribute of this class 
+    :attr:`geo_setup` which is an instance of the :class:`geonum.GeoSetup`
+    class and which is central for all geometrical calculations (e.g. camera
+    to plume distance).
     
     Attributes
     ----------
@@ -98,12 +114,12 @@ class MeasGeometry(object):
                                 ('alt_offset'   ,   0.0)])  #altitude above 
                                                             #topo in m
         
-        self.auto_topo_access=auto_topo_access
+        self.auto_topo_access = auto_topo_access
         self.geo_setup = GeoSetup(id=self.cam_id)
         
-        self.update_source_specs(source_info)
-        self.update_cam_specs(cam_info)
-        self.update_wind_specs(wind_info)
+        self.update_source_specs(source_info, update_geosetup=False)
+        self.update_cam_specs(cam_info, update_geosetup=False)
+        self.update_wind_specs(wind_info, update_geosetup=False)
         if any([bool(x)==True for x in [source_info, cam_info, wind_info]]):
             self.update_geosetup()
     
@@ -111,9 +127,14 @@ class MeasGeometry(object):
     def cam_id(self):
         """ID of current camera"""
         return self.cam["cam_id"]
+    
+    @property
+    def azim_cfov(self):
+        """Azimuth of camera viewing direction (CFOV)"""
+        return self.cam["azim"]
         
     def get_cam_specs(self, img_obj):
-        """Reads camera meta data from image meta data
+        """Reads camera meta information from image meta data
             
             1. Focal length lense
             2. Image sensor
@@ -132,77 +153,102 @@ class MeasGeometry(object):
             if isnan(self.cam[key]):
                 self.cam[key] = img_obj.meta[key]
     
-    def update_cam_specs(self, info_dict):
+    def update_cam_specs(self, info_dict=None, update_geosetup=True,
+                         **kwargs):
         """Update camera settings
+        
+        Update camera info dictionary (:attr:`cam`) either by providing a 
+        dictionary containing valid key / value pairs (:param:`info_dict` or by 
+        providing valid key / value pairs directly using :param:`kwargs`)
         
         Parameters
         ----------
         info_dict : dict
             dictionary containing camera information (see :attr:`cam` for 
-            valid keys)       
+            valid keys)  
+        update_geosetup : bool
+            If True, the method :func:`update_geosetup` is called at the end
+            of this method
+        **kwargs
+            alternative way to update the camera dictionary using valid 
+            keywords directly 
         """
-        for key, val in info_dict.iteritems():
-            if key in self.cam.keys() and val is not None:
-                self.cam[key] = val
-        
-    def update_source_specs(self, info_dict):
+        if isinstance(info_dict, dict):
+            for key, val in info_dict.iteritems():
+                if key in self.cam.keys() and val is not None:
+                    self.cam[key] = val
+        self.cam.update(**kwargs)
+        if update_geosetup:
+            self.update_geosetup()
+            
+    def update_source_specs(self, info_dict=None, update_geosetup=True, 
+                            **kwargs):
         """Update source settings
+        
+        Update source info dictionary (:attr:`source`) either by providing a 
+        dictionary containing valid key / value pairs (:param:`info_dict` or by 
+        providing valid key / value pairs directly using :param:`kwargs`)
         
         Parameters
         ----------
         info_dict : dict
             dictionary containing source information (see :attr:`source` 
-            for valid keys)       
+            for valid keys) 
+        update_geosetup : bool
+            If True, the method :func:`update_geosetup` is called at the end
+            of this method
+        **kwargs
+            alternative way to update the source dictionary using valid 
+            keywords directly
         """
-        for key, val in info_dict.iteritems():
-            if self.source.has_key(key) and val is not None:
-                self.source[key] = val
-        
-    def update_wind_specs(self, info_dict):
+        if isinstance(info_dict, dict):
+            for key, val in info_dict.iteritems():
+                if self.source.has_key(key) and val is not None:
+                    self.source[key] = val
+        self.source.update(**kwargs)
+        if update_geosetup:
+            self.update_geosetup()
+            
+    def update_wind_specs(self, info_dict=None, update_geosetup=True, 
+                          **kwargs):
         """Update meteorological settings
+        
+        Update wind info dictionary (:attr:`wind`) either by providing a 
+        dictionary containing valid key / value pairs (:param:`info_dict` or by 
+        providing valid key / value pairs directly using :param:`kwargs`)
         
         Parameters
         ----------
         info_dict : dict
             dictionary containing meterology information (see :attr:`wind` 
-            for valid keys)        
+            for valid keys) 
+        update_geosetup : bool
+            If True, the method :func:`update_geosetup` is called at the end
+            of this method
+        **kwargs
+            alternative way to update the wind dictionary using valid 
+            keywords directly
         """
-        changed = False
-        if not isinstance(info_dict, dict):
-            return changed
-        for key, val in info_dict.iteritems():
-            if key in self.wind.keys() and self._check_if_number(val):
-                self.wind[key] = val
-                changed = True
-        return changed
-    
-    def _check_if_number(self, val):
-        """Check if input is a number
-        
-        Parameters
-        ----------
-        val 
-            object to be checked
-        """
-        if isinstance(val, (int, float)) and not isnan(val):
-            return 1
-        return 0
+        if isinstance(info_dict, dict):
+            for key, val in info_dict.iteritems():
+                if key in self.wind.keys() and isnum(val):
+                    self.wind[key] = val
+        self.wind.update(**kwargs)
+        if update_geosetup:
+            self.update_geosetup()
     
     def _check_geosetup_info(self):
-        """Checks if relevant information for :attr:`geo_setup` is ready
-        """
+        """Checks if relevant information for :attr:`geo_setup` is ready"""
         check = ["lon", "lat", "elev", "azim", "dir"]
         cam_ok, source_ok = True, True
         for key in check:
-            if self.cam.has_key(key) and not\
-                        self._check_if_number(self.cam[key]):
+            if self.cam.has_key(key) and not isnum(self.cam[key]):
                 #print "missing info in cam, key %s" %key
                 cam_ok = False
-            if self.source.has_key(key) and not self._check_if_number(\
-                                        self.source[key]):
+            if self.source.has_key(key) and not isnum(self.source[key]):
                 #print "missing info in source, key %s" %key
                 source_ok = False
-        if not self._check_if_number(self.wind["dir"]) and cam_ok:
+        if not isnum(self.wind["dir"]) and cam_ok:
             print ("setting orientation angle of wind direction relative to "
                 "camera cfov")
             self.wind["dir"] = (self.cam["azim"] + 90)%360
@@ -360,7 +406,7 @@ class MeasGeometry(object):
         dy = self.cam["pix_height"] * (y - self.cam["pixnum_y"] / 2)
         azims = rad2deg(arctan(dx / f)) + self.cam["azim"]
         elevs = -rad2deg(arctan(dy / f)) + self.cam["elev"]
-        return azims, elevs, x, y
+        return (azims, elevs, x, y)
             
     def get_distances_to_topo_line(self, line, skip_pix=30, topo_res_m=5.,
                                    min_slope_angle=5.):
@@ -723,26 +769,38 @@ class MeasGeometry(object):
             
         """
         ratio = self.cam["pix_width"] / self.cam["focal_length"] #in m
-        azims = self._get_all_azimuth_angles_fov()
+        azims = self.all_azimuths_camfov()
         dists = self.plume_dist(azims) * 1000.0 #in m
         pix_dists_m = dists * ratio
         return pix_dists_m, dists
-    
-    def pix_dist_err(self, col_num, pyrlevel=0):
-        """Get uncertainty measure for pixel distance of a pixel column
         
-        ..todo::
+    def pix_dist_err(self, col_num, pyrlevel=0):
+        """Get uncertainty measure for pixel distance of a pixel column 
 
-            Include uncertainty in focal length
-            
+        Parameters
+        ----------
+        colnum : int
+           column number for which uncertainty in pix-to-pix distance is
+           computed
+        pyrlevel : int
+            convert to pyramid level
+        
+        Returns
+        -------
+        float
+            pix-to-pix distance in m corresponding to input column number and
+            pyramid level
         """
-        az = self._get_all_azimuth_angles_fov()[int(col_num)]
+        az = self.all_azimuths_camfov()[int(col_num)]
         return self.plume_dist_err(az) *1000 * self.cam["pix_width"] /\
                         self.cam["focal_length"] * 2**pyrlevel
                                         
-    def get_all_pix_to_pix_dists(self, pyrlevel=0, roi_abs=None):
+    def compute_all_integration_step_lengths(self, pyrlevel=0, roi_abs=None):
         """Determine images containing pixel and plume distances
         
+        Computes and returns three images where each pixel value corresponds 
+        to 1. the horizontal physical integration step length in units of m 
+        corresponding to the plum
         :param int pyrlevel: returns images at a given gauss pyramid level
         :param roi_abs: ROI in absolute detector coordinates, if valid, then 
             the images are cropped
@@ -1077,9 +1135,10 @@ class MeasGeometry(object):
         """
         return self.geo_len_scale() / fac
                                 
-    def _del_az(self, pixel_col1, pixel_col2):
+    def del_az(self, pixel_col1=0, pixel_col2=1):
         """Determine the difference in azimuth angle between 2 pixel columns
         
+        Par
         :param int pixel_col1: first pixel column
         :param int pixel_col2: second pixel column
         :return: float, azimuth difference
@@ -1138,17 +1197,80 @@ class MeasGeometry(object):
             dists.append(linalg.norm(v, axis = 0))
         dists = asarray(dists)
         return dists.max() - dists.mean()
+    
+    def all_azimuths_camfov(self):
+        colnum = self.cam["pixnum_x"]
+        offs = 0.0
+        daz = self.del_az(0,1)
+        if colnum%2 == 0: #even number of pixels
+            offs = -daz/2.0
+        angles_rel = linspace(-colnum/2., colnum/2., colnum)*daz
+        return self.azim_cfov + angles_rel + offs
+    
+    def col_to_az(self, colnum):
+        """Convert pixel column number (in absolute coords) into azimuth angle
         
-    def _get_all_azimuth_angles_fov(self):
-        """Returns array containing azimuth angles for all pixel columns"""
-        tot_num = self.cam["pixnum_x"]
-        idx_cfov = tot_num / 2.0
-        az0 = self.cam["azim"] - self._del_az(0, idx_cfov)
-        del_az = self._del_az(0, 1)
-        az_angles = zeros(tot_num)
-        for k in range(tot_num):
-            az_angles[k] = az0 + k * del_az
-        return az_angles          
+        Note
+        ----
+        - See also :func:`az_to_col` for the inverse operation
+        - Not super efficient, just convenience function which should not\
+            be used if performance is required
+        
+        Parameters
+        ----------
+        colnum : int
+            pixel column number (left column corresponds to 0)
+        
+        Returns
+        -------
+        float
+            corresponding azimuth angle
+        """
+        return self.all_azimuths_camfov()[colnum]
+
+    def az_to_col(self, azim):
+        """Convert azimuth into pixel number 
+        
+        Note
+        ----
+        The pixel number is calculated relative to the leftmost column of the
+        image
+        
+        Parameters
+        ----------
+        azim : float
+            azimuth angle which is supposed to be converted into column 
+            number
+        
+        Returns
+        -------
+        int
+            column number
+            
+        Raises
+        ------
+        IndexError
+            if input azimuth is not within camera FOV
+        """
+        azs = self.all_azimuths_camfov()
+        if azim < azs[0] or azim > azs[-1]:
+            raise IndexError("Input azimuth is out of camera FOV")
+        return argmin(abs(azs-azim))
+        
+        
+# =============================================================================
+#     
+#     def all_azimuths_camfov(self):
+#         """Returns array containing azimuth angles for all pixel columns"""
+#         tot_num = self.cam["pixnum_x"]
+#         idx_cfov = tot_num / 2.0
+#         az0 = self.cam["azim"] - self.del_az(0, idx_cfov)
+#         del_az = self.del_az(0, 1)
+#         az_angles = zeros(tot_num)
+#         for k in range(tot_num):
+#             az_angles[k] = az0 + k * del_az
+#         return az_angles          
+# =============================================================================
         
     """
     Magic methods (overloading)
