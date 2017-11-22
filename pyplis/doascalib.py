@@ -21,7 +21,7 @@ Pyplis module for DOAS calibration including FOV search engines
 """
 from numpy import min, arange, asarray, zeros, linspace, column_stack,\
     ones, nan, float32, polyfit, poly1d, sqrt, isnan, round,\
-    concatenate
+    concatenate, ndarray
 from scipy.stats.stats import pearsonr 
 from datetime import datetime 
 from scipy.sparse.linalg import lsmr
@@ -89,8 +89,8 @@ class DoasCalibData(object):
             fov = DoasFOV(camera)
         self.fov = fov
         
-        self.poly = None
-        self.cov = None
+        self._poly = None
+        self._cov = None
         self.polyorder = polyorder
         if isinstance(camera, Camera):
             self.camera = Camera
@@ -121,6 +121,32 @@ class DoasCalibData(object):
             return CALIB_ID_STRINGS[self.calib_id.split("_")[idx]]
         except:
             return self.calib_id.split("_")[idx]
+    
+    @property
+    def poly(self):
+        """Calibration polynomial"""
+        if not isinstance(self._poly, poly1d):
+            self.fit_calib_polynomial()
+        return self._poly
+    
+    @poly.setter
+    def poly(self, value):
+        if not isinstance(value, poly1d):
+            raise ValueError("Need numpy poly1d object...")
+        self._poly=value
+    
+    @property
+    def cov(self):
+        """Covariance matriy of calibration polynomial"""
+        if not isinstance(self._cov, ndarray):
+            self.fit_calib_polynomial()
+        return self._cov
+    
+    @cov.setter
+    def cov(self, value):
+        raise IOError("Covariance matrix of calibration polynomial cannot "
+                      "be set manually, please call function "
+                      "fit_calib_polynomial")
             
     @property
     def coeffs(self):
@@ -267,7 +293,7 @@ class DoasCalibData(object):
                               polyorder, w=ws, cov=True)
         self.polyorder = polyorder
         self.poly = poly1d(coeffs * 10**exp)
-        self.cov = cov * 10**(2*exp)
+        self._cov = cov * 10**(2*exp)
         if plot:
             self.plot()
         return self.poly
@@ -635,6 +661,11 @@ class DoasFOV(object):
             return self.radius_rel * 2**self.pyrlevel
         return (self.popt[3] / self.popt[4]) * 2 ** self.pyrlevel
     
+    @property
+    def pos_abs(self):
+        """Returns center coordinates of FOV (in absolute detector coords)"""
+        return self.pixel_position_center(True)
+    
     def _max_extend_rel(self):
         """Returns maximum pixel extend of FOV
         
@@ -656,11 +687,6 @@ class DoasFOV(object):
         if not abs_coords:
             return ext_rel
         return ext_rel*2**self.pyrlevel
-    
-    @property
-    def pos_abs(self):
-        """Returns center coordinates of FOV (in absolute detector coords)"""
-        return self.pixel_position_center(True)
         
     def pixel_position_center(self, abs_coords=False):
         """Return pixel position of center of FOV

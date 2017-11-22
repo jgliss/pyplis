@@ -21,7 +21,7 @@ Pyplis module containing features related to cell calibration
 from matplotlib.pyplot import subplots
 from warnings import warn
 from numpy import float, log, arange, polyfit, poly1d, linspace, isnan,\
-    diff, mean, argmin, ceil, round, ndim, asarray
+    diff, mean, argmin, ceil, round, ndim, asarray, sqrt
 from matplotlib.pyplot import Figure
 from matplotlib.cm import get_cmap
 from datetime import timedelta
@@ -349,6 +349,10 @@ class CellCalibData(object):
         self.gas_cd_errs = None
         
         self.calib_id = calib_id  
+        
+        # init dictionary for storing information about the last calibration 
+        # fit result (see method poly)
+        self.last_polyfit_info = od()
                 
         self.set_data(tau_stack, gas_cds, gas_cd_errs)
     
@@ -412,6 +416,76 @@ class CellCalibData(object):
                             img.min())) 
         return asarray(vals)
     
+    @property
+    def poly(self):
+        try:
+            self.print_last_fit_info()
+            return self.last_polyfit_info["poly"]
+        except:
+            raise ValueError("Calibration data is not available, call method "
+                             "fit_calib_polynomial first")
+    
+    @poly.setter
+    def poly(self, value):
+        raise IOError("Calibration polynomial cannot "
+                      "be set manually, please call function "
+                      "fit_calib_polynomial")        
+    @property
+    def cov(self):
+        """Covariance matriy of calibration polynomial"""
+        try:
+            self.print_last_fit_info()
+            return self.last_polyfit_info["cov"]
+        except:
+            raise ValueError("Calibration data is not available, call method "
+                             "get_calib_data first")
+    
+    @cov.setter
+    def cov(self, value):
+        raise IOError("Covariance matrix of calibration polynomial cannot "
+                      "be set manually, please call function "
+                      "fit_calib_polynomial")
+            
+    @property
+    def coeffs(self):
+        """Coefficients of current calibration polynomial"""
+        try:
+            self.print_last_fit_info()
+            return self.last_polyfit_info["poly"].coeffs 
+        except:
+            raise ValueError("Calibration data is not available, call method "
+                             "get_calib_data first")
+    @property
+    def slope(self):
+        """Slope of current calib curve"""
+        return self.coeffs[-2]
+    
+    @property
+    def slope_err(self):
+        """Slope error of current calib curve"""
+        return sqrt(abs(self.cov[-2][-2]))
+    
+    @property
+    def y_offset(self):
+        """Y-axis offset of calib curve"""
+        return self.coeffs[-1]
+    
+    @property
+    def y_offset_err(self):
+        """Error of y axis offset of calib curve"""
+        return sqrt(self.cov[-1][-1])
+    
+    def print_last_fit_info(self):
+        """Print information about last calibration fit
+        
+        This includes the pixel position and extend, etc...
+        """
+        if self.last_polyfit_info:
+            s = "Calibration fit info:\n"
+            for k, v in self.last_polyfit_info.iteritems():
+                s = s + "%s: %s\n" %(k,v)
+            print s
+            
     def set_data(self, tau_stack, gas_cds, gas_cd_errs):
         """This function checks and sets the relevant calibration data
         
@@ -480,12 +554,14 @@ class CellCalibData(object):
             warn ("Cell gas CD errors undefined, assuming 20% of cell CDs")
             self.gas_cd_errs = self.gas_cds * 0.2
                 
-    def poly(self, pos_x_abs=None, pos_y_abs=None, radius_abs=1, mask=None, 
-             polyorder=1):
+    def fit_calib_polynomial(self, pos_x_abs=None, pos_y_abs=None, 
+                             radius_abs=1, mask=None, 
+                             polyorder=1):
         """Retrieve calibration polynomial within pixel neighbourhood
         
         Extracts tau value of all cells within a certain image area and
-        fits calibration polynomial using :attr:`gas_cds`.
+        fits calibration polynomial using :attr:`gas_cds`. The results are
+        stored in the dictionary :attr:`last_polyfit_info`.
         
         Parameters
         ----------
@@ -533,7 +609,22 @@ class CellCalibData(object):
         tau_arr = stack.get_time_series(x_rel, 
                                         y_rel, rad_rel, mask)[0].values
         cd_arr = self.gas_cds
-        return poly1d(polyfit(tau_arr, cd_arr, polyorder)), tau_arr, cd_arr
+        exp = exponent(max(cd_arr))
+        cds = cd_arr / 10**exp
+        # perform fit avoiding the typically large numbers
+        coeffs, cov = polyfit(tau_arr, cds, polyorder, cov=True)
+        poly = poly1d(coeffs * 10**exp)
+        self.last_polyfit_info = od(pos_x_abs=pos_x_abs,
+                                    pos_y_abs=pos_y_abs,
+                                    radius_abs=radius_abs,
+                                    mask=mask, 
+                                    polyorder=polyorder,
+                                    tau_arr=tau_arr,
+                                    cd_arr=cd_arr,
+                                    poly=poly,
+                                    cov=cov * 10**(2*exp),
+                                    exp=exp)
+        return (poly, tau_arr, cd_arr)
     
     def get_sensitivity_corr_mask(self, doas_fov=None, cell_cd=1e16,
                                   surface_fit_pyrlevel=2):
@@ -626,6 +717,58 @@ class CellCalibData(object):
         mean = (cell_img * fov_mask).sum() / fov_mask.sum()
         mask = cell_img / mean
         return mask, cd
+    
+    def _get_calib_data_last(self):
+        try: 
+            d=self.last_polyfit_info
+            return (d["poly"], d["tau_arr"], d["cd_arr"])
+        except:
+            raise ValueError("No stored calibration data available")
+    
+    def get_calib_data(self, **kwargs):
+        """Get calibration data 
+        
+        The calibration data comprises the calibration polynomial (1. return
+        value), an array containing the corresponding camera optical densities 
+        (tau, 2. return value) and the corresponding cell CDs (3. return val)
+        
+        If additinal keyword input parameters are provided using 
+        :param:`kwargs` it is assumed, that the user specifically wishes to 
+        retrieve the calibration data for a certain pixel neighbourhood and 
+        the calibration data is extracted from the OD-stack and fitted using 
+        :func:`fit_calib_polynomial`. If no keyword args are provided, then
+        it is attempted to extract the calibration info from the
+        :attr:`last_polyfit_info`. If this fails (i.e. if 
+        :func:`fit_calib_polynomial` has not been called at least once) then
+        the :func:`fit_calib_polynomial` is called ultimately using the default
+        position settings (i.e. center of image).
+        
+        Parameters
+        ----------
+        kwargs
+            keyword arguments for :func:`fit_calib_polynomial`
+            
+        Returns
+        -------
+        tuple
+            3-element tuple containing
+            
+            - poly1d, fitted polynomial
+            - ndarray, array with tau values 
+            - ndarray, array with corresponding gas CDs
+        
+        Raises
+        ------
+        Exception
+            if calibration data cannot be accessed
+            
+        """
+        if not kwargs:
+            try:
+                return self._get_calib_data_last()
+            except ValueError:
+                return self.fit_calib_polynomial()
+        return self.fit_calib_polynomial(**kwargs)
         
     def plot(self, pos_x_abs, pos_y_abs, radius_abs=1, mask=None,
              ax=None, **kwargs):
@@ -647,6 +790,8 @@ class CellCalibData(object):
         ax : axes
             matplotlib axes instance (if None, a new figure with axes
             will be created)
+        kwargs : 
+            additional keyword args passed to plot funtion 
         
         Returns
         -------
@@ -658,7 +803,10 @@ class CellCalibData(object):
         if ax is None:
             fig, ax = subplots(1, 1)
             add_to = False
-        poly, tau, gas_cd = self.poly(pos_x_abs, pos_y_abs, radius_abs, mask)
+        poly, tau, gas_cd = self.get_calib_data(pos_x_abs=pos_x_abs, 
+                                            pos_y_abs=pos_y_abs, 
+                                            radius_abs=radius_abs, 
+                                            mask=mask)
         
         taus = linspace(0, tau.max() * 1.05, 100)
         ax.plot(tau, gas_cd, " ^", 
@@ -687,13 +835,22 @@ class CellCalibData(object):
         return CellCalibData(tau_stack=st)
 
     def __call__(self, value, **kwargs):
-        """Define call function to apply calibration
+        """Define call function to apply calibration to input value
         
-        :param float value: tau or AA value
-        :return: corresponding column density
+        Parameters
+        ----------
+        value : float
+            tau or AA value, may be single value, :class:`Img` or 
+            :class:`ImgStack` 
+        kwargs 
+            additional keyword args passed to :func:`get_calib_data`
+            
+        Returns
+        -------
+        calibrated input object
         """
         try:
-            poly = self.poly(**kwargs)[0]
+            poly = self.get_calib_data(**kwargs)[0]
         except:
             raise ValueError("Calibration data not available")
         if isinstance(value, Img):
@@ -1682,7 +1839,7 @@ class CellCalibEngine(Dataset):
         tau_max = -10
         y_min = 1e20
         for calib_id, calib in self.calib_data.iteritems():
-            poly, tau, gas_cd = calib.poly(**kwargs)
+            poly, tau, gas_cd = calib.get_calib_data(**kwargs)
             gas_cd_errs, tau_errs = calib.gas_cd_errs, calib.tau_std_allpix
             taus = linspace(0, tau.max() * 1.2, 100)
             # plot data points

@@ -137,8 +137,8 @@ if exists(BASE_DIR):
     def test_geometry():
         """Test important results from geometrical calculations"""
         geom = plume_dataset().meas_geometry
-        res = geom.get_all_pix_to_pix_dists()
-        assert_almost_equal([1.9032587, 1.9032587, 10232.567],
+        res = geom.compute_all_integration_step_lengths()
+        assert_almost_equal([1.9032662, 1.9032662, 10232.611],
                             [res[0].mean(), res[1].mean(), res[2].mean()],
                             3)
     def test_optflow():

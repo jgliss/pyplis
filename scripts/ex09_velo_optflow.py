@@ -116,7 +116,7 @@ if __name__ == "__main__":
     # distance image where pixel values correspond to step widths in the plume, 
     # obviously, the distance values depend on the downscaling factor, which
     # is calculated from the analysis pyramid level (PYRLEVEL)
-    dist_img, _, _ = aa_list.meas_geometry.get_all_pix_to_pix_dists(
+    dist_img, _, _ = aa_list.meas_geometry.compute_all_integration_step_lengths(
                                             pyrlevel=PYRLEVEL)
     # set the pyramid level in the list
     aa_list.pyrlevel = PYRLEVEL

@@ -1098,7 +1098,7 @@ class EmissionRateAnalysis(object):
                 
                 self.settings.velo_flow_histo = True
         try:
-            lst.meas_geometry.get_all_pix_to_pix_dists(pyrlevel=lst.pyrlevel)
+            lst.meas_geometry.compute_all_integration_step_lengths(pyrlevel=lst.pyrlevel)
         except ValueError:
             raise ValueError("measurement geometry in image list is not ready"
                 "for pixel distance access")
@@ -1118,7 +1118,7 @@ class EmissionRateAnalysis(object):
         lst = self.imglist
         PYR = self.imglist.pyrlevel
         # get pixel distance image
-        dist_img = lst.meas_geometry.get_all_pix_to_pix_dists(pyrlevel=PYR)[0]
+        dist_img = lst.meas_geometry.compute_all_integration_step_lengths(pyrlevel=PYR)[0]
         #init dicts
         dists, dist_errs = {}, {}
         for line_id, line in self.pcs_lines.iteritems():

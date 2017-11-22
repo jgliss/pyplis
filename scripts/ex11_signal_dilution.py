@@ -220,7 +220,7 @@ if __name__ == "__main__":
     geom = find_view_dir(ds.meas_geometry)
     
     #get plume distance image    
-    pix_dists, _, plume_dists = geom.get_all_pix_to_pix_dists()  
+    pix_dists, _, plume_dists = geom.compute_all_integration_step_lengths()  
         
     # Create dilution correction class
     dil = DilutionCorr(USE_LINES, geom, skip_pix=SKIP_PIX_LINES)

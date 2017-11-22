@@ -31,7 +31,7 @@ from .image import Img
 from .optimisation import dilution_corr_fit
 from .model_functions import dilutioncorr_model
 from .geometry import MeasGeometry
-from .helpers import check_roi, rotate_ytick_labels
+from .helpers import check_roi
 from .imagelists import ImgList
 LABEL_SIZE=rcParams["font.size"]+ 2
 

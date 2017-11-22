@@ -120,6 +120,16 @@ if __name__ == "__main__":
     ax1.set_title("Cell search result off band", fontsize = 18)
     ax2.set_title("Calibration polynomials", fontsize = 18)
     
+    # You can explicitely access the individual CellCalibData objects
+    aa_calib = c.calib_data["aa"]
+    
+    aa_calib.fit_calib_polynomial(100, 100, 15)
+    # print some useful attributes of the calibration
+    print ("Properties of AA cell calibration object:\n"
+           "Polynomial: %s\n"
+           "Slope / err: %.3e / %.3e"
+           %(aa_calib.poly, aa_calib.slope, aa_calib.slope_err))
+    
     print "Time elapsed for preparing calibration data: %.4f s" %(stop-start)
     # Display images or not    
     (options, args)   =  OPTPARSE.parse_args()
