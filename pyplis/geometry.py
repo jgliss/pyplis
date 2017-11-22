@@ -682,22 +682,29 @@ class MeasGeometry(object):
             #and write the new stuff
             stp.add_geo_point(p3)
             stp.add_geo_vector(cam_view_vec)
-            stp.set_borders_from_points(extend_km = self._map_extend_km(),\
-                                                        to_square = True)
+            stp.set_borders_from_points(extend_km=self._map_extend_km(),
+                                        to_square=True)
             if isinstance(stp.topo_data, TopoData):
                 stp.load_topo_data()
         map = None
         if draw_result:
+            s=self.geo_setup
+            nums = [int(255.0 / k) for k in range(1, len(s.vectors)+3)]
             map = self.draw_map_2d(draw_fov=False)
-            map.draw_geo_vector_2d(self.cam_view_vec,\
-                                    label = "cam cfov (corrected)")
-            self.draw_azrange_fov_2d(map, poly_id= "fov (corrected)")
+            map.draw_geo_vector_2d(self.cam_view_vec,
+                                   c=s.cmap(nums[1]),
+                                   ls="-",
+                                   label="cam cfov (corrected)")
+            self.draw_azrange_fov_2d(map, poly_id="fov (corrected)")
             view_dir_vec_old = geom_old.geo_setup.vectors["cfov"]
             view_dir_vec_old.name = "cfov_old"
             
-            map.draw_geo_vector_2d(view_dir_vec_old,\
-                                label = "cam cfov (initial)")
+            map.draw_geo_vector_2d(view_dir_vec_old,
+                                   c=s.cmap(nums[1]),
+                                   ls="--",
+                                   label="cam cfov (initial)")
             map.legend()
+    
         return elev_cam, az_cam, geom_old, map
     
     def calculate_pixel_col_distances(self):
@@ -819,8 +826,10 @@ class MeasGeometry(object):
             #mpl_toolkits.basemap.Basemap>`_) 
         """
         s = self.geo_setup
-        m = s.plot_2d(0, 0, draw_topo, draw_coastline, draw_mapscale,\
-                                        draw_legend = 0, *args, **kwargs)
+        nums = [int(255.0 / k) for k in range(1, len(s.vectors)+3)]
+        m = s.plot_2d(0, 0, draw_topo, draw_coastline, draw_mapscale,
+                      draw_legend=0, *args, **kwargs)
+        
         if draw_cam:
             m.draw_geo_point_2d(self.cam_pos)
             m.write_point_name_2d(self.cam_pos,\
@@ -830,16 +839,21 @@ class MeasGeometry(object):
             m.write_point_name_2d(self.source_pos,\
                             self.geo_setup.magnitude*.05, -45)
         if draw_plume:
-            m.draw_geo_vector_2d(self.plume, label = "plume direction")
+            m.draw_geo_vector_2d(self.plume,
+                                 c=s.cmap(nums[0]),
+                                 ls="-",
+                                 label="plume direction")
         if draw_fov:
-            m.draw_geo_vector_2d(self.cam_view_vec, label = "camera cfov")
+            m.draw_geo_vector_2d(self.cam_view_vec, 
+                                 c=s.cmap(nums[1]),
+                                 label="camera cfov")
             self.draw_azrange_fov_2d(m)
         if draw_legend:
             m.legend()
         return m
 
-    def draw_azrange_fov_2d(self, m, fc = "lime", ec = "none", alpha = 0.15,\
-                                                            poly_id = "fov"):
+    def draw_azrange_fov_2d(self, m, fc="lime", ec="none", alpha=0.15,
+                            poly_id="fov"):
         """Insert the camera FOV in a 2D map
         
         :param geonum.mapping.Map m: the map object

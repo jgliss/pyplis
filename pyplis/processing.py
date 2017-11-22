@@ -1723,7 +1723,8 @@ class ImgStack(object):
         values = data_mask.sum((1, 2)) / float(sum(mask))
         return Series(values, start_acq), mask
     
-    def merge_with_time_series(self, time_series, method="average", **kwargs):
+    def merge_with_time_series(self, time_series, method="average", 
+                               **kwargs):
         """High level wrapper for data merging
         
         Choose from either of three methods to perform an index merging based

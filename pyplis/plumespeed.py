@@ -3394,7 +3394,7 @@ class OptflowFarneback(object):
             for (x1, y1), (x2, y2) in lines:
                 line(disp, (x0+x1, y0+y1), (x0+x2, y0+y2),
                      color=(0, 255, 255), thickness=linewidth)
-                circle(disp, (x0+x2,y0+y2), linewidth, 
+                circle(disp, (x0+x2,y0+y2), linewidth+1, 
                        (255, 0, 0), -1)
         
         if draw_img:

@@ -112,10 +112,10 @@ if __name__ == "__main__":
     
     # Create the Dataset object (see ex01)
     ds = create_dataset()
-
+    
     # execute function defined above (see above for definition and information)
     geom_corr, map = find_viewing_direction(ds.meas_geometry)
-
+    
     # execute 2. script function (see above for definition and information)
     fig =  plot_plume_distance_image(ds.meas_geometry)
     

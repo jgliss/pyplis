@@ -20,7 +20,7 @@ Pyplis module containing methods and classes for emission-rate retrievals
 """
 from warnings import warn
 from numpy import dot, sqrt, mean, nan, isnan, asarray, nanmean, nanmax,\
-    nanmin, sum, arctan2, rad2deg, logical_and, ones, arange
+    nanmin, sum, arctan2, rad2deg, logical_and, ones, arange, nanstd
 from matplotlib.dates import DateFormatter
 from collections import OrderedDict as od
 from matplotlib.pyplot import subplots, rcParams, Rectangle
@@ -115,6 +115,7 @@ class EmissionRateSettings(object):
         
         self.velo_dir_multigauss = True
         self.senscorr = True #apply AA sensitivity correction
+        self.live_calib = False
         self.min_cd = -1e30 #minimum required column density for retrieval [cm-2]
         self.mmol = MOL_MASS_SO2
         
@@ -430,19 +431,35 @@ class EmissionRates(object):
     def mean(self):
         """Mean of emission rate time series"""
         return self.phi.mean()
+    
+    def nanmean(self):
+        """Mean of emission rate time series excluding NaNs"""
+        return nanmean(self.phi)
         
     def std(self):
         """Mean of emission rate time series"""
         return self.phi.std()
     
+    def nanstd(self):
+        """Mean of emission rate time series excluding NaNs"""
+        return nanstd(self.phi)
+    
     def min(self):
         """Minimum value of emission rate time series"""
         return self.phi.min()
     
+    def nanmin(self):
+        """Minimum value of emission rate time series excluding NaNs"""
+        return nanmin(self.phi)
+    
     def max(self):
         """Maximum value of emission rate time series"""
         return self.phi.max()
-        
+    
+    def nanmax(self):
+        """Maximum value of emission rate time series excluding NaNs"""
+        return nanmax(self.phi)
+    
     def get_date_time_strings(self):
         """Returns string reprentations of date and start / stop times
         
@@ -1059,11 +1076,11 @@ class EmissionRateAnalysis(object):
         if self.settings.senscorr:
             # activate sensitivity correcion mode: images are divided by 
             try:
-                lst.sensitivity_corr_mode = True
+                lst.sensitivity_corr_mode=True
             except:
                 self.warnings.append("AA sensitivity correction was deactivated"
                     "because it could not be succedfully activated in imglist")
-                self.settings.senscorr = False
+                self.settings.senscorr=False
         
         # activate calibration mode: images are calibrated using DOAS 
         # calibration polynomial. The fitted curve is shifted to y axis 

@@ -48,7 +48,6 @@ from .image import Img
 from .inout import get_camera_info
 from .setupclasses import Camera
 
-
 class DoasCalibData(object):
     """Class containing DOAS calibration data
     

@@ -31,6 +31,7 @@ check_version()
 
 import pyplis
 from datetime import datetime
+from time import time
 from os.path import join
 from matplotlib.pyplot import show, close
 
@@ -95,8 +96,9 @@ def perform_auto_cell_calib():
 ### SCRIPT MAIN FUNCTION
 if __name__ == "__main__":
     close("all")
+    start = time()
     c = perform_auto_cell_calib()
-    
+    stop = time()
     ### Plot search result of on
     ax0 = c.plot_cell_search_result("on", include_tit = False)
     ax1 = c.plot_cell_search_result("off", include_tit = False)
@@ -118,6 +120,7 @@ if __name__ == "__main__":
     ax1.set_title("Cell search result off band", fontsize = 18)
     ax2.set_title("Calibration polynomials", fontsize = 18)
     
+    print "Time elapsed for preparing calibration data: %.4f s" %(stop-start)
     # Display images or not    
     (options, args)   =  OPTPARSE.parse_args()
     try:
