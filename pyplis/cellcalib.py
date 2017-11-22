@@ -386,7 +386,7 @@ class CellCalibData(object):
         return self.gas_cd_errs
    
     @property
-    def tau_std_allpix(self, sigma=3):
+    def tau_std_allpix(self):
         """Returns array of tau value uncertainties
         
         The uncertainties are determined for each Cell OD image in 
@@ -406,7 +406,10 @@ class CellCalibData(object):
         """  
         vals = []
         for k in range(self.tau_stack.shape[0]):
-            vals.append(self.tau_stack.stack[k].std()* sigma) 
+            img = Img(self.tau_stack.stack[k])
+            img.apply_gaussian_blurring(3)
+            vals.append(abs(img.max() -
+                            img.min())) 
         return asarray(vals)
     
     def set_data(self, tau_stack, gas_cds, gas_cd_errs):
@@ -536,13 +539,13 @@ class CellCalibData(object):
                                   surface_fit_pyrlevel=2):
         """Get sensitivity correction mask 
         
-        Prepares a sensitivity correction mask to corrector for filter 
-        transmission shifts. These shifts result in increaing optical 
+        Prepares a sensitivity correction mask to correct for filter 
+        transmission shifts. These shifts result in increasing optical 
         densities towards the image edges for a given gas column density.
         
         The mask is determined for original image resolution, i.e. pyramid 
         level 0 and for a specific cell optical density image 
-        (aa, tau_on, tau_off). THe latter is normalised either with respect 
+        (aa, tau_on, tau_off). The latter is normalised either with respect 
         to the pixel position of a DOAS field of view within the images, 
         or, alternatively with respect to the image center coordinate.
         
@@ -553,7 +556,7 @@ class CellCalibData(object):
         normalised with respect to the image center, the corresponding cell 
         calibration polynomial should then be retrieved in the center 
         coordinate which is the default polynomial when using 
-        :func:`get_calibration_polynomial` or func:`__call__`) if not 
+        :func:`poly` or func:`__call__`) if not 
         explicitely specified. You may then calibrate a given aa image 
         (``aa_img``) as follows with using a :class:`CellCalibData` object 
         (denoted with ``cellcalib``)::
@@ -690,7 +693,7 @@ class CellCalibData(object):
         :return: corresponding column density
         """
         try:
-            poly = self.get_calibration_polynomial(**kwargs)[0]
+            poly = self.poly(**kwargs)[0]
         except:
             raise ValueError("Calibration data not available")
         if isinstance(value, Img):

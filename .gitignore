@@ -126,3 +126,6 @@ scripts/*.bat
 
 # auto_eval folder in scripts
 scripts/auto_eval/
+
+# Development scripts
+scripts/DEV*

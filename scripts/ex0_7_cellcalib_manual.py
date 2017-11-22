@@ -41,6 +41,7 @@ check_version()
 import pyplis
 from os.path import join
 from matplotlib.pyplot import close, show
+from time import time
 
 ### IMPORT GLOBAL SETTINGS
 from SETTINGS import SAVEFIGS, SAVE_DIR, FORMAT, DPI, OPTPARSE, IMG_DIR
@@ -64,6 +65,7 @@ BG_AFTER_OFF    = "EC2_1106307_1R02_2015091607020440_F02_Etna.fts"
 ### SCRIPT MAIN FUNCTION
 if __name__ == "__main__":
     close("all")
+    start = time()
     cellcalib = pyplis.cellcalib.CellCalibEngine()
     
     # now add all cell images manually, specifying paths, the SO2 column 
@@ -112,6 +114,7 @@ if __name__ == "__main__":
     # 3 tau images (on, off, AA) is then stored within a CellCalibData object
     # which can be accessed using e.g. cellcalib.calib_data["aa"]
     cellcalib.prepare_calib_data(on_id="on", off_id="off", darkcorr=False)
+    stop = time()
     
     ax = cellcalib.plot_all_calib_curves()
     ax.set_title("Manual cell calibration\n(NO dark correction performed)")
@@ -120,6 +123,7 @@ if __name__ == "__main__":
     aa_calib = cellcalib.calib_data["aa"]
     aa_calib.tau_stack.show_img(1)
     
+    print "Time elapsed for preparing calibration data: %.4f s" %(stop-start)
     ### IMPORTANT STUFF FINISHED    
     if SAVEFIGS:
         ax.figure.savefig(join(SAVE_DIR, "ex0_7_out_1.%s" %FORMAT),
