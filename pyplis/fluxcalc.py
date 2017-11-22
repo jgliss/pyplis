@@ -1343,8 +1343,8 @@ class EmissionRateAnalysis(object):
                         
                         # Calculate mean of effective velocity through l and 
                         # uncertainty using 2 sigma confidence of standard deviation
-                        veff = veff_arr.mean()
-                        veff_err = veff_arr.std()
+                        veff_avg = veff_arr.mean()
+                        veff_err = veff_avg * self.settings.optflow_err_rel_veff
                         
                         phi, phi_err = det_emission_rate(cds, veff_arr,
                                                          distarr, cds_err, 
@@ -1361,7 +1361,7 @@ class EmissionRateAnalysis(object):
                         #threshold in settings, such that the retrieval is
                         #only applied to pixels exceeding a certain column 
                         #density)
-                        res["flow_raw"]._velo_eff.append(veff)
+                        res["flow_raw"]._velo_eff.append(veff_avg)
                         res["flow_raw"]._velo_eff_err.append(veff_err)
                     
                     props = pcs.plume_props
