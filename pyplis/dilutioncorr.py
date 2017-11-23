@@ -484,8 +484,8 @@ def correct_img(plume_img, ext, plume_bg_img, plume_dists, plume_pix_mask):
     """
     for im in [plume_img, plume_bg_img]:
         if not isinstance(im, Img) or im.edit_log["vigncorr"] == False:
-            raise ValueError("Plume and background image need to Img objects"
-            " and vignetting corrected")
+            raise ValueError("Plume and background image need to be Img "
+                             "objects and vignetting corrected")
     
     try:
         plume_dists = plume_dists.img

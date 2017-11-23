@@ -94,7 +94,7 @@ def plot_plume_distance_image(meas_geometry):
     # camera to plume distances on a pixel basis
     (dist_img, _, plume_dist_img) = meas_geometry.compute_all_integration_step_lengths()
     
-    fig, ax = subplots(1, 2, figsize = (16,4))
+    fig, ax = subplots(2, 1, figsize = (7,8))
     
     
     # Show pix-to-pix distance image
@@ -118,7 +118,7 @@ if __name__ == "__main__":
     
     # execute 2. script function (see above for definition and information)
     fig =  plot_plume_distance_image(ds.meas_geometry)
-    
+        
     ### IMPORTANT STUFF FINISHED    
     if SAVEFIGS:
         map.ax.figure.savefig(join(SAVE_DIR, "ex02_out_1.%s" %FORMAT), 

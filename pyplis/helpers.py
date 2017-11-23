@@ -18,13 +18,13 @@
 """
 Pyplis module containing all sorts of helper methods
 """
-
+from __future__ import division
 import matplotlib.cm as colormaps
 import matplotlib.colors as colors
 from datetime import datetime, time, date
 from warnings import warn
 from matplotlib.pyplot import draw
-from numpy import mod, linspace, hstack, vectorize, uint8, cast, asarray,\
+from numpy import mod, linspace, hstack, vectorize, uint8, cast, asarray, log2,\
     unravel_index, nanargmax, meshgrid, int, floor, log10, isnan, argmin, sum
 from scipy.ndimage.filters import gaussian_filter
 from cv2 import pyrUp
@@ -33,6 +33,42 @@ exponent = lambda num: int(floor(log10(abs(num))))
 
 time_delta_to_seconds = vectorize(lambda x: x.total_seconds())
 
+def get_pyr_factor_rel(img1, img2):
+    """Get difference in pyramid level between two input images
+    
+    Parameters
+    ----------
+    img1 : :obj:`Img` or :obj:`ndarray`
+        First image
+    img2 : :obj:`Img` or :obj:`ndarray`
+        Second image
+        
+    Raises
+    ------
+    ValueError
+        if image shapes can not be matched by changinf the pyramid level of
+        either of the 2 images
+    
+    Returns
+    -------
+    int
+        Difference in Gauss pyramid level of img2 relative to img1, i.e. a 
+        negative number means, that :param:`img2` is larger than :param:`img1` 
+    """
+    try:
+        img2 = img2.img
+    except:
+        pass
+    try:
+        img1 = img1.img
+    except:
+        pass
+    h1, w1 = img1.shape
+    h2, w2 = img2.shape
+    if not h1/w1 == h2/w2:
+        raise ValueError("Image size ratio mismatch...")
+    return int(log2(h1/h2))
+    
 def nth_moment(index, data, center=0.0, n=0):
     """Determine n-th moment of distribution
     
