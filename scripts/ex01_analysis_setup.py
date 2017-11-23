@@ -127,7 +127,22 @@ def create_dataset():
 if __name__ == "__main__":
     close("all")
     ds = create_dataset()
-    img = ds.get_list("on").current_img()
+    #get on-band image list
+    lst = ds.get_list("on")
+    print ("On-band list contains %d images, current image index: %d" 
+           %(lst.nof, lst.cfn))
+    
+    img = lst.current_img()
+    
+    #plume distance image retrieved from MeasGeometry class...
+    plume_dists = lst.plume_dists 
+    #...these may be overwritten or set manually if desired
+    lst.plume_dists=10000
+    
+    # The same applies for the integration step lengths for emission rate 
+    # retrievals
+    step_lengths = lst.integration_step_length
+    lst.integration_step_length = 1.8 #m
     
     #Set pixel intensities below 2000 to 0 (method of Img class)
     img.set_val_below_thresh(val=0, threshold=2000)

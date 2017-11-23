@@ -43,7 +43,8 @@ from .processing import ImgStack, PixelMeanTimeSeries, LineOnImage,\
 from .optimisation import PolySurfaceFit                                                    
 from .plumebackground import PlumeBackgroundModel
 from .plumespeed import OptflowFarneback, LocalPlumeProperties
-from .helpers import check_roi, map_roi, _print_list, closest_index,exponent
+from .helpers import check_roi, map_roi, _print_list, closest_index,exponent,\
+    isnum
 
 class BaseImgList(object):
     """Basic image list object
@@ -88,6 +89,10 @@ class BaseImgList(object):
         self.filter = None #can be used to store filter information
         self._meas_geometry = None
         
+        #these variables can be accessed using corresponding @property 
+        #attributes
+        self._integration_step_lengths = None
+        self._plume_dists = None
         
         self.set_camera(camera)
         
@@ -161,7 +166,96 @@ class BaseImgList(object):
             raise TypeError("Could not set meas_geometry, need MeasGeometry "
                 "object")
         self._meas_geometry = val
-            
+    
+    @property
+    def plume_dists(self):
+        """Distance to plume
+        
+        Can be an image were each pixel value corresponds to the plume distance
+        at each pixel position (e.g. computed using the MeasGeometry) or can
+        also be a single value, which may be appropriate under certain 
+        measurement setups (e.g. distant plume perpendicular to CFOV of camera)
+        
+        Note
+        ----
+        This method checks if a value is accessible in :attr:`_plume_dists` and
+        if not tries to compute plume distances by calling 
+        :func:`compute_all_integration_step_lengths` of the 
+        :class:`MeasGeometry` object assigned to this ImgList. If this fails, 
+        then an AttributeError is raised
+        
+        Returns
+        -------
+        float or Img or ndarray
+            Plume distances in m. If plume distances are accessible per image 
+            pixel, then the corresponding data is converted to the current 
+            pyramid level
+        """
+        v = self._plume_dists
+        if isnum(v):
+            return v
+        elif isinstance(v, Img):
+            return v.to_pyrlevel(self.pyrlevel)
+        self._get_and_set_geometry_info()
+        return self._plume_dists
+
+    @plume_dists.setter
+    def plume_dists(self, value):
+        if not (isnum(value) or isinstance(value, Img)):
+            raise TypeError("Need Img or numerical data type (e.g. float, int)")
+        if isinstance(value, Img):
+            value = value.to_pyrlevel(self.pyrlevel)
+            if not value.shape == self.this.shape:
+                raise ValueError("Cannot set plume distance image: shape "
+                                 "mismatch between input and images in list")
+        self._plume_dists = value
+                
+    @property
+    def integration_step_length(self):
+        """The integration step length for emission-rate analyses
+        
+        The intgration step length corresponds to the physical distance in 
+        m between two pixels within the plume and is central for computing
+        emission-rate. It may be an image were each pixel value corresponds to 
+        the integreation step length at each pixel position (e.g. computed 
+        using the MeasGeometry) or it can also be a single value, which may be 
+        appropriate under certain measurement setups (e.g. distant plume 
+        perpendicular to CFOV of camera).
+        
+        Note
+        ----
+        This method checks if a value is accessible in
+        :attr:`_integration_step_lengths` and if not tries to compute them by 
+        calling :func:`compute_all_integration_step_lengths` of the 
+        :class:`MeasGeometry` object assigned to this ImgList. If this fails, 
+        an AttributeError is raised
+        
+        Returns
+        -------
+        float or Img or ndarray
+            Integration step lengths in m. If plume distances are accessible 
+            per image pixel, then the corresponding data is converted to the 
+            current pyramid level
+        """
+        v = self._integration_step_lengths
+        if isnum(v):
+            return v
+        elif isinstance(v, Img):
+            return v.to_pyrlevel(self.pyrlevel)
+        self._get_and_set_geometry_info()
+        return self._integration_step_lengths
+
+    @integration_step_length.setter
+    def integration_step_length(self, value):
+        if not (isnum(value) or isinstance(value, Img)):
+            raise TypeError("Need Img or numerical data type (e.g. float, int)")
+        if isinstance(value, Img):
+            value = value.to_pyrlevel(self.pyrlevel)
+            if not value.shape == self.this.shape:
+                raise ValueError("Cannot set plume distance image: shape "
+                                 "mismatch between input and images in list")
+        self._integration_step_lengths = value
+        
     @property
     def auto_reload(self):
         """Activate / deactivate automatic reload of images"""
@@ -1098,22 +1192,34 @@ class BaseImgList(object):
         self.index = num
         self.load()
         return self.loaded_images["this"]
-        
-    def next_img(self):
+    
+    def goto_next(self):
         """Go to next image 
         
         Calls :func:`load_next` 
         """
         self.load_next()
         return self.loaded_images["this"]
-            
-    def prev_img(self):
+        
+    def next_img(self):
+        """Old name of method goto_next"""
+        warn("This method was renamed (but still works). Please use method "
+             "goto_next in the future")
+        return self.goto_next()
+    
+    def goto_prev(self):
         """Go to previous image
         
         Calls :func:`load_prev`
         """
         self.load_prev()
         return self.loaded_images["this"]
+    
+    def prev_img(self):
+        """Old name of method goto_next"""
+        warn("This method was renamed (but still works). Please use method "
+             "goto_prev in the future")
+        return self.goto_prev()
     
     def append(self, file_path):
         """Append image file to list
@@ -1125,24 +1231,6 @@ class BaseImgList(object):
         
         self.files.append(file_path)
         
-    def _first_file(self):
-        """get first file path of image list"""
-        try:
-            return self.files[0]
-        except IndexError:
-            print "Filelist empty..."
-        except:
-            raise 
-    
-    def _last_file(self):
-        """get last file path of image list"""
-        try:
-            return self.files[self.nof - 1]
-        except IndexError:
-            print "Filelist empty..."
-        except:
-            raise 
-    
 #==============================================================================
 #     """GUI features
 #     """
@@ -1262,6 +1350,43 @@ class BaseImgList(object):
         return fig
 
     """
+    Private methods
+    """
+    def _first_file(self):
+        """get first file path of image list"""
+        try:
+            return self.files[0]
+        except IndexError:
+            print "Filelist empty..."
+        except:
+            raise 
+    
+    def _last_file(self):
+        """get last file path of image list"""
+        try:
+            return self.files[self.nof - 1]
+        except IndexError:
+            print "Filelist empty..."
+        except:
+            raise 
+            
+    def _get_and_set_geometry_info(self):
+        """Compute and write plume and pix-to-pix distances from MeasGeometry"""
+        try:
+            (int_steps, 
+            _, 
+            dists)=\
+            self.meas_geometry.compute_all_integration_step_lengths(
+                     pyrlevel=self.pyrlevel) 
+            self._plume_dists = dists
+            self._integration_step_lengths = int_steps
+            print ("Computed and updated list attributes plume_dist and "
+                   "integration_step_length in ImgList from MeasGeometry")
+        except:
+            raise ValueError("Measurement geometry not ready for access "
+                "of plume distances and integration steps in image list %s." 
+                %self.list_id)
+    """
     Magic methods
     """  
     def __str__(self):
@@ -1353,13 +1478,14 @@ class ImgList(BaseImgList):
         #: and need to be activated / deactivated using the corresponding
         #: method (e.g. :func:`activate_tau_mode`) to be changed, dont change
         #: them directly via this private dictionary
-        self._list_modes.update({"darkcorr"  :  0,
-                                 "optflow"   :  0,
-                                 "vigncorr"  :  0,
-                                 "tau"       :  0,
-                                 "aa"        :  0,
-                                 "senscorr"  :  0,
-                                 "gascalib"  :  0})
+        self._list_modes.update({"darkcorr"  :  0, #dark correction
+                                 "optflow"   :  0, #compute optical flow
+                                 "vigncorr"  :  0, #load vignetting corrected images
+                                 "dilcorr"   :  0, #load as dilution corrected images
+                                 "tau"       :  0, #load as OD images
+                                 "aa"        :  0, #load as AA images
+                                 "senscorr"  :  0, #correct for cross-detector sensitivity variations
+                                 "gascalib"  :  0})#load as calibrated SO2 images
                                  
         self.dil_corr_thresh = {"on"    :   0.0,
                                 "off"   :   0.0,
@@ -1409,8 +1535,12 @@ class ImgList(BaseImgList):
     @property
     def next(self):
         """Next image"""
+        print ("Returning next image in list. Note: no reload performed, call "
+               "method goto_next to change the list index and load next and "
+               "second next image")
         return self.loaded_images["next"]
         
+    
     @property
     def DARK_CORR_OPT(self):
         """Return the current dark correction mode
@@ -1918,6 +2048,21 @@ class ImgList(BaseImgList):
             self.calib_data(self.current_img())
             
         self._list_modes["gascalib"] = value
+        self.load()
+    
+    def activate_dilcorr_mode(self, value=1):
+        """Activate dilution correction mode"""
+        if value == self._list_modes["gascalib"]:
+            return
+        if value:  
+            ext_coeff = self.ext_coeff #raises AttributeError is not available
+                
+            if not self.sensitivity_corr_mode:
+                warn("AA sensitivity correction mode is deactivated. This "
+                    "may yield erroneous results at the image edges")
+            self.calib_data(self.current_img())
+            
+        self._list_modes["dilcorr"] = value
         self.load()
         
     def activate_optflow_mode(self, val=True, draw=False):
@@ -2650,8 +2795,14 @@ class ImgList(BaseImgList):
         
         return self.calc_sky_background_mask(**kwargs)
         
+    def prep_data_dilcorr_new_dev(self, tau_thresh, plume_pix_mask=None, 
+                                  plume_dists=None, ext_coeff=None):
+        """Retrieve relevant data to perform dilution correction"""
+        vign_mask = self.vign_mask #raises 
+        raise NotImplementedError
+        
     def prep_data_dilutioncorr(self, tau_thresh=0.05, plume_pix_mask=None, 
-                               plume_dists=None, ext_coeff=None):
+                                   plume_dists=None, ext_coeff=None):
         """Get parameters relevant for dilution correction
         
         Relevant parameters are:
@@ -2702,7 +2853,7 @@ class ImgList(BaseImgList):
             except:
                 pass
             
-            if plume_pix_mask.shape == self.current_img().shape:
+            if plume_pix_mask.shape == self.this.shape:
                 mask_ok = True
             else:
                 mask_ok = False
