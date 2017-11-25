@@ -281,30 +281,32 @@ if __name__ == "__main__":
     plume_pix_mask[840:, :] = 0 #remove tree in lower part of the image
     onlist.aa_mode = False
     
-    # this method checks relevant parameters for dilution correction and 
-    # gets those missing, e.g. the mask specifying plume pixels
-    _, _, bg_on, _, _ =\
-        onlist.prep_data_dilutioncorr(plume_pix_mask=plume_pix_mask,
-                                      plume_dists=plume_dists, 
-                                      ext_coeff=ext_on)
+    # assign the just retrieved extinction coefficients to the respective 
+    # image lists
+    onlist.ext_coeffs = ext_on
+    offlist.ext_coeffs = ext_off
     
-    # do the same for the off band. Here, the plume pixel mask from the on band
-    # is used and is therefore provided as input of the method
-    _, _, bg_off, _, _ =\
-        offlist.prep_data_dilutioncorr(plume_pix_mask=plume_pix_mask,
-                                       plume_dists=plume_dists, 
-                                       ext_coeff=ext_off)
-                                         
+    # save the extinction coefficients into a txt file (re-used in example 
+    # script 12). They are stored as pandas.Series object in the ImgList
+    
+    onlist.ext_coeffs.to_csv(join(SAVE_DIR, "ex11_ext_scat_on.txt"))
+    offlist.ext_coeffs.to_csv(join(SAVE_DIR, "ex11_ext_scat_off.txt"))
+    # now activate automatic dilution correction in both lists                                     
     #get dilution corrected on and off-band image
-    on_corr = dil.correct_img(on_vigncorr, ext_on, bg_on,
-                              plume_dists, plume_pix_mask)
-
-    off_corr = dil.correct_img(off_vigncorr, ext_off, bg_off,
-                              plume_dists, plume_pix_mask)
-                              
-    # convert the corrected images into tau images
-    tau_on_corr = on_corr.to_tau(bg_on)
-    tau_off_corr = off_corr.to_tau(bg_off)
+    onlist.dilcorr_mode =True
+    offlist.dilcorr_mode=True
+    
+    # get current dilution corrected raw images (i.e. in intensity space)
+    on_corr = onlist.this
+    off_corr = offlist.this
+               
+    # now activate tau mode (note that dilution correction mode is still active)               
+    onlist.tau_mode=True
+    offlist.tau_mode=True
+    
+    # extract tau images
+    tau_on_corr = onlist.this
+    tau_off_corr = offlist.this
     
     # determine corrected SO2-CD image from the image lists
     so2_img_corr = calib(tau_on_corr - tau_off_corr)
@@ -322,8 +324,9 @@ if __name__ == "__main__":
                                                        pix_dist_err)
     
     # determine uncorrected so2-CD image from the image lists
-    onlist.tau_mode=True
-    offlist.tau_mode=True
+    offlist.dilcorr_mode =False
+    onlist.dilcorr_mode = False
+
     # the "this" attribute returns the current list image (same as 
     # method "current_img()")
     so2_img_uncorr = calib(onlist.this - offlist.this)

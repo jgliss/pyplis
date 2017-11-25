@@ -129,3 +129,6 @@ scripts/auto_eval/
 
 # Development scripts
 scripts/DEV*
+
+# Plots, data, etc from develoment scripts
+scripts/scripts_out/DEV*

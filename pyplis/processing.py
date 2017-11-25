@@ -1678,7 +1678,7 @@ class ImgStack(object):
         return (data_conv, d[1], d[2])
     
     def get_time_series(self, pos_x=None, pos_y=None, radius=1, mask=None):
-        """Get time series in a circular ROI
+        """Get time series in a ROI
         
         Retrieve time series at a given pixel position *in stack 
         coordinates* in a circular pixel neighbourhood.
@@ -1693,10 +1693,9 @@ class ImgStack(object):
             radius of pixel disk on detector (centered around pos_x, pos_y, 
             default: 1)
         mask : array
-            boolean mask for image pixel access, 
-            default is None, if the mask is specified and valid (i.e. same
-            shape than images in stack) then the other three input parameters
-            are ignored
+            mask for image pixel access, default is None, if the mask is 
+            specified and valid (i.e. same shape than images in stack) then 
+            the other three input parameter are ignored
         
         Returns
         -------

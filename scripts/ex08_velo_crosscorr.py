@@ -36,7 +36,7 @@ from ex04_prep_aa_imglist import prepare_aa_image_list
 
 ### SCRIPT OPTONS  
 OFFSET_PIXNUM = 40 # distance in pixels between two lines used for cross corr analysis
-RELOAD = 1#reload AA profile images for PCS lines 
+RELOAD = 0#reload AA profile images for PCS lines 
 
 # start / stop indices of considered images in image list (only relevant if PCS profiles are
 # reloaded, i.e. Opt RELOAD=True)

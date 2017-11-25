@@ -326,7 +326,7 @@ class DoasCalibData(object):
         else:
             save_name = save_name.split(".")[0] + ".fts"
         fov_mask = fits.PrimaryHDU()
-        fov_mask.data = self.fov.fov_mask
+        fov_mask.data = self.fov.fov_mask_rel
         fov_mask.header.update(self.fov.img_prep)
         fov_mask.header.update(self.fov.search_settings)
         fov_mask.header["calib_id"] = self.calib_id
@@ -391,7 +391,7 @@ class DoasCalibData(object):
                 "path does not exist")
         hdu = fits.open(file_path)
         try:
-            self.fov.fov_mask = hdu[0].data.byteswap().newbyteorder()
+            self.fov.fov_mask_rel = hdu[0].data.byteswap().newbyteorder()
         except:
             print ("(Warning loading DOAS calib data): FOV mask not "
                 "available")
@@ -565,6 +565,7 @@ class DoasFOV(object):
         self.search_settings = {}
         self.img_prep = {}
         self.roi_abs = None
+        self.img_shape_orig = None
         self.camera = None
         
         self.start_search = datetime(1900, 1, 1)
@@ -572,7 +573,7 @@ class DoasFOV(object):
         
         self.corr_img = None
         
-        self.fov_mask = None
+        self.fov_mask_rel = None
         
         self.result_pearson = {"cx_rel"     :   nan,
                                "cy_rel"     :   nan,
@@ -583,6 +584,7 @@ class DoasFOV(object):
                            
         if isinstance(camera, Camera):
             self.camera = camera
+            self.img_shape_orig = (camera.pixnum_y, camera.pixnum_x)
     
     @property
     def method(self):
@@ -705,18 +707,21 @@ class DoasFOV(object):
             return (cx, cy)
         return map_coordinates_sub_img(cx, cy, self.roi_abs, self.pyrlevel,
                                        inverse=True)
-                                                                
-        
-    def transform_fov_mask_abs_coords(self, img_shape_orig=(), cam_id=""):
+                    
+    def fov_mask_abs(self, img_shape_orig=(), cam_id=""):
         """Converts the FOV mask to absolute detector coordinates
         
-        :param tuple img_shape_orig: image shape of original image data (can
-            be extracted from an unedited image), or
-        :param str cam_id: string ID of pyplis default camera (e.g. "ecII")
-            
         The shape of the FOV mask (and the represented pixel coordinates) 
         depends on the image preparation settings of the :class:`ImgStack` 
         object which was used to identify the FOV. 
+        
+        Parameters
+        ----------
+        img_shape_orig : tuple
+            image shape of original image data (can be extracted from an 
+            unedited image)
+        cam_id : str
+            string ID of pyplis default camera (e.g. "ecII")
         """
         if not len(img_shape_orig) == 2:
             try:
@@ -724,9 +729,9 @@ class DoasFOV(object):
                 img_shape_orig = (int(info["pixnum_y"]), int(info["pixnum_x"]))
             except:
                 raise IOError("Image shape could not be retrieved...")
-        mask = self.fov_mask.astype(float32)       
+        mask = self.fov_mask_rel.astype(float32)       
         return sub_img_to_detector_coords(mask, img_shape_orig,
-                                          self.img_prep["pyrlevel"],
+                                          self.pyrlevel,
                                           self.roi_abs).astype(bool)
         
 #==============================================================================
@@ -742,8 +747,7 @@ class DoasFOV(object):
 #             
 #         """
 #         raise NotImplementedError    
-#==============================================================================
-        
+#=============================================================================   
     def save_as_fits(self, **kwargs):
         """Save the fov as fits file
         
@@ -1232,7 +1236,7 @@ class DoasFOVEngine(object):
             self.calib_data.fov.result_pearson["rad_rel"] = radius
             self.calib_data.fov.result_pearson["corr_curve"] = corr_curve
             
-            self.calib_data.fov.fov_mask = fov_mask
+            self.calib_data.fov.fov_mask_rel = fov_mask
             self.calib_data.tau_vec = tau_vec
             self.calib_data.doas_vec = doas_vec
             try:
@@ -1251,7 +1255,7 @@ class DoasFOVEngine(object):
             
             self.calib_data.fov.result_ifr["popt"] = popt
             self.calib_data.fov.result_ifr["pcov"] = pcov
-            self.calib_data.fov.fov_mask = fov_mask            
+            self.calib_data.fov.fov_mask_rel = fov_mask            
             self.calib_data.tau_vec = tau_vec
             self.calib_data.doas_vec = self.doas_data_vec
             try:
