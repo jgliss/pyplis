@@ -30,7 +30,7 @@ Release 0.11.2 -> 1.0.0
   
   - New velocity method ``farneback_hybrid`` for velocity retrievals: uses optical flow output along line modified such that vectors that are not in expectation range (retrieved from histo analysis) are replaced by the average flow vector from the histo analysis.
   
-3. New attribute ``residual`` :class:`DoasCalibData`
+3. New attribute ``residual`` in :class:`DoasCalibData`
 
 4. Fixed some bugs related to scale space conversion in :class:`ImgList` objects (e.g. related to activation of ``tau_mode``, dilution correction)
 
