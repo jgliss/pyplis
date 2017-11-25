@@ -115,6 +115,7 @@ class EmissionRateSettings(object):
         
         self.velo_dir_multigauss = True
         self.senscorr = True #apply AA sensitivity correction
+        self.dilcorr = False
         self.live_calib = False
         self.min_cd = -1e30 #minimum required column density for retrieval [cm-2]
         self.mmol = MOL_MASS_SO2
@@ -318,6 +319,7 @@ class EmissionRateSettings(object):
         s+= "\nGlobal velocity: v = (%2f +/- %.2f) m/s" %(self.velo_glob,
                                                         self.velo_glob_err)
         s+= "\nAA sensitivity corr: %s\n" %self.senscorr
+        s+= "Dilution correction: %s\n" %self.dilcorr
         s+= "Minimum considered CD: %s cm-2\n" %self.min_cd
         s+= "Molar mass: %s g/mol\n" %self.mmol
         return s
@@ -1069,19 +1071,6 @@ class EmissionRateAnalysis(object):
         """Checks if image list is ready and includes all relevant info"""
         
         lst = self.imglist
-    
-        if not lst.darkcorr_mode:
-            self.warnings.append("Dark image correction is not activated in "
-                "image list")
-        if self.settings.senscorr:
-            # activate sensitivity correcion mode: images are divided by 
-            try:
-                lst.sensitivity_corr_mode=True
-            except:
-                self.warnings.append("AA sensitivity correction was deactivated"
-                    "because it could not be succedfully activated in imglist")
-                self.settings.senscorr=False
-        
         # activate calibration mode: images are calibrated using DOAS 
         # calibration polynomial. The fitted curve is shifted to y axis 
         # offset 0 for the retrieval
@@ -1102,6 +1091,19 @@ class EmissionRateAnalysis(object):
         except ValueError:
             raise ValueError("measurement geometry in image list is not ready"
                 "for pixel distance access")
+        if not lst.darkcorr_mode:
+            self.warnings.append("Dark image correction is not activated in "
+                "image list")
+        if self.settings.senscorr:
+            # activate sensitivity correcion mode: images are divided by 
+            try:
+                lst.sensitivity_corr_mode=True
+            except:
+                self.warnings.append("AA sensitivity correction was deactivated"
+                    "because it could not be succedfully activated in imglist")
+                self.settings.senscorr=False
+        if self.settings.dilcorr:
+            lst.dilcorr_mode = True
         
     def get_pix_dist_info_all_lines(self):
         """Retrieve pixel distances and uncertainty for all pcs lines
@@ -1516,7 +1518,7 @@ class EmissionRateAnalysis(object):
                     print "Progress: %d (%d)" %(k, stop_index)
             except:
                 pass
-            lst.next_img()  
+            lst.goto_next()  
     
         self.bg_roi_info["mean"] = Series(bg_mean, ts)
         self.bg_roi_info["std"] = Series(bg_std, ts)
@@ -1535,11 +1537,11 @@ class EmissionRateAnalysis(object):
         """
         self.settings.add_pcs_line(line)
         
-    def plot_pcs_lines(self, ax=None):
+    def plot_pcs_lines(self, ax=None, **kwargs):
         """Plots all current PCS lines onto current list image"""
         # plot current image in list and draw line into it
         if ax is None:
-            ax = self.imglist.show_current()
+            ax = self.imglist.show_current(**kwargs)
         for line_id, line in self.pcs_lines.iteritems():
             line.plot_line_on_grid(ax=ax, include_normal=True, label=line_id)
         ax.legend(loc='best', fancybox=True, framealpha=0.5)

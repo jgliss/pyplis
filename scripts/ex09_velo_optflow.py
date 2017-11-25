@@ -125,7 +125,7 @@ if __name__ == "__main__":
     
     # Access to the optical flow module in the image list. If optflow_mode is 
     # active in the list, then, whenever the list index changes (e.g. using
-    # list.next_img(), or list.goto_img(100)), the optical flow field is 
+    # list.goto_next(), or list.goto_img(100)), the optical flow field is 
     # calculated between the current list image and the next one
     fl = aa_list.optflow 
     #(! note: fl is only a pointer, i.e. the "=" is not making a copy of the 
@@ -177,7 +177,7 @@ if __name__ == "__main__":
             get_and_append_from_farneback(fl, line=PCS2,
                                           pix_mask=plume_mask,
                                           dir_multi_gauss=HISTO_ANALYSIS_MULTIGAUSS)
-            aa_list.next_img()
+            aa_list.goto_next()
             
 #==============================================================================
 #         plume_props_l1 = plume_props_l1.interpolate()

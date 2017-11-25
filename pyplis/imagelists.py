@@ -19,7 +19,7 @@
 Image list objects of pyplis library   
 """
 from numpy import asarray, zeros, argmin, arange, ndarray, float32,\
-    isnan, logical_or, uint8, finfo, exp
+    isnan, logical_or, uint8, finfo, exp, ones
 from datetime import timedelta, datetime, date
 #from bunch import Bunch
 from pandas import Series, DataFrame
@@ -44,7 +44,7 @@ from .optimisation import PolySurfaceFit
 from .plumebackground import PlumeBackgroundModel
 from .plumespeed import OptflowFarneback, LocalPlumeProperties
 from .helpers import check_roi, map_roi, _print_list, closest_index,exponent,\
-    isnum
+    isnum, get_pyr_factor_rel
 
 class BaseImgList(object):
     """Basic image list object
@@ -110,7 +110,7 @@ class BaseImgList(object):
         
         self._list_modes = {} #init for :class:`ImgList` object
         
-        self.vign_mask = None #a vignetting correction mask can be stored here
+        self._vign_mask = None #a vignetting correction mask can be stored here
         self.loaded_images = {"this"  :    None}
         #used to store the img edit state on load
         self._load_edit = {}
@@ -188,14 +188,14 @@ class BaseImgList(object):
         -------
         float or Img or ndarray
             Plume distances in m. If plume distances are accessible per image 
-            pixel, then the corresponding data is converted to the current 
-            pyramid level
+            pixel. Note that the corresponding data is converted to pyramid 
+            level 0 (required for dilution correction).
         """
         v = self._plume_dists
         if isnum(v):
             return v
         elif isinstance(v, Img):
-            return v.to_pyrlevel(self.pyrlevel)
+            return v.to_pyrlevel(0)
         self._get_and_set_geometry_info()
         return self._plume_dists
 
@@ -204,12 +204,38 @@ class BaseImgList(object):
         if not (isnum(value) or isinstance(value, Img)):
             raise TypeError("Need Img or numerical data type (e.g. float, int)")
         if isinstance(value, Img):
-            value = value.to_pyrlevel(self.pyrlevel)
-            if not value.shape == self.this.shape:
-                raise ValueError("Cannot set plume distance image: shape "
-                                 "mismatch between input and images in list")
+            value = value#.to_pyrlevel(self.pyrlevel)
+# =============================================================================
+#             if not value.shape == self.this.shape:
+#                 raise ValueError("Cannot set plume distance image: shape "
+#                                  "mismatch between input and images in list")
+# =============================================================================
         self._plume_dists = value
+        
+    @property
+    def vign_mask(self):
+        """Current vignetting correction mask"""
+        if not any([isinstance(self._vign_mask, x) for x in (Img, ndarray)]):
+            raise AttributeError("Vignetting mask is not available in list")
+        return self._vign_mask
                 
+    @vign_mask.setter
+    def vign_mask(self, value):
+        if not any([isinstance(value, x) for x in (Img, ndarray)]):
+            raise AttributeError("Invalid input for vignetting mask, need "
+                                 "Img object or numpy ndarray")
+        try:
+            value=Img(value)
+        except:
+            pass
+        pyrlevel_rel = get_pyr_factor_rel(self.this.img, value.img)
+        if pyrlevel_rel != 0:
+            if pyrlevel_rel < 0: 
+                value.pyr_down(pyrlevel_rel)
+            else:
+                value.pyr_up(pyrlevel_rel)
+        self._vign_mask = value
+        
     @property
     def integration_step_length(self):
         """The integration step length for emission-rate analyses
@@ -234,7 +260,7 @@ class BaseImgList(object):
         -------
         float or Img or ndarray
             Integration step lengths in m. If plume distances are accessible 
-            per image pixel, then the corresponding data is converted to the 
+            per image pixel, then the corresponding data IS converted to the 
             current pyramid level
         """
         v = self._integration_step_lengths
@@ -799,7 +825,7 @@ class BaseImgList(object):
             if append:
                 stack.append_img(img.img, img.meta["start_acq"], 
                                  img.meta["texp"])
-            self.next_img()  
+            self.goto_next()  
         stack.start_acq = asarray(stack.start_acq)
         stack.texps = asarray(stack.texps)
         stack.roi_abs = self._roi_abs
@@ -850,7 +876,7 @@ class BaseImgList(object):
                     texps.append(cim.texp)
                 except:
                     pass
-                self.next_img()
+                self.goto_next()
                 added += 1
             except:
                 warn("Failed to add image at index %d" %k)
@@ -904,7 +930,7 @@ class BaseImgList(object):
                 d[2].append(sub.mean())
                 d[3].append(sub.std())
             
-            self.next_img()
+            self.goto_next()
         
         self.goto_img(cfn)
         means = []
@@ -960,7 +986,7 @@ class BaseImgList(object):
             vals.append(sub.mean())
             stds.append(sub.std())
             
-            self.next_img()
+            self.goto_next()
         
         self.goto_img(cfn)
 
@@ -1002,6 +1028,7 @@ class BaseImgList(object):
             self.prev_index = self.nof - 1
             self.next_index = 1
         elif self.index == (self.nof - 1):
+            #raise IndexError("Last image reached in ImgList")
             self.prev_index = self.nof - 2
             self.next_index = 0
         else:
@@ -1032,7 +1059,6 @@ class BaseImgList(object):
         if onload["darkcorr"]:
             print "Image was already dark corrected (on load)"
             self._list_modes["darkcorr"] = True
-            
         if onload["vigncorr"]:
             self._list_modes["vigncorr"]
             
@@ -1041,6 +1067,7 @@ class BaseImgList(object):
         
         Try to load the current file ``self.files[self.cfn]`` and if remove the 
         file from the list if the import fails
+        
         Raises
         ------
         
@@ -1271,6 +1298,21 @@ class BaseImgList(object):
         ax = mean.plot(yerr=yerr, ax=ax)
         return ax
     
+    def _this_raw_fromfile(self):
+        """Reloads and returns current image
+        
+        This method is used for test purposes and does not change the list
+        state. See for instance :func:`activate_dilution_corr` in 
+        :class:`ImgList`
+        
+        Returns
+        -------
+        Img
+            the current image loaded and unmodified from file    
+        """
+        return Img(self.files[self.cfn],
+                   import_method=self.camera.image_import_method)
+        
     def plot_tseries_vert_profile(self, pos_x, start_y=0, stop_y=None,
                                   step_size=0.1, blur=4):
         """Plot the temporal evolution of a line profile
@@ -1320,7 +1362,7 @@ class BaseImgList(object):
         for k in range(1, self.nof):
             rad = rad - rad.min() + cidx
             ax1.plot(rad, y_arr,"-b")        
-            img_arr = self.next_img().img
+            img_arr = self.goto_next().img
             rad = gaussian_filter(l.get_line_profile(img_arr),blur)
             cidx = cidx + del_x
             idx.append(cidx)
@@ -1378,7 +1420,7 @@ class BaseImgList(object):
             dists)=\
             self.meas_geometry.compute_all_integration_step_lengths(
                      pyrlevel=self.pyrlevel) 
-            self._plume_dists = dists
+            self._plume_dists = dists.to_pyrlevel(0)
             self._integration_step_lengths = int_steps
             print ("Computed and updated list attributes plume_dist and "
                    "integration_step_length in ImgList from MeasGeometry")
@@ -1436,7 +1478,46 @@ class DarkImgList(BaseImgList):
         self.read_gain = read_gain
         if init:
             self.add_files(files)
-            
+ 
+class AutoDilcorrSettings(object):
+    """This class stores settings for automatic dilution correction in ImgLists
+
+    Attributes
+    ----------
+    tau_thresh : float
+        OD threshold for computation of plume pixel mask
+    erode_mask_size : int
+        size of erosion kernel applied to plume pixel mask
+    dilate_mask_size : int
+        size of dilation kernel applied to plume pixel mask after 
+        erosion was applied
+    bg_model : PlumeBackgroundModel
+        plume background model used to compute tau images (i.e. 
+        correction mode 99, is e.g. used in :func:`_apply_edit` of 
+        :class:`ImgList`)
+    
+    Parameters
+    ----------
+    tau_thresh : float
+        OD threshold for computation of plume pixel mask
+    erode_mask_size : int
+        size of erosion kernel applied to plume pixel mask
+    dilate_mask_size : int
+        size of dilation kernel applied to plume pixel mask after 
+        erosion was applied
+    """
+    def __init__(self, tau_thresh=0.05, erode_mask_size=3, 
+                 dilate_mask_size=4):
+        self.tau_thresh = tau_thresh
+        self.erode_mask_size = erode_mask_size
+        self.dilate_mask_size = dilate_mask_size
+        self.bg_model = PlumeBackgroundModel(mode=99)
+        
+    def __str__(self):
+        """String representation"""
+        for k, v in self.__dict__.iteritems():
+            print "%s: %s" %(k, v)
+                 
 class ImgList(BaseImgList):
     """Image list object with expanded functionality (cf. :class:`BaseImgList`)
     
@@ -1464,10 +1545,13 @@ class ImgList(BaseImgList):
         measurement geometry
     init : bool
         if True, the first two images in list ``files`` are loaded
+    **dilcorr_settings
+        additional keyword args corresponding to settings for automatic 
+        dilution correction passed to __init__ of :class:´AutoDilcorrSettings`
     
     """
     def __init__(self, files=[], list_id=None, list_type=None, camera=None,
-                 geometry=None, init=True):
+                 geometry=None, init=True, **dilcorr_settings):
 
         super(ImgList, self).__init__(files, list_id, list_type, camera, 
                                       geometry, init=False)
@@ -1478,18 +1562,15 @@ class ImgList(BaseImgList):
         #: and need to be activated / deactivated using the corresponding
         #: method (e.g. :func:`activate_tau_mode`) to be changed, dont change
         #: them directly via this private dictionary
-        self._list_modes.update({"darkcorr"  :  0, #dark correction
-                                 "optflow"   :  0, #compute optical flow
-                                 "vigncorr"  :  0, #load vignetting corrected images
-                                 "dilcorr"   :  0, #load as dilution corrected images
-                                 "tau"       :  0, #load as OD images
-                                 "aa"        :  0, #load as AA images
-                                 "senscorr"  :  0, #correct for cross-detector sensitivity variations
-                                 "gascalib"  :  0})#load as calibrated SO2 images
+        self._list_modes.update({"darkcorr"  :  False, #dark correction
+                                 "optflow"   :  False, #compute optical flow
+                                 "vigncorr"  :  False, #load vignetting corrected images
+                                 "dilcorr"   :  False, #load as dilution corrected images
+                                 "tau"       :  False, #load as OD images
+                                 "aa"        :  False, #load as AA images
+                                 "senscorr"  :  False, #correct for cross-detector sensitivity variations
+                                 "gascalib"  :  False})#load as calibrated SO2 images
                                  
-        self.dil_corr_thresh = {"on"    :   0.0,
-                                "off"   :   0.0,
-                                "aa"    :   0.0}
         self._ext_coeffs = None
         
         self._bg_imgs = [None, None] #sets bg images
@@ -1514,8 +1595,11 @@ class ImgList(BaseImgList):
         # images match the time interval (+-10 min) of this image and if not
         # a new one will be searched).
         self.update_dark_ival = 10 #mins
-        self.time_last_dark_check = datetime(1900, 1, 1)                      
+        self.time_last_dark_check = datetime(1900, 1, 1)   
         
+        # tau threshold for calculation of plume pixel mask fro dilution 
+        # correction
+        self.dilcorr_settings = AutoDilcorrSettings(**dilcorr_settings)
         """
         Additional variables
         """
@@ -1603,13 +1687,22 @@ class ImgList(BaseImgList):
     
     @property
     def vigncorr_mode(self):
-        """Activate / deactivate optical flow calc on image load"""
+        """Activate / deactivate vignetting correction on image load"""
         return int(self._list_modes["vigncorr"])
     
     @vigncorr_mode.setter
     def vigncorr_mode(self, val):
         self.activate_vigncorr(val)
     
+    @property
+    def dilcorr_mode(self):
+        """Activate / deactivate dilution correction on image load"""
+        return int(self._list_modes["dilcorr"])
+    
+    @dilcorr_mode.setter
+    def dilcorr_mode(self, val):
+        self.activate_dilcorr_mode(val)
+        
     @property
     def sensitivity_corr_mode(self):
         """Activate / deactivate AA sensitivity correction mode"""
@@ -1687,7 +1780,7 @@ class ImgList(BaseImgList):
     @ext_coeffs.setter
     def ext_coeffs(self, val):
         if isinstance(val, float):
-            val = Series(val, self.acq_times[0])
+            val = Series(val, [self.acq_times[0]])
         if not isinstance(val, Series):
             raise ValueError("Need pandas Series object")
         self._ext_coeffs = val
@@ -1855,7 +1948,7 @@ class ImgList(BaseImgList):
         self.bg_model.set_missing_ref_areas(self.current_img())
         
     """LIST MODE MANAGEMENT METHODS"""        
-    def activate_darkcorr(self, val=True):
+    def activate_darkcorr(self, value=True):
         """Activate or deactivate dark and offset correction of images
         
         If dark correction turned on, dark image access is attempted, if that
@@ -1867,12 +1960,12 @@ class ImgList(BaseImgList):
         val : bool
             new mode
         """
-        if val is self.darkcorr_mode: #do nothing
+        if value is self.darkcorr_mode: #do nothing
             return
-        if not val and self._load_edit["darkcorr"]:
+        if not value and self._load_edit["darkcorr"]:
             raise ImgMetaError("Cannot deactivate dark correction, original"
                 "image file was already dark corrected")
-        if val:
+        if value:
             if self.this.edit_log["darkcorr"]:
                 warn("Cannot activate dark correction in image list %s: "
                      "current image is already corrected for dark current"
@@ -1881,10 +1974,10 @@ class ImgList(BaseImgList):
             self.get_dark_image()
             self.update_index_dark_offset_lists()
                     
-        self._list_modes["darkcorr"] = val
+        self._list_modes["darkcorr"] = value
         self.load()
         
-    def activate_vigncorr(self, val=True):
+    def activate_vigncorr(self, value=True):
         """Activate / deactivate vignetting correction on image load
         
         Note
@@ -1898,17 +1991,17 @@ class ImgList(BaseImgList):
         val : bool
             new mode
         """
-        if val is self.vigncorr_mode: #do nothing
+        if value is self.vigncorr_mode: #do nothing
             return
-        elif val:
+        elif value:
             if self.this.edit_log["vigncorr"]:
                 warn("Cannot activate vignetting correction in image list %s: "
                      "current image is already corrected for vignetting"
                      %self.list_id)
                 return 
-            if isinstance(self.vign_mask, Img):
-                self.vign_mask = self.vign_mask.img
-            if not isinstance(self.vign_mask, ndarray):
+            try:
+                self.vign_mask
+            except:
                 self.det_vign_mask_from_bg_img() 
             sh = Img(self.files[self.cfn],
                      import_method=self.camera.image_import_method).img.shape
@@ -1916,10 +2009,10 @@ class ImgList(BaseImgList):
                 raise ValueError("Shape of vignetting mask %s deviates from "
                             "raw img shape %s" %(list(self.vign_mask.shape),
                             list(sh)))
-        self._list_modes["vigncorr"] = val
+        self._list_modes["vigncorr"] = value
         self.load()
     
-    def activate_tau_mode(self, val=1):
+    def activate_tau_mode(self, value=True):
         """Activate tau mode
         
         In tau mode, images will be loaded as tau images (if background image
@@ -1931,16 +2024,14 @@ class ImgList(BaseImgList):
             new mode
             
         """
-        if val is self.tau_mode: #do nothing
+        if value is self.tau_mode: #do nothing
             return
-        if val:
+        if value:
             if self.this.edit_log["is_tau"]:
                 warn("Cannot activate tau mode in image list %s: "
                      "current image is already a tau image"
                      %self.list_id)
                 return
-            vc = self.vigncorr_mode
-            self.vigncorr_mode = False
             cim = Img(self.files[self.cfn],
                       import_method=self.camera.image_import_method)
             try:
@@ -1968,13 +2059,12 @@ class ImgList(BaseImgList):
                         "using method set_bg_img, or change current bg " 
                         "modelling mode to 0 using self.bg_model.mode=0)" 
                         %self.list_id)
-                bg_img = self.bg_img
+                bg_img = self._bg_imgs[0]
             self.bg_model.get_tau_image(cim, bg_img)
-            self.vigncorr_mode = vc
-        self._list_modes["tau"] = val
+        self._list_modes["tau"] = value
         self.load()
     
-    def activate_aa_mode(self, val=True):
+    def activate_aa_mode(self, value=True):
         """Activates AA mode (i.e. images are loaded as AA images)
         
         In order for this to work, the following prerequisites need to be
@@ -1994,12 +2084,12 @@ class ImgList(BaseImgList):
             Activate / deactivate AA mode
             
         """
-        if val is self.aa_mode:
+        if value is self.aa_mode:
             return
         if not self.list_type == "on":
             raise TypeError("AA mode could not be actu")
         aa_test = None
-        if val:
+        if value:
             if self.this.edit_log["is_aa"]:
                 warn("Cannot activate AA mode in image list %s: "
                      "current image is already AA image"
@@ -2023,23 +2113,22 @@ class ImgList(BaseImgList):
                         "mode = 0")
             #offlist.update_img_prep(**self.img_prep)
             #offlist.init_bg_model(mode = self.bg_model.mode)
-            self.tau_mode = 0
-            offlist.tau_mode = 0
-    
+            self._list_modes["tau"] = False
+            offlist._list_modes["tau"] = False
             aa_test = self._aa_test_img(offlist)
-        self._list_modes["aa"] = val
+        self._list_modes["aa"] = value
         
         self.load()
 
         return aa_test
     
-    def activate_calib_mode(self, value=1):
+    def activate_calib_mode(self, value=True):
         """Activate calibration mode"""
         if value == self._list_modes["gascalib"]:
             return
         if value:    
             if not self.aa_mode:
-                self.aa_mode = True
+                self._list_modes["aa"] = True
                 warn("List is not in AA mode")
                 
             if not self.sensitivity_corr_mode:
@@ -2050,22 +2139,39 @@ class ImgList(BaseImgList):
         self._list_modes["gascalib"] = value
         self.load()
     
-    def activate_dilcorr_mode(self, value=1):
-        """Activate dilution correction mode"""
-        if value == self._list_modes["gascalib"]:
+    def activate_dilcorr_mode(self, value=True):
+        """Activate dilution correction mode
+        
+        Please see :func:`correct_dilution` for details.
+        
+        Parameters
+        ----------
+        value : bool
+            New mode: True or False 
+        """
+        if value == self._list_modes["dilcorr"]:
             return
-        if value:  
-            ext_coeff = self.ext_coeff #raises AttributeError is not available
-                
-            if not self.sensitivity_corr_mode:
-                warn("AA sensitivity correction mode is deactivated. This "
-                    "may yield erroneous results at the image edges")
-            self.calib_data(self.current_img())
+        if value:
+            img = self._this_raw_fromfile()
+            _,_,mask = self.correct_dilution(img)
+            # now make sure that in case and off-band list is assigned, it can
+            # also be used to perform a dilution correction (i.e. bg_model 
+            # ready)
+            try:
+                off_list = self.get_off_list()
+                off_img = off_list._this_raw_fromfile().to_pyrlevel(off_list.pyrlevel)
+                mask = mask.to_pyrlevel(off_list.pyrlevel)
+                try:
+                    off_list.correct_dilution(off_img, plume_pix_mask=mask)
+                except:
+                    off_list.bg_model.update(**self.bg_model.settings_dict())
+            except AttributeError as e:
+                print repr(e)
             
         self._list_modes["dilcorr"] = value
         self.load()
         
-    def activate_optflow_mode(self, val=True, draw=False):
+    def activate_optflow_mode(self, value=True, draw=False):
         """Activate / deactivate optical flow calculation on image load
         
         Parameters
@@ -2077,14 +2183,9 @@ class ImgList(BaseImgList):
             
 
         """
-        if val is self.optflow_mode:
+        if value is self.optflow_mode:
             return 
-#==============================================================================
-#         if self.crop:
-#             raise ValueError("Optical flow analysis can only be applied to "
-#                 "uncropped images, please deactivate crop mode")
-#==============================================================================
-        if val:
+        if value:
             try:
                 self.set_flow_images()
             except IndexError:
@@ -2092,33 +2193,9 @@ class ImgList(BaseImgList):
                     "image list %s: list is at last index, please change list "
                     "index and retry")
             self.optflow.calc_flow()
-#==============================================================================
-#             len_im = self.optflow.get_flow_vector_length_img() #is at pyrlevel
-#             img = self.current_img()
-#             if img.edit_log["is_tau"]:
-# #==============================================================================
-# #                 cond = logical_and(img.img > -0.03, img.img < 0.03) #tau values around 0
-# #                 if cond.sum() == 0:
-# #                     raise Exception("Fatal: could not activate optical flow: "
-# #                         "retrieval of noise ref area failed, since current "
-# #                         "list image is flagged as tau image but does not "
-# #                         "contain pixels showing values around zero using cond: "
-# #                         "(-0.03 < value < 0.03)")
-# #                         
-# #                 sub = len_im[cond]
-# #==============================================================================
-#                 min_len = 1.0
-#             else:
-#                 if self.bg_model.scale_rect is None:
-#                     self.bg_model.guess_missing_settings(img)
-#                 roi = map_roi(self.bg_model.scale_rect, self.pyrlevel)
-#                 sub = len_im[roi[1]:roi[3], roi[0]:roi[2]]
-#                 min_len = ceil(sub.mean() + 3 * sub.std()) + 0.5
-#             self.optflow.settings.min_length = min_len
-#==============================================================================
             if draw:
                 self.optflow.draw_flow()
-        self._list_modes["optflow"] = val
+        self._list_modes["optflow"] = value
     
     """GETTERS"""
     def get_dark_image(self, key="this"):
@@ -2196,12 +2273,23 @@ class ImgList(BaseImgList):
     def get_off_list(self, list_id=None):
         """Search off band list in linked lists
         
-        :param str list_id: specify the ID of the list. If unspecified (None), 
-            the default off band filter key is attempted to be accessed
+        Parameters
+        ----------
+        list_id : :obj:`str`, optional
+            ID of the list. If unspecified (None), the default off band filter 
+            key is attempted to be accessed 
             (``self.camera.filter_setup.default_key_off``) and if this fails,
             the first off band list found is returned.
-            
-            
+          
+        Raises
+        ------
+        AttributeError
+            if not offband list can be assigned
+        
+        Returns
+        -------
+        ImgList 
+            the corresponding off-band list
         """
         if list_id is None:
             try:
@@ -2238,21 +2326,13 @@ class ImgList(BaseImgList):
             print ("Could not set background image in ImgList %s: "
                 ": wrong input type, need Img object" %self.list_id)
             return False
-        vign_mask = self.vign_mask
-#==============================================================================
-#         bl = bg_img.edit_log["blurring"]
-#         if bl == 0 or bl < self.gaussian_blurring:
-#             blur = self.gaussian_blurring - bl
-#             if blur == 0:
-#                 blur += 1
-#             bg_img.add_gaussian_blurring(blur)
-#==============================================================================
-        if vign_mask is None:
+        try:
+            vign_mask = self.vign_mask
+        except:
             if bg_img.edit_log["vigncorr"]:
                 raise AttributeError("Input background image is vignetting "
                     "corrected and cannot be used to calculate vignetting corr"
                     "mask.")
-        
             self._bg_imgs[0] = bg_img
             vign_mask = self.det_vign_mask_from_bg_img()
             self._bg_imgs[1] = bg_img.duplicate().correct_vignetting(vign_mask)
@@ -2573,14 +2653,6 @@ class ImgList(BaseImgList):
             print ("Image load aborted...")
             return False
         if self.nof > 1:
-#==============================================================================
-#             prev_file = self.files[self.prev_index]
-#             self.loaded_images["prev"] = Img(prev_file,
-#                             import_method=self.camera.image_import_method,
-#                             **self.get_img_meta_from_filename(prev_file))
-#             self._apply_edit("prev")
-#==============================================================================
-            
             next_file = self.files[self.next_index]
             self.loaded_images["next"] = Img(next_file,
                             import_method=self.camera.image_import_method,                            
@@ -2657,7 +2729,7 @@ class ImgList(BaseImgList):
         if not -1 < idx < self.nof or idx == self.index:
             return
         elif idx == self.next_index:
-            self.next_img()
+            self.goto_next()
             return
         elif idx == self.prev_index:
             self.prev_img()
@@ -2695,7 +2767,7 @@ class ImgList(BaseImgList):
                                                       line=lines[i],
                                                       pix_mask=plume_mask)
 
-            self.next_img()
+            self.goto_next()
         self.goto_img(cfn_tmp)
         self.optflow_mode = flm
         return props
@@ -2740,8 +2812,8 @@ class ImgList(BaseImgList):
         if mask.edit_log["blurring"] < 3:
             mask.add_gaussian_blurring(3)
         mask.img = mask.img / mask.img.max()
-        self.vign_mask = mask
-        return mask
+        self.vign_mask = Img(mask)
+        return self.vign_mask
     
     def calc_sky_background_mask(self, lower_thresh=None,
                                 apply_movement_search=True,
@@ -2794,14 +2866,8 @@ class ImgList(BaseImgList):
         warn("Old name (wrapper) for method calc_sky_background_mask")
         
         return self.calc_sky_background_mask(**kwargs)
-        
-    def prep_data_dilcorr_new_dev(self, tau_thresh, plume_pix_mask=None, 
-                                  plume_dists=None, ext_coeff=None):
-        """Retrieve relevant data to perform dilution correction"""
-        vign_mask = self.vign_mask #raises 
-        raise NotImplementedError
-        
-    def prep_data_dilutioncorr(self, tau_thresh=0.05, plume_pix_mask=None, 
+    
+    def prep_data_dilutioncorr_old(self, tau_thresh=0.05, plume_pix_mask=None, 
                                    plume_dists=None, ext_coeff=None):
         """Get parameters relevant for dilution correction
         
@@ -2889,13 +2955,405 @@ class ImgList(BaseImgList):
         #bg = self.bg_model.current_plume_background
         #bg.edit_log["vigncorr"] = True
         if not mask_ok:
-            print "Retrieving plume pixel mask in list %s" %self.list_id
+            #print "Retrieving plume pixel mask in list %s" %self.list_id
             plume_pix_mask = self.get_thresh_mask(tau_thresh)    
         self.tau_mode = False
         bg = self.current_img() * exp(tau0.img)
         return (self.current_img(), ext_coeff, bg, dists, plume_pix_mask)
     
-    def correct_dilution(self, tau_thresh=0.05, plume_pix_mask=None,
+    def correct_dilution(self, img, tau_thresh=0.10, ext_coeff=None,  
+                         plume_pix_mask=None, plume_dists=None, 
+                         vigncorr_mask=None, erode_mask_size=0, 
+                         dilate_mask_size=0):
+        """Correct a plume image for the signal dilution effect
+        
+        The provided plume image needs to be in intensity space, meaning the
+        pixel values need to be intensities and not optical densities or 
+        calibrated gas-CDs. The correction is based on Campion et al., 2015 
+        and requires knowledge of the atmospheric scattering extinction 
+        coefficients (``ext_coeff``) in the viewing direction of the camera.
+        These can be provided using the corresponding input parameter 
+        ``ext_coeff`` or can be assigned to the list beforehand (up to you). 
+        See example script no. 11 to check out how you can retrieve the
+        extinction coefficients using dark terrain features in the plume image.
+        The correction furthermore requires knowledge of the plume distance
+        (in the best case on the pixel-level) and it must be possible to 
+        compute optical density images, hence the :attr:`bg_model`
+        (instance of :class:`PlumeBackgroundModel`) needs to be ready for 
+        tau image computation. In addition, a vignetting correction mask must
+        be available.
+        
+        Parameters
+        ----------
+        img : Img
+            the plume image object
+        tau_thresh : float
+            OD (tau) threshold to compute plume pixel mask (irrelevant if
+            next :param:`plume_pix_mask` is provided)
+        ext_coeff : :obj:`float`, optional
+            atmospheric extinction coefficient. If unspecified, try access 
+            via :attr:`ext_coeff` which returns the current extinction 
+            coefficient and raises :obj:`AttributeError` in case, no coeffs are
+            assigned to this list
+        vigncorr_mask : :obj:`ndarray` or :obj:`Img`, optional
+            mask used for vignetting correction
+        plume_pix_mask : :obj:`Img`, optional
+            binary mask specifying plume pixels in the image, is retrieved
+            automatically if input is None
+        erode_mask_size : int
+            if not zero, the morphological operation erosion is applied 
+            to the plume pixel mask (e.g. to remove noise outliers) using
+            an appropriate quadratic kernel corresponding to the input size
+        dilate_mask_size : int
+            if not zero, the morphological operation dilation is applied 
+            to the plume pixel mask (e.g. to slightly extend the borders of 
+            the detected plume) using an appropriate quadratic kernel 
+            corresponding to the input size
+ 
+        Returns
+        -------
+        tuple
+            3-element tuple containing
+            
+            - :obj:`Img`, dilution corrected image (vignetting corrected)
+            - :obj:`Img`, corresponding vignetting corrected plume background
+            - :obj:`array`, mask specifying plume pixels
+        """
+        if img.is_tau or img.is_aa or img.is_calibrated:
+            raise ValueError("Img must not be an OD, AA or calibrated CD img")
+        try:
+            self.vign_mask = vigncorr_mask
+        except:
+            pass
+        vign_mask = self.vign_mask #raises Exception if not available
+        try:
+            try:
+                plume_pix_mask = plume_pix_mask.img
+            except:
+                pass
+            if plume_pix_mask.shape == self.this.shape:
+                mask_ok = True
+            else:
+                mask_ok = False
+        except:
+            mask_ok = False
+        if plume_dists is None:
+            plume_dists = self.plume_dists
+        # get current extinction coefficient, raises AttributeError if not 
+        # available
+        try:
+            ext_coeff = float(ext_coeff)
+        except:
+            ext_coeff = self.ext_coeff 
+        if img.is_vignetting_corrected:
+            idx=1
+        else:
+            idx=0
+        tau0 = self.bg_model.get_tau_image(img, self._bg_imgs[idx])
+        if not idx:
+            img.correct_vignetting(vign_mask, new_state=True)
+        #bg = self.bg_model.current_plume_background
+        #bg.edit_log["vigncorr"] = True
+        if not mask_ok:
+            #print "Retrieving plume pixel mask in list %s" %self.list_id
+            plume_pix_mask = tau0.to_binary(threshold=tau_thresh,
+                                            new_img=True)
+            if erode_mask_size > 0:
+                plume_pix_mask.erode(ones((erode_mask_size,
+                                           erode_mask_size),dtype=uint8))
+            if dilate_mask_size > 0:
+                plume_pix_mask.dilate(ones((dilate_mask_size,
+                                            dilate_mask_size),dtype=uint8))
+        bg = img * exp(tau0.img)
+        from .dilutioncorr import correct_img
+        corr = correct_img(img, ext_coeff, bg, plume_dists, plume_pix_mask)
+                                  
+        bad_pix = corr.img <= 0
+        corr.img[bad_pix] = img.img[bad_pix]
+            
+        return (corr, bg, plume_pix_mask)
+   
+    def correct_dilution_all(self, tau_thresh=0.05, ext_on=None, ext_off=None,
+                             add_off_list=True, save_dir=None, 
+                             save_masks=False, save_bg_imgs=False, 
+                             save_tau_prev=False, vmin_tau_prev=None, 
+                             vmax_tau_prev=None, **kwargs):
+        """Correct all images for signal dilution
+        
+        Correct and save all images in this list for the signal dilution 
+        effect. See :func:`correct_dilution` and :func:`prep_data_dilutioncorr` 
+        for details about requirements and additional input options.
+        
+        Note
+        ----
+        The vignetting and dilution corrected images are stored with all 
+        additional image preparation settings applied (e.g. dark correction, 
+        blurring)
+        
+        Parameters        
+        ----------
+        tau_thresh : :obj:`float`, optional
+            tau threshold applied to determine plume pixel mask (retrieved 
+            using :attr:`tau_mode`, not :attr:`aa_mode`)
+        ext_on : :obj:`float`, optional
+            atmospheric extinction coefficient at on-band wavelength, if None
+            (default), try access via :attr:`ext_coeff`
+        ext_off : :obj:`float`, optional
+            atmospheric extinction coefficient at off-band wavelength. Only 
+            relevant if input param ``add_off_list`` is True. If None (default)
+            and ``add_off_list=True`` try access via :attr:`ext_coeff` in off
+            band list.
+        add_off_list : bool
+            if True, also the images in a linked off-band image list 
+            (using :func:`get_off_list`) are corrected as well. For the 
+            correction of the off-band images, the current plume pixel mask 
+            of this list is used.
+        save_dir : :obj:`str`, optional
+            base directory for saving the corrected images. If None (default),
+            then a new directory ``dilcorr`` is created at the storage location 
+            of the first image in this list
+        save_masks : bool
+            if True,  a folder *plume_pix_masks* is created within 
+            :param:`save_dir` in which all plume pixel masks are stored as
+            FITS
+        save_bg_imgs : bool 
+            if True, a folder *bg_imgs* is created which is used to store 
+            modelled plume background images for each image in this list. This 
+            folder can be used on re-import of the data in order to save 
+            background modelling time using background modelling mode 99.
+        save_tau_prev : bool
+            if True, png previews of dilution corrected tau images are saved
+        vmin_tau_prev : :obj:`float`, optional
+            lower tau value for tau image preview plots
+        vmax_tau_prev : :obj:`float`, optional
+            upper tau value for tau image preview plots
+        **kwargs 
+            additional keyword args for dilution correction functions
+            :func:`correct_dilution` and :func:`prep_data_dilutioncorr`
+        """
+        ioff()
+        if self.calib_mode or self.aa_mode or self.tau_mode:
+            raise AttributeError("List must not be in tau, AA or calib mode")
+        self.darkcorr_mode=True
+        if save_dir is None or not exists(save_dir):
+            save_dir = abspath(join(dirname(self.files[0]), ".."))
+        save_dir = join(save_dir, "dilutioncorr")
+        if not exists(save_dir):
+            mkdir(save_dir)
+        if save_masks:
+            mask_dir = join(save_dir, "plume_pix_masks")
+            if not exists(mask_dir):
+                mkdir(mask_dir)
+        if save_bg_imgs:
+            bg_dir = join(save_dir, "bg_imgs")
+            if not exists(bg_dir):
+                mkdir(bg_dir)
+        if save_tau_prev:
+            tau_dir = join(save_dir, "tau_prev")
+            if not exists(tau_dir):
+                mkdir(tau_dir)
+    
+        self.goto_img(0)
+        saved_off = []
+        num = self.nof
+        if add_off_list:
+            off = self.get_off_list()
+            off.bg_model.update(**self.bg_model.settings_dict())
+        for k in range(num):
+            (corr, 
+             bg, 
+             plume_pix_mask) = self.correct_dilution(self.this,
+                                                     tau_thresh=tau_thresh,
+                                                     ext_coeff=ext_on,   
+                                                     **kwargs)
+            corr.save_as_fits(save_dir)
+            fname = corr.meta["file_name"]
+            if save_masks:
+                Img(plume_pix_mask.img, dtype=uint8, 
+                    file_name=fname).save_as_fits(mask_dir)
+            if save_bg_imgs:
+                bg.save_as_fits(bg_dir, fname)
+            if save_tau_prev:
+                tau = corr.to_tau(bg)
+                fig = self.bg_model.plot_tau_result(tau, 
+                                                    tau_min=vmin_tau_prev,
+                                                    tau_max=vmax_tau_prev)
+                name = fname.split(".")[0] + ".png"
+                fig.savefig(join(tau_dir, name))
+                close("all")
+                del fig
+            if add_off_list:
+                if not off.current_img().meta["file_name"] in saved_off:
+                    # use on band plume pixel mask
+                    (corr_off, 
+                     bg_off, 
+                     _) = off.correct_dilution(off.this, ext_coeff=ext_off,
+                                               plume_pix_mask=plume_pix_mask,
+                                               **kwargs)
+                    saved_off.append(corr_off.save_as_fits(save_dir))
+                    if save_bg_imgs:
+                        bg_off.save_as_fits(bg_dir, corr_off.meta["file_name"])    
+            self.goto_next()
+        ion()
+            
+    """I/O"""
+    def import_ext_coeffs_csv(self, file_path, header_id=None, **kwargs):
+        """Import extinction coefficients from csv 
+        
+        The text file requires datetime information in the first column and
+        a header which can be used to identify the column. The import is 
+        performed using :func:`pandas.DataFrame.from_csv` 
+        
+        Parameters
+        ----------
+        file_path : str
+            the csv data file
+        header_id : str
+            header string for column containing ext. coeffs
+        **kwargs :
+            additionald keyword args passed to :func:`pandas.DataFrame.from_csv`
+            
+        Returns
+        -------
+        Series
+            pandas Series containing extinction coeffs
+            
+        Todo
+        ----
+        
+        This is a Beta version, insert try / except block after testing
+        
+        """
+        try:
+            df = DataFrame.from_csv(file_path, **kwargs)
+            s=df[header_id]
+        except:
+            s = Series.from_csv(file_path, **kwargs)
+        self.ext_coeffs = s#
+        return self.ext_coeffs
+    
+    """HELPERS"""
+    def has_bg_img(self):
+        """Returns boolean whether or not background image is available"""
+        if not isinstance(self.bg_img, Img):
+            return False
+        return True
+        
+    def update_index_dark_offset_lists(self):
+        """Check and update current dark image (if possible / applicable)"""
+        if self.DARK_CORR_OPT == 0:
+            return
+        t_last = self.time_last_dark_check
+
+        ctime = self.current_time()
+
+        if not (t_last - timedelta(minutes = self.update_dark_ival)) < ctime <\
+                        (t_last + timedelta(minutes = self.update_dark_ival)):
+            if self.set_closest_dark_offset():
+                print ("Updated dark / offset in img_list %s at %s"
+                        %(self.list_id, ctime))
+                self.time_last_dark_check = ctime
+                
+        
+    """Private methods"""
+    def _apply_edit(self, key):
+        """Applies the current image edit settings to image
+        
+        :param str key: image id (e.g. this)
+        """
+        if not self.edit_active:
+            warn("Edit not active in img_list %s: no image preparation will "
+                "be performed" %self.list_id)
+            return
+        if key == "this":
+            upd_bgmodel = True
+        else:
+            upd_bgmodel = False
+        img = self.loaded_images[key]
+        bg = None
+        if self.darkcorr_mode:
+            dark = self.get_dark_image(key)
+            img.subtract_dark_image(dark)
+        bg_model = self.bg_model
+        if self.dilcorr_mode:
+            s = self.dilcorr_settings
+            # update bg_model in case dilution correction is active, the model
+            # stored in the settings class is set at mode 99, i.e. no modelling
+            # is performed
+            bg_model = s.bg_model
+            (img, bg, mask)=self.correct_dilution(img,
+                                               s.tau_thresh,
+                                               erode_mask_size=s.erode_mask_size, 
+                                               dilate_mask_size=s.dilate_mask_size)
+        elif self.vigncorr_mode: #elif because if dilcorr is active the image is already vign corrected
+            img.correct_vignetting(self.vign_mask, new_state=True)
+        if self.tau_mode:
+            if bg is None: #dilution_corr is not active
+                bg = self.bg_img.to_pyrlevel(img.pyrlevel)
+            img = bg_model.get_tau_image(plume_img=img, 
+                                         bg_img=bg,
+                                         update_imgs=upd_bgmodel)
+        elif self.aa_mode:
+            off_list = self.get_off_list()
+            if off_list.dilcorr_mode:
+                raise AttributeError("Linked off-band list has dilution "
+                                     "correction mode activated. Please "
+                                     "deactivate.")
+            #off_list.dilcorr_mode = self.dilcorr_mode
+            if bg is None:
+                bg = self.bg_img.to_pyrlevel(img.pyrlevel)
+            img_off = off_list.this
+            # make sure, the dilution correction mode is activated in the off
+            # list if it is activated here
+            if self.dilcorr_mode:
+                mask = mask.to_pyrlevel(off_list.pyrlevel)
+                (img_off, 
+                 bg_off, 
+                 _)=off_list.correct_dilution(img_off,
+                                              plume_pix_mask=mask)
+            else:
+                bg_off = off_list.bg_img
+            img_off.to_pyrlevel(img.pyrlevel)
+            bg_off.to_pyrlevel(img.pyrlevel)
+            
+            img = bg_model.get_aa_image(plume_on=img, 
+                                        plume_off=img_off,
+                                        bg_on=bg,
+                                        bg_off=bg_off,
+                                        update_imgs=upd_bgmodel)
+            if self.sensitivity_corr_mode:
+                img = img / self.aa_corr_mask
+                img.edit_log["senscorr"] = 1
+        
+        if self.calib_mode:
+            img.img = self.calib_data(img.img)
+            img.edit_log["gascalib"] = True
+
+        img.to_pyrlevel(self.img_prep["pyrlevel"])
+        if self.img_prep["crop"]:
+            img.crop(self.roi_abs)
+        if self.img_prep["8bit"]:
+            img._to_8bit_int(new_im=False)
+        # do this at last, since it can be time consuming and is therefore much
+        # faster in case pyrlevel > 0 or crop applied
+        img.add_gaussian_blurring(self.img_prep["blurring"])
+        img.apply_median_filter(self.img_prep["median"])
+        self.loaded_images[key] = img
+        
+    def _aa_test_img(self, off_list):
+        """Try to compute an AA test-image"""
+        on = Img(self.files[self.cfn],
+                 import_method=self.camera.image_import_method)
+        off = Img(off_list.files[off_list.cfn],
+                  import_method=self.camera.image_import_method)
+        bg_on = self._bg_imgs[0].to_pyrlevel(on.pyrlevel)
+        bg_off = off_list._bg_imgs[0].to_pyrlevel(off.pyrlevel)
+        return self.bg_model.get_aa_image(on, off, bg_on, bg_off)
+    
+    """
+    SORTED OUT METHODS
+    """
+    def correct_dilution_old(self, img, tau_thresh=0.05, plume_pix_mask=None,
                          plume_dists=None, ext_coeff=None):
         """Correct current image for signal dilution
         
@@ -2921,7 +3379,7 @@ class ImgList(BaseImgList):
         ext_coeff : :obj:`float`, optional
             atmospheric extinction coefficient. If unspecified, try access 
             via :attr:`ext_coeff` which returns the current extinction 
-            coefficient and raise :obj:`AttributeError` in case, no coeffs are
+            coefficient and raises :obj:`AttributeError` in case, no coeffs are
             assigned to this list
             
         Returns
@@ -2951,9 +3409,10 @@ class ImgList(BaseImgList):
         corr.img[bad_pix] = self.current_img().img[bad_pix]
             
         return (corr, bg, plume_pix_mask)
-   
-    def correct_dilution_all(self, tau_thresh=0.05, ext_on=None, ext_off=None,
-                             add_off_list=True, save_dir=None, 
+    
+    def correct_dilution_all_old(self, tau_thresh=0.05, ext_on=None, 
+                                 ext_off=None,
+                                 add_off_list=True, save_dir=None, 
                              save_masks=False, save_bg_imgs=False, 
                              save_tau_prev=False, vmin_tau_prev=None, 
                              vmax_tau_prev=None, **kwargs):
@@ -3087,129 +3546,8 @@ class ImgList(BaseImgList):
                     if save_bg_imgs:
                         bg_off.save_as_fits(bg_dir, corr_off.meta["file_name"])    
             
-            self.next_img()
+            self.goto_next()
         ion()
-                
-    """I/O"""
-    def import_ext_coeffs_csv(self, file_path, header_id, **kwargs):
-        """Import extinction coefficients from csv 
-        
-        The text file requires datetime information in the first column and
-        a header which can be used to identify the column. The import is 
-        performed using :func:`pandas.DataFrame.from_csv` 
-        
-        Parameters
-        ----------
-        file_path : str
-            the csv data file
-        header_id : str
-            header string for column containing ext. coeffs
-        **kwargs :
-            additionald keyword args passed to :func:`pandas.DataFrame.from_csv`
-            
-        Returns
-        -------
-        Series
-            pandas Series containing extinction coeffs
-            
-        Todo
-        ----
-        
-        This is a Beta version, insert try / except block after testing
-        
-        """
-        df = DataFrame.from_csv(file_path, **kwargs)
-        self.ext_coeffs = df[header_id]
-        return self.ext_coeffs
-    
-    """HELPERS"""
-    def has_bg_img(self):
-        """Returns boolean whether or not background image is available"""
-        if not isinstance(self.bg_img, Img):
-            return False
-        return True
-        
-    def update_index_dark_offset_lists(self):
-        """Check and update current dark image (if possible / applicable)"""
-        if self.DARK_CORR_OPT == 0:
-            return
-        t_last = self.time_last_dark_check
-
-        ctime = self.current_time()
-
-        if not (t_last - timedelta(minutes = self.update_dark_ival)) < ctime <\
-                        (t_last + timedelta(minutes = self.update_dark_ival)):
-            if self.set_closest_dark_offset():
-                print ("Updated dark / offset in img_list %s at %s"
-                        %(self.list_id, ctime))
-                self.time_last_dark_check = ctime
-                
-        
-    """Private methods"""
-    def _apply_edit(self, key):
-        """Applies the current image edit settings to image
-        
-        :param str key: image id (e.g. this)
-        """
-        if not self.edit_active:
-            warn("Edit not active in img_list %s: no image preparation will "
-                "be performed" %self.list_id)
-            return
-        if key == "this":
-            upd_bgmodel = True
-        else:
-            upd_bgmodel = False
-        img = self.loaded_images[key]
-        if self.darkcorr_mode:
-            dark = self.get_dark_image(key)
-            img.subtract_dark_image(dark)
-        if self.vigncorr_mode:
-            img.correct_vignetting(self.vign_mask, new_state=True)
-        if self.tau_mode:
-            bg = self.bg_img.to_pyrlevel(img.pyrlevel)
-            img = self.bg_model.get_tau_image(plume_img=img, 
-                                              bg_img=bg,
-                                              update_imgs=upd_bgmodel)
-        elif self.aa_mode:
-            bg_on = self.bg_img.to_pyrlevel(img.pyrlevel)
-            off_list = self.get_off_list()
-            off_img = off_list.current_img().to_pyrlevel(img.pyrlevel)
-            bg_off = off_list.bg_img.to_pyrlevel(img.pyrlevel)
-            
-            img = self.bg_model.get_aa_image(plume_on=img, 
-                                             plume_off=off_img,
-                                             bg_on=bg_on,
-                                             bg_off=bg_off,
-                                             update_imgs=upd_bgmodel)
-            if self.sensitivity_corr_mode:
-                
-                img = img / self.aa_corr_mask
-                img.edit_log["senscorr"] = 1
-        
-        if self.calib_mode:
-            img.img = self.calib_data(img.img)
-            img.edit_log["gascalib"] = True
-
-        img.to_pyrlevel(self.img_prep["pyrlevel"])
-        if self.img_prep["crop"]:
-            img.crop(self.roi_abs)
-        if self.img_prep["8bit"]:
-            img._to_8bit_int(new_im = False)
-        # do this at last, since it can be time consuming and is therfore much
-        # faster in case pyrlevel > 0 or crop applied
-        img.add_gaussian_blurring(self.img_prep["blurring"])
-        img.apply_median_filter(self.img_prep["median"])
-        self.loaded_images[key] = img
-        
-    def _aa_test_img(self, off_list):
-        """Try to determine an AA image"""
-        on = Img(self.files[self.cfn],
-                 import_method=self.camera.image_import_method)
-        off = Img(off_list.files[off_list.cfn],
-                  import_method=self.camera.image_import_method)
-        bg_on = self.bg_img.to_pyrlevel(on.pyrlevel)
-        bg_off = off_list.bg_img.to_pyrlevel(off.pyrlevel)
-        return self.bg_model.get_aa_image(on, off, bg_on, bg_off)
         
 class CellImgList(ImgList):
     """Image list object for cell images

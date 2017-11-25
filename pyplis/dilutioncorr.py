@@ -309,7 +309,7 @@ class DilutionCorr(object):
                 coeffs.append(nan)                            
                 i0s.append(nan)
                 ias.append(nan)
-            lst.next_img()
+            lst.goto_next()
         lst.goto_img(cfn)
         if apply_median > 0:
             coeffs = median_filter(coeffs, apply_median)

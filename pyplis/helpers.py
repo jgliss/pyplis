@@ -25,7 +25,8 @@ from datetime import datetime, time, date
 from warnings import warn
 from matplotlib.pyplot import draw
 from numpy import mod, linspace, hstack, vectorize, uint8, cast, asarray, log2,\
-    unravel_index, nanargmax, meshgrid, int, floor, log10, isnan, argmin, sum
+    unravel_index, nanargmax, meshgrid, int, floor, log10, isnan, argmin, sum,\
+    zeros, float32
 from scipy.ndimage.filters import gaussian_filter
 from cv2 import pyrUp
 
@@ -67,7 +68,10 @@ def get_pyr_factor_rel(img1, img2):
     h2, w2 = img2.shape
     if not h1/w1 == h2/w2:
         raise ValueError("Image size ratio mismatch...")
-    return int(log2(h1/h2))
+    val = log2(h1/h2)
+    if not val%1 == 0:
+        raise ValueError("No matching relative pyramid level could be found")
+    return int(val)
     
 def nth_moment(index, data, center=0.0, n=0):
     """Determine n-th moment of distribution
@@ -219,7 +223,6 @@ def sub_img_to_detector_coords(img_arr, shape_orig, pyrlevel,
         Regions outside the ROI are set to 0
         
     """
-    from numpy import zeros, float32
     new_arr = zeros(shape_orig).astype(float32)
     for k in range(pyrlevel):
         img_arr = pyrUp(img_arr)

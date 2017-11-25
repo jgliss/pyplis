@@ -624,7 +624,7 @@ class VeloCrossCorrEngine(object):
             profiles1[:,k] = pcs1.get_line_profile(img)
             profiles2[:,k] = pcs2.get_line_profile(img)
             times.append(lst.current_time())
-            lst.next_img()
+            lst.goto_next()
          
         #mutiply pix to pix dists to the AA profiles in the 2 images
         profiles1 = profiles1 * dists_pcs1.reshape((len(dists_pcs1), 1)) 

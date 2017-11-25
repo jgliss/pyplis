@@ -163,6 +163,7 @@ class PlumeBackgroundModel(object):
         return self._current_imgs[key]
         
     def check_settings(self):
+        """Check if any of the modelling settings is not specified"""
         for value in self.__dict__.values():
             if value is None:
                 return False
