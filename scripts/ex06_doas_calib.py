@@ -214,10 +214,6 @@ if __name__ == "__main__":
         calib_pears_fine = s_fine.calib_data
         calib_pears_fine.plot()
         calib_pears_fine.fov.plot()
-        
-        calib_pears_fine.fov.save_as_fits(save_dir=SAVE_DIR, 
-                                          save_name="DEV_out_doascalib_fov.fts")
-        
     try:
         remove(join(SAVE_DIR, "ex06_doascalib_aa.fts"))
     except:
