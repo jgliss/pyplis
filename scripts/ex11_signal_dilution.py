@@ -288,9 +288,9 @@ if __name__ == "__main__":
     
     # save the extinction coefficients into a txt file (re-used in example 
     # script 12). They are stored as pandas.Series object in the ImgList
-    
     onlist.ext_coeffs.to_csv(join(SAVE_DIR, "ex11_ext_scat_on.txt"))
     offlist.ext_coeffs.to_csv(join(SAVE_DIR, "ex11_ext_scat_off.txt"))
+    
     # now activate automatic dilution correction in both lists                                     
     #get dilution corrected on and off-band image
     onlist.dilcorr_mode =True
@@ -336,7 +336,7 @@ if __name__ == "__main__":
     # Calculate flux and uncertainty
     (phi_uncorr, 
      phi_uncorr_err) = pyplis.fluxcalc.det_emission_rate(cds=so2_cds_uncorr,
-                                                         velo=PLUME_VELO,
+                                                             velo=PLUME_VELO,
                                                          pix_dists=
                                                          pix_dists_line,
                                                          cds_err=
