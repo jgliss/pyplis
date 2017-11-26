@@ -1,9 +1,5 @@
 Data import - Specifying custom camera information
 ==================================================
-
-.. note::
-
-  In development, more information follows soon
   
 In order to use all features of pyplis, certain specifications related to camera and image acquisition need to be defined. Basic information about the camera (e.g. detector specifics) and the corresponding file convention (image type, which data can be extracted from file names) are specified within :class:`Camera` objects. This tutorial introduces the :class:`Camera` class and how to set up your custom camera type based on your data format, including definitions of your file naming convention.
 
@@ -21,12 +17,12 @@ Such a collection of :class:`Filter` and :class:`DarkOffsetInfo` objects is then
 
 These information is used to separate the individual image types when creating a :class:`Dataset` object. The latter searches all valid image files in a given folder ``IMG_DIR`` and creates :class:`ImgList` objects for each :class:`Filter` and :class:`DarkImgList` objects for each :class:`DarkOffsetInfo` object defined in the :class:`Camera`. Each of these lists is then filled with the file paths of the corresponding image type located in ``IMG_DIR``. The :class:`Camera` object furthermore includes relevant specs of the camera (e.g. pixel geometry, lens).
 
-The following list provides an overview of relevant parameters for filename access information using examplary filenames of the ECII camera type as well as the HD-Custom camera type.
+The following list provides an overview of relevant parameters for filename access information using examplary filenames of the ECII camera type.
 
 .. _tut_ecIIcam:
 
-Example 1: The ECII camera standard
------------------------------------
+The ECII camera standard
+------------------------
 
 In the following, an exemplary :class:`Camera` class is specified based on the ECII-camera standard and file naming convention (cf. :ref:`ex02`).
 
@@ -132,7 +128,7 @@ Similar to the filter setup (which specifies access to the actual images to be a
 
 .. note::
 
-  You might have recognised, that in the last 3 :class:`DarkOffsetInfo``  objects, the meas_type_acro was not specified. This is because it is actually irrelevant for the ECII camera which does not include a sub string specifying different measurement modi like, for instance, the HD-Custom camera (i.e. K, M, D, cf :ref:`tut_hdcam`).
+  You might have recognised, that in the last 3 :class:`DarkOffsetInfo``  objects, the meas_type_acro was not specified. This is because it is actually irrelevant for the ECII camera which does not include a sub string specifying different measurement modi like, for instance, the HD-Custom camera (i.e. K, M, D).
 
 Now that all different image types are specified, the camera needs to know where to find the actual information in the file names (after splitting using ``delim``). 
 The position of the strings specified in the attribute ``acronym`` (see definitions of the ``Filter`` and ``DarkOffsetInfo`` objects above) can be set using::
@@ -203,11 +199,3 @@ After saving the camera as new default, you can load it using::
   print cam
   
 Done!
-
-
-Example 2: The HD-Custom camera standard
-----------------------------------------
-
-.. note::
-
-  Information follows soon ...

@@ -1,6 +1,15 @@
 Pyplis is a Python toolbox for the analysis of UV SO2 camera data. The software includes a comprehensive collection of algorithms for the analysis of such data.
 
-Contact: Jonas Gliss (jonasgliss@gmail.com) 
+Contact: Jonas Gliss (jonasgliss@gmail.com)
+
+Pyplis paper
+============
+
+A paper discussing the main features of *Pyplis* and implementation details is in the process of being published in the special issue on `Volcanic plumes <http://www.mdpi.com/journal/geosciences/special_issues/volcanic_processes>`__ of the Journal *Geosciences* (MDPI). Click `here, to download a citable preprint of the paper <https://www.preprints.org/manuscript/201710.0085/v1>`__.
+
+Citation
+--------
+If you find *Pyplis* useful for your data analysis, we would highly appreciate if you acknowledge our work by `citing the paper <https://www.preprints.org/manuscript/201710.0085/v1>`__.
 
 Note
 ====
