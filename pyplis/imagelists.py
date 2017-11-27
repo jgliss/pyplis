@@ -1616,13 +1616,12 @@ class ImgList(BaseImgList):
         if self.data_available and init:
             self.load()
     
-    @property
-    def next(self):
-        """Next image"""
-        print ("Returning next image in list. Note: no reload performed, call "
-               "method goto_next to change the list index and load next and "
-               "second next image")
-        return self.loaded_images["next"]
+# =============================================================================
+#     @property
+#     def next(self):
+#         """Next image"""
+#         return self.loaded_images["next"]
+# =============================================================================
         
     
     @property
@@ -2790,7 +2789,7 @@ class ImgList(BaseImgList):
         mask = self.this.duplicate().to_binary(thresh).img
         if this_and_next and not self.cfn == self.nof - 1:
             mask = logical_or(mask, 
-                              self.next.duplicate().to_binary(thresh).img)
+                              self.loaded_images["next"].duplicate().to_binary(thresh).img)
         return mask
 
     def det_vign_mask_from_bg_img(self):
@@ -2845,7 +2844,7 @@ class ImgList(BaseImgList):
         """
         mask = self.bg_model.\
             calc_sky_background_mask(self.this, 
-                                     self.next,
+                                     self.loaded_images["next"],
                                      lower_thresh,
                                      apply_movement_search,
                                      **settings_movement_search)
@@ -3339,15 +3338,25 @@ class ImgList(BaseImgList):
         img.add_gaussian_blurring(self.img_prep["blurring"])
         img.apply_median_filter(self.img_prep["median"])
         self.loaded_images[key] = img
-        
+    
     def _aa_test_img(self, off_list):
         """Try to compute an AA test-image"""
         on = Img(self.files[self.cfn],
                  import_method=self.camera.image_import_method)
         off = Img(off_list.files[off_list.cfn],
                   import_method=self.camera.image_import_method)
-        bg_on = self._bg_imgs[0].to_pyrlevel(on.pyrlevel)
-        bg_off = off_list._bg_imgs[0].to_pyrlevel(off.pyrlevel)
+        if self.which_bg == "img":
+            # the stored images may be vignetting corrected, then also a
+            # vignetting corrected BG image is required. The attribute
+            # _bg_imgs is a list that contains two images: one that is not 
+            # corrected for vignetting (index 0), and one that is corrected
+            # for vignetting (index 1). Thus, the right bg image can simply
+            # be accessed passing the img state variable "is_vigncorr"
+            bg_on = self._bg_imgs[on.is_vigncorr].to_pyrlevel(on.pyrlevel)
+            bg_off = off_list._bg_imgs[off.is_vigncorr].to_pyrlevel(off.pyrlevel)
+        else:
+            bg_on = self.bg_list.this
+            bg_off = off_list.bg_list.this
         return self.bg_model.get_aa_image(on, off, bg_on, bg_off)
     
     """
