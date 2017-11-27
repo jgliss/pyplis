@@ -2869,7 +2869,6 @@ class OptflowFarneback(object):
         # Now try to apply multi gauss fit to histogram distribution
         sigma_tol = self.settings.hist_sigma_tol
         if dir_multi_gauss:
-            print "FITTING MULTI GAUSS"
             fit, ok = self.fit_orientation_histo(count, bins, noise_amp)
             res["fit_dir"] = fit
             if fit.has_results():
@@ -2897,7 +2896,6 @@ class OptflowFarneback(object):
                 warn("Aborting histogram analysis, Multi-Gauss fit failed")
                 return res
         else:
-            print "NO MULTI GAUSS FIT"
             dir_mu, dir_sigma = self.mu_sigma_from_moments(count, bins)
             dir_sigma *= sigma_tol
             add_gaussians = 0
@@ -2913,9 +2911,6 @@ class OptflowFarneback(object):
         res["_dir_sigma"] = dir_sigma
         res["_add_gauss_dir"] = add_gaussians
         
-        print("Predominant movement direction: %.1f +/- %.1f" %(dir_mu,
-                                                                dir_sigma))
-                                                            
         #limit range of reasonable orientation angles...
         dir_low = dir_mu - dir_sigma * sigma_tol
         dir_high = dir_mu + dir_sigma * sigma_tol
