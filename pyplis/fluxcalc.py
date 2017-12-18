@@ -1,9 +1,26 @@
 # -*- coding: utf-8 -*-
-"""Module containing high level functionality for emission rate analysis
+#
+# Pyplis is a Python library for the analysis of UV SO2 camera data
+# Copyright (C) 2017 Jonas Gliß (jonasgliss@gmail.com)
+#
+# This program is free software: you can redistribute it and/or
+# modify it under the terms of the GNU General Public License a
+# published by the Free Software Foundation, either version 3 of
+# the License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program. If not, see <http://www.gnu.org/licenses/>.
+"""
+Pyplis module containing methods and classes for emission-rate retrievals
 """
 from warnings import warn
 from numpy import dot, sqrt, mean, nan, isnan, asarray, nanmean, nanmax,\
-    nanmin, sum, arctan2, rad2deg, logical_and, ones, arange
+    nanmin, sum, arctan2, rad2deg, logical_and, ones, arange, nanstd
 from matplotlib.dates import DateFormatter
 from collections import OrderedDict as od
 from matplotlib.pyplot import subplots, rcParams, Rectangle
@@ -96,7 +113,10 @@ class EmissionRateSettings(object):
         self.ref_check_lower_lim = ref_check_lower_lim
         self.ref_check_upper_lim = ref_check_upper_lim
         
+        self.velo_dir_multigauss = True
         self.senscorr = True #apply AA sensitivity correction
+        self.dilcorr = False
+        self.live_calib = False
         self.min_cd = -1e30 #minimum required column density for retrieval [cm-2]
         self.mmol = MOL_MASS_SO2
         
@@ -299,6 +319,7 @@ class EmissionRateSettings(object):
         s+= "\nGlobal velocity: v = (%2f +/- %.2f) m/s" %(self.velo_glob,
                                                         self.velo_glob_err)
         s+= "\nAA sensitivity corr: %s\n" %self.senscorr
+        s+= "Dilution correction: %s\n" %self.dilcorr
         s+= "Minimum considered CD: %s cm-2\n" %self.min_cd
         s+= "Molar mass: %s g/mol\n" %self.mmol
         return s
@@ -407,24 +428,40 @@ class EmissionRates(object):
             f = self.stop.strftime("%H%M")
         except:
             d, i, f = "", "", ""    
-        return "pyplis_EmissionRateResults_%s_%s_%s.txt" %(d, i, f)
+        return "pyplis_EmissionRates_%s_%s_%s.txt" %(d, i, f)
         
     def mean(self):
         """Mean of emission rate time series"""
         return self.phi.mean()
+    
+    def nanmean(self):
+        """Mean of emission rate time series excluding NaNs"""
+        return nanmean(self.phi)
         
     def std(self):
         """Mean of emission rate time series"""
         return self.phi.std()
     
+    def nanstd(self):
+        """Mean of emission rate time series excluding NaNs"""
+        return nanstd(self.phi)
+    
     def min(self):
         """Minimum value of emission rate time series"""
         return self.phi.min()
     
+    def nanmin(self):
+        """Minimum value of emission rate time series excluding NaNs"""
+        return nanmin(self.phi)
+    
     def max(self):
         """Maximum value of emission rate time series"""
         return self.phi.max()
-        
+    
+    def nanmax(self):
+        """Maximum value of emission rate time series excluding NaNs"""
+        return nanmax(self.phi)
+    
     def get_date_time_strings(self):
         """Returns string reprentations of date and start / stop times
         
@@ -1034,19 +1071,6 @@ class EmissionRateAnalysis(object):
         """Checks if image list is ready and includes all relevant info"""
         
         lst = self.imglist
-    
-        if not lst.darkcorr_mode:
-            self.warnings.append("Dark image correction is not activated in "
-                "image list")
-        if self.settings.senscorr:
-            # activate sensitivity correcion mode: images are divided by 
-            try:
-                lst.sensitivity_corr_mode = True
-            except:
-                self.warnings.append("AA sensitivity correction was deactivated"
-                    "because it could not be succedfully activated in imglist")
-                self.settings.senscorr = False
-        
         # activate calibration mode: images are calibrated using DOAS 
         # calibration polynomial. The fitted curve is shifted to y axis 
         # offset 0 for the retrieval
@@ -1063,10 +1087,23 @@ class EmissionRateAnalysis(object):
                 
                 self.settings.velo_flow_histo = True
         try:
-            lst.meas_geometry.get_all_pix_to_pix_dists(pyrlevel=lst.pyrlevel)
+            lst.meas_geometry.compute_all_integration_step_lengths(pyrlevel=lst.pyrlevel)
         except ValueError:
             raise ValueError("measurement geometry in image list is not ready"
                 "for pixel distance access")
+        if not lst.darkcorr_mode:
+            self.warnings.append("Dark image correction is not activated in "
+                "image list")
+        if self.settings.senscorr:
+            # activate sensitivity correcion mode: images are divided by 
+            try:
+                lst.sensitivity_corr_mode=True
+            except:
+                self.warnings.append("AA sensitivity correction was deactivated"
+                    "because it could not be succedfully activated in imglist")
+                self.settings.senscorr=False
+        if self.settings.dilcorr:
+            lst.dilcorr_mode = True
         
     def get_pix_dist_info_all_lines(self):
         """Retrieve pixel distances and uncertainty for all pcs lines
@@ -1083,7 +1120,7 @@ class EmissionRateAnalysis(object):
         lst = self.imglist
         PYR = self.imglist.pyrlevel
         # get pixel distance image
-        dist_img = lst.meas_geometry.get_all_pix_to_pix_dists(pyrlevel=PYR)[0]
+        dist_img = lst.meas_geometry.compute_all_integration_step_lengths(pyrlevel=PYR)[0]
         #init dicts
         dists, dist_errs = {}, {}
         for line_id, line in self.pcs_lines.iteritems():
@@ -1185,7 +1222,7 @@ class EmissionRateAnalysis(object):
         Performs emission rate analysis for each line in ``self.pcs_lines`` 
         and for all plume velocity retrievals activated in 
         ``self.settings.velo_modes``. The results for each line and 
-        velocity mode are stored within :class:`EmissionRateResults` objects
+        velocity mode are stored within :class:`EmissionRates` objects
         which are saved in ``self.results[line_id][velo_mode]``, e.g.::
         
             res = self.results["bla"]["flow_histo"]
@@ -1246,17 +1283,11 @@ class EmissionRateAnalysis(object):
         roi_bg_abs = self.settings.bg_roi_abs
         velo_modes = s.velo_modes
         min_cd = s.min_cd
+        gauss_fit = s.velo_dir_multigauss
         lines = self.pcs_lines
         pnum = int(10**exponent(stop_index - start_index)/4.0)
         imin, imax = s.ref_check_lower_lim, s.ref_check_upper_lim
         for k in range(start_index, stop_index):
-            if k%20 == 0:
-                print ("Running emission rate retrieval, current image "
-                       "index: %d | %d" %(k, stop_index))
-# =============================================================================
-#             print ("IMG_LIST / FLOWLIST CFN: %d / %d (SAME %d)" 
-#                     %(lst.cfn, self.imglist_optflow.cfn, lst is self.imglist_optflow)) 
-# =============================================================================
             img = lst.current_img()
             t = lst.current_time()
             ts.append(t)
@@ -1318,8 +1349,8 @@ class EmissionRateAnalysis(object):
                         
                         # Calculate mean of effective velocity through l and 
                         # uncertainty using 2 sigma confidence of standard deviation
-                        veff = veff_arr.mean()
-                        veff_err = veff_arr.std()
+                        veff_avg = veff_arr.mean()
+                        veff_err = veff_avg * self.settings.optflow_err_rel_veff
                         
                         phi, phi_err = det_emission_rate(cds, veff_arr,
                                                          distarr, cds_err, 
@@ -1336,7 +1367,7 @@ class EmissionRateAnalysis(object):
                         #threshold in settings, such that the retrieval is
                         #only applied to pixels exceeding a certain column 
                         #density)
-                        res["flow_raw"]._velo_eff.append(veff)
+                        res["flow_raw"]._velo_eff.append(veff_avg)
                         res["flow_raw"]._velo_eff_err.append(veff_err)
                     
                     props = pcs.plume_props
@@ -1347,12 +1378,15 @@ class EmissionRateAnalysis(object):
                         else:                            
                             # get mask specifying plume pixels
                             mask = lst.get_thresh_mask(min_cd)
-                            props.get_and_append_from_farneback(flow,
-                                                                line=pcs,
-                                                                pix_mask=mask)
+                            props.\
+                            get_and_append_from_farneback(flow,
+                                                          line=pcs,
+                                                          pix_mask=mask,
+                                                          dir_multi_gauss=
+                                                          gauss_fit)
                             idx = -1
                         
-                        print "IMGLIST CTIME: %s " %self.imglist.current_time()
+                        #print "IMGLIST CTIME: %s " %self.imglist.current_time()
                         # get effective velocity through the pcs based on 
                         # results from histogram analysis
                         (v, 
@@ -1360,7 +1394,7 @@ class EmissionRateAnalysis(object):
                                                     disterr, 
                                                     pcs.normal_vector,
                                                     sigma_tol=fl_sigma_tol)
-                        print "HISTO VEFF: %.2f" %v
+                        #print "HISTO VEFF: %.2f m/s" %v
                         phi, phi_err = det_emission_rate(cds, v, distarr, 
                                                          cds_err, verr, disterr, 
                                                          mmol)
@@ -1379,9 +1413,12 @@ class EmissionRateAnalysis(object):
                             else:                            
                                 # get mask specifying plume pixels
                                 mask = lst.get_thresh_mask(min_cd)        
-                                props.get_and_append_from_farneback(flow,
-                                                               line=pcs,
-                                                               pix_mask=mask)
+                                props.\
+                                get_and_append_from_farneback(flow,
+                                                              line=pcs,
+                                                              pix_mask=mask,
+                                                              dir_multi_gauss=
+                                                              gauss_fit)
                                 idx = -1
                         
                         if dx is None:
@@ -1485,7 +1522,7 @@ class EmissionRateAnalysis(object):
                     print "Progress: %d (%d)" %(k, stop_index)
             except:
                 pass
-            lst.next_img()  
+            lst.goto_next()  
     
         self.bg_roi_info["mean"] = Series(bg_mean, ts)
         self.bg_roi_info["std"] = Series(bg_std, ts)
@@ -1504,11 +1541,11 @@ class EmissionRateAnalysis(object):
         """
         self.settings.add_pcs_line(line)
         
-    def plot_pcs_lines(self, ax=None):
+    def plot_pcs_lines(self, ax=None, **kwargs):
         """Plots all current PCS lines onto current list image"""
         # plot current image in list and draw line into it
         if ax is None:
-            ax = self.imglist.show_current()
+            ax = self.imglist.show_current(**kwargs)
         for line_id, line in self.pcs_lines.iteritems():
             line.plot_line_on_grid(ax=ax, include_normal=True, label=line_id)
         ax.legend(loc='best', fancybox=True, framealpha=0.5)

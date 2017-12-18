@@ -1,6 +1,22 @@
 # -*- coding: utf-8 -*-
+#
+# Pyplis is a Python library for the analysis of UV SO2 camera data
+# Copyright (C) 2017 Jonas Gliß (jonasgliss@gmail.com)
+#
+# This program is free software: you can redistribute it and/or
+# modify it under the terms of the GNU General Public License a
+# published by the Free Software Foundation, either version 3 of
+# the License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
-pyplis example script no. 1 - Analysis setup for example data set
+Pyplis example script no. 1 - Analysis setup for example data set
 
 In this script an example data set, recorded on the 16/9/15 7:06-7:22 at 
 Mt. Etna is setup. Most of the following example scripts will use the information 
@@ -111,7 +127,22 @@ def create_dataset():
 if __name__ == "__main__":
     close("all")
     ds = create_dataset()
-    img = ds.get_list("on").current_img()
+    #get on-band image list
+    lst = ds.get_list("on")
+    print ("On-band list contains %d images, current image index: %d" 
+           %(lst.nof, lst.cfn))
+    
+    img = lst.current_img()
+    
+    #plume distance image retrieved from MeasGeometry class...
+    plume_dists = lst.plume_dists 
+    #...these may be overwritten or set manually if desired
+    lst.plume_dists=10000
+    
+    # The same applies for the integration step lengths for emission rate 
+    # retrievals
+    step_lengths = lst.integration_step_length
+    lst.integration_step_length = 1.8 #m
     
     #Set pixel intensities below 2000 to 0 (method of Img class)
     img.set_val_below_thresh(val=0, threshold=2000)

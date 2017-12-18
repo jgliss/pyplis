@@ -1,9 +1,29 @@
 # -*- coding: utf-8 -*-
-"""
-Module containing the :class:`Dataset` object which is important for 
-automated separation of image files by their type (e.g. on-band, off-band, 
-dark, offset) using information from a file naming convention specified 
-within a :class:`Camera` object.
+#
+# Pyplis is a Python library for the analysis of UV SO2 camera data
+# Copyright (C) 2017 Jonas Gliß (jonasgliss@gmail.com)
+#
+# This program is free software: you can redistribute it and/or
+# modify it under the terms of the GNU General Public License a
+# published by the Free Software Foundation, either version 3 of
+# the License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program. If not, see <http://www.gnu.org/licenses/>.
+""" 
+The :class:`Dataset` object is doing all sorts of stuff related to the 
+general data import setup, for instance the automated separation of image 
+files by their type (e.g. on-band, off-band, dark, offset) using 
+information from a file naming convention specified within a 
+:class:`Camera` object. For more information how to customise your data
+import see :mod:`pyplis.setupclasses` or read `this little introductory
+tutorial  
+<http://pyplis.readthedocs.io/en/latest/tutorials.html#primer-on-data-import>`_ 
 """
 from os.path import exists, join, isfile, isdir
 from os import listdir, walk
@@ -965,7 +985,7 @@ class Dataset(object):
     @property
     def num_of_filters(self):
         """Returns the number of filters in ``self.filters``"""
-        return len(self.filters.keys())
+        return len(self.filters.filters.keys())
     
     @property
     def _fname_access_flags(self):

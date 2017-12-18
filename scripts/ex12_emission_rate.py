@@ -1,6 +1,22 @@
 # -*- coding: utf-8 -*-
+#
+# Pyplis is a Python library for the analysis of UV SO2 camera data
+# Copyright (C) 2017 Jonas Gliß (jonasgliss@gmail.com)
+#
+# This program is free software: you can redistribute it and/or
+# modify it under the terms of the GNU General Public License a
+# published by the Free Software Foundation, either version 3 of
+# the License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
-Example script 12 - Etna emission rate retrieval
+Pyplis example script 12 - Etna emission rate retrieval
 
 This example import results from the previous examples, for instance the AA 
 image list including measurement geometry (ex 4), the DOAS calibration 
@@ -39,16 +55,29 @@ from ex04_prep_aa_imglist import prepare_aa_image_list
 
 PCS = LINES[0] 
 
+# If false, then only the working environment is initalised
+DO_EVAL = True
+
+# Dilution correction
+DILCORR = True
+
+# You can specify here if you only want a certain number of images analysed
+START_INDEX = 0
+STOP_INDEX = None
+
+
 ### SCRIPT OPTONS  
 PYRLEVEL = 1
 PLUME_VELO_GLOB = 4.29 #m/s
 PLUME_VELO_GLOB_ERR = 1.5
+# applies multi gauss fit to retrieve local predominant displacement 
+# direction, if False, then the latter is calculated from 1. and 2. moment
+# of histogram (Faster but more sensitive to additional peaks in histogram)
+HISTO_ANALYSIS_MULTIGAUSS = True
+#molar mass of SO2
 MMOL = 64.0638 #g/mol
-CD_MIN = 2.5e17
-
-START_INDEX = 0
-STOP_INDEX = None
-DO_EVAL = 1
+# minimum required SO2-CD for emission-rate retrieval
+CD_MIN = 5e16
 
 # activate background check mode, if True, emission rates are only retrieved  for images
 # showing SO2-CDs within specified interval around zero in BG reference rectangle 
@@ -70,6 +99,10 @@ LOG_ROI_SKY = [530, 30, 600, 100] #correspond to pyrlevel 1
 
 # DOAS calibration results from example script 6
 CALIB_FILE = join(SAVE_DIR, "ex06_doascalib_aa.fts")
+
+# Scattering extinction coeffcients from example script 11 (stored as txt)
+EXT_ON = join(SAVE_DIR, "ex11_ext_scat_on.txt")
+EXT_OFF = join(SAVE_DIR, "ex11_ext_scat_off.txt")
 
 # AA sensitivity correction mask retrieved from cell calib in script 7
 CORR_MASK_FILE = join(SAVE_DIR, "ex07_aa_corr_mask.fts")
@@ -185,7 +218,13 @@ if __name__ == "__main__":
             
     ### Load AA list
     aa_list = prepare_aa_image_list() #includes viewing direction corrected geometry
+    
     aa_list.pyrlevel = PYRLEVEL
+    
+    if DILCORR:
+        aa_list.import_ext_coeffs_csv(EXT_ON)
+        aa_list.get_off_list().import_ext_coeffs_csv(EXT_OFF)
+    
     
     ### Load DOAS calbration data and FOV information (see example 6)
     doascalib = pyplis.doascalib.DoasCalibData()
@@ -199,15 +238,17 @@ if __name__ == "__main__":
     #set DOAS calibration data in image list
     aa_list.calib_data = doascalib
     
-    
-                              
     ana = pyplis.EmissionRateAnalysis(imglist=aa_list, 
                                       bg_roi=LOG_ROI_SKY,
                                       pcs_lines=pcs,
                                       velo_glob=PLUME_VELO_GLOB,
                                       velo_glob_err=PLUME_VELO_GLOB_ERR,
                                       ref_check_lower_lim=REF_CHECK_LOWER,
-                                      ref_check_upper_lim=REF_CHECK_UPPER)
+                                      ref_check_upper_lim=REF_CHECK_UPPER,
+                                      velo_dir_multigauss=
+                                      HISTO_ANALYSIS_MULTIGAUSS, 
+                                      senscorr=True, 
+                                      dilcorr=DILCORR)
                                       
     ana.settings.ref_check_mode = REF_CHECK_MODE
     
@@ -218,24 +259,25 @@ if __name__ == "__main__":
     
     #plot all current PCS lines into current list image (feel free to define
     #and add more PCS lines above)
-    ax = ana.plot_pcs_lines()
+    ax = ana.plot_pcs_lines(vmin=-5e18, vmax=6e18, tit="Dilution corr: %s" %DILCORR)
     ax = ana.plot_bg_roi_rect(ax=ax, to_pyrlevel=PYRLEVEL)
-    ax.set_title("")
     figs.append(ax.figure)
     
     if not DO_EVAL:
+        aa_list.dilcorr_mode=not DILCORR
+        aa_list.show_current(vmin=-5e18, vmax=6e18, tit="Dilution corr: %s" %(not DILCORR))
         #you can check the settings first
         print ana.settings 
         #check if optical flow works
         ana.imglist.optflow_mode = True
         aa_mask = ana.imglist.get_thresh_mask(CD_MIN)
         ana.imglist.optflow.plot_flow_histograms(line=pcs, pix_mask=aa_mask)
+
     else:
         ana.run_retrieval(start_index=START_INDEX, 
                           stop_index=STOP_INDEX)
         
         figs.append(plot_and_save_results(ana))
-        
         # the EmissionRateResults class has an informative string representation
         print ana.get_results("young_plume", "flow_histo")
         

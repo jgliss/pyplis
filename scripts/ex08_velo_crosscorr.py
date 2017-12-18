@@ -1,6 +1,22 @@
 # -*- coding: utf-8 -*-
+#
+# Pyplis is a Python library for the analysis of UV SO2 camera data
+# Copyright (C) 2017 Jonas Gliß (jonasgliss@gmail.com)
+#
+# This program is free software: you can redistribute it and/or
+# modify it under the terms of the GNU General Public License a
+# published by the Free Software Foundation, either version 3 of
+# the License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
-pyplis example script no. 8 - Plume velocity retrieval using cross correlation
+Pyplis example script no. 8 - Plume velocity retrieval using cross correlation
 """
 from SETTINGS import check_version
 # Raises Exception if conflict occurs
@@ -8,6 +24,7 @@ check_version()
 
 from matplotlib.pyplot import close, show, subplots
 from os.path import join
+from time import time
 
 from pyplis.plumespeed import VeloCrossCorrEngine
 
@@ -19,7 +36,7 @@ from ex04_prep_aa_imglist import prepare_aa_image_list
 
 ### SCRIPT OPTONS  
 OFFSET_PIXNUM = 40 # distance in pixels between two lines used for cross corr analysis
-RELOAD = 0 #reload AA profile images for PCS lines 
+RELOAD = 0#reload AA profile images for PCS lines 
 
 # start / stop indices of considered images in image list (only relevant if PCS profiles are
 # reloaded, i.e. Opt RELOAD=True)
@@ -55,14 +72,15 @@ if __name__ == "__main__":
     aa_list = prepare_aa_image_list()
     aa_list.pyrlevel=1
     
+    t0 = time()
     cc = VeloCrossCorrEngine(aa_list, PCS)
     cc.create_parallel_pcs_offset(offset_pix=40,
                                   color=COLOR_PCS_OFFS,
                                   linestyle="--")
-    
-    fig, ax = subplots(1,2, figsize=(20,6))
-    axes.append(cc.plot_pcs_lines(ax=ax[0]))
+    reloaded = False #just a flag for output below
     try:
+        if RELOAD:
+            raise Exception
         cc.load_pcs_profile_img(join(SAVE_DIR, PCS_PROFILES_PIC_NAME),
                                 line_id="pcs")
         cc.load_pcs_profile_img(join(SAVE_DIR, OFFSET_PROFILES_PIC_NAME), 
@@ -73,7 +91,8 @@ if __name__ == "__main__":
         cc.save_pcs_profile_images(save_dir=SAVE_DIR, 
                                    fname1=PCS_PROFILES_PIC_NAME,
                                    fname2=OFFSET_PROFILES_PIC_NAME)
-    
+        reloaded = True
+    t1 = time()
     # the run method of the high level VeloCrossCorrEngine class is 
     # basically a wrapper method for the low-level find_signal_correlation
     # function which is part of the plumespeed.py module. Before calling
@@ -88,16 +107,22 @@ if __name__ == "__main__":
                   freq_unit="L", 
                   sigma_smooth=2,
                   plot=0)
-    
+    t2 = time()
+    fig, ax = subplots(1,2, figsize=(20,6))
+    axes.append(cc.plot_pcs_lines(ax=ax[0]))
     cc.plot_ica_tseries_overlay(ax=ax[1])
     axes.append(cc.plot_corrcoeff_tseries())
     
+    print ("Result performance analysis\n"
+           "Images reloaded from list: %s\n"
+           "Number of images: %d\n"
+           "Create ICA images: %.3f s\n"
+           "Cross-corr analysis: %.3f s"
+           %(reloaded, (STOP_IDX-START_IDX), (t1-t0), (t2-t1)))
+           
     print "Retrieved plume velocity of v = %.2f m/s" %velo
-     
-# =============================================================================
-#     print ("PCS (load): %s\nPCS (orig): %s\nOffset (load): %s\nOffset (Orig): %s" 
-#     %(cc.pcs, L0, cc.pcs_offset, L1))
-# =============================================================================
+    
+    
     ### IMPORTANT STUFF FINISHED    
     if SAVEFIGS:
         for k in range(len(axes)):

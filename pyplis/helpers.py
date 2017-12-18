@@ -1,15 +1,32 @@
 # -*- coding: utf-8 -*-
+#
+# Pyplis is a Python library for the analysis of UV SO2 camera data
+# Copyright (C) 2017 Jonas Gliß (jonasgliss@gmail.com)
+#
+# This program is free software: you can redistribute it and/or
+# modify it under the terms of the GNU General Public License a
+# published by the Free Software Foundation, either version 3 of
+# the License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
-Module containing all sorts of helper methods
+Pyplis module containing all sorts of helper methods
 """
-
+from __future__ import division
 import matplotlib.cm as colormaps
 import matplotlib.colors as colors
 from datetime import datetime, time, date
 from warnings import warn
 from matplotlib.pyplot import draw
-from numpy import mod, linspace, hstack, vectorize, uint8, cast, asarray,\
-    unravel_index, nanargmax, meshgrid, int, floor, log10, isnan, argmin, sum
+from numpy import mod, linspace, hstack, vectorize, uint8, cast, asarray, log2,\
+    unravel_index, nanargmax, meshgrid, int, floor, log10, isnan, argmin, sum,\
+    zeros, float32
 from scipy.ndimage.filters import gaussian_filter
 from cv2 import pyrUp
 
@@ -17,6 +34,45 @@ exponent = lambda num: int(floor(log10(abs(num))))
 
 time_delta_to_seconds = vectorize(lambda x: x.total_seconds())
 
+def get_pyr_factor_rel(img1, img2):
+    """Get difference in pyramid level between two input images
+    
+    Parameters
+    ----------
+    img1 : :obj:`Img` or :obj:`ndarray`
+        First image
+    img2 : :obj:`Img` or :obj:`ndarray`
+        Second image
+        
+    Raises
+    ------
+    ValueError
+        if image shapes can not be matched by changinf the pyramid level of
+        either of the 2 images
+    
+    Returns
+    -------
+    int
+        Difference in Gauss pyramid level of img2 relative to img1, i.e. a 
+        negative number means, that :param:`img2` is larger than :param:`img1` 
+    """
+    try:
+        img2 = img2.img
+    except:
+        pass
+    try:
+        img1 = img1.img
+    except:
+        pass
+    h1, w1 = img1.shape
+    h2, w2 = img2.shape
+    if not h1/w1 == h2/w2:
+        raise ValueError("Image size ratio mismatch...")
+    val = log2(h1/h2)
+    if not val%1 == 0:
+        raise ValueError("No matching relative pyramid level could be found")
+    return int(val)
+    
 def nth_moment(index, data, center=0.0, n=0):
     """Determine n-th moment of distribution
     
@@ -124,7 +180,7 @@ def isnum(val):
     
     :returns: bool, True or False    
     """
-    if isinstance(val, (int, float)) and not isnan(val):
+    if isinstance(val, (int, float, long)) and not isnan(val):
         return True
     return False
     
@@ -167,7 +223,6 @@ def sub_img_to_detector_coords(img_arr, shape_orig, pyrlevel,
         Regions outside the ROI are set to 0
         
     """
-    from numpy import zeros, float32
     new_arr = zeros(shape_orig).astype(float32)
     for k in range(pyrlevel):
         img_arr = pyrUp(img_arr)

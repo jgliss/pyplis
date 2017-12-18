@@ -1,16 +1,23 @@
 # -*- coding: utf-8 -*-
+#
+# Pyplis is a Python library for the analysis of UV SO2 camera data
+# Copyright (C) 2017 Jonas Gliß (jonasgliss@gmail.com)
+#
+# This program is free software: you can redistribute it and/or
+# modify it under the terms of the GNU General Public License a
+# published by the Free Software Foundation, either version 3 of
+# the License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
-Module containing the :class:`MeasGeometry` object relevant for geometrical
-calculations 
-
-.. todo::
-
-    Geonum has 3rd party dependencies and success of installation can not 
-    be guaranteed. Therefore, include functionality here to  determine 
-    plume distances directly rather than relying on the functionality of 
-    :mod:`geonum`. In this case, however, mapping functionality and 
-    handling of topographic data will not work.
-    
+Pyplis module containing functionality for all relevant geometrical 
+calculations
 """
 from numpy import nan, arctan, deg2rad, linalg, sqrt, abs, array, radians,\
     sin, cos, arcsin, tan, rad2deg, zeros, linspace, isnan, asarray, ones,\
@@ -20,15 +27,32 @@ from warnings import warn
 from matplotlib.pyplot import figure
 from copy import deepcopy
 
-from pyplis import GEONUMAVAILABLE
 from .image import Img
-from .helpers import check_roi
-if GEONUMAVAILABLE:
+from .helpers import check_roi, isnum
+try:
     from geonum import GeoSetup, GeoPoint, GeoVector3D, TopoData
     from geonum.topodata import TopoAccessError
-
+except:
+    warn("Geonum library could not be found")
+    
 class MeasGeometry(object):
     """Class for calculations and management of the measurement geometry
+
+    All calculations are based on provided information about camera (stored
+    in dictionary :attr:`cam`, check e.g. ``self.cam.keys()`` for valid keys), 
+    source (stored in dictionary :attr:`source`, check e.g. 
+    ``self.source.keys()`` for valid keys) and meteorological wind direction
+    (stored in dictionary :attr:`wind`). If you want to change these parameters
+    you can directly change the dictionaries, e.g.:: 
+        
+        self.cam["altitude"]=3000.0 #m
+        
+    or better, use the correpdonding update methods :func:`update_cam_specs`, 
+    :func:`update_source_specs` and :func:`update_wind_specs`. The latter 
+    by default also update the most important attribute of this class 
+    :attr:`geo_setup` which is an instance of the :class:`geonum.GeoSetup`
+    class and which is central for all geometrical calculations (e.g. camera
+    to plume distance).
     
     Attributes
     ----------
@@ -60,8 +84,8 @@ class MeasGeometry(object):
         dictionary conatining meteorology information (see :attr:`wind`
         for valid keys)
     """
-    def __init__(self, source_info={}, cam_info={}, wind_info={}):
-        self.geo_setup = GeoSetup()
+    def __init__(self, source_info={}, cam_info={}, wind_info={},
+                 auto_topo_access=True):
         
         self.source     =   od([("name"         ,   ""),
                                 ("lon"          ,   nan),
@@ -90,11 +114,12 @@ class MeasGeometry(object):
                                 ('alt_offset'   ,   0.0)])  #altitude above 
                                                             #topo in m
         
+        self.auto_topo_access = auto_topo_access
         self.geo_setup = GeoSetup(id=self.cam_id)
         
-        self.update_source_specs(source_info)
-        self.update_cam_specs(cam_info)
-        self.update_wind_specs(wind_info)
+        self.update_source_specs(source_info, update_geosetup=False)
+        self.update_cam_specs(cam_info, update_geosetup=False)
+        self.update_wind_specs(wind_info, update_geosetup=False)
         if any([bool(x)==True for x in [source_info, cam_info, wind_info]]):
             self.update_geosetup()
     
@@ -102,9 +127,14 @@ class MeasGeometry(object):
     def cam_id(self):
         """ID of current camera"""
         return self.cam["cam_id"]
+    
+    @property
+    def azim_cfov(self):
+        """Azimuth of camera viewing direction (CFOV)"""
+        return self.cam["azim"]
         
     def get_cam_specs(self, img_obj):
-        """Reads camera meta data from image meta data
+        """Reads camera meta information from image meta data
             
             1. Focal length lense
             2. Image sensor
@@ -123,77 +153,102 @@ class MeasGeometry(object):
             if isnan(self.cam[key]):
                 self.cam[key] = img_obj.meta[key]
     
-    def update_cam_specs(self, info_dict):
+    def update_cam_specs(self, info_dict=None, update_geosetup=True,
+                         **kwargs):
         """Update camera settings
+        
+        Update camera info dictionary (:attr:`cam`) either by providing a 
+        dictionary containing valid key / value pairs (:param:`info_dict` or by 
+        providing valid key / value pairs directly using :param:`kwargs`)
         
         Parameters
         ----------
         info_dict : dict
             dictionary containing camera information (see :attr:`cam` for 
-            valid keys)       
+            valid keys)  
+        update_geosetup : bool
+            If True, the method :func:`update_geosetup` is called at the end
+            of this method
+        **kwargs
+            alternative way to update the camera dictionary using valid 
+            keywords directly 
         """
-        for key, val in info_dict.iteritems():
-            if key in self.cam.keys() and val is not None:
-                self.cam[key] = val
-        
-    def update_source_specs(self, info_dict):
+        if isinstance(info_dict, dict):
+            for key, val in info_dict.iteritems():
+                if key in self.cam.keys() and val is not None:
+                    self.cam[key] = val
+        self.cam.update(**kwargs)
+        if update_geosetup:
+            self.update_geosetup()
+            
+    def update_source_specs(self, info_dict=None, update_geosetup=True, 
+                            **kwargs):
         """Update source settings
+        
+        Update source info dictionary (:attr:`source`) either by providing a 
+        dictionary containing valid key / value pairs (:param:`info_dict` or by 
+        providing valid key / value pairs directly using :param:`kwargs`)
         
         Parameters
         ----------
         info_dict : dict
             dictionary containing source information (see :attr:`source` 
-            for valid keys)       
+            for valid keys) 
+        update_geosetup : bool
+            If True, the method :func:`update_geosetup` is called at the end
+            of this method
+        **kwargs
+            alternative way to update the source dictionary using valid 
+            keywords directly
         """
-        for key, val in info_dict.iteritems():
-            if self.source.has_key(key) and val is not None:
-                self.source[key] = val
-        
-    def update_wind_specs(self, info_dict):
+        if isinstance(info_dict, dict):
+            for key, val in info_dict.iteritems():
+                if self.source.has_key(key) and val is not None:
+                    self.source[key] = val
+        self.source.update(**kwargs)
+        if update_geosetup:
+            self.update_geosetup()
+            
+    def update_wind_specs(self, info_dict=None, update_geosetup=True, 
+                          **kwargs):
         """Update meteorological settings
+        
+        Update wind info dictionary (:attr:`wind`) either by providing a 
+        dictionary containing valid key / value pairs (:param:`info_dict` or by 
+        providing valid key / value pairs directly using :param:`kwargs`)
         
         Parameters
         ----------
         info_dict : dict
             dictionary containing meterology information (see :attr:`wind` 
-            for valid keys)        
+            for valid keys) 
+        update_geosetup : bool
+            If True, the method :func:`update_geosetup` is called at the end
+            of this method
+        **kwargs
+            alternative way to update the wind dictionary using valid 
+            keywords directly
         """
-        changed = False
-        if not isinstance(info_dict, dict):
-            return changed
-        for key, val in info_dict.iteritems():
-            if key in self.wind.keys() and self._check_if_number(val):
-                self.wind[key] = val
-                changed = True
-        return changed
-    
-    def _check_if_number(self, val):
-        """Check if input is a number
-        
-        Parameters
-        ----------
-        val 
-            object to be checked
-        """
-        if isinstance(val, (int, float)) and not isnan(val):
-            return 1
-        return 0
+        if isinstance(info_dict, dict):
+            for key, val in info_dict.iteritems():
+                if key in self.wind.keys() and isnum(val):
+                    self.wind[key] = val
+        self.wind.update(**kwargs)
+        if update_geosetup:
+            self.update_geosetup()
     
     def _check_geosetup_info(self):
-        """Checks if relevant information for :attr:`geo_setup` is ready
-        """
+        """Checks if relevant information for :attr:`geo_setup` is ready"""
         check = ["lon", "lat", "elev", "azim", "dir"]
         cam_ok, source_ok = True, True
         for key in check:
-            if self.cam.has_key(key) and not\
-                        self._check_if_number(self.cam[key]):
+            if self.cam.has_key(key) and not isnum(self.cam[key]):
                 #print "missing info in cam, key %s" %key
                 cam_ok = False
-            if self.source.has_key(key) and not self._check_if_number(\
-                                        self.source[key]):
+            if self.source.has_key(key) and not isnum(self.source[key]):
                 #print "missing info in source, key %s" %key
                 source_ok = False
-        if not self._check_if_number(self.wind["dir"]) and cam_ok:
+        if not isnum(self.wind["dir"]) and cam_ok:
             print ("setting orientation angle of wind direction relative to "
                 "camera cfov")
             self.wind["dir"] = (self.cam["azim"] + 90)%360
@@ -216,13 +271,15 @@ class MeasGeometry(object):
         if cam_ok:
             print "Updating camera in GeoSetup of MeasGeometry"
             cam = GeoPoint(self.cam["lat"], self.cam["lon"],
-                           self.cam["altitude"], name="cam")
+                           self.cam["altitude"], name="cam",
+                           auto_topo_access=self.auto_topo_access)
             self.geo_setup.add_geo_point(cam)
             
         if source_ok:       
             print "Updating source in GeoSetup of MeasGeometry"
             source = GeoPoint(self.source["lat"], self.source["lon"],
-                              self.source["altitude"], name="source")
+                              self.source["altitude"], name="source",
+                              auto_topo_access=self.auto_topo_access)
             self.geo_setup.add_geo_point(source)
 
         if cam_ok and source_ok:
@@ -252,14 +309,17 @@ class MeasGeometry(object):
             intersect = source + offs
             intersect.name = "intersect"
             self.geo_setup.add_geo_point(intersect)
-            self.geo_setup.set_borders_from_points(extend_km =\
-                            self._map_extend_km(), to_square = True)
+            self.geo_setup.set_borders_from_points(extend_km=
+                                                   self._map_extend_km(),
+                                                   to_square=True)
             print "MeasGeometry was updated and fulfills all requirements"
             return True
         
         elif cam_ok:
-            cam_view_vec = GeoVector3D(azimuth = self.cam["azim"], elevation =\
-                self.cam["elev"], dist_hor = mag, anchor = cam, name = "cfov")
+            cam_view_vec = GeoVector3D(azimuth=self.cam["azim"], 
+                                       elevation=self.cam["elev"], 
+                                       dist_hor=mag, anchor=cam, 
+                                       name="cfov")
             self.geo_setup.add_geo_vector(cam_view_vec)
             print "MeasGeometry was updated but misses source specifications"
         print "MeasGeometry not (yet) ready for analysis"
@@ -346,7 +406,7 @@ class MeasGeometry(object):
         dy = self.cam["pix_height"] * (y - self.cam["pixnum_y"] / 2)
         azims = rad2deg(arctan(dx / f)) + self.cam["azim"]
         elevs = -rad2deg(arctan(dy / f)) + self.cam["elev"]
-        return azims, elevs, x, y
+        return (azims, elevs, x, y)
             
     def get_distances_to_topo_line(self, line, skip_pix=30, topo_res_m=5.,
                                    min_slope_angle=5.):
@@ -668,22 +728,29 @@ class MeasGeometry(object):
             #and write the new stuff
             stp.add_geo_point(p3)
             stp.add_geo_vector(cam_view_vec)
-            stp.set_borders_from_points(extend_km = self._map_extend_km(),\
-                                                        to_square = True)
+            stp.set_borders_from_points(extend_km=self._map_extend_km(),
+                                        to_square=True)
             if isinstance(stp.topo_data, TopoData):
                 stp.load_topo_data()
         map = None
         if draw_result:
+            s=self.geo_setup
+            nums = [int(255.0 / k) for k in range(1, len(s.vectors)+3)]
             map = self.draw_map_2d(draw_fov=False)
-            map.draw_geo_vector_2d(self.cam_view_vec,\
-                                    label = "cam cfov (corrected)")
-            self.draw_azrange_fov_2d(map, poly_id= "fov (corrected)")
+            map.draw_geo_vector_2d(self.cam_view_vec,
+                                   c=s.cmap(nums[1]),
+                                   ls="-",
+                                   label="cam cfov (corrected)")
+            self.draw_azrange_fov_2d(map, poly_id="fov (corrected)")
             view_dir_vec_old = geom_old.geo_setup.vectors["cfov"]
             view_dir_vec_old.name = "cfov_old"
             
-            map.draw_geo_vector_2d(view_dir_vec_old,\
-                                label = "cam cfov (initial)")
+            map.draw_geo_vector_2d(view_dir_vec_old,
+                                   c=s.cmap(nums[1]),
+                                   ls="--",
+                                   label="cam cfov (initial)")
             map.legend()
+    
         return elev_cam, az_cam, geom_old, map
     
     def calculate_pixel_col_distances(self):
@@ -702,26 +769,38 @@ class MeasGeometry(object):
             
         """
         ratio = self.cam["pix_width"] / self.cam["focal_length"] #in m
-        azims = self._get_all_azimuth_angles_fov()
+        azims = self.all_azimuths_camfov()
         dists = self.plume_dist(azims) * 1000.0 #in m
         pix_dists_m = dists * ratio
         return pix_dists_m, dists
-    
-    def pix_dist_err(self, col_num, pyrlevel=0):
-        """Get uncertainty measure for pixel distance of a pixel column
         
-        ..todo::
+    def pix_dist_err(self, col_num, pyrlevel=0):
+        """Get uncertainty measure for pixel distance of a pixel column 
 
-            Include uncertainty in focal length
-            
+        Parameters
+        ----------
+        colnum : int
+           column number for which uncertainty in pix-to-pix distance is
+           computed
+        pyrlevel : int
+            convert to pyramid level
+        
+        Returns
+        -------
+        float
+            pix-to-pix distance in m corresponding to input column number and
+            pyramid level
         """
-        az = self._get_all_azimuth_angles_fov()[int(col_num)]
+        az = self.all_azimuths_camfov()[int(col_num)]
         return self.plume_dist_err(az) *1000 * self.cam["pix_width"] /\
                         self.cam["focal_length"] * 2**pyrlevel
                                         
-    def get_all_pix_to_pix_dists(self, pyrlevel=0, roi_abs=None):
+    def compute_all_integration_step_lengths(self, pyrlevel=0, roi_abs=None):
         """Determine images containing pixel and plume distances
         
+        Computes and returns three images where each pixel value corresponds 
+        to 1. the horizontal physical integration step length in units of m 
+        corresponding to the plum
         :param int pyrlevel: returns images at a given gauss pyramid level
         :param roi_abs: ROI in absolute detector coordinates, if valid, then 
             the images are cropped
@@ -805,8 +884,10 @@ class MeasGeometry(object):
             #mpl_toolkits.basemap.Basemap>`_) 
         """
         s = self.geo_setup
-        m = s.plot_2d(0, 0, draw_topo, draw_coastline, draw_mapscale,\
-                                        draw_legend = 0, *args, **kwargs)
+        nums = [int(255.0 / k) for k in range(1, len(s.vectors)+3)]
+        m = s.plot_2d(0, 0, draw_topo, draw_coastline, draw_mapscale,
+                      draw_legend=0, *args, **kwargs)
+        
         if draw_cam:
             m.draw_geo_point_2d(self.cam_pos)
             m.write_point_name_2d(self.cam_pos,\
@@ -816,16 +897,21 @@ class MeasGeometry(object):
             m.write_point_name_2d(self.source_pos,\
                             self.geo_setup.magnitude*.05, -45)
         if draw_plume:
-            m.draw_geo_vector_2d(self.plume, label = "plume direction")
+            m.draw_geo_vector_2d(self.plume,
+                                 c=s.cmap(nums[0]),
+                                 ls="-",
+                                 label="plume direction")
         if draw_fov:
-            m.draw_geo_vector_2d(self.cam_view_vec, label = "camera cfov")
+            m.draw_geo_vector_2d(self.cam_view_vec, 
+                                 c=s.cmap(nums[1]),
+                                 label="camera cfov")
             self.draw_azrange_fov_2d(m)
         if draw_legend:
             m.legend()
         return m
 
-    def draw_azrange_fov_2d(self, m, fc = "lime", ec = "none", alpha = 0.15,\
-                                                            poly_id = "fov"):
+    def draw_azrange_fov_2d(self, m, fc="lime", ec="none", alpha=0.15,
+                            poly_id="fov"):
         """Insert the camera FOV in a 2D map
         
         :param geonum.mapping.Map m: the map object
@@ -1049,9 +1135,10 @@ class MeasGeometry(object):
         """
         return self.geo_len_scale() / fac
                                 
-    def _del_az(self, pixel_col1, pixel_col2):
+    def del_az(self, pixel_col1=0, pixel_col2=1):
         """Determine the difference in azimuth angle between 2 pixel columns
         
+        Par
         :param int pixel_col1: first pixel column
         :param int pixel_col2: second pixel column
         :return: float, azimuth difference
@@ -1110,17 +1197,80 @@ class MeasGeometry(object):
             dists.append(linalg.norm(v, axis = 0))
         dists = asarray(dists)
         return dists.max() - dists.mean()
+    
+    def all_azimuths_camfov(self):
+        colnum = self.cam["pixnum_x"]
+        offs = 0.0
+        daz = self.del_az(0,1)
+        if colnum%2 == 0: #even number of pixels
+            offs = -daz/2.0
+        angles_rel = linspace(-colnum/2., colnum/2., colnum)*daz
+        return self.azim_cfov + angles_rel + offs
+    
+    def col_to_az(self, colnum):
+        """Convert pixel column number (in absolute coords) into azimuth angle
         
-    def _get_all_azimuth_angles_fov(self):
-        """Returns array containing azimuth angles for all pixel columns"""
-        tot_num = self.cam["pixnum_x"]
-        idx_cfov = tot_num / 2.0
-        az0 = self.cam["azim"] - self._del_az(0, idx_cfov)
-        del_az = self._del_az(0, 1)
-        az_angles = zeros(tot_num)
-        for k in range(tot_num):
-            az_angles[k] = az0 + k * del_az
-        return az_angles          
+        Note
+        ----
+        - See also :func:`az_to_col` for the inverse operation
+        - Not super efficient, just convenience function which should not\
+            be used if performance is required
+        
+        Parameters
+        ----------
+        colnum : int
+            pixel column number (left column corresponds to 0)
+        
+        Returns
+        -------
+        float
+            corresponding azimuth angle
+        """
+        return self.all_azimuths_camfov()[colnum]
+
+    def az_to_col(self, azim):
+        """Convert azimuth into pixel number 
+        
+        Note
+        ----
+        The pixel number is calculated relative to the leftmost column of the
+        image
+        
+        Parameters
+        ----------
+        azim : float
+            azimuth angle which is supposed to be converted into column 
+            number
+        
+        Returns
+        -------
+        int
+            column number
+            
+        Raises
+        ------
+        IndexError
+            if input azimuth is not within camera FOV
+        """
+        azs = self.all_azimuths_camfov()
+        if azim < azs[0] or azim > azs[-1]:
+            raise IndexError("Input azimuth is out of camera FOV")
+        return argmin(abs(azs-azim))
+        
+        
+# =============================================================================
+#     
+#     def all_azimuths_camfov(self):
+#         """Returns array containing azimuth angles for all pixel columns"""
+#         tot_num = self.cam["pixnum_x"]
+#         idx_cfov = tot_num / 2.0
+#         az0 = self.cam["azim"] - self.del_az(0, idx_cfov)
+#         del_az = self.del_az(0, 1)
+#         az_angles = zeros(tot_num)
+#         for k in range(tot_num):
+#             az_angles[k] = az0 + k * del_az
+#         return az_angles          
+# =============================================================================
         
     """
     Magic methods (overloading)
@@ -1150,80 +1300,3 @@ class MeasGeometry(object):
                     return val[item]
             except:
                 pass
-
-if __name__ == "__main__":
-    from matplotlib.pyplot import close
-    close("all")
-    doGuallatiri=1
-    if doGuallatiri:
-        sourceName="Guallatiri"
-        guallatiriInfo = {"lon" : -69.090369,
-                          "lat" : -18.423672,
-                          "altitude": 6071.0,
-                          "id"  : "Guallatiri"}
-                     
-        windDefaultInfo= {"dir"     : 320,
-                          "dir_err"  : 15.0,
-                          "velo"     : 4.43,
-                          "velo_err"  : 1.0}
-                      
-                     
-        cam_info={"id": "SO2 camera",
-                  "focal_length"    :   25.0e-3,
-                   "pix_height"      :   4.65e-6,
-                   "pix_width"       :   4.65e-6,
-                   "pixnum_x"        :   1344,
-                   "pixnum_y"        :   1024}
-        
-        geomCam= {"lon"     :   -69.2139,
-                  "lat"     :   -18.4449,
-                  "altitude":   4243.0,
-                  "elev"    :   8.6,
-                  "elev_err" :   1.0,
-                  "azim"    :   81.0,
-                  "azim_err" :   3.0}
-        cam_info.update(geomCam)
-        #Line drawn on image
-        line=[(836, 896), (507, 761)]
-        
-        geom = MeasGeometry(guallatiriInfo,cam_info, windDefaultInfo)
-        m0 = geom.draw_map_2d()
-        
-        
-        profile = geom.cam_pos.get_elevation_profile(geo_point = geom.source_pos)           
-        profile.get_first_intersection(10, plot = 1)
-        profile.get_first_intersection(6, plot = 1)
-        
-        m1 = geom.draw_map_3d()
-        #1.ax.set_axis_off()
-    
-    else:
-        guallatiriInfo = {"lon" : 14.993435,
-                          "lat" : 37.751005}
-                     
-        windDefaultInfo= {"dir"     : 270,
-                          "dir_err"  : 15.0,
-                          "velo"     : 4.43,
-                          "velo_err"  : 1.0}
-                      
-                     
-        opticsCam={"focal_length"    :   12.0e-3,
-                   "pix_height"      :   4.65e-6,
-                   "pix_width"       :   4.65e-6,
-                   "pixnum_x"        :   1344,
-                   "pixnum_y"        :   1024}
-        
-        geomCam= {"lon"     :   15.016696,
-                  "lat"     :   37.765755,
-                  "elev"    :   10.85,
-                  "elev_err" :   1.0,
-                  "azim"    :   225.,
-                  "azim_err" :   3.0}
-                  
-        geom=MeasGeometry("ecII", 1234, "Etna",guallatiriInfo,geomCam,\
-                                        opticsCam, windDefaultInfo)
-        
-        fig = figure(figsize=(18,7))
-        #fig.suptitle('Camera viewing direction')
-        ax1 = fig.add_subplot(1, 2, 1)
-        ax2 = fig.add_subplot(1, 2,2, projection='3d')

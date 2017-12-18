@@ -1,6 +1,23 @@
 # -*- coding: utf-8 -*-
+#
+# Pyplis is a Python library for the analysis of UV SO2 camera data
+# Copyright (C) 2017 Jonas Gliß (jonasgliss@gmail.com)
+#
+# This program is free software: you can redistribute it and/or
+# modify it under the terms of the GNU General Public License a
+# published by the Free Software Foundation, either version 3 of
+# the License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program. If not, see <http://www.gnu.org/licenses/>.
+
 """
-pyplis module for image based light dilution correction
+Pyplis module for image based correction of the signal dilution effect
 """
 from numpy import asarray, linspace, exp, ones, nan
 from scipy.ndimage.filters import median_filter
@@ -14,7 +31,7 @@ from .image import Img
 from .optimisation import dilution_corr_fit
 from .model_functions import dilutioncorr_model
 from .geometry import MeasGeometry
-from .helpers import check_roi, rotate_ytick_labels
+from .helpers import check_roi
 from .imagelists import ImgList
 LABEL_SIZE=rcParams["font.size"]+ 2
 
@@ -292,7 +309,7 @@ class DilutionCorr(object):
                 coeffs.append(nan)                            
                 i0s.append(nan)
                 ias.append(nan)
-            lst.next_img()
+            lst.goto_next()
         lst.goto_img(cfn)
         if apply_median > 0:
             coeffs = median_filter(coeffs, apply_median)
@@ -467,8 +484,8 @@ def correct_img(plume_img, ext, plume_bg_img, plume_dists, plume_pix_mask):
     """
     for im in [plume_img, plume_bg_img]:
         if not isinstance(im, Img) or im.edit_log["vigncorr"] == False:
-            raise ValueError("Plume and background image need to Img objects"
-            " and vignetting corrected")
+            raise ValueError("Plume and background image need to be Img "
+                             "objects and vignetting corrected")
     
     try:
         plume_dists = plume_dists.img

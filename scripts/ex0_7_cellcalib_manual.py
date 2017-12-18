@@ -1,6 +1,22 @@
 # -*- coding: utf-8 -*-
+#
+# Pyplis is a Python library for the analysis of UV SO2 camera data
+# Copyright (C) 2017 Jonas Gliß (jonasgliss@gmail.com)
+#
+# This program is free software: you can redistribute it and/or
+# modify it under the terms of the GNU General Public License a
+# published by the Free Software Foundation, either version 3 of
+# the License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
-pyplis introduction script no. 5: manual cell calibration
+Pyplis introduction script no. 5: manual cell calibration
 
 Perform manual cell calibration based on 3 cell images and one background 
 image. The calibration data consists of 3 cells which were put in front of the 
@@ -25,6 +41,7 @@ check_version()
 import pyplis
 from os.path import join
 from matplotlib.pyplot import close, show
+from time import time
 
 ### IMPORT GLOBAL SETTINGS
 from SETTINGS import SAVEFIGS, SAVE_DIR, FORMAT, DPI, OPTPARSE, IMG_DIR
@@ -48,6 +65,7 @@ BG_AFTER_OFF    = "EC2_1106307_1R02_2015091607020440_F02_Etna.fts"
 ### SCRIPT MAIN FUNCTION
 if __name__ == "__main__":
     close("all")
+    start = time()
     cellcalib = pyplis.cellcalib.CellCalibEngine()
     
     # now add all cell images manually, specifying paths, the SO2 column 
@@ -96,6 +114,7 @@ if __name__ == "__main__":
     # 3 tau images (on, off, AA) is then stored within a CellCalibData object
     # which can be accessed using e.g. cellcalib.calib_data["aa"]
     cellcalib.prepare_calib_data(on_id="on", off_id="off", darkcorr=False)
+    stop = time()
     
     ax = cellcalib.plot_all_calib_curves()
     ax.set_title("Manual cell calibration\n(NO dark correction performed)")
@@ -104,6 +123,7 @@ if __name__ == "__main__":
     aa_calib = cellcalib.calib_data["aa"]
     aa_calib.tau_stack.show_img(1)
     
+    print "Time elapsed for preparing calibration data: %.4f s" %(stop-start)
     ### IMPORTANT STUFF FINISHED    
     if SAVEFIGS:
         ax.figure.savefig(join(SAVE_DIR, "ex0_7_out_1.%s" %FORMAT),

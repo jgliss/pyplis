@@ -1,10 +1,25 @@
 # -*- coding: utf-8 -*-
+#
+# Pyplis is a Python library for the analysis of UV SO2 camera data
+# Copyright (C) 2017 Jonas Gliß (jonasgliss@gmail.com)
+#
+# This program is free software: you can redistribute it and/or
+# modify it under the terms of the GNU General Public License a
+# published by the Free Software Foundation, either version 3 of
+# the License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
-Module containing features related to plume background analysis and tau
-image determination
+Pyplis module containing features related to plume background analysis
 """
 from numpy import polyfit, poly1d, linspace, logical_and, log, full, argmin,\
-    gradient, nan, exp, ndarray, arange, ones, finfo, asarray, uint8
+    gradient, nan, exp, ndarray, arange, ones, finfo, asarray
 from matplotlib.patches import Rectangle
 from matplotlib.pyplot import GridSpec, figure, subplots_adjust, subplot,\
     subplots, setp
@@ -12,13 +27,12 @@ import matplotlib.colors as colors
 from collections import OrderedDict as od
 from scipy.ndimage.filters import gaussian_filter
 from warnings import warn
-from cv2 import dilate
 
 from .image import Img
 from .processing import LineOnImage
 from .optimisation import PolySurfaceFit
 from .helpers import shifted_color_map, _roi_coordinates
-from .plumespeed import OptflowFarneback, find_movement
+from .plumespeed import find_movement
 
 class PlumeBackgroundModel(object):
     """Class for plume background modelling and tau image determination
@@ -152,6 +166,7 @@ class PlumeBackgroundModel(object):
         return self._current_imgs[key]
         
     def check_settings(self):
+        """Check if any of the modelling settings is not specified"""
         for value in self.__dict__.values():
             if value is None:
                 return False
@@ -1375,7 +1390,8 @@ def plot_sky_reference_areas(plume_img, settings_dict, ax=None):
         fig, ax = subplots(1,1)
     r = settings_dict
     h0, w0 = plume.shape[:2]
-    ax.imshow(plume, cmap = "gray")
+    
+    ax.imshow(plume, cmap="gray")
     ax.plot([r["ygrad_line_colnum"], r["ygrad_line_colnum"]],
             [r["ygrad_line_startrow"], r["ygrad_line_stoprow"]],
             "-", c="lime", label = "vert profile")

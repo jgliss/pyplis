@@ -1,4 +1,21 @@
 # -*- coding: utf-8 -*-
+#
+# Pyplis is a Python library for the analysis of UV SO2 camera data
+# Copyright (C) 2017 Jonas Gliß (jonasgliss@gmail.com)
+#
+# This program is free software: you can redistribute it and/or
+# modify it under the terms of the GNU General Public License a
+# published by the Free Software Foundation, either version 3 of
+# the License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program. If not, see <http://www.gnu.org/licenses/>.
+
 from setuptools import setup
 from codecs import open
 from os.path import join, abspath, dirname
@@ -7,7 +24,7 @@ here = abspath(dirname(__file__))
 
 with open(join(here,'README.rst'), encoding = 'utf-8') as file:
     readme = file.read()
-
+    
 with open("VERSION.rst") as f:
     version = f.readline()
     f.close()
@@ -18,10 +35,10 @@ setup(
     name        =   'pyplis',
     version     =   version,
     author      =   'Jonas Gliss',
-    author_email=   'jg@nilu.no',
+    author_email=   'jonasgliss@gmail.com',
     license     =   'GPLv3+',
     url         =   'https://github.com/jgliss/pyplis',
-    description = ('A Python library for the analysis UV SO2 camera data'),
+    description = ('Python library for the analysis UV SO2 camera data'),
     long_description = readme,
     # See https://pypi.python.org/pypi?%3Aaction=list_classifiers
     classifiers=[
@@ -29,7 +46,7 @@ setup(
         #   3 - Alpha
         #   4 - Beta
         #   5 - Production/Stable
-        'Development Status :: 3 - Alpha',
+        'Development Status :: 5 - Production/Stable',
 
         # Indicate who your project is intended for
         'Intended Audience :: Science/Research',
@@ -56,7 +73,7 @@ setup(
                                        'data/*.fts'],
                     },
 
-    install_requires    =   ["progressbar"],
+    install_requires    =   [],
     dependency_links    =   [],   
     entry_points = {},#'console_scripts': ['sample=sample:main',],},
 )

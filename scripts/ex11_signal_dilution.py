@@ -1,6 +1,22 @@
 # -*- coding: utf-8 -*-
+#
+# Pyplis is a Python library for the analysis of UV SO2 camera data
+# Copyright (C) 2017 Jonas Gliß (jonasgliss@gmail.com)
+#
+# This program is free software: you can redistribute it and/or
+# modify it under the terms of the GNU General Public License a
+# published by the Free Software Foundation, either version 3 of
+# the License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
-pyplis example script no. 11 - Image based signal dilution correction
+Pyplis example script no. 11 - Image based signal dilution correction
 
 This script illustrates how extinction coefficients can be retrieved from 
 image data using the DilutionCorr class and by specifying suitable terrain
@@ -204,7 +220,7 @@ if __name__ == "__main__":
     geom = find_view_dir(ds.meas_geometry)
     
     #get plume distance image    
-    pix_dists, _, plume_dists = geom.get_all_pix_to_pix_dists()  
+    pix_dists, _, plume_dists = geom.compute_all_integration_step_lengths()  
         
     # Create dilution correction class
     dil = DilutionCorr(USE_LINES, geom, skip_pix=SKIP_PIX_LINES)
@@ -265,30 +281,32 @@ if __name__ == "__main__":
     plume_pix_mask[840:, :] = 0 #remove tree in lower part of the image
     onlist.aa_mode = False
     
-    # this method checks relevant parameters for dilution correction and 
-    # gets those missing, e.g. the mask specifying plume pixels
-    _, _, bg_on, _, _ =\
-        onlist.prep_data_dilutioncorr(plume_pix_mask=plume_pix_mask,
-                                      plume_dists=plume_dists, 
-                                      ext_coeff=ext_on)
+    # assign the just retrieved extinction coefficients to the respective 
+    # image lists
+    onlist.ext_coeffs = ext_on
+    offlist.ext_coeffs = ext_off
     
-    # do the same for the off band. Here, the plume pixel mask from the on band
-    # is used and is therefore provided as input of the method
-    _, _, bg_off, _, _ =\
-        offlist.prep_data_dilutioncorr(plume_pix_mask=plume_pix_mask,
-                                       plume_dists=plume_dists, 
-                                       ext_coeff=ext_off)
-                                         
+    # save the extinction coefficients into a txt file (re-used in example 
+    # script 12). They are stored as pandas.Series object in the ImgList
+    onlist.ext_coeffs.to_csv(join(SAVE_DIR, "ex11_ext_scat_on.txt"))
+    offlist.ext_coeffs.to_csv(join(SAVE_DIR, "ex11_ext_scat_off.txt"))
+    
+    # now activate automatic dilution correction in both lists                                     
     #get dilution corrected on and off-band image
-    on_corr = dil.correct_img(on_vigncorr, ext_on, bg_on,
-                              plume_dists, plume_pix_mask)
-
-    off_corr = dil.correct_img(off_vigncorr, ext_off, bg_off,
-                              plume_dists, plume_pix_mask)
-                              
-    # convert the corrected images into tau images
-    tau_on_corr = on_corr.to_tau(bg_on)
-    tau_off_corr = off_corr.to_tau(bg_off)
+    onlist.dilcorr_mode =True
+    offlist.dilcorr_mode=True
+    
+    # get current dilution corrected raw images (i.e. in intensity space)
+    on_corr = onlist.this
+    off_corr = offlist.this
+               
+    # now activate tau mode (note that dilution correction mode is still active)               
+    onlist.tau_mode=True
+    offlist.tau_mode=True
+    
+    # extract tau images
+    tau_on_corr = onlist.this
+    tau_off_corr = offlist.this
     
     # determine corrected SO2-CD image from the image lists
     so2_img_corr = calib(tau_on_corr - tau_off_corr)
@@ -306,8 +324,9 @@ if __name__ == "__main__":
                                                        pix_dist_err)
     
     # determine uncorrected so2-CD image from the image lists
-    onlist.tau_mode=True
-    offlist.tau_mode=True
+    offlist.dilcorr_mode =False
+    onlist.dilcorr_mode = False
+
     # the "this" attribute returns the current list image (same as 
     # method "current_img()")
     so2_img_uncorr = calib(onlist.this - offlist.this)
@@ -317,7 +336,7 @@ if __name__ == "__main__":
     # Calculate flux and uncertainty
     (phi_uncorr, 
      phi_uncorr_err) = pyplis.fluxcalc.det_emission_rate(cds=so2_cds_uncorr,
-                                                         velo=PLUME_VELO,
+                                                             velo=PLUME_VELO,
                                                          pix_dists=
                                                          pix_dists_line,
                                                          cds_err=

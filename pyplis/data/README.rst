@@ -1,10 +1,12 @@
-This folder contains supplementary data for pyplis
----------------------------------------------------
+This folder contains supplementary data for Pyplis
 
-The folder includes the following files:
+Copyright
+=========
+  
+Copyright (C) 2017 Jonas Gliß (jonasgliss@gmail.com)
 
-  1. Text file cam_info.txt (use that to create new default camera types)
-  2. Text file my_sources.txt (use that to create new default sources)
-  3. Dummy image (no_images_dummy.png)
-  4. Text file _paths.txt (file which is used to store local paths, e.g. to test data location)
-  5. Python source file "custom_image_import.py" -> can be used to specify custom methods for image loading
+This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License a published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with this program. If not, see `here <http://www.gnu.org/licenses/>`__.
