@@ -1,6 +1,22 @@
 # -*- coding: utf-8 -*-
+#
+# Pyplis is a Python library for the analysis of UV SO2 camera data
+# Copyright (C) 2017 Jonas Gliß (jonasgliss@gmail.com)
+#
+# This program is free software: you can redistribute it and/or
+# modify it under the terms of the GNU General Public License a
+# published by the Free Software Foundation, either version 3 of
+# the License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
-pyplis example script no. 2 - Features of the MeasGeometry class
+Pyplis example script no. 2 - Features of the MeasGeometry class
 
 In this script, some important features of the MeasGeometry class are 
 introduced. The class itself is automatically created in the MeasSetup
@@ -76,9 +92,9 @@ def plot_plume_distance_image(meas_geometry):
     # the vertical (in this case they are the same since pixel height and 
     # pixel width are the same for this detector). The third image gives 
     # camera to plume distances on a pixel basis
-    dist_img, _, plume_dist_img = meas_geometry.get_all_pix_to_pix_dists()
+    (dist_img, _, plume_dist_img) = meas_geometry.compute_all_integration_step_lengths()
     
-    fig, ax = subplots(1, 2, figsize = (16,4))
+    fig, ax = subplots(2, 1, figsize = (7,8))
     
     
     # Show pix-to-pix distance image
@@ -96,13 +112,13 @@ if __name__ == "__main__":
     
     # Create the Dataset object (see ex01)
     ds = create_dataset()
-
+    
     # execute function defined above (see above for definition and information)
     geom_corr, map = find_viewing_direction(ds.meas_geometry)
-
+    
     # execute 2. script function (see above for definition and information)
     fig =  plot_plume_distance_image(ds.meas_geometry)
-    
+        
     ### IMPORTANT STUFF FINISHED    
     if SAVEFIGS:
         map.ax.figure.savefig(join(SAVE_DIR, "ex02_out_1.%s" %FORMAT), 

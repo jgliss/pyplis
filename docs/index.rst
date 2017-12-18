@@ -11,7 +11,17 @@
 Welcome to Pyplis
 =================
 
-Official code documentation web page of pyplis. Apart from the documentation, the web page includes installation details, example scripts and introductory  tutorial showing how to define customised camera standards.
+Official code documentation website of *Pyplis*. Apart from the API documentation, this website includes general information about the software (e.g. installation details, access of example data) as well as useful practical information that helps getting started with *Pyplis*. 
+
+A paper introducing the software is in the process of being published in the Journal *Geosciences* (MDPI) (currently under revision). If you find *Pyplis* useful for your work, we highly appreciate if you acknowlegde our work by citing the `paper <https://www.preprints.org/manuscript/201710.0085/v1>`__ (currently a preprint).
+
+.. figure:: ./_graphics/preview_paper.png
+    :scale: 80%
+    :align: center
+    :alt: alternate text
+    :figclass: align-center
+    
+    Screenshot of the *Pyplis* `paper <https://www.preprints.org/manuscript/201710.0085/v1>`__. Please acknowledge our work by citing the paper. 
 
 The software can be downloded from the `Github page <https://github.com/jgliss/pyplis>`__ or installed via `PyPi <https://pypi.python.org/pypi/pyplis>`__ using::
 

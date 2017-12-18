@@ -1,14 +1,34 @@
 # -*- coding: utf-8 -*-
+#
+# Pyplis is a Python library for the analysis of UV SO2 camera data
+# Copyright (C) 2017 Jonas Gliß (jonasgliss@gmail.com)
+#
+# This program is free software: you can redistribute it and/or
+# modify it under the terms of the GNU General Public License a
+# published by the Free Software Foundation, either version 3 of
+# the License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
-Module containing input / output routines (e.g. test data access)
+Module containing all sorts of I/O-routines (e.g. test data access)
 """
 from os.path import join, basename, exists, isfile, abspath
 from os import listdir, remove, walk
 
 from matplotlib.pyplot import imread
 from collections import OrderedDict as od
-from progressbar import ProgressBar, Percentage, Bar, RotatingMarker,\
-    ETA, FileTransferSpeed
+try:
+    from progressbar import ProgressBar, Percentage, Bar, RotatingMarker,\
+        ETA, FileTransferSpeed
+    PGBAR_AVAILABLE = True
+except:
+    PGBAR_AVAILABLE = False
 from zipfile import ZipFile, ZIP_DEFLATED
 from urllib import urlretrieve
 from urllib2 import urlopen
@@ -92,19 +112,6 @@ def download_test_data(save_path = None):
     """
     from pyplis import _LIBDIR, URL_TESTDATA
     url = URL_TESTDATA
-    widgets = ['Downloading pyplis test data: ', Percentage(), ' ',\
-                   Bar(marker=RotatingMarker()), ' ',\
-                    ETA(), ' ', FileTransferSpeed()]
-    
-    pbar = ProgressBar(widgets = widgets)
-    def dl_progress(count, block_size, total_size):
-        if pbar.maxval is None:
-            pbar.maxval = total_size
-            pbar.start()
-        pbar.update(min(count*block_size, total_size))
-        
-        
-        
     
     if save_path is None or not exists(save_path):
         save_path = join(_LIBDIR, "data")
@@ -119,8 +126,25 @@ def download_test_data(save_path = None):
     print "installing test data at %s" %save_path
     
     filename = mktemp('.zip')
-    urlretrieve(url, filename, reporthook = dl_progress)
-    pbar.finish()
+    
+    if PGBAR_AVAILABLE:
+        widgets = ['Downloading pyplis test data: ', Percentage(), ' ',\
+                       Bar(marker=RotatingMarker()), ' ',\
+                        ETA(), ' ', FileTransferSpeed()]
+        
+        pbar = ProgressBar(widgets=widgets)
+        def dl_progress(count, block_size, total_size):
+            if pbar.maxval is None:
+                pbar.maxval = total_size
+                pbar.start()
+            pbar.update(min(count*block_size, total_size))
+            
+        urlretrieve(url, filename, reporthook=dl_progress)
+        pbar.finish()
+    else:
+        print ("Downloading Pyplis testdata (this can take a while, install"
+               "Progressbar package if you want to receive download info")
+        urlretrieve(url, filename)
     thefile = ZipFile(filename)
     print "Extracting data at: %s (this may take a while)" %save_path
     thefile.extractall(save_path)

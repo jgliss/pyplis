@@ -1,17 +1,33 @@
 # -*- coding: utf-8 -*-
-"""Image base module"""
+#
+# Pyplis is a Python library for the analysis of UV SO2 camera data
+# Copyright (C) 2017 Jonas Gliß (jonasgliss@gmail.com)
+#
+# This program is free software: you can redistribute it and/or
+# modify it under the terms of the GNU General Public License a
+# published by the Free Software Foundation, either version 3 of
+# the License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program. If not, see <http://www.gnu.org/licenses/>.
+from __future__ import division
 from astropy.io import fits
 from matplotlib import gridspec
 import matplotlib.cm as cmaps
 from matplotlib.pyplot import imread, figure, tight_layout
 from numpy import ndarray, argmax, histogram, uint, nan, linspace,\
-    isnan, uint8, float32, finfo, ones, invert, log
+    isnan, uint8, float32, finfo, ones, invert, log, ogrid
 from os.path import abspath, splitext, basename, exists, join, isdir, dirname
 from os import remove
 from warnings import warn
 from datetime import datetime
 from decimal import Decimal
-from cv2 import pyrDown, pyrUp, addWeighted, dilate
+from cv2 import pyrDown, pyrUp, addWeighted, dilate, erode
 from scipy.ndimage.filters import gaussian_filter, median_filter
 from collections import OrderedDict as od
 from copy import deepcopy
@@ -23,9 +39,9 @@ from .optimisation import PolySurfaceFit
 class Img(object):
     """ Image base class
     
-    Implementation of image object for :mod:`pyplis` library. Images are
-    represented as :class:`numpy.ndarray` objects and the image data is 
-    stored in the attribute ``self.img``.
+    Implementation of image object for :mod:`pyplis` library. The image data is
+    represented as :class:`numpy.ndarray` objects and the is stored in the 
+    attribute :attr:`self.img`.
     
     Supported file formats include those supported by the Python Imaging 
     Library (see `here <http://pillow.readthedocs.io/en/3.4.x/handbook/
@@ -91,7 +107,9 @@ class Img(object):
         :param **meta_info: keyword args specifying meta data
         """
         if isinstance(input, Img):
-            return input
+            meta_info = input.edit_log
+            meta_info.update(input.meta)
+            input = input.img
             
         self._img = None #: the actual image data
         self.dtype = dtype
@@ -101,21 +119,21 @@ class Img(object):
         self.import_method = import_method
         
         #Log of applied edit operations
-        self.edit_log = od([  ("darkcorr"   ,   0), # boolean
+        self.edit_log = od([  ("darkcorr"   ,   False), # boolean
                               ("blurring"   ,   0), # int (width of kernel)
                               ("median"     ,   0), # int (size of filter)
-                              ("crop"       ,   0), # boolean
-                              ("8bit"       ,   0), # boolean
+                              ("crop"       ,   False), # boolean
+                              ("8bit"       ,   False), # boolean
                               ("pyrlevel"   ,   0), # int (pyramide level)
-                              ("is_tau"     ,   0), # boolean
-                              ("is_aa"      ,   0), # boolean
-                              ("vigncorr"   ,   0), # boolean (vignette corrected)
-                              ("senscorr"   ,   0), # boolean (correction for sensitivity changes due to filter shifts)
-                              ("dilcorr"    ,   0), # light dilution corrected
-                              ("gascalib"   ,   0), # image is gas CD image
-                              ("is_bin"     ,   0),
-                              ("is_inv"     ,   0),
-                              ("others"     ,   0),
+                              ("is_tau"     ,   False), # boolean
+                              ("is_aa"      ,   False), # boolean
+                              ("vigncorr"   ,   False), # boolean (vignette corrected)
+                              ("senscorr"   ,   False), # boolean (correction for sensitivity changes due to filter shifts)
+                              ("dilcorr"    ,   False), # light dilution corrected
+                              ("gascalib"   ,   False), # image is gas CD image
+                              ("is_bin"     ,   False),
+                              ("is_inv"     ,   False),
+                              ("others"     ,   False),
                               ])# boolean 
         
         self._roi_abs = [0, 0, 9999, 9999] #will be set on image load
@@ -235,6 +253,66 @@ class Img(object):
         rad_high = bins[len(hist) - argmax(hist[::-1]>thresh)-1]
         return rad_low, rad_high, hist, bins
     
+    def avg_in_roi(self, mask=None, roi_rect=None, pos_x=None, pos_y=None, 
+                   radius=1):
+        """Get mean value in an ROI
+        
+        The ROI can be specified either by providing a mask, an rectangular
+        ROI, or x and y position and a specific radius. The input is dealt with
+        in the specified order, i.e. if :param:`mask` is valid, none of the 
+        other input parameters is tested.
+        
+        Parameters
+        ----------
+        mask : :obj:`ndarray` or :obj:`Img`
+            convolution mask (e.g. DOAS FOV mask).
+        roi_rect : list
+            rectangular ROI ``[x0, y0, x1, y1]`` specifying upper left and 
+            lower right corners of region
+        pos_x : int
+            detector x-position
+        pos_y : int
+            detector y-position
+        radius : int
+            radius of ROI
+        
+        Raises
+        ------
+        TypeError 
+            if none of the provided input works
+        
+        Returns
+        -------
+        float
+            mean value within specified ROI
+        """
+        try:
+            mask.to_pyrlevel(self.pyrlevel)
+            mask = mask.img
+        except:
+            pass
+        try:
+            data_conv = (self.img * mask.astype(float32))
+        except:
+            try:
+                return self.img[roi_rect[1]:roi_rect[3], 
+                                roi_rect[0]:roi_rect[2]].mean() 
+                
+            except:
+                if radius == 1:
+                    return self.img[pos_y, pos_x]
+                else:
+                    h, w = self.shape
+                    y, x = ogrid[:h, :w]
+                    mask = (x - pos_x)**2 + (y - pos_y)**2 < radius**2
+                    data_conv = (self.img * mask.astype(float32))
+             
+        return data_conv.sum() / mask.sum()
+# =============================================================================
+#         except:
+#             raise TypeError("Invalid input, failed to retrieve mean in ROI")
+#             
+# =============================================================================
     def crop(self, roi_abs=[0, 0, 9999, 9999], new_img=False):
         """Cut subimage specified by rectangular ROI
         
@@ -396,7 +474,7 @@ class Img(object):
         self.img = gaussian_filter(self.img, sigma, **kwargs)
         self.edit_log["blurring"] += sigma   
     
-    def to_binary(self, threshold=None):
+    def to_binary(self, threshold=None, new_img=False):
         """Convert image to binary image using threshold
         
         Note
@@ -412,14 +490,17 @@ class Img(object):
         Returns
         -------
         Img
-            the binary image
+            binary image
         """
         if threshold is None:
             threshold = self.mean()
+        mask = (self.img > threshold).astype(uint8)
+        if new_img:
+            return Img(mask, dtype=uint8, is_bin=True)
         self.img = (self.img > threshold).astype(uint8)
         self.edit_log["is_bin"] = True
         return self
-    
+        
     
         
     def invert(self):
@@ -450,7 +531,7 @@ class Img(object):
         self.edit_log["is_inv"] = not self.edit_log["is_inv"]
         return self
             
-    def dilate(self, kernel=None):
+    def dilate(self, kernel=ones((9,9), dtype=uint8)):
         """Apply morphological transformation Dilation to image
         
         Uses :func:`cv2.dilate` for dilation. The method requires specification
@@ -465,9 +546,7 @@ class Img(object):
         Parameters
         ----------
         kernel : array
-            kernel used for :func:`cv2.dilate`, if None a 9x9 array is used::
-            
-                kernel = np.ones((9,9), dtype=np.uint8)
+            kernel used for :func:`cv2.dilate`, default is 9x9 kernel
         
         Returns
         -------
@@ -476,12 +555,40 @@ class Img(object):
         """
         if not self.is_binary:
             raise AttributeError("Img needs to be binary, use method to_binary")
-        if kernel is None:
-            kernel = ones((9,9), dtype=uint8)
+
         self.img = dilate(self.img, kernel=kernel)
         self.edit_log["others"] = True
         return self
-      
+    
+    def erode(self, kernel=ones((9,9), dtype=uint8)):
+        """Apply morphological transformation Erosion to image
+        
+        Uses :func:`cv2.erode` to apply erosion. The method requires 
+        specification of a kernel, if unspecified, a 9x9 neighbourhood is used
+        
+        Note
+        ----
+        
+        This operation can only be performed to binary images, use 
+        :func:`to_binary` if applicable.
+        
+        Parameters
+        ----------
+        kernel : array
+            kernel used for :func:`cv2.dilate`, default is 9x9 kernel
+        
+        Returns
+        -------
+        Img 
+            dilated binary image
+        """
+        if not self.is_binary:
+            raise AttributeError("Img needs to be binary, use method to_binary")
+
+        self.img = erode(self.img, kernel=kernel)
+        self.edit_log["others"] = True
+        return self
+    
     def fit_2d_poly(self, mask=None, polyorder=3, pyrlevel=4, **kwargs):
         """Fit 2D surface poly to data
         
@@ -528,17 +635,25 @@ class Img(object):
         except:
             raise Exception("Poly surface fit failed in Img object")
     
-    def to_tau(self, bg):
+    def to_tau(self, bg, new_img=True):
         """Convert into tau image
         
         Converts this image into a tau image using a provided input 
         background image (which is used without any modifications).
+        
+        Note
+        ----
+        By default, creates and returns new instance of :class:`Img` object
+        (i.e. this object remains unchanged if not other specified using 
+         :param:`new_img`)
         
         Parameters
         ----------
         bg : Img
             background image used to determin tau image (REMAINS UNCHANGED, NO
             MODELLING PERFORMED HERE)
+        new_img : bool
+            boolean specifying whether this object remains unchanged
         
         Returns
         -------
@@ -546,7 +661,9 @@ class Img(object):
             new Img object containing tau image data 
             (this object remains unchanged)
         """
-        tau = self.duplicate()
+        tau = self
+        if new_img:
+            tau = self.duplicate()
         if isinstance(bg, Img):
             bg = bg.img
         
@@ -811,7 +928,17 @@ class Img(object):
     def is_aa(self):
         """Returns boolean whether current image is AA image"""
         return self.edit_log["is_aa"]
+    
+    @property
+    def is_calibrated(self):
+        """Flag for image calibration status"""
+        return self.edit_log["gascalib"]
         
+    @property
+    def is_vignetting_corrected(self):
+        """Boolean stating whether image is vignetting corrected or not"""
+        return self.edit_log["vigncorr"]
+    
     @property
     def is_gray(self):
         """Checks if image is gray image"""

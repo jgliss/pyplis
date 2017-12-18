@@ -1,12 +1,28 @@
 # -*- coding: utf-8 -*-
+#
+# Pyplis is a Python library for the analysis of UV SO2 camera data
+# Copyright (C) 2017 Jonas Gliß (jonasgliss@gmail.com)
+#
+# This program is free software: you can redistribute it and/or
+# modify it under the terms of the GNU General Public License a
+# published by the Free Software Foundation, either version 3 of
+# the License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
-Module containing features related to cell calibration
+Pyplis module containing features related to cell calibration
 """
 from matplotlib.pyplot import subplots
 from warnings import warn
 from numpy import float, log, arange, polyfit, poly1d, linspace, isnan,\
-    diff, mean, argmin, ceil, round, ndim, asarray
-from matplotlib.pyplot import Figure, rcParams
+    diff, mean, argmin, ceil, round, ndim, asarray, sqrt
+from matplotlib.pyplot import Figure
 from matplotlib.cm import get_cmap
 from datetime import timedelta
 from os.path import exists
@@ -22,8 +38,6 @@ from .helpers import subimg_shape, map_coordinates_sub_img, exponent
 from .doascalib import DoasFOV
 from .optimisation import PolySurfaceFit
 from .glob import SPECIES_ID, CALIB_ID_STRINGS
-
-LABEL_SIZE=rcParams["font.size"]+ 2
 
 class CellSearchInfo(object):
     """Class for for storage cell search from automatic cell search engine
@@ -189,7 +203,6 @@ class CellSearchInfo(object):
         
         Note
         ----
-        
         If successful, the list is assigned to :attr:`img_list`
         
         Parameters
@@ -241,6 +254,10 @@ class CellAutoSearchResults(object):
     This object is included in :class:`CellCalibEngine` object and will be 
     filled with :class:`CellSearchInfo` objects if the cell autodetection 
     is used (:func:`find_cells`)
+    
+    Note
+    ----
+    This class is normally not intended to be used directly
     
     Attributes
     ----------
@@ -332,9 +349,143 @@ class CellCalibData(object):
         self.gas_cd_errs = None
         
         self.calib_id = calib_id  
+        
+        # init dictionary for storing information about the last calibration 
+        # fit result (see method poly)
+        self.last_polyfit_info = od()
                 
         self.set_data(tau_stack, gas_cds, gas_cd_errs)
     
+    @property
+    def calib_id(self):
+        """Calibration ID"""
+        return self._calib_id
+    
+    @calib_id.setter
+    def calib_id(self, val):
+        if not isinstance(val, str):
+            raise TypeError("Invalid input for calib_id, need str")
+        self._calib_id = val
+        try:
+            self.tau_stack.stack_id = val
+        except:
+            pass
+    
+    @property
+    def calib_id_str(self):
+        """Plot string for calibration ID"""
+        try:
+            return CALIB_ID_STRINGS[self.calib_id]
+        except:
+            return self.calib_id
+        
+    @property
+    def cell_gas_cds(self):
+        """Vector containing cell gas CDs"""
+        return self.gas_cds
+    
+    @property
+    def cell_gas_cd_errs(self):
+        """Vector containing cell gas CD errors"""
+        return self.gas_cd_errs
+   
+    @property
+    def tau_std_allpix(self):
+        """Returns array of tau value uncertainties
+        
+        The uncertainties are determined for each Cell OD image in 
+        ``self.tau_stack`` using a provided confidence interval of the 
+        standard deviation of tau values of all image pixels.
+        
+        Parameters
+        ----------
+        sigma : int
+            confidence interval for uncertainty estimate
+        
+        Returns
+        -------
+        ndarray 
+            vector containing tau uncertainties for all cell images
+            
+        """  
+        vals = []
+        for k in range(self.tau_stack.shape[0]):
+            img = Img(self.tau_stack.stack[k])
+            img.apply_gaussian_blurring(3)
+            vals.append(abs(img.max() -
+                            img.min())) 
+        return asarray(vals)
+    
+    @property
+    def poly(self):
+        try:
+            self.print_last_fit_info()
+            return self.last_polyfit_info["poly"]
+        except:
+            raise ValueError("Calibration data is not available, call method "
+                             "fit_calib_polynomial first")
+    
+    @poly.setter
+    def poly(self, value):
+        raise IOError("Calibration polynomial cannot "
+                      "be set manually, please call function "
+                      "fit_calib_polynomial")        
+    @property
+    def cov(self):
+        """Covariance matriy of calibration polynomial"""
+        try:
+            self.print_last_fit_info()
+            return self.last_polyfit_info["cov"]
+        except:
+            raise ValueError("Calibration data is not available, call method "
+                             "get_calib_data first")
+    
+    @cov.setter
+    def cov(self, value):
+        raise IOError("Covariance matrix of calibration polynomial cannot "
+                      "be set manually, please call function "
+                      "fit_calib_polynomial")
+            
+    @property
+    def coeffs(self):
+        """Coefficients of current calibration polynomial"""
+        try:
+            self.print_last_fit_info()
+            return self.last_polyfit_info["poly"].coeffs 
+        except:
+            raise ValueError("Calibration data is not available, call method "
+                             "get_calib_data first")
+    @property
+    def slope(self):
+        """Slope of current calib curve"""
+        return self.coeffs[-2]
+    
+    @property
+    def slope_err(self):
+        """Slope error of current calib curve"""
+        return sqrt(abs(self.cov[-2][-2]))
+    
+    @property
+    def y_offset(self):
+        """Y-axis offset of calib curve"""
+        return self.coeffs[-1]
+    
+    @property
+    def y_offset_err(self):
+        """Error of y axis offset of calib curve"""
+        return sqrt(self.cov[-1][-1])
+    
+    def print_last_fit_info(self):
+        """Print information about last calibration fit
+        
+        This includes the pixel position and extend, etc...
+        """
+        if self.last_polyfit_info:
+            s = "Calibration fit info:\n"
+            for k, v in self.last_polyfit_info.iteritems():
+                s = s + "%s: %s\n" %(k,v)
+            print s
+            
     def set_data(self, tau_stack, gas_cds, gas_cd_errs):
         """This function checks and sets the relevant calibration data
         
@@ -402,70 +553,15 @@ class CellCalibData(object):
         if has_cds and not has_cd_errs or sum(self.gas_cd_errs) == 0:
             warn ("Cell gas CD errors undefined, assuming 20% of cell CDs")
             self.gas_cd_errs = self.gas_cds * 0.2
-        
-    @property
-    def calib_id(self):
-        """Calibration ID"""
-        return self._calib_id
-    
-    @calib_id.setter
-    def calib_id(self, val):
-        if not isinstance(val, str):
-            raise TypeError("Invalid input for calib_id, need str")
-        self._calib_id = val
-        try:
-            self.tau_stack.stack_id = val
-        except:
-            pass
-    
-    @property
-    def calib_id_str(self):
-        """Plot string for calibration ID"""
-        try:
-            return CALIB_ID_STRINGS[self.calib_id]
-        except:
-            return self.calib_id
-        
-    @property
-    def cell_gas_cds(self):
-        """Vector containing cell gas CDs"""
-        return self.gas_cds
-    
-    @property
-    def cell_gas_cd_errs(self):
-        """Vector containing cell gas CD errors"""
-        return self.gas_cd_errs
-   
-    @property
-    def tau_std_allpix(self, sigma=3):
-        """Returns array of tau value uncertainties
-        
-        The uncertainties are determined for each Cell OD image in 
-        ``self.tau_stack`` using a provided confidence interval of the 
-        standard deviation of tau values of all image pixels.
-        
-        Parameters
-        ----------
-        sigma : int
-            confidence interval for uncertainty estimate
-        
-        Returns
-        -------
-        ndarray 
-            vector containing tau uncertainties for all cell images
-            
-        """  
-        vals = []
-        for k in range(self.tau_stack.shape[0]):
-            vals.append(self.tau_stack.stack[k].std()* sigma) 
-        return asarray(vals)
-            
-    def poly(self, pos_x_abs=None, pos_y_abs=None, radius_abs=1, mask=None, 
-             polyorder=1):
+                
+    def fit_calib_polynomial(self, pos_x_abs=None, pos_y_abs=None, 
+                             radius_abs=1, mask=None, 
+                             polyorder=1):
         """Retrieve calibration polynomial within pixel neighbourhood
         
         Extracts tau value of all cells within a certain image area and
-        fits calibration polynomial using :attr:`gas_cds`.
+        fits calibration polynomial using :attr:`gas_cds`. The results are
+        stored in the dictionary :attr:`last_polyfit_info`.
         
         Parameters
         ----------
@@ -513,19 +609,34 @@ class CellCalibData(object):
         tau_arr = stack.get_time_series(x_rel, 
                                         y_rel, rad_rel, mask)[0].values
         cd_arr = self.gas_cds
-        return poly1d(polyfit(tau_arr, cd_arr, polyorder)), tau_arr, cd_arr
+        exp = exponent(max(cd_arr))
+        cds = cd_arr / 10**exp
+        # perform fit avoiding the typically large numbers
+        coeffs, cov = polyfit(tau_arr, cds, polyorder, cov=True)
+        poly = poly1d(coeffs * 10**exp)
+        self.last_polyfit_info = od(pos_x_abs=pos_x_abs,
+                                    pos_y_abs=pos_y_abs,
+                                    radius_abs=radius_abs,
+                                    mask=mask, 
+                                    polyorder=polyorder,
+                                    tau_arr=tau_arr,
+                                    cd_arr=cd_arr,
+                                    poly=poly,
+                                    cov=cov * 10**(2*exp),
+                                    exp=exp)
+        return (poly, tau_arr, cd_arr)
     
     def get_sensitivity_corr_mask(self, doas_fov=None, cell_cd=1e16,
                                   surface_fit_pyrlevel=2):
         """Get sensitivity correction mask 
         
-        Prepares a sensitivity correction mask to corrector for filter 
-        transmission shifts. These shifts result in increaing optical 
+        Prepares a sensitivity correction mask to correct for filter 
+        transmission shifts. These shifts result in increasing optical 
         densities towards the image edges for a given gas column density.
         
         The mask is determined for original image resolution, i.e. pyramid 
         level 0 and for a specific cell optical density image 
-        (aa, tau_on, tau_off). THe latter is normalised either with respect 
+        (aa, tau_on, tau_off). The latter is normalised either with respect 
         to the pixel position of a DOAS field of view within the images, 
         or, alternatively with respect to the image center coordinate.
         
@@ -536,7 +647,7 @@ class CellCalibData(object):
         normalised with respect to the image center, the corresponding cell 
         calibration polynomial should then be retrieved in the center 
         coordinate which is the default polynomial when using 
-        :func:`get_calibration_polynomial` or func:`__call__`) if not 
+        :func:`poly` or func:`__call__`) if not 
         explicitely specified. You may then calibrate a given aa image 
         (``aa_img``) as follows with using a :class:`CellCalibData` object 
         (denoted with ``cellcalib``)::
@@ -606,6 +717,58 @@ class CellCalibData(object):
         mean = (cell_img * fov_mask).sum() / fov_mask.sum()
         mask = cell_img / mean
         return mask, cd
+    
+    def _get_calib_data_last(self):
+        try: 
+            d=self.last_polyfit_info
+            return (d["poly"], d["tau_arr"], d["cd_arr"])
+        except:
+            raise ValueError("No stored calibration data available")
+    
+    def get_calib_data(self, **kwargs):
+        """Get calibration data 
+        
+        The calibration data comprises the calibration polynomial (1. return
+        value), an array containing the corresponding camera optical densities 
+        (tau, 2. return value) and the corresponding cell CDs (3. return val)
+        
+        If additinal keyword input parameters are provided using 
+        :param:`kwargs` it is assumed, that the user specifically wishes to 
+        retrieve the calibration data for a certain pixel neighbourhood and 
+        the calibration data is extracted from the OD-stack and fitted using 
+        :func:`fit_calib_polynomial`. If no keyword args are provided, then
+        it is attempted to extract the calibration info from the
+        :attr:`last_polyfit_info`. If this fails (i.e. if 
+        :func:`fit_calib_polynomial` has not been called at least once) then
+        the :func:`fit_calib_polynomial` is called ultimately using the default
+        position settings (i.e. center of image).
+        
+        Parameters
+        ----------
+        kwargs
+            keyword arguments for :func:`fit_calib_polynomial`
+            
+        Returns
+        -------
+        tuple
+            3-element tuple containing
+            
+            - poly1d, fitted polynomial
+            - ndarray, array with tau values 
+            - ndarray, array with corresponding gas CDs
+        
+        Raises
+        ------
+        Exception
+            if calibration data cannot be accessed
+            
+        """
+        if not kwargs:
+            try:
+                return self._get_calib_data_last()
+            except ValueError:
+                return self.fit_calib_polynomial()
+        return self.fit_calib_polynomial(**kwargs)
         
     def plot(self, pos_x_abs, pos_y_abs, radius_abs=1, mask=None,
              ax=None, **kwargs):
@@ -627,6 +790,8 @@ class CellCalibData(object):
         ax : axes
             matplotlib axes instance (if None, a new figure with axes
             will be created)
+        kwargs : 
+            additional keyword args passed to plot funtion 
         
         Returns
         -------
@@ -638,10 +803,14 @@ class CellCalibData(object):
         if ax is None:
             fig, ax = subplots(1, 1)
             add_to = False
-        poly, tau, gas_cd = self.poly(pos_x_abs, pos_y_abs, radius_abs, mask)
+        poly, tau, gas_cd = self.get_calib_data(pos_x_abs=pos_x_abs, 
+                                            pos_y_abs=pos_y_abs, 
+                                            radius_abs=radius_abs, 
+                                            mask=mask)
         
         taus = linspace(0, tau.max() * 1.05, 100)
-        ax.plot(tau, gas_cd, " ^", label = "Data cell %s" %self.calib_id_str, 
+        ax.plot(tau, gas_cd, " ^", 
+                label="Data cell %s" %self.calib_id_str, 
                 **kwargs)
         try:
             ax.errorbar(tau, gas_cd, self.gas_cd_errs, self.tau_std_allpix,
@@ -652,7 +821,7 @@ class CellCalibData(object):
         ax.plot(taus, poly(taus),"-", label = "Fit result", **kwargs)
         
         if not add_to:
-            ax.set_ylabel(r"$S_{%s}$ [cm$^{-2}$]" %SPECIES_ID, fontsize=LABEL_SIZE)
+            ax.set_ylabel(r"$S_{%s}$ [cm$^{-2}$]" %SPECIES_ID)
             ax.set_xlabel(r"$\tau$", fontsize=18)    
             ax.grid()
         ax.legend(loc="best", fancybox=True, framealpha=0.5, fontsize=14)
@@ -666,13 +835,22 @@ class CellCalibData(object):
         return CellCalibData(tau_stack=st)
 
     def __call__(self, value, **kwargs):
-        """Define call function to apply calibration
+        """Define call function to apply calibration to input value
         
-        :param float value: tau or AA value
-        :return: corresponding column density
+        Parameters
+        ----------
+        value : float
+            tau or AA value, may be single value, :class:`Img` or 
+            :class:`ImgStack` 
+        kwargs 
+            additional keyword args passed to :func:`get_calib_data`
+            
+        Returns
+        -------
+        calibrated input object
         """
         try:
-            poly = self.get_calibration_polynomial(**kwargs)[0]
+            poly = self.get_calib_data(**kwargs)[0]
         except:
             raise ValueError("Calibration data not available")
         if isinstance(value, Img):
@@ -715,9 +893,11 @@ class CellCalibEngine(Dataset):
     ----------
     setup : MeasSetup
         see :class:`Dataset` for details
+    init : bool
+        if True, the image lists are initiated and filled (if possible)
         
     """
-    def __init__(self, setup=None, init=1):
+    def __init__(self, setup=None, init=True):
         print 
         print "INIT CALIB DATASET OBJECT"
         print
@@ -780,7 +960,8 @@ class CellCalibEngine(Dataset):
         if not len(paths) > 0:
             raise TypeError("No valid filepaths could be identified")
         
-        lst = CellImgList(files=paths, list_id=filter_id, camera=self.camera,
+        lst = CellImgList(files=paths, list_id=filter_id, 
+                          camera=self.camera,
                           cell_id=cell_id, gas_cd=cell_gas_cd)
         self.add_cell_img_list(lst)
     
@@ -810,7 +991,8 @@ class CellCalibEngine(Dataset):
         if not len(paths) > 0:
             raise TypeError("No valid filepaths could be identified")
         
-        lst = CellImgList(files=paths, list_id=filter_id, camera=self.camera)
+        lst = CellImgList(files=paths, list_id=filter_id, 
+                          camera=self.camera)
         self.add_bg_img_list(lst)
         
     def add_cell_img_list(self, lst):
@@ -1156,7 +1338,7 @@ class CellCalibEngine(Dataset):
         self._assign_calib_specs()
         self.add_search_results()
         self.check_all_lists()
-        self.cell_search_performed = 1
+        self.cell_search_performed=1
             
     def bg_img_available(self, filter_id):
         """Checks if a background image is available
@@ -1171,7 +1353,7 @@ class CellCalibEngine(Dataset):
                 return True
             raise Exception
         except:
-            self.check_image_lists(filter_id)
+            self.check_all_lists(filter_id)
             if isinstance(self.bg_lists[filter_id], Img):
                 return True
             return False
@@ -1560,27 +1742,29 @@ class CellCalibEngine(Dataset):
             print ("Error plotting cell search results: no results found...")
             return 0
         if for_app:
-            fig = Figure()#figsize = (16, 6))
+            fig = Figure(figsize=(14,8))
             ax = fig.add_subplot(111)
         else:
             if ax is None:
-                fig, ax = subplots(1,1)
+                fig, ax = subplots(1,1,figsize=(14,8))
                 
         info = res.cell_info[filter_id]
         num = len(info)
         nums = [int(255.0 / k) for k in range(1, num+3)]
-        ts_all.plot(include_tit=include_tit, ax=ax, ls="--", c=cmap(nums[0]),
+        ts_all.plot(include_tit=include_tit, ax=ax, ls="--", 
+                    c=cmap(nums[0]),
                     label="Avg. pix intensities (%s)" %filter_id)
         
         ts = ts_all.index
-        dt = timedelta(0, (ts[-1] - ts[0]).total_seconds() /\
-                                                (len(ts_all) * 10))
+        dt = timedelta(0, (ts[-1]-ts[0]).total_seconds()/(len(ts_all)*10))
         
         k=2
         for cell in info.values():                
             lbl = (r"Cell %s: $S_{%s}$=%.2e cm$^{-2}$" 
-                    %(cell.img_list.cell_id, SPECIES_ID, cell.img_list.gas_cd))
-            p = ax.plot(cell.start_acq, cell.mean_vals,' o', color=cmap(nums[k]),
+                    %(cell.img_list.cell_id, SPECIES_ID, 
+                      cell.img_list.gas_cd))
+            p = ax.plot(cell.start_acq, cell.mean_vals,' o', 
+                        color=cmap(nums[k]),
                         ms=8, label=lbl, markeredgecolor="None", 
                         markeredgewidth=1)
             c = p[0].get_color()
@@ -1591,8 +1775,8 @@ class CellCalibEngine(Dataset):
         if filter_id in res.bg_info.keys():
             bg_info = res.bg_info[filter_id]
             c = cmap(nums[1])
-            ax.plot(bg_info.start_acq, bg_info.mean_vals,' o', color=c, ms=10,
-                    markerfacecolor="None", markeredgecolor=c,
+            ax.plot(bg_info.start_acq, bg_info.mean_vals,' o', color=c, 
+                    ms=10, markerfacecolor="None", markeredgecolor=c,
                     mew=2, label='BG image candidates')
             ts = PixelMeanTimeSeries(bg_info.mean_vals, bg_info.start_acq)
             ts.fit_polynomial(2)
@@ -1607,8 +1791,8 @@ class CellCalibEngine(Dataset):
                     marker="+", color=cmap(nums[0]), ms=12, mew=2, 
                     label='Current BG image')
             
-        ax.legend(loc="best", fancybox=True, framealpha=0.5, fontsize=LABEL_SIZE-2)
-        ax.set_ylabel(r"$\mu_{pix}$", fontsize=LABEL_SIZE)
+        ax.legend(loc="best", fancybox=True, framealpha=0.5)
+        ax.set_ylabel(r"$\mu_{pix}$")
         return ax
     
     def plot_calib_curve(self, calib_id, **kwargs):
@@ -1655,7 +1839,7 @@ class CellCalibEngine(Dataset):
         tau_max = -10
         y_min = 1e20
         for calib_id, calib in self.calib_data.iteritems():
-            poly, tau, gas_cd = calib.poly(**kwargs)
+            poly, tau, gas_cd = calib.get_calib_data(**kwargs)
             gas_cd_errs, tau_errs = calib.gas_cd_errs, calib.tau_std_allpix
             taus = linspace(0, tau.max() * 1.2, 100)
             # plot data points
@@ -1677,8 +1861,8 @@ class CellCalibEngine(Dataset):
             if poly(0) < y_min:
                 y_min = poly(0)
                 
-        ax.set_ylabel(r"$S_{%s}$ [cm$^{-2}$]" %SPECIES_ID, fontsize=LABEL_SIZE)
-        ax.set_xlabel(r"$\tau$", fontsize=LABEL_SIZE)
+        ax.set_ylabel(r"$S_{%s}$ [cm$^{-2}$]" %SPECIES_ID)
+        ax.set_xlabel(r"$\tau$")
         ax.set_ylim([y_min - gas_cd.min() * 0.1, gas_cd.max()*1.05])
         ax.set_xlim([0, tau_max * 1.05])
         ax.grid()

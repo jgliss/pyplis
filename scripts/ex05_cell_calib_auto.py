@@ -1,6 +1,22 @@
 # -*- coding: utf-8 -*-
+#
+# Pyplis is a Python library for the analysis of UV SO2 camera data
+# Copyright (C) 2017 Jonas Gliß (jonasgliss@gmail.com)
+#
+# This program is free software: you can redistribute it and/or
+# modify it under the terms of the GNU General Public License a
+# published by the Free Software Foundation, either version 3 of
+# the License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
-pyplis example script no. 5 - Automatic cell calibration
+Pyplis example script no. 5 - Automatic cell calibration
 
 Script showing how to use the automatic cell calibration engine which only 
 requires to specify start / stop time stamps of a calibration window. Based on 
@@ -15,6 +31,7 @@ check_version()
 
 import pyplis
 from datetime import datetime
+from time import time
 from os.path import join
 from matplotlib.pyplot import show, close
 
@@ -79,8 +96,9 @@ def perform_auto_cell_calib():
 ### SCRIPT MAIN FUNCTION
 if __name__ == "__main__":
     close("all")
+    start = time()
     c = perform_auto_cell_calib()
-    
+    stop = time()
     ### Plot search result of on
     ax0 = c.plot_cell_search_result("on", include_tit = False)
     ax1 = c.plot_cell_search_result("off", include_tit = False)
@@ -102,6 +120,17 @@ if __name__ == "__main__":
     ax1.set_title("Cell search result off band", fontsize = 18)
     ax2.set_title("Calibration polynomials", fontsize = 18)
     
+    # You can explicitely access the individual CellCalibData objects
+    aa_calib = c.calib_data["aa"]
+    
+    aa_calib.fit_calib_polynomial(100, 100, 15)
+    # print some useful attributes of the calibration
+    print ("Properties of AA cell calibration object:\n"
+           "Polynomial: %s\n"
+           "Slope / err: %.3e / %.3e"
+           %(aa_calib.poly, aa_calib.slope, aa_calib.slope_err))
+    
+    print "Time elapsed for preparing calibration data: %.4f s" %(stop-start)
     # Display images or not    
     (options, args)   =  OPTPARSE.parse_args()
     try:

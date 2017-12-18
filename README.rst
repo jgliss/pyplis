@@ -1,4 +1,21 @@
-Pyplis is a Python toolbox for the analysis of UV SO2 camera data. The software package includes a comprehensive collection of algorithms for the analysis of such data.
+Pyplis is a Python toolbox for the analysis of UV SO2 camera data. The software includes a comprehensive collection of algorithms for the analysis of such data.
+
+Contact: Jonas Gliss (jonasgliss@gmail.com)
+
+Pyplis paper
+============
+
+A paper discussing the main features of *Pyplis* and implementation details is in the process of being published in the special issue on `Volcanic plumes <http://www.mdpi.com/journal/geosciences/special_issues/volcanic_processes>`__ of the Journal *Geosciences* (MDPI). Click `here, to download a citable preprint of the paper <https://www.preprints.org/manuscript/201710.0085/v1>`__.
+
+Citation
+--------
+If you find *Pyplis* useful for your data analysis, we would highly appreciate if you acknowledge our work by `citing the paper <https://www.preprints.org/manuscript/201710.0085/v1>`__.
+
+Note
+====
+
+The software was renamed from **piscope** to **Pyplis** on 17.02.2017 
+
 
 Main features
 =============
@@ -14,10 +31,17 @@ Main features
 - Support of standard image formats including `FITS format <https://de.wikipedia.org/wiki/Flexible_Image_Transport_System>`__
 - Easy and flexible setup for data import and camera specifications
   
-.. note::
-
-  The software was renamed from **piscope** to **pyplis** on 17.02.2017 
+Copyright
+=========
   
+Copyright (C) 2017 Jonas Gliss (jonasgliss@gmail.com)
+
+This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License a published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with this program. If not, see `here <http://www.gnu.org/licenses/>`__.
+
 Requirements
 ============
 
@@ -33,6 +57,7 @@ Requirements are listed ordered in decreasing likelyhood to run into problems wh
   - latlon >= 1.0.2
   - srtm.py >= 0.3.2
   - pyproj  >= 1.9.5.1
+  - basemap >= 1.0.7
     
 - pandas == 0.16.2
 - matplotlib >= 1.4.3
@@ -42,6 +67,8 @@ Requirements are listed ordered in decreasing likelyhood to run into problems wh
 - pydoas >= 1.0.0
 
 We recommend using `Anaconda <https://www.continuum.io/downloads>`_ as package manager since it includes most of the required dependencies and is updated on a regular basis. Moreover, it is probably the most comfortable way to postinstall and upgrade dependencies such as OpenCV (`see here <http://stackoverflow.com/questions/23119413/how-to-install-python-opencv-through-conda>`__) or the scipy stack.
+
+Please, if you have problems installing Pyplis, contact us or better, raise an Issue.
 
 Installation
 ============
@@ -64,7 +91,7 @@ In case the installation fails make sure that all dependencies (see above) are i
 Code documentation
 ==================
 
-The code documentation of Pyplis and more information is hosted on `Read the Docs <http://pyplis.readthedocs.io/en/latest/code_lib.html>`__. 
+The code documentation of Pyplis and more information is hosted on `Read the Docs <http://pyplis.readthedocs.io/en/latest/index.html>`__. 
 
 Getting started
 ===============

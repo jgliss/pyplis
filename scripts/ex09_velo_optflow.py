@@ -1,7 +1,22 @@
 # -*- coding: utf-8 -*-
+#
+# Pyplis is a Python library for the analysis of UV SO2 camera data
+# Copyright (C) 2017 Jonas Gliß (jonasgliss@gmail.com)
+#
+# This program is free software: you can redistribute it and/or
+# modify it under the terms of the GNU General Public License a
+# published by the Free Software Foundation, either version 3 of
+# the License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
-pyplis example script no. 9 - Plume velocity retrieval using Farneback optical 
-flow algorithm
+Pyplis example script no. 9 - Optical flow Plume velocity retrieval 
 """
 from SETTINGS import check_version
 # Raises Exception if conflict occurs
@@ -27,6 +42,10 @@ PEAK_SIGMA_TOL=2
 
 # perform histogram analysis for all images in time series
 HISTO_ANALYSIS_ALL = 1
+# applies multi gauss fit to retrieve local predominant displacement 
+# direction, if False, then the latter is calculated from 1. and 2. moment
+# of histogram (Faster but more sensitive to additional peaks in histogram)
+HISTO_ANALYSIS_MULTIGAUSS = True
 HISTO_ANALYSIS_START_IDX = 0
 HISTO_ANALYSIS_STOP_IDX = None#207
 
@@ -97,7 +116,7 @@ if __name__ == "__main__":
     # distance image where pixel values correspond to step widths in the plume, 
     # obviously, the distance values depend on the downscaling factor, which
     # is calculated from the analysis pyramid level (PYRLEVEL)
-    dist_img, _, _ = aa_list.meas_geometry.get_all_pix_to_pix_dists(
+    dist_img, _, _ = aa_list.meas_geometry.compute_all_integration_step_lengths(
                                             pyrlevel=PYRLEVEL)
     # set the pyramid level in the list
     aa_list.pyrlevel = PYRLEVEL
@@ -106,7 +125,7 @@ if __name__ == "__main__":
     
     # Access to the optical flow module in the image list. If optflow_mode is 
     # active in the list, then, whenever the list index changes (e.g. using
-    # list.next_img(), or list.goto_img(100)), the optical flow field is 
+    # list.goto_next(), or list.goto_img(100)), the optical flow field is 
     # calculated between the current list image and the next one
     fl = aa_list.optflow 
     #(! note: fl is only a pointer, i.e. the "=" is not making a copy of the 
@@ -150,11 +169,15 @@ if __name__ == "__main__":
             HISTO_ANALYSIS_STOP_IDX = aa_list.nof - 1
         for k in range(HISTO_ANALYSIS_START_IDX, HISTO_ANALYSIS_STOP_IDX):
             plume_mask = aa_list.get_thresh_mask(MIN_AA)
-            plume_props_l1.get_and_append_from_farneback(fl, line=PCS1,
-                                                         pix_mask=plume_mask)
-            plume_props_l2.get_and_append_from_farneback(fl, line=PCS2,
-                                                         pix_mask=plume_mask)
-            aa_list.next_img()
+            plume_props_l1.\
+            get_and_append_from_farneback(fl, line=PCS1,
+                                          pix_mask=plume_mask,
+                                          dir_multi_gauss=HISTO_ANALYSIS_MULTIGAUSS)
+            plume_props_l2.\
+            get_and_append_from_farneback(fl, line=PCS2,
+                                          pix_mask=plume_mask,
+                                          dir_multi_gauss=HISTO_ANALYSIS_MULTIGAUSS)
+            aa_list.goto_next()
             
 #==============================================================================
 #         plume_props_l1 = plume_props_l1.interpolate()

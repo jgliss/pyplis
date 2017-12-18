@@ -1,6 +1,22 @@
 # -*- coding: utf-8 -*-
+#
+# Pyplis is a Python library for the analysis of UV SO2 camera data
+# Copyright (C) 2017 Jonas Gliß (jonasgliss@gmail.com)
+#
+# This program is free software: you can redistribute it and/or
+# modify it under the terms of the GNU General Public License a
+# published by the Free Software Foundation, either version 3 of
+# the License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
-Module containing features related to plume velocity analysis       
+Pyplis module containing features related to plume velocity analysis       
 """
 from numpy import mgrid,vstack,int32,sqrt,arctan2,rad2deg, asarray, sin,\
     cos, logical_and, histogram, ceil, roll, argmax, arange, ndarray,\
@@ -608,7 +624,7 @@ class VeloCrossCorrEngine(object):
             profiles1[:,k] = pcs1.get_line_profile(img)
             profiles2[:,k] = pcs2.get_line_profile(img)
             times.append(lst.current_time())
-            lst.next_img()
+            lst.goto_next()
          
         #mutiply pix to pix dists to the AA profiles in the 2 images
         profiles1 = profiles1 * dists_pcs1.reshape((len(dists_pcs1), 1)) 
@@ -731,7 +747,7 @@ class VeloCrossCorrEngine(object):
             warn("List contains less than 20 images, cross-correlation "
                  "analysis is likely to fail")
         try:
-            lst.meas_geometry.get_all_pix_to_pix_dists()
+            lst.meas_geometry.compute_all_integration_step_lengths()
         except:
             raise AttributeError("Failed to access pixel-to-pixel "
                                  "distances from MeasGeometry (attribute "
@@ -743,7 +759,8 @@ class VeloCrossCorrEngine(object):
         The image is loaded from the current :class:`MeasGeometry` object
         assigned to the image list.
         """
-        return self.meas_geometry.get_all_pix_to_pix_dists(pyrlevel)[0]
+        return (self.meas_geometry.\
+                    compute_all_integration_step_lengths(pyrlevel)[0])
         
     def load_pcs_profile_img(self, file_path, line_id="pcs"):
         """Tries to load ICA profile time series image from FITS file
@@ -824,7 +841,7 @@ class VeloCrossCorrEngine(object):
         pcs2.plot_line_on_grid(ax=ax)
         return ax
     
-    def plot_ica_tseries_overlay(self, ax=None):
+    def plot_ica_tseries_overlay(self, ylabel=None, ax=None):
         """Plots the ICA time-series of the analysed signals
         
         Note
@@ -854,7 +871,13 @@ class VeloCrossCorrEngine(object):
         s_offs.plot(ax=ax, style="-", color=self.pcs_offset.color, 
                     label=self.pcs_offset.line_id)
         
-        ax.set_ylabel("ICA [m]")
+        
+        if isinstance(ylabel, str):
+            ax.set_ylabel(ylabel)
+        else:
+            warn("No y-label provided, setting y-axis invisible, since ICA"
+                 "may also correspond to integrated optical densities")
+            ax.yaxis.set_visible(0)
         #ax.xaxis.set_major_formatter(DateFormatter("%H:%M"))
         #ax[0,].set_title("Original time series", fontsize = 10)
         ax.grid()
@@ -1697,7 +1720,7 @@ class FarnebackSettings(object):
                              ("hist_dir_gnum_max"   ,   10),
                              ("hist_dir_binres"     ,   10)])
         
-        self._display = od([("disp_skip"            ,   10),
+        self._display = od([("disp_skip"            ,   20),
                             ("disp_len_thresh"      ,   1)])
         
         #for test
@@ -1954,11 +1977,25 @@ class FarnebackSettings(object):
         """Return current pixel skip value for displaying flow field"""
         return self._display["disp_skip"]
     
+    @disp_skip.setter
+    def disp_skip(self, val):
+        try:
+            self._display["disp_skip"] = int(val)
+        except:
+            raise ValueError("Need number, got %s" %type(val))
+            
     @property
     def disp_len_thresh(self):
         """Return current pixel skip value for displaying flow field"""
         return self._display["disp_len_thresh"]    
     
+    @disp_len_thresh.setter
+    def disp_len_thresh(self, val):
+        try:
+            self._display["disp_len_thresh"] = float(val)
+        except:
+            raise ValueError("Need number, got %s" %type(val))
+            
     def duplicate(self):
         """Returns deepcopy of this object"""
         return deepcopy(self)
@@ -2117,6 +2154,21 @@ class OptflowFarneback(object):
         if not isinstance(im, Img):
             raise AttributeError("No image available")
         return im.edit_log["pyrlevel"]
+     
+    @property
+    def del_t(self):
+        """Return time difference in s between both images"""
+        t0, t1 = self.get_img_acq_times()
+        return (t1 - t0).total_seconds()
+    
+    @property
+    def current_time(self):
+        """Return acquisition time of current image"""
+        try:
+            return self.images_input["this"].meta["start_acq"]
+        except:
+            warn("Image acq. time cannot be accessed in OptflowFarneback")
+            return datetime(1900, 1, 1)
         
     def set_mode_auto_update_contrast_range(self, value=True):
         """Activate auto update of image contrast range
@@ -2681,33 +2733,6 @@ class OptflowFarneback(object):
         sigma = sqrt(nth_moment(x, c, mu, 2))
         return mu, sigma
         
-    def analyse_length_histo(self, count, bins):
-        """Get mean and sigma of length histogram using 1. and 2nd moment
-        
-        Parameters
-        ----------
-        count : array
-            array with counts per bin
-        bins : array
-            array containing bins
-            
-        Returns
-        -------
-        tuple
-            2-element tuple, containing
-            
-            - :obj:`float`: expectation value mu
-            - :obj:`float`: corresponding standard deviation
-        """
-#==============================================================================
-#         max_len = bins[nonzero(count)[0][-1] + 1]
-#         print max_len
-#==============================================================================
-        mu, sigma = self.mu_sigma_from_moments(count, bins)
-        #sigma = max_len - mu
-        #print("Avg. displ. length: %.1f +/- %.1f" %(mu, sigma))
-        return (mu, sigma)
-        
     def fit_length_histo(self, count, bins, noise_amp=None,
                          max_num_gaussians=4, **kwargs):
         """Apply multi gauss fit to length distribution histogram
@@ -2748,7 +2773,8 @@ class OptflowFarneback(object):
         return self.local_flow_params(**kwargs)
         
     def local_flow_params(self, line=None, pix_mask=None, noise_amp=None, 
-                          min_count_frac=None, min_length=None):
+                          min_count_frac=None, min_length=None,
+                          dir_multi_gauss=True):
         """Histogram based statistical analysis of flow field in current ROI
         
         This function analyses histograms of the current flow field within
@@ -2779,6 +2805,11 @@ class OptflowFarneback(object):
         min_length : :obj:`float`, optional
             minimum length of vectors required in order to be considered for 
             historgram analysis
+        dir_multi_gauss : bool
+            if True, a multi Gauss analysis (see :class:`MultiGaussFit`) is 
+            applied to orientation histogram to separate the main peak from
+            potential other peaks. Note that the optimisation slows down 
+            the analysis a bit.
             
         Returns
         -------
@@ -2850,31 +2881,38 @@ class OptflowFarneback(object):
                 %(frac*100, min_length))
             return res
         # Now try to apply multi gauss fit to histogram distribution
-        fit, ok = self.fit_orientation_histo(count, bins, noise_amp)
         sigma_tol = self.settings.hist_sigma_tol
-        res["fit_dir"] = fit
-        if fit.has_results():
-            res["_fit_success"] = 1
-            
-            #analyse the fit result (i.e. find main gauss peak and potential other
-            #significant peaks)
-            (dir_mu, 
-             dir_sigma, 
-             tot_num, 
-             add_gaussians) = fit.analyse_fit_result(sigma_tol_overlaps=
-                                                     sigma_tol + 1)
-            sign_addgauss = sum([fit.integrate_gauss(*g) for g 
-                                 in add_gaussians]) / tot_num
-            #sign = int(fit.integrate_gauss(*g) * 100 / tot_num)
-            if sign_addgauss > .2: #other peaks exceed 20% of main peak
-                warn("Aborting histogram analysis: Multi-Gauss fit yielded "
-                     "additional Gaussian exceeding significance thresh of 0.2"
-                     "in histo of orientation angles\n%sSignificance: %s %%\n"
-                     %(fit.gauss_str(g), sign_addgauss*100))
+        if dir_multi_gauss:
+            fit, ok = self.fit_orientation_histo(count, bins, noise_amp)
+            res["fit_dir"] = fit
+            if fit.has_results():
+                res["_fit_success"] = 1
+                
+                #analyse the fit result (i.e. find main gauss peak and potential other
+                #significant peaks)
+                (dir_mu, 
+                 dir_sigma, 
+                 tot_num, 
+                 add_gaussians) =\
+                     fit.analyse_fit_result(sigma_tol_overlaps=
+                                            sigma_tol+1)
+                sign_addgauss = sum([fit.integrate_gauss(*g) for g 
+                                     in add_gaussians]) / tot_num
+                #sign = int(fit.integrate_gauss(*g) * 100 / tot_num)
+                if sign_addgauss > .2: #other peaks exceed 20% of main peak
+                    warn("Aborting histogram analysis: Multi-Gauss fit "
+                         "yielded additional Gaussian exceeding "
+                         "significance thresh of 0.2 in histo of "
+                         "orientation angles\n%sSignificance: %s %%\n"
+                         %(fit.gauss_str(g), sign_addgauss*100))
+                    return res
+            else:
+                warn("Aborting histogram analysis, Multi-Gauss fit failed")
                 return res
         else:
-            warn("Aborting histogram analysis, Multi-Gauss fit failed")
-            return res
+            dir_mu, dir_sigma = self.mu_sigma_from_moments(count, bins)
+            dir_sigma *= sigma_tol
+            add_gaussians = 0
 #==============================================================================
 #             warn("Could not retrieve predominant peak of orientation histogram "
 #                 "from multi gauss fit. Using 1. and 2. moment of distr. for "
@@ -2887,9 +2925,6 @@ class OptflowFarneback(object):
         res["_dir_sigma"] = dir_sigma
         res["_add_gauss_dir"] = add_gaussians
         
-        print("Predominant movement direction: %.1f +/- %.1f" %(dir_mu,
-                                                                dir_sigma))
-                                                            
         #limit range of reasonable orientation angles...
         dir_low = dir_mu - dir_sigma * sigma_tol
         dir_high = dir_mu + dir_sigma * sigma_tol
@@ -2911,7 +2946,8 @@ class OptflowFarneback(object):
         
         count, bins, _ = self.flow_length_histo(lens=lens)
         #len_mu, _ = self.mu_sigma_from_moments(count, bins)
-        len_mu, len_sigma = self.analyse_length_histo(count, bins)
+        len_mu, len_sigma = self.mu_sigma_from_moments(count, bins)
+        len_sigma
         
         #print("Avg. displ. length: %.1f +/- %.1f" %(len_mu, len_sigma))
         
@@ -2967,21 +3003,6 @@ class OptflowFarneback(object):
         flc.flow[:,:,0][m] = displ_vec[0]
         flc.flow[:,:,1][m] = displ_vec[1]
         return flc
-        
-    @property
-    def del_t(self):
-        """Return time difference in s between both images"""
-        t0, t1 = self.get_img_acq_times()
-        return (t1 - t0).total_seconds()
-    
-    @property
-    def current_time(self):
-        """Return acquisition time of current image"""
-        try:
-            return self.images_input["this"].meta["start_acq"]
-        except:
-            warn("Image acq. time cannot be accessed in OptflowFarneback")
-            return datetime(1900, 1, 1)
         
     def get_img_acq_times(self):
         """Return acquisition times of current input images
@@ -3055,23 +3076,29 @@ class OptflowFarneback(object):
         
         mu, sigma = 0, 180
         if apply_fit:
-            fit, ok = self.fit_orientation_histo(count, bins, **fit_settings)
+            fit, ok = self.fit_orientation_histo(count, bins, 
+                                                 **fit_settings)
             if fit.has_results():
-                sigma_tol = self.settings.hist_sigma_tol
-                mu, sigma,_,_ = fit.analyse_fit_result(sigma_tol_overlaps=
-                                                     sigma_tol + 1)
-                dir_tol = sigma_tol * sigma
+                (mu, 
+                 sigma,
+                 _,_) =\
+                 fit.analyse_fit_result(sigma_tol_overlaps=
+                                        self.settings.hist_sigma_tol+1)
                 fit.plot_multi_gaussian(ax=ax, label="Multi-Gauss fit",
                                         color=color)
-                tit += (r": $\mu (+/-\sigma$) = %.1f (+/- %.1f)" 
-                    %(mu, sigma))
-                ax.plot([mu, mu], [0, count.max()*1.05], color=color, ls="-")
-                ax.plot([mu-dir_tol, mu-dir_tol], [0, count.max()*1.05], 
-                        color=color, ls="--")
-                ax.plot([mu+dir_tol, mu+dir_tol], [0, count.max()*1.05], 
-                        color=color, ls="--")
             else:
                 tit += ": Fit failed..."
+        else:
+            mu, sigma = self.mu_sigma_from_moments(count, bins)
+        
+        sigma *= self.settings.hist_sigma_tol
+        tit += (r": $\mu (+/-\sigma$) = %.1f (+/- %.1f)" 
+                    %(mu, sigma))
+        ax.plot([mu, mu], [0, count.max()*1.05], color=color, ls="-")
+        ax.plot([mu-sigma, mu-sigma], [0, count.max()*1.05], 
+                color=color, ls="--")
+        ax.plot([mu+sigma, mu+sigma], [0, count.max()*1.05], 
+                color=color, ls="--")
         ax.set_title(tit)      
         ax.set_xlim([-180, 180])    
         if bool(label):
@@ -3125,7 +3152,8 @@ class OptflowFarneback(object):
          
         ax.set_xlim([0, int(bins.max()) + 1])
         if apply_stats:
-            mu, sigma = self.analyse_length_histo(count, bins)
+            mu, sigma = self.mu_sigma_from_moments(count, bins)
+            sigma*=self.settings.hist_sigma_tol
             #sigma = self.settings.hist_sigma_tol * sigma
             tit += (r": $\mu (+/-\sigma$) = %.1f (+/- %.1f)" %(mu, sigma))
             ax.plot([mu, mu], [0, count.max()*1.05], color=color, ls="-")
@@ -3139,16 +3167,28 @@ class OptflowFarneback(object):
         ax.set_title(tit)             
         return ax
         
-    def plot_flow_histograms(self, line=None, pix_mask=None, apply_fits=True, 
-                             **kwargs):
+    def plot_flow_histograms(self, line=None, pix_mask=None, 
+                             dir_multi_gauss=True):
         """Plot detailed information about optical flow histograms
         
         Parameters
         ----------
-        line : LineOnImage
-            retrieval line for which historgrams plotted, if None (default), 
-            then the curr
-        """
+        line : :obj:`LineOnImage`, optional
+            retrieval line used to calculate historgrams only in line
+            specific ROI
+        pix_mask : :obj:`ndarray`, optional
+            2D numpy array specifying pixels for histogram retrieval, if
+            unspecified, all image pixels are used, if specified and 
+            :param:`line` is specified too, then the union of valid pixels
+            between both parameters is used
+        dir_multi_gauss : bool
+            if True, then the orientation direction histogram is fitted
+            using MultiGauss regression
+            
+        Returns
+        -------
+        figure
+        """ 
         if self.flow is None:
             raise ValueError("No flow field available..")
         roi_temp = self.roi_abs
@@ -3205,10 +3245,12 @@ class OptflowFarneback(object):
             line.plot_line_on_grid(ax=ax5, include_roi_rot=1)
             c=line.color
             
-        _, mu, sigma = self.plot_orientation_histo(pix_mask=mask, 
-                                                   apply_fit=True, ax=ax3, 
-                                                   color=c)
-        low, high = mu - sigma, mu+sigma
+        (_, 
+         mu, 
+         sigma) = self.plot_orientation_histo(pix_mask=mask, 
+                                              apply_fit=dir_multi_gauss, 
+                                              ax=ax3, color=c)
+        low, high = mu-sigma, mu+sigma
         self.plot_length_histo(pix_mask=mask, apply_fit=False, ax=ax6, 
                                dir_low=low, dir_high=high, color=c)
         
@@ -3216,7 +3258,8 @@ class OptflowFarneback(object):
         self.roi_abs = roi_temp
         return fig
         
-    def calc_flow_lines(self, in_roi=True, roi=None, include_short_vecs=False):
+    def calc_flow_lines(self, in_roi=True, roi=None, 
+                        extend_len_fac=1.0, include_short_vecs=False):
         """Determine line objects for visualisation of current flow field
         
         Parameters
@@ -3227,6 +3270,10 @@ class OptflowFarneback(object):
             :attr:`roi_abs` is used).
         roi : list
             Region of interest supposed to be displayed
+        extend_len_fac : float
+            factor by which length of vectors are extended
+        include_short_vecs : bool
+            if True, lines for short vectors are calculated as well
             
         Returns
         -------
@@ -3245,6 +3292,7 @@ class OptflowFarneback(object):
         #create and flatten a meshgrid 
         y, x = mgrid[step / 2: h : step, step / 2: w : step].reshape(2, -1)
         fx, fy = flow[y, x].T
+        fx, fy = fx*extend_len_fac, fy*extend_len_fac
         
         if not include_short_vecs and len_thresh > 0:
             #use only those flow vectors longer than the defined threshold
@@ -3264,7 +3312,8 @@ class OptflowFarneback(object):
         return self.draw_flow(**kwargs)
     
     def draw_flow(self, in_roi=False, roi_abs=None, add_cbar=False, 
-                  include_short_vecs=False, ax=None):
+                      include_short_vecs=False, extend_len_fac=1.0,
+                      linewidth=1, color=None, ax=None):
         """Draw the current optical flow field
         
         Parameters
@@ -3283,6 +3332,13 @@ class OptflowFarneback(object):
         include_short_vecs : bool
             if True, also vectors shorter than ``self.settings.min_length`` 
             are drawn
+        extend_len_fac : float
+            factor by which length of vectors are extended
+        linewidth : int
+            with of flow vector lines
+        color :
+            Color of vectors if flow field is plotted onto an already
+            plotted image.
         ax : Axes
             matplotlib axes object
             
@@ -3324,6 +3380,7 @@ class OptflowFarneback(object):
         disp = cvtColor(disp, COLOR_GRAY2BGR) 
        
         lines = self.calc_flow_lines(in_roi, roi_rel,
+                                     extend_len_fac=extend_len_fac,
                                      include_short_vecs=include_short_vecs)
         
         #tit = r"1. img"
@@ -3336,14 +3393,19 @@ class OptflowFarneback(object):
 #             tit += " (in ROI)"
 #==============================================================================
         if not draw_img:
+            if color is None:
+                color = "lime"
             for (x1, y1), (x2, y2) in lines:
-                ax.add_artist(Line2D([x0 + x1, x0 + x2], [y0 + y1, y0 + y2],
-                                    color="lime"))
-                ax.add_patch(Circle((x0 + x2, y0 + y2), 1, ec="r", fc="r"))    
+                ax.add_artist(Line2D([x0+x1, x0+x2], [y0+y1, y0+y2],
+                                    color=color, linewidth=linewidth))
+                ax.add_patch(Circle((x0+x2, y0+y2), linewidth+1, 
+                                    ec=color, fc=color))    
         else:
             for (x1, y1), (x2, y2) in lines:
-                line(disp, (x0 + x1, y0 + y1), (x0 + x2, y0 + y2),(0, 255, 255), 1)
-                circle(disp, (x0 + x2, y0 + y2), 1, (255, 0, 0), -1)
+                line(disp, (x0+x1, y0+y1), (x0+x2, y0+y2),
+                     color=(0, 255, 255), thickness=linewidth)
+                circle(disp, (x0+x2,y0+y2), linewidth+1, 
+                       (255, 0, 0), -1)
         
         if draw_img:
             ax.imshow(disp)

@@ -1,6 +1,10 @@
 # -*- coding: utf-8 -*-
 """
 Pyplis test module for dataset.py base module of Pyplis
+
+Author: Jonas Gliß
+Email: jonasgliss@gmail.com
+License: GPLv3+
 """
 
 from pyplis import Dataset, __dir__, Img

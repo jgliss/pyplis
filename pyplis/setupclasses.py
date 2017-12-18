@@ -1,7 +1,24 @@
 # -*- coding: utf-8 -*-
+#
+# Pyplis is a Python library for the analysis of UV SO2 camera data
+# Copyright (C) 2017 Jonas Gliß (jonasgliss@gmail.com)
+#
+# This program is free software: you can redistribute it and/or
+# modify it under the terms of the GNU General Public License a
+# published by the Free Software Foundation, either version 3 of
+# the License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
-The Pyplis *setupclasses.py* module contains several setup classes which 
-allow to specify relevant parameters for the emission-rate analysis.
+This  module contains several setup classes which allow to specify relevant 
+parameters for the emission-rate analysis.
+
 The most important ones are:
 
     1. :class:`Source`: emission source specifications
@@ -833,6 +850,7 @@ class BaseSetup(object):
     def start(self, val):
         try:
             self._start = to_datetime(val)
+            self.USE_ALL_FILES = False
         except:
             if val is not None:
                 warn("Input %s could not be assigned to start time in "
@@ -847,6 +865,7 @@ class BaseSetup(object):
     def stop(self, val):
         try:
             self._stop = to_datetime(val)
+            self.USE_ALL_FILES = False
         except:
             if val is not None:
                 warn("Input %s could not be assigned to stop time in "
@@ -1012,7 +1031,7 @@ class MeasSetup(BaseSetup):
     """
     def __init__(self, base_dir=None, start=None, stop=None, camera=None,
                  source=None, wind_info=None, cell_info_dict={}, rects={},
-                 lines={}, **opts):
+                 lines={}, auto_topo_access=True, **opts):
     
         super(MeasSetup, self).__init__(base_dir, start, stop, **opts)
         self.id = "meas"
@@ -1021,7 +1040,7 @@ class MeasSetup(BaseSetup):
             camera = Camera()
         if not isinstance(source, Source):
             source = Source()
-        
+        self.auto_topo_access = auto_topo_access
         self._cam_source_dict = {"camera"   :   camera,
                                  "source"   :   source}
         
@@ -1038,7 +1057,9 @@ class MeasSetup(BaseSetup):
         
         self.meas_geometry = MeasGeometry(self.source.to_dict(),
                                           self.camera.to_dict(), 
-                                          self.wind_info)    
+                                          self.wind_info,
+                                          auto_topo_access=
+                                          self.auto_topo_access)    
         #self.update_meas_geometry()
     
     @property
@@ -1152,13 +1173,14 @@ class MeasSetup(BaseSetup):
         """Update the meas geometry based on current settings"""
         print "Updating MeasGeometry in MeasSetup class"
         self.meas_geometry.__init__(self.source.to_dict(),\
-                        self.camera.to_dict(), self.wind_info)
+                        self.camera.to_dict(), self.wind_info,
+                        auto_topo_access=self.auto_topo_access)
         
     def short_str(self):
         """A short info string"""
         s = super(BaseSetup, self).__str__() + "\n"
-        return s + "Camera: %s\nSource: %s" %(self.camera.cam_id,\
-                                                        self.source.name)
+        return s + "Camera: %s\nSource: %s" %(self.camera.cam_id,
+                                              self.source.name)
 
     def __setitem__(self, key, value):
         """Update class item"""
