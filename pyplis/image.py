@@ -136,12 +136,12 @@ class Img(object):
                         ("file_type"     ,   ""),
                         ("device_id"     ,   ""),
                         ("ser_no"        ,   ""),
-                        ("temperature"   ,   float(0.0)),   # temperature in Celsius
+                        ("temperature"   ,   float('nan')),   # temperature in Celsius
                         ("img_idx"       ,   int(0)),    # index in multi-img file formats as *.fits
                         ("custom1"       ,   nan),  # 3 dummy attributes which can be used for custom defined parameters
                         ("custom2"       ,   nan),
                         ("custom3"       ,   nan),
-                        ("custom_float"  ,   float(0.0)),
+                        ("custom_float"  ,   float('nan')),
                         ("custom_dt"     ,   datetime(1900, 1, 1))],)
                         
         try:
@@ -965,7 +965,7 @@ class Img(object):
         self.meta["read_gain"] = gain_info[ec2header['GAIN']]
         self.meta["pix_width"] = self.meta["pix_height"] = 4.65e-6 #m
     
-    """PLOTTING AND VISUALSATION FUNCTIONS"""  
+    """PLOTTING AND VISUALISATION FUNCTIONS"""  
     def get_cmap(self, vmin=None, vmax=None, **kwargs):
         """Determine and return default cmap for current image"""
         if self.is_tau or self.is_aa:

@@ -3147,6 +3147,7 @@ class ImgListMultiFits(ImgList):
         
         # redefinition of several paramters and new parameter
 
+        self.sky_mask = None
         # n files with m_n images
         # datafiles (every file only once)
         # only needed for fast referencing
@@ -3169,7 +3170,20 @@ class ImgListMultiFits(ImgList):
         if self.data_available and init:
             self.load()
 
-
+    @property
+    def sky_mask(self):
+        """Sky access mask: 0 for sky, 1 for non-sky (=invalid)
+        (in masked arrays, entries marked with 1 are invalid) """
+        return self.__sky_mask
+    
+    @sky_mask.setter
+    def sky_mask(self, value):
+        # TODO: Check if the mask has the same dimension as the images
+        # TODO: maybe load as pyplis img
+        #if not isinstance(val, ):
+        #    raise TypeError("Could not set meas_geometry, need MeasGeometry "
+        #        "object")
+        self.__sky_mask = value
 ################################################################################
     """ META DATA HANDLING """
     def get_img_meta_from_filename(self, file_path):
