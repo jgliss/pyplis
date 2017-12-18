@@ -207,7 +207,6 @@ def load_comtessa(file_path, meta={}):
                 "temperature"   : float(imageHeader['TCAM']),
                 "custom_dt"     :  datetime.strptime(imageHeader['ENDTIME'],
                                                      '%Y.%m.%dZ%H:%M:%S.%f') })
-    #Define pyplis image
     return (image, meta) 
 
 if __name__ == "__main__":
