@@ -49,6 +49,7 @@ from .helpers import check_roi, map_roi, _print_list, closest_index,exponent,\
 # For custom defined ImgListMultiFits which needs to access the images for meta info
 from .custom_image_import import load_comtessa, _read_binary_timestamp
 
+
 class BaseImgList(object):
     """Basic image list object
     
@@ -1251,12 +1252,6 @@ class BaseImgList(object):
         self.load_next()
         return self.loaded_images["this"]
 
-    def next_img(self):
-        """Old name of method goto_next"""
-        warn("This method was renamed (but still works). Please use method "
-             "goto_next in the future")
-        return self.goto_next()
-
     def goto_prev(self):
         """Go to previous image
         
@@ -1265,12 +1260,18 @@ class BaseImgList(object):
         self.load_prev()
         return self.loaded_images["this"]
 
+    def next_img(self):
+        """Old name of method goto_next"""
+        warn("This method was renamed (but still works). Please use method "
+             "goto_next in the future")
+        return self.goto_next()
+
     def prev_img(self):
         """Old name of method goto_next"""
         warn("This method was renamed (but still works). Please use method "
              "goto_prev in the future")
         return self.goto_prev()
-    
+
     def append(self, file_path):
         """Append image file to list
         
@@ -2082,7 +2083,7 @@ class ImgList(BaseImgList):
                         "modelling mode to 0 using self.bg_model.mode=0)" 
                         %self.list_id)
                 bg_img = self.bg_img
-            self.bg_model.get_tau_image(self.this, bg_img)
+            self.bg_model.get_tau_image(cim, bg_img) #or cim or self.this? depending on the case both produces faulty results
             self.vigncorr_mode = vc
         self._list_modes["tau"] = val
         self.load()
@@ -2676,13 +2677,6 @@ class ImgList(BaseImgList):
             print ("Image load aborted...")
             return False
         if self.nof > 1:
-#==============================================================================
-#             prev_file = self.files[self.prev_index]
-#             self.loaded_images["prev"] = Img(prev_file,
-#                             import_method=self.camera.image_import_method,
-#                             **self.get_img_meta_from_filename(prev_file))
-#             self._apply_edit("prev")
-#==============================================================================
             self.loaded_images["next"] = self.load_img(self.next_index)
             self._apply_edit("next")
         else:
