@@ -151,7 +151,7 @@ class DoasCalibData(object):
     @property
     def coeffs(self):
         """Coefficients of current calibration polynomial"""
-        return self.poly.coeffs 
+        return self.poly.coeffs
         
     @property
     def slope(self):
@@ -534,30 +534,53 @@ class DoasCalibData(object):
         val = self(value)
         r = self.slope_err / self.slope
         return val * r
+    
+    def _calibrate_image(self, img):
+        ''' Calibrate a tau or AA pyplis.Img to CDs'''
+        calib_img = img.duplicate()
+        calib_img.img = self.poly(calib_img.img) - self.y_offset
+        calib_img.edit_log["gascalib"] = True
+        return calib_img
+    
+    def _calibrate_stack(self, stack):
+        ''' Calibrate a tau or AA pyplis.ImgStack to CDs'''
+        try:
+            calib_stack = stack.duplicate()
+        except MemoryError:
+            calib_stack = stack
+            warn("Stack cannot be duplicated, applying calibration to "
+                "input stack")
+        calib_stack.stack = self.poly(calib_stack.stack) - self.y_offset
+        calib_stack.img_prep["gascalib"] = True
+        return calib_stack
         
-    def __call__(self, value, **kwargs):
+    # This decreases the readability of the other module's code
+    # Better use a method "calibrate" etc
+    def __call__(self, value):#, **kwargs):
         """Define call function to apply calibration
         
-        :param float value: tau or AA value
-        :return: corresponding column density
+        Parameters
+        ----------
+        value : Img, ImgStack, float, float array
+            tau or AA value(s)
+        kwargs 
+            additional keyword, needed for ImgList because CellCalibData could
+            have kwargs
+        
+        Returns
+        -------
+        Img, ImgStack, float, float array
+            calibrated value (typically S02 CD)
         """
         if not isinstance(self.poly, poly1d):
             self.fit_calib_polynomial()
+            
         if isinstance(value, Img):
-            calib_im = value.duplicate()
-            calib_im.img = self.poly(calib_im.img) - self.y_offset
-            calib_im.edit_log["gascalib"] = True
-            return calib_im
+            return self._calibrate_image(value)
         elif isinstance(value, ImgStack):
-            try:
-                value = value.duplicate()
-            except MemoryError:
-                warn("Stack cannot be duplicated, applying calibration to "
-                "input stack")
-            value.stack = self.poly(value.stack) - self.y_offset
-            value.img_prep["gascalib"] = True
-            return value
-        return self.poly(value) - self.y_offset
+            return self._calibrate_stack(self, value)
+        else: # singele values or arrays of integer, float etc
+            return self.poly(value) - self.y_offset
         
 class DoasFOV(object):
     """Class for storage of FOV information"""

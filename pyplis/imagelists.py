@@ -2074,7 +2074,7 @@ class ImgList(BaseImgList):
                     warn("Background access mask could not be retrieved for "
                         "PolySurfaceFit in background model of image list %s"
                         %self.list_id)
-                
+
             else:
                 if not self.has_bg_img():
                     raise AttributeError("no background image available in "
@@ -2085,7 +2085,7 @@ class ImgList(BaseImgList):
                 bg_img = self.bg_img
             self.bg_model.get_tau_image(cim, bg_img) #or cim or self.this? depending on the case both produces faulty results
             self.vigncorr_mode = vc
-        self._list_modes["tau"] = val
+        self._list_modes["tau"] = value
         self.load()
     
     def activate_aa_mode(self, value=True):
@@ -3310,7 +3310,7 @@ class ImgList(BaseImgList):
                 bg = self.bg_img.to_pyrlevel(img.pyrlevel)
             img = bg_model.get_tau_image(plume_img=img, 
                                          bg_img=bg,
-                                         update_imgs=upd_bgmodel)
+                                         update_imgs=update_bgmodel)
         elif self.aa_mode:
             off_list = self.get_off_list()
             if off_list.dilcorr_mode:
@@ -3338,7 +3338,7 @@ class ImgList(BaseImgList):
                                         plume_off=img_off,
                                         bg_on=bg,
                                         bg_off=bg_off,
-                                        update_imgs=upd_bgmodel)
+                                        update_imgs=update_bgmodel)
             if self.sensitivity_corr_mode:
                 img = img / self.aa_corr_mask
                 img.edit_log["senscorr"] = 1

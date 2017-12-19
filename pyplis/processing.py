@@ -1797,7 +1797,8 @@ class ImgStack(object):
         spec_idxs_final = []
         del_ts_abs = []
         for idx in range(min(nearest_idxs),max(nearest_idxs) + 1):
-            print "Current tseries index %s" %idx
+            if idx % 250 == 0:
+                print("Current tseries index {}".format(idx))
             matches =  where(nearest_idxs == idx)[0]
             if len(matches) > 0:
                 del_ts_temp = del_ts[matches]
