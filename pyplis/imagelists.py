@@ -1918,23 +1918,25 @@ class ImgList(BaseImgList):
         """Get set object to perform calibration"""
         from pyplis.cellcalib import CellCalibEngine as cc
         from pyplis.doascalib import DoasCalibData as dc
-        if not any([isinstance(self._calib_data, x) for x in [cc, dc]]):
+        from pyplis.doascalib import CalibData as c
+        if not any([isinstance(self._calib_data, x) for x in [cc, dc, c]]):
             warn("No calibration data available in imglist %s" %self.list_id)
         return self._calib_data
     
     @calib_data.setter
-    def calib_data(self, val):
+    def calib_data(self, value):
         from pyplis.cellcalib import CellCalibEngine as cc
         from pyplis.doascalib import DoasCalibData as dc
-        if not any([isinstance(val, x) for x in [cc, dc]]):
+        from pyplis.doascalib import CalibData as c
+        if not any([isinstance(value, x) for x in [cc, dc, c]]):
             raise TypeError("Could not set calibration data in imglist %s: "
             "need CellCalibData obj or DoasCalibData obj" %self.list_id)
         try:
-            val(0.1) #try converting a fake tau value into a gas column
+            value(0.1) #try converting a fake tau value into a gas column
         except ValueError:
             raise ValueError("Cannot set calibration data in image list, "
                 "calibration object is not ready")
-        self._calib_data = val
+        self._calib_data = value
         
     @property
     def doas_fov(self):
