@@ -234,6 +234,13 @@ class DoasCalibData(CalibData):
             self.fit_calib_polynomial()
         return self._poly
     
+    @poly.setter #Hmm...maybe there is a cleaner way
+    def poly(self, value):
+        if not isinstance(value, poly1d):
+            raise ValueError("Need `numpy.poly1d` object. Can be initialized \
+                             manually by using numpy.poly1d([slope,y_offset])")
+        self._poly = value
+    
     @property
     def cov(self):
         """Covariance matriy of calibration polynomial"""
@@ -344,8 +351,8 @@ class DoasCalibData(CalibData):
         if not self.has_calib_data():
             raise ValueError("Calibration data is not available")
             
-        if polyorder is None:
-            polyorder = self.polyorder
+        if polyorder is not None:
+            self.polyorder = polyorder
     
         if sum(isnan(self.tau_vec)) + sum(isnan(self.doas_vec)) > 0:
             raise ValueError("Encountered nans in data")
@@ -374,8 +381,7 @@ class DoasCalibData(CalibData):
             cds = concatenate([cds, zeros(num)])
             ws = concatenate([ws, ones(num)])
         coeffs, cov = polyfit(tau_vals, cds, 
-                              polyorder, w=ws, cov=True)
-        self.polyorder = polyorder
+                              self.polyorder, w=ws, cov=True)
         self.poly = poly1d(coeffs * 10**exp)
         self._cov = cov * 10**(2*exp)
         if plot:
