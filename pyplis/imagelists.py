@@ -3903,3 +3903,185 @@ class ImgListMultiFits(ImgList):
                 self.vigncorr_mode = vc_original
             self._list_modes["tau"] = value
             self.load()
+            
+    def make_stack2(self, new_index, stack_id=None, pyrlevel=None, roi_abs=None,
+                   start_idx=0, stop_idx=None, ref_check_roi_abs=None,
+                   ref_check_min_val=None, ref_check_max_val=None,
+                   dtype=float32):
+        """Stack all images in this list 
+        
+        The stacking is performed using the current image preparation
+        settings (blurring, dark correction etc). Only stack ROI and pyrlevel
+        can be set explicitely.
+        
+        Note
+        ----
+        In case of ``MemoryError`` try stacking less images (specifying 
+        start / stop index) or reduce the size setting a different Gauss
+        pyramid level
+        
+        Parameters
+        ----------
+        stack_id : :obj:`str`, optional
+            identification string of the image stack
+        pyrlevel : :obj:`int`, optional
+            Gauss pyramid level of stack
+        roi_abs : list
+            build stack of images cropped in ROI
+        start_idx : int
+            index of first considered image, defaults to 0
+        stop_idx : :obj:`int`, optional
+            index of last considered image (if None, the last image in this 
+            list is used), defaults to last index
+        ref_check_roi_abs : :obj:`list`, optional
+            rectangular area specifying a reference area which can be specified
+            in combination with the following 2 parameters in order to include
+            only images in the stack that are within a certain intensity range
+            within this ROI (Note that this ROI needs to be specified in
+            absolute coordinate, i.e. corresponding to pyrlevel 0).
+        ref_check_min_val : :obj:`float`, optional
+            if attribute ``roi_ref_check`` is a valid ROI, then only images 
+            are included in the stack that exceed the specified intensity 
+            value (can e.g. be optical density or minimum gas CD in calib
+            mode)
+        ref_check_max_val : :obj:`float`, optional
+            if attribute ``roi_ref_check`` is a valid ROI, then only images 
+            are included in the stack that are smaller than the specified 
+            intensity value (can e.g. be optical density or minimum gas CD in 
+            calib mode)    
+        dtype 
+            data type of stack
+            
+        Returns
+        -------
+        ImgStack
+            result stack
+        
+        
+        """
+        
+        self.activate_edit()
+        if stop_idx is None:
+            stop_idx = self.nof-1 #counting starts at 0
+        
+        def truncate_to_timeseries(data, timeseries, start_idx=0, stop_idx=-1,):
+            data.sort_index(inplace=True)
+            first = data.index.get_loc(timeseries.index[start_idx], method='bfill')
+            last = data.index.get_loc(timeseries.index[stop_idx], method='ffill')
+            return data.truncate(before=data.index[first], after=data.index[last])
+
+        new_index_trunc = truncate_to_timeseries(new_index, timeseries=self.metaData,
+                                                 start_idx=start_idx, stop_idx=stop_idx)
+        times = deepcopy(new_index_trunc)
+
+        # Prepare images
+        #remember last image shape settings
+        _roi = deepcopy(self._roi_abs)
+        _pyrlevel = deepcopy(self.pyrlevel)
+        _crop = self.crop
+        
+        self.auto_reload = False
+        if pyrlevel is not None and pyrlevel != _pyrlevel:
+            print("Changing image list pyrlevel from %d to %d"\
+                                            %(_pyrlevel, pyrlevel))
+            self.pyrlevel = pyrlevel
+
+        if check_roi(roi_abs):
+            print "Activate cropping in ROI %s (absolute coordinates)" %roi_abs
+            self.roi_abs = roi_abs
+            self.crop = True
+
+        if stack_id is None:
+            stack_id = self.list_id + "_" + self.img_mode           
+            
+        if stack_id in ["raw", "tau"]:
+            stack_id = "%s_%s" %(self.list_id, stack_id)
+            
+        #create a new settings object for stack preparation
+        self.goto_img(start_idx)
+        self.auto_reload = True
+        h, w = self.current_img().shape
+        stack = ImgStack(h, w, len(times)-1, dtype, stack_id, camera=self.camera,
+                         img_prep=self.current_img().edit_log)
+        lid = self.list_id
+        
+        # Create image stack averaged to these times
+        exp = int(10**exponent(len(times))/4.0)
+        if not exp:
+            exp = 1
+        
+        def average_img(idx1, idx2):
+            ''' average images between two indices '''
+            n_img = idx2 - idx1 + 1
+            if not self.cfn == idx1:
+                self.goto_img(idx1)
+            img = self.this.duplicate()
+            for k in range(n_img-1):
+                self.goto_next()
+                img = img + self.this
+            img = img / n_img
+            return img
+        
+        # Create the stack, one image by a time
+        # Images are directly averaged to timeseries
+        for time_idx in range(len(times)-1):
+            # Console output every exp images
+            if time_idx % exp == 0:
+                print("Building img-stack from list %s, progress: (%s | %s)" 
+                               %(lid, time_idx, len(times)-1))
+            # 1) Set time interval
+            doas_t1 = times.index[time_idx]
+            doas_t2 = times.index[time_idx+1]
+            # 2) Find the first index after doas_t1
+            #self.metaData.iloc[] to get the row
+            idx_first = self.metaData.index.get_loc(doas_t1,method='bfill')
+            # 3) Find the last index before doas_t2
+            idx_last = self.metaData.index.get_loc(doas_t2,method='ffill')
+            # 4) Average the image
+            #print('{}: {} to {}'.format(doas_t1, idx_first, idx_last))
+            img = average_img(idx_first, idx_last)           
+            stack.append_img(img.img, img.meta["start_acq"])
+            
+        stack.start_acq = np.asarray(stack.start_acq)
+        stack.roi_abs = self._roi_abs
+        
+        print("Img stack calculation finished, rolling back to intial list"
+            "state:\npyrlevel: %d\ncrop modus: %s\nroi (abs coords): %s "
+            %(_pyrlevel, _crop, _roi))
+        # Reset original state of the image list
+        self.auto_reload = False
+        self.pyrlevel = _pyrlevel
+        self.crop = _crop
+        self.roi_abs = _roi
+        self.auto_reload = True
+        if not sum(stack._access_mask) > 0: # all images were excluded
+            raise ValueError("Failed to build stack, stack is empty...")
+        return stack
+        ###
+        
+        '''
+        ref_check = True
+        if not check_roi(ref_check_roi_abs):
+            ref_check = False
+        try:
+            ref_check_min_val = float(ref_check_min_val)
+        except:
+            ref_check = False
+        try:
+            ref_check_max_val = float(ref_check_max_val)
+        except:
+            ref_check = False
+        ###
+            append = True
+            # Check if background correction worked in reference window
+            if ref_check:
+                sub_val = img.crop(roi_abs=ref_check_roi_abs, new_img=1).mean()
+                if not ref_check_min_val <= sub_val <= ref_check_max_val:
+                    print("Exclude image no. %d from stack, got value=%.2f in "
+                        "ref check ROI (out of specified range)" %(k, sub_val))
+                append = False
+            # append image
+            if append:
+                stack.append_img(img.img, img.meta["start_acq"], 
+                                 img.meta["texp"])
+        '''

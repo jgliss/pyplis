@@ -1789,7 +1789,7 @@ class ImgStack(object):
         data point for each image in this stack. Then, get rid of all indices
         showing double occurences using time delta information. 
         
-            
+        TODO: Make use of pandas.merge_asof instead to improve performance   
         """
         stack, time_stamps, texps = self.get_data()
         nearest_idxs, del_ts = self.get_nearest_indices(time_series.index)
@@ -2117,6 +2117,10 @@ class ImgStack(object):
             diff = [x.total_seconds() for x in abs(tstamps_other - tstamp)]
             delt.append(min(diff))
             idx.append(argmin(diff))
+        
+        ### rewrite using pandas directly
+        #df.iloc[df.index.get_loc(datetime.datetime(2016,02,02),method='nearest')] 
+            
         return asarray(idx), asarray(delt)
             
     def get_nearest_img(self, time_stamp):
