@@ -1,3 +1,4 @@
 sphinxcontrib-images
+sphinxcontrib.images
 sphinxcontrib.bibtex
 sphinxcontrib-napoleon
