@@ -873,7 +873,7 @@ class EmissionRateRatio(EmissionRates):
                                                  ymin, ymax, alpha_err,
                                                  in_kg=False,
                                                  **kwargs)
-        ax.set_ylabel(r"$\Delta\Phi$")
+        ax.set_ylabel("")
         return ax
         
             
@@ -1087,7 +1087,8 @@ class EmissionRateAnalysis(object):
                 
                 self.settings.velo_flow_histo = True
         try:
-            lst.meas_geometry.compute_all_integration_step_lengths(pyrlevel=lst.pyrlevel)
+            lst.meas_geometry.compute_all_integration_step_lengths(pyrlevel=
+                                                                   lst.pyrlevel)
         except ValueError:
             raise ValueError("measurement geometry in image list is not ready"
                 "for pixel distance access")
@@ -1212,7 +1213,7 @@ class EmissionRateAnalysis(object):
         return self.run_retrieval(**kwargs)
     
     
-    def run_retrieval(self, start_index=0, stop_index=None, check_list=False):
+    def run_retrieval(self, start_index=0, stop_index=None, check_list=True):
         """Calculate emission rates of image list
         
         Performs emission rate analysis for each line in ``self.pcs_lines`` 

@@ -5,11 +5,11 @@ Contact: Jonas Gliss (jonasgliss@gmail.com)
 Pyplis paper
 ============
 
-A paper discussing the main features of *Pyplis* and implementation details is in the process of being published in the special issue on `Volcanic plumes <http://www.mdpi.com/journal/geosciences/special_issues/volcanic_processes>`__ of the Journal *Geosciences* (MDPI). Click `here, to download a citable preprint of the paper <https://www.preprints.org/manuscript/201710.0085/v1>`__.
+The software *Pyplis* and implementation details was published in December 2017 within a special issue on `Volcanic plumes <http://www.mdpi.com/journal/geosciences/special_issues/volcanic_processes>`__ of the Journal *Geosciences* (MDPI). The paper can be downloaded `here <http://www.mdpi.com/2076-3263/7/4/134>`__.
 
 Citation
 --------
-If you find *Pyplis* useful for your data analysis, we would highly appreciate if you acknowledge our work by `citing the paper <https://www.preprints.org/manuscript/201710.0085/v1>`__.
+If you find *Pyplis* useful for your data analysis, we would highly appreciate if you acknowledge our work by citing the paper. Citing details can be found `here <http://www.mdpi.com/2076-3263/7/4/134>`__.
 
 Note
 ====
@@ -28,8 +28,8 @@ Main features
 - Plume velocity retrieval either using an optical flow analysis or using signal cross correlation.
 - Histogram based post analysis of optical flow field for gas velocity analysis in low contrast image regions, where the optical flow fails to detect motion.
 - Routine for image based correction of the signal dilution effect based on contrast variations of dark terrain features located at different distances in the images.
-- Support of standard image formats including `FITS format <https://de.wikipedia.org/wiki/Flexible_Image_Transport_System>`__
-- Easy and flexible setup for data import and camera specifications
+- Support of standard image formats including `FITS format <https://de.wikipedia.org/wiki/Flexible_Image_Transport_System>`__.
+- Easy and flexible setup for data import and camera specifications.
   
 Copyright
 =========

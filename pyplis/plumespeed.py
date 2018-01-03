@@ -2783,7 +2783,7 @@ class OptflowFarneback(object):
             it will be set automatically in the corresponding methods
             :func:`fit_length_histo` and :func:`fit_orientation_histo`.
         min_count_frac : :obj:`float`, optional
-            determins the minimum required number of significant vectors in 
+            determines the minimum required number of significant vectors in 
             current ROI for histogram analysis (i.e. if ROI is NxM pixels and
             ``min_count_frac=0.1``, then at least (MxN)*0.1 pixels need to 
             remain after applying ``cond_mask_flat`` and exclusion of vectors
@@ -3278,14 +3278,25 @@ class OptflowFarneback(object):
         #create and flatten a meshgrid 
         y, x = mgrid[step / 2: h : step, step / 2: w : step].reshape(2, -1)
         fx, fy = flow[y, x].T
-        fx, fy = fx*extend_len_fac, fy*extend_len_fac
         
         if not include_short_vecs and len_thresh > 0:
             #use only those flow vectors longer than the defined threshold
             cond = sqrt(fx**2 + fy**2) > len_thresh
-            x, y, fx, fy = x[cond], y[cond], fx[cond], fy[cond]
+            x, y, fx, fy = (x[cond], 
+                            y[cond], 
+                            fx[cond],
+                            fy[cond])
+            
+        fx, fy = fx*extend_len_fac, fy*extend_len_fac
+            
         # create line endpoints
-        lines = int32(vstack([x, y,x + fx, y + fy]).T.reshape(-1,2,2))
+        try:
+            lines = int32(vstack([x, y,x + fx, y + fy]).T.reshape(-1,2,2))
+        except:
+            val=sqrt(fx**2 + fy**2).max()
+            raise ValueError("No flow vectors longer than %.2f were "
+                             "detected, longest flow vector: %.2f"
+                             %(len_thresh, val))
         return lines
     
     def plot(self, **kwargs):

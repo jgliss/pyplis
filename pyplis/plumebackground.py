@@ -1374,7 +1374,7 @@ def find_sky_background(plume_img, next_img=None,
     ----
     1. This is a Beta version
     2. The method requires images in radiances space (i.e. plume and
-        terrain pixels appear darkes than the sky background).
+        terrain pixels appear darker than the sky background).
     3. The input plume image should not contain clouds. If it does, it is
         highly recommended to make use of the movement detection algorithm
     

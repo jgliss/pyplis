@@ -3355,8 +3355,8 @@ class ImgList(BaseImgList):
             bg_on = self._bg_imgs[on.is_vigncorr].to_pyrlevel(on.pyrlevel)
             bg_off = off_list._bg_imgs[off.is_vigncorr].to_pyrlevel(off.pyrlevel)
         else:
-            bg_on = self.bg_list.this
-            bg_off = off_list.bg_list.this
+            bg_on = self.bg_list.this.to_pyrlevel(on.pyrlevel)
+            bg_off = off_list.bg_list.this.to_pyrlevel(off.pyrlevel)
         return self.bg_model.get_aa_image(on, off, bg_on, bg_off)
     
     """
