@@ -115,13 +115,15 @@ class DoasCalibData(object):
     def calib_id_str(self):
         """String for calibration ID"""
         idx=0
-        if self.calib_id.split("_")[1].lower() == "aa":
-            idx=1
         try:
-            return CALIB_ID_STRINGS[self.calib_id.split("_")[idx]]
+            if self.calib_id.split("_")[1].lower() == "aa":
+                idx=1
+            try:
+                return CALIB_ID_STRINGS[self.calib_id.split("_")[idx]]
+            except:
+                return self.calib_id.split("_")[idx]
         except:
-            return self.calib_id.split("_")[idx]
-    
+            return ""
     @property
     def poly(self):
         """Calibration polynomial"""

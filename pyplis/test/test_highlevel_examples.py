@@ -110,7 +110,6 @@ if exists(BASE_DIR):
     @pytest.fixture(scope="module")
     def plume_dataset():
         """Initiates measurement setup and creates dataset from that"""
-        
         stp = setup()
         stp.start = START_PLUME
         stp.stop = STOP_PLUME
@@ -121,15 +120,13 @@ if exists(BASE_DIR):
     @pytest.fixture
     def line(scope="module"):
         """Create an example retrieval line"""
-        return LineOnImage(108,71,125,44,pyrlevel_def=3, 
+        return LineOnImage(108, 71, 125, 44, pyrlevel_def=3, 
                            normal_orientation="left")
     
     def test_line():
         """Test some features from example retrieval line"""
         l = line()
-        
-        n1,n2 = l.normal_vector
-        
+        n1, n2 = l.normal_vector
         nominal = [32, 302.20, -0.84, -0.53]
         vals = [l.length(), l.normal_theta, n1, n2]
         assert_almost_equal(vals, nominal, 2)
@@ -142,7 +139,7 @@ if exists(BASE_DIR):
                             [res[0].mean(), res[1].mean(), res[2].mean()],
                             3)
     def test_optflow():
-        """Test optical flow module"""
+        """Test optical flow calculation"""
         flow = OptflowFarneback()
         flow.set_images(plume_img(), plume_img_next())
         flow.calc_flow()
@@ -162,10 +159,11 @@ if exists(BASE_DIR):
         return flow
         
     def test_auto_cellcalib():
+        """Test if automatic cell calibration works"""
         ds = calib_dataset()
         ds.find_and_assign_cells_all_filter_lists()
         keys = ["on", "off"]
-        nominal = [6, 844.03541, 353.96765]
+        nominal = [6, 844.03541, 353.96765, 3, 3]
         mean = 0
         bg_mean = ds.bg_lists["on"].this.mean() +\
                   ds.bg_lists["off"].this.mean()
@@ -174,11 +172,10 @@ if exists(BASE_DIR):
             for lst in ds.cell_lists[key].values():
                 mean += lst.this.mean()
                 num += 1
-        vals = [num, mean, bg_mean]
-        ds.plot_cell_search_result()
+        vals = [num, mean, bg_mean, len(ds.cell_lists["on"]),
+                len(ds.cell_lists["off"])]
         assert_almost_equal(nominal, vals, 5)
         
-    
     def test_bg_model():
         m = PlumeBackgroundModel()
         m.set_missing_ref_areas(plume_img())
@@ -196,9 +193,8 @@ if __name__=="__main__":
     flow = test_optflow()
     l=line()
     
-    dsc = calib_dataset()
-    dsc.find_and_assign_cells_all_filter_lists()
-    
+    ds = calib_dataset()
+    ds.find_and_assign_cells_all_filter_lists()
     #cell = calib_dataset()
 # =============================================================================
 #     cell.find_and_assign_cells_all_filter_lists()

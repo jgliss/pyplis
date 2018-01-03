@@ -1581,7 +1581,7 @@ class PolySurfaceFit(object):
         if self.auto_update:
             self.do_fit()
             
-    def exclude_pix_range_rect(self, x0,x1,y0,y1):
+    def exclude_pix_range_rect(self, x0, x1, y0, y1):
         """Add a rectangular pixel area which will be excluded from the fit
         :param int x0: start x coordinate (original image resolution)
         :param int x1: stop x coordinate (original image resolution)
@@ -1592,7 +1592,7 @@ class PolySurfaceFit(object):
         if self.auto_update:
             self.do_fit()
             
-    def exclude_pix_range_circ(self, x0,y0,r):
+    def exclude_pix_range_circ(self, x0, y0, r):
         """Add a circular pixel area which will be excluded from the fit
         :param int x0: centre x coordinate (original image resolution)
         :param int y0: centre y coordinate (original image resolution)

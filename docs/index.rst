@@ -11,9 +11,9 @@
 Welcome to Pyplis
 =================
 
-Official code documentation website of *Pyplis*. Apart from the API documentation, this website includes general information about the software (e.g. installation details, access of example data) as well as useful practical information that helps getting started with *Pyplis*. 
+Official website of *Pyplis*, a Python software containing algorithms and analysis routines for UV SO2 camera data. Apart from the API documentation, this website includes additional relevant information about the software (e.g. installation details, access of example data) as well as useful practical information that helps getting started with *Pyplis*. 
 
-A paper introducing the software is in the process of being published in the Journal *Geosciences* (MDPI) (currently under revision). If you find *Pyplis* useful for your work, we highly appreciate if you acknowlegde our work by citing the `paper <https://www.preprints.org/manuscript/201710.0085/v1>`__ (currently a preprint).
+A paper introducing the software is published in the Journal *Geosciences* (MDPI). If you find *Pyplis* useful for your analysis, we highly appreciate if you acknowlegde our work by citing the `paper <http://www.mdpi.com/2076-3263/7/4/134>`__.
 
 .. figure:: ./_graphics/preview_paper.png
     :scale: 80%
@@ -21,7 +21,7 @@ A paper introducing the software is in the process of being published in the Jou
     :alt: alternate text
     :figclass: align-center
     
-    Screenshot of the *Pyplis* `paper <https://www.preprints.org/manuscript/201710.0085/v1>`__. Please acknowledge our work by citing the paper. 
+    Screenshot of the *Pyplis* `paper <http://www.mdpi.com/2076-3263/7/4/134>`__. Please acknowledge our work by citing the paper. 
 
 The software can be downloded from the `Github page <https://github.com/jgliss/pyplis>`__ or installed via `PyPi <https://pypi.python.org/pypi/pyplis>`__ using::
 
