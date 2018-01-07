@@ -18,13 +18,14 @@ Author: Jonas Gliß
 Email: jonasgliss@gmail.com
 License: GPLv3+
 """
+from __future__ import division
 
 from pyplis import Dataset, __dir__, Filter, Camera, Source, MeasSetup,\
     CellCalibEngine, Img, OptflowFarneback, PlumeBackgroundModel,\
     LineOnImage
 from os.path import join, exists
 from datetime import datetime
-from numpy.testing import assert_almost_equal
+from numpy.testing import assert_almost_equal, assert_allclose
 import pytest
 
 BASE_DIR = join(__dir__, "data", "testdata_minimal")
@@ -120,17 +121,61 @@ if exists(BASE_DIR):
     @pytest.fixture
     def line(scope="module"):
         """Create an example retrieval line"""
-        return LineOnImage(108, 71, 125, 44, pyrlevel_def=3, 
+        return LineOnImage(630, 780, 1000, 350, pyrlevel_def=0, 
                            normal_orientation="left")
     
+    def test_setup():
+        """Test some properties of the MeasSetup object"""
+        stp = setup()
+        s = stp.source
+        vals_exact = [stp.save_dir == stp.base_dir,
+                      stp.camera.cam_id]
+        vals_approx = [sum([sum(x) for x in stp.cell_info_dict.values()]),
+                    s.lon + s.lat + s.altitude]
+        
+        nominal_exact = [True, "ecII"]
+        nominal_approx = [3.798e18, 3381.750]
+        
+        assert vals_exact == nominal_exact 
+        assert_allclose(vals_approx, nominal_approx, rtol=1e-4)
+        
+    def test_dataset():
+        """Test certain properties of the dataset object"""
+        ds = plume_dataset()
+        vals_exact = [ds.img_lists["on"].nof + ds.img_lists["off"].nof,
+                    sum(ds.current_image("on").shape),
+                    ds.img_lists_with_data.keys(), 
+                    ds.cam_id]
+        
+        nominal_exact = [178, 2368, ["on", "off"], "ecII"]
+        
+        assert vals_exact == nominal_exact
+        
+    def test_imglists():
+        """Test some properties of the on and offband image lists"""
+        ds = plume_dataset()
+        on = ds._lists_intern["F01"]["F01"]
+        off = ds._lists_intern["F02"]["F02"]
+        
+        vals_exact = [on.list_id, off.list_id]
+        
+        nominal_exact = ["on", "off"]
+        
+        assert vals_exact == nominal_exact
+        
     def test_line():
         """Test some features from example retrieval line"""
         l = line()
         n1, n2 = l.normal_vector
-        nominal = [32, 302.20, -0.84, -0.53]
-        vals = [l.length(), l.normal_theta, n1, n2]
-        assert_almost_equal(vals, nominal, 2)
+        l1 = l.convert(1, [100, 100, 1200, 1024])
         
+        #compute values to be tested
+        vals = [l.length(), l.normal_theta, n1, n2, l1.length()/l.length(),
+                sum(l1.roi_def)]
+        #set nominal values
+        nominal = [567, 310.71, -0.76, -0.65, 0.5, 1212]
+        assert_almost_equal(vals, nominal, 2)
+    
     def test_geometry():
         """Test important results from geometrical calculations"""
         geom = plume_dataset().meas_geometry
@@ -141,16 +186,16 @@ if exists(BASE_DIR):
     def test_optflow():
         """Test optical flow calculation"""
         flow = OptflowFarneback()
-        flow.set_images(plume_img(), plume_img_next())
+        img = plume_img()
+        flow.set_images(img, plume_img_next())
         flow.calc_flow()
         len_img = flow.get_flow_vector_length_img()
         angle_img = flow.get_flow_orientation_img()
-        l = line()
+        l = line().convert(img.pyrlevel)
         res = flow.local_flow_params(line=l, dir_multi_gauss=False)
-        for k, v in res.iteritems():
-            print k, v
-        nominal = [2.0323,-43.881, -53.416, 14.551, 0.256, 0.062,
-                   28.07,0.910]
+        flow.plot_flow_histograms()
+        nominal = [2.0323,-43.881, -67.625, 36.531, 0.174, 0.089,
+                   28.07,0.949]
         vals = [len_img.mean(), angle_img.mean(), res["_dir_mu"],
                 res["_dir_sigma"], res["_len_mu_norm"], 
                 res["_len_sigma_norm"], res["_del_t"], 
@@ -177,10 +222,21 @@ if exists(BASE_DIR):
         assert_almost_equal(nominal, vals, 5)
         
     def test_bg_model():
-        m = PlumeBackgroundModel()
-        m.set_missing_ref_areas(plume_img())
+        """Test properties of plume background modelling
         
-        m.plot_sky_reference_areas(plume_img())
+        Uses the PlumeBackgroundModel instance in the on-band image
+        list of the test dataset object (see :func:`plume_dataset`)
+        """
+        l = plume_dataset().get_list("on")
+        m = l.bg_model
+        with pytest.raises(ValueError) as e_info:
+            m.plot_sky_reference_areas(l.this)
+        m.set_missing_ref_areas(l.this)
+        
+        return m
+        #m.set_missing_ref_areas(plume_img())
+        
+        
     
         
 if __name__=="__main__":
@@ -188,13 +244,16 @@ if __name__=="__main__":
     plt.rcParams["font.size"] =14
     plt.close("all")
     
-    test_geometry()
+    m = test_bg_model()
     
-    flow = test_optflow()
-    l=line()
-    
-    ds = calib_dataset()
-    ds.find_and_assign_cells_all_filter_lists()
+# =============================================================================
+#     
+#     flow = test_optflow()
+#     l=line()
+#     
+#     ds = calib_dataset()
+#     ds.find_and_assign_cells_all_filter_lists()
+# =============================================================================
     #cell = calib_dataset()
 # =============================================================================
 #     cell.find_and_assign_cells_all_filter_lists()

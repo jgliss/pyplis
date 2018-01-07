@@ -622,6 +622,10 @@ class PlumeBackgroundModel(object):
     def plot_sky_reference_areas(self, plume):
         """Plot the current sky ref areas into a plume image"""
         d = self.settings_dict()
+        if None in d.values():
+            raise ValueError("Some of the sky reference areas are not "
+                             "set: please set them manually or use class method "
+                             "set_missing_ref_areas")
         return plot_sky_reference_areas(plume, d)
         
     def plot_tau_result_old(self, tau_img=None, tau_min=None, tau_max=None,
