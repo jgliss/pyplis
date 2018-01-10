@@ -1061,7 +1061,31 @@ class BaseImgList(object):
             self._list_modes["darkcorr"] = True
         if onload["vigncorr"]:
             self._list_modes["vigncorr"]
-            
+    
+    def load_img(self, index):
+        """ Loads a single img based on index
+        The `self.camera.image_import_method` and potential parameters are
+        wrapped to this mehtod.
+        
+        Note
+        ----
+        Can be redefined in child classes without need of redifing methods like
+        load(), load_next() etc.
+        
+        Parameters
+        ----------
+        index : int
+            index of image which should be loaded
+        Returns
+        -------
+        pyplis.Img
+            loaded image including meta data
+        """
+        img_file = self.files[self.index]
+        image = Img(img_file, import_method=self.camera.image_import_method,
+                     **self.get_img_meta_from_filename(img_file))
+        return image
+    
     def load(self):
         """Load current image
         
@@ -1081,10 +1105,7 @@ class BaseImgList(object):
                                                                 %self.list_id)
             return False        
         try:
-            img_file = self.files[self.index]
-            img = Img(img_file,
-                      import_method=self.camera.image_import_method,
-                      **self.get_img_meta_from_filename(img_file))
+            img = self.load_img(self.index)
             self.loaded_images["this"] = img
             self._load_edit.update(img.edit_log)
             
@@ -2001,9 +2022,8 @@ class ImgList(BaseImgList):
             try:
                 self.vign_mask
             except:
-                self.det_vign_mask_from_bg_img() 
-            sh = Img(self.files[self.cfn],
-                     import_method=self.camera.image_import_method).img.shape
+                self.det_vign_mask_from_bg_img()
+            sh = (self.load_img(self.cfn)).img.shape
             if not self.vign_mask.shape == sh:
                 raise ValueError("Shape of vignetting mask %s deviates from "
                             "raw img shape %s" %(list(self.vign_mask.shape),
@@ -2031,8 +2051,7 @@ class ImgList(BaseImgList):
                      "current image is already a tau image"
                      %self.list_id)
                 return
-            cim = Img(self.files[self.cfn],
-                      import_method=self.camera.image_import_method)
+            cim = self.load_img(self.cfn)
             try:
                 dark = self.get_dark_image("this")
                 cim.subtract_dark_image(dark)
@@ -2652,10 +2671,7 @@ class ImgList(BaseImgList):
             print ("Image load aborted...")
             return False
         if self.nof > 1:
-            next_file = self.files[self.next_index]
-            self.loaded_images["next"] = Img(next_file,
-                            import_method=self.camera.image_import_method,                            
-                            **self.get_img_meta_from_filename(next_file))
+            self.loaded_images["next"] = self.load_img(self.next_index)
             self._apply_edit("next")
         else:
             #self.loaded_images["prev"] = self.loaded_images["this"]
@@ -2689,11 +2705,7 @@ class ImgList(BaseImgList):
         
         #self.loaded_images["prev"] = self.loaded_images["this"]
         self.loaded_images["this"] = self.loaded_images["next"]
-        
-        next_file = self.files[self.next_index]
-        self.loaded_images["next"] = Img(next_file,
-                            import_method=self.camera.image_import_method,                            
-                            **self.get_img_meta_from_filename(next_file))
+        self.loaded_images["next"] = self.load_img(self.next_index)
     
         self._apply_edit("next")
         if self.optflow_mode:  
