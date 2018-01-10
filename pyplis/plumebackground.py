@@ -67,9 +67,11 @@ class PlumeBackgroundModel(object):
         
         #: settings for poly surface fit (corr mode: 0)
         self.surface_fit_mask = None
+        self.surface_fit_mask_vmin = None
+        self.surface_fit_mask_vmax = None
         self.surface_fit_pyrlevel = 4
         self.surface_fit_polyorder = 2
-    
+            
         #: Rectangle for scaline of background image
         #: corr modes: 1 - 6
         self.scale_rect = None
@@ -105,11 +107,8 @@ class PlumeBackgroundModel(object):
         if isinstance(plume_init, Img):
             self.mode = 1
             self.guess_missing_settings(plume_init)
-            self.surface_fit_mask = ones(plume_init.img.shape, 
-                                         dtype=bool)
-        
-        self.last_settings = self.settings_dict()
-        
+            self.surface_fit_mask = ones(plume_init.img.shape, dtype=bool)
+    
     @property
     def mode(self):
         """Current modelling mode"""
@@ -125,10 +124,14 @@ class PlumeBackgroundModel(object):
     @property
     def CORR_MODE(self):
         """Current background modelling mode"""
+        warn("Called property self.CORR_MODE which is out-dated in versions 0.10+)"
+             " Use self.mode instead.")
         return self.mode
         
     @CORR_MODE.setter
     def CORR_MODE(self, val):
+        warn("Set property self.CORR_MODE which is out-dated in versions 0.10+)"
+             " Use self.mode instead.")
         self.mode = val
         
     @property
@@ -170,7 +173,7 @@ class PlumeBackgroundModel(object):
         return True
         
     def mean_in_rects(self, img):
-        """Determine ``(mean, min, max)`` intensity in reference rectangles
+        """Determine ``(mean, min, max)`` intensity in all reference rectangles
         
         Parameters
         ----------
@@ -197,7 +200,6 @@ class PlumeBackgroundModel(object):
     def update(self, **kwargs):
         """Update class attributes
         :param **kwargs:
-            
         """
         for k, v in kwargs.iteritems():
             self.__setitem__(k, v)
@@ -249,7 +251,7 @@ class PlumeBackgroundModel(object):
         """   
         if not isinstance(plume_img, Img):
             raise TypeError("Invalid, input type: need Img object...")
-        plume = plume_img.img
+        plume = plume_img.duplicate().img
         if self.check_settings():
             return
         if self.surface_fit_mask is None:
@@ -272,6 +274,31 @@ class PlumeBackgroundModel(object):
         if not self._check_rect(self.xgrad_rect, plume):
             self.xgrad_rect = res["xgrad_rect"]
     
+    def settings_dict(self):
+        """Write current sky reference areas and masks into dictionary"""
+        d = {}
+        d["mode"] = self.mode
+        d["surface_fit_mask"] = self.surface_fit_mask 
+        d["surface_fit_pyrlevel"] = self.surface_fit_pyrlevel
+        d["surface_fit_polyorder"] = self.surface_fit_polyorder
+        d["scale_rect"] = self.scale_rect
+        d["ygrad_rect"] = self.ygrad_rect
+        
+        d["ygrad_line_colnum"] = self.ygrad_line_colnum
+        d["ygrad_line_polyorder"] = self.ygrad_line_polyorder
+        d["ygrad_line_startrow"] = self.ygrad_line_startrow
+        d["ygrad_line_stoprow"] = self.ygrad_line_stoprow
+        d["ygrad_line_mask"] = self.ygrad_line_mask
+        
+        d["xgrad_rect"] = self.xgrad_rect
+    
+        d["xgrad_line_rownum"] = self.xgrad_line_rownum
+        d["xgrad_line_polyorder"] = self.xgrad_line_polyorder
+        d["xgrad_line_stopcol"] = self.xgrad_line_stopcol
+        d["xgrad_line_startcol"] = self.xgrad_line_startcol
+        d["xgrad_line_mask"] = self.xgrad_line_mask
+        return d
+        
     def calc_sky_background_mask(self, plume_img, next_img=None, 
                                 lower_thresh=None,
                                 apply_movement_search=True,
@@ -315,7 +342,7 @@ class PlumeBackgroundModel(object):
                                    **settings_movement_search)
         self.surface_fit_mask = mask
         return mask
-    
+
     def bg_from_poly_surface_fit(self, plume, mask=None, polyorder=2,
                                  pyrlevel=4):
         """Applies poly surface fit to plume image for bg retrieval
@@ -352,6 +379,52 @@ class PlumeBackgroundModel(object):
         offs,_ = _mean_in_rect(tau0, rect)
         return tau0 - offs
     
+    def get_surface_fit_mask(self, plume_img, vmin, vmax, base_mask=None):
+        """ Derive a mask from a plume_img based on thresholds (vmin,vmax)
+        
+        Parameters
+        ----------
+        plume_img : Img
+            plume image in intensity space
+        vmin : float
+            minimum value to be flaged as 1
+        vmax : float
+            maximum value to be flaged as 1
+        base_mask : numpy.array, optional
+            additonal maks, all values which are 0 in this mask will be 0 in
+            0 in the resulting mask; has to be of same shape as plume_img.img
+        
+        Returns
+        -------
+        surface_fit_mask : numpy.array
+            mask which is 1 for background and 0 else
+        
+        """
+
+        # BLur the image to get homogenous values
+        # ? maybe do a sharpening instead up bluring?
+        from numpy import float32
+        Img = plume_img.duplicate() # make a deep copy 
+        Img.add_gaussian_blurring(3)    
+        
+        mask = ones(Img.img.shape)#, dtype=float32)   #np.ones
+        
+        if not isinstance(vmin, float):
+            warn("Invalid input for vmin in get_surface_fit_mask.")
+            return mask
+        
+        if not isinstance(vmax, float):
+            warn("Invalid input for vmax in get_surface_fit_mask.")
+            return mask
+            
+        mask[Img.img < vmin] = 0
+        mask[Img.img > vmax] = 0
+        
+        if isinstance(base_mask, ndarray):
+            mask[base_mask==0]=0
+        return mask
+    
+    
     def get_tau_image(self, plume_img, bg_img=None, update_imgs=False, 
                       **kwargs):
         """Determine current tau image for input plume image
@@ -361,13 +434,13 @@ class PlumeBackgroundModel(object):
         plume_img : Img
             plume image in intensity space
         bg_img : :obj:`Img`, optional
-            sky radiance image (for ``self.CORR_MODE = 1 - 6``)
+            sky radiance image (for ``self.mode = 1 - 6``)
         update_imgs : bool
             if True, the internal images within this class are updated 
             (stored in priv. attr :attr:`_current_imgs`)
         **kwargs : 
             additional keyword arguments for updating current settings
-            (valid input keywords (strings): CORR_MODE, ygrad_rect, 
+            (valid input keywords (strings): mode, ygrad_rect, 
             ygrad_line_colnum, ygrad_line_startrow, ygrad_line_stoprow
         
         Returns
@@ -389,40 +462,40 @@ class PlumeBackgroundModel(object):
         for k, v in kwargs.iteritems():
             self.__setitem__(k, v)
             
-        mode = self.CORR_MODE
+        mode = self.mode #redunant line? Replace below?
         if not plume_img.edit_log["darkcorr"]:
             warn("plume image is not corrected for dark current")
         if plume_img.is_tau:
             raise AttributeError("Input image is already tau image")
         plume = plume_img.img
-        if mode != 0:
+        #tau = None
+        #no sky radiance image, poly surface fit
+        if mode == 0: 
+            # retrieve an individual mask
+            self.surface_fit_mask = self.get_surface_fit_mask(plume_img,
+                                                              self.surface_fit_mask_vmin,
+                                                              self.surface_fit_mask_vmax)
+            (bg, fit) = self.bg_from_poly_surface_fit(plume,
+                                                    self.surface_fit_mask,
+                                                    self.surface_fit_polyorder,
+                                                    self.surface_fit_pyrlevel)
+            tau = _calculate_tau(plume, bg)
+
+        
+        # Sky radiance image was provided as bg_img
+        else:
             if not isinstance(bg_img, Img):
                 bg_img = self.get_current("bg_raw")
             if not bg_img.edit_log["darkcorr"]:
                 warn("Sky BG image is not corrected for dark current")
-            bg = bg_img.img
             if not plume_img.is_vigncorr is bg_img.is_vigncorr:
                 raise AttributeError("Cannot model tau image: plume img and "
                                      "sky radiance image have different "
                                      "vignetting correction states.")
-        tau = None
-        if mode == 0: #no sky radiance image, poly surface fit
-            (bg, fit)=self.bg_from_poly_surface_fit(plume,
-                                                    self.surface_fit_mask,
-                                                    self.surface_fit_polyorder,
-                                                    self.surface_fit_pyrlevel)
-            r = bg / plume
-            #make sure no 0 values or neg. numbers are in the image
-            r[r<=0] = finfo(float).eps
-            tau = log(r)
-    
-        else:
+            bg = bg_img.img                
             #bg_norm = scale_bg_img(bg, plume, self.scale_rect)
-            r = bg / plume
-            #make sure no 0 values or neg. numbers are in the image
-            r[r<=0] = finfo(float).eps
-            tau = log(r)
-            if mode != 99:
+            tau = _calculate_tau(plume, bg)
+            if mode != 99: # 99 is "use as is" mode
                 tau = self.correct_tau_curvature_ref_areas(tau)
             
         tau_img = plume_img.duplicate()
@@ -448,16 +521,16 @@ class PlumeBackgroundModel(object):
         plume_off : Img
             off-band plume image
         bg_on : :obj:`Img`, optional
-            on-band sky radiance image (for ``self.CORR_MODE = 1 - 6``)
+            on-band sky radiance image (for ``self.mode = 1 - 6``)
         bg_off : :obj:`Img`, optional
-            off-band sky radiance image (for ``self.CORR_MODE = 1 - 6``)
+            off-band sky radiance image (for ``self.mode = 1 - 6``)
         update_imgs : bool
             if True, the internal images within this class are updated 
             (stored in priv. attr :attr:`_current_imgs`), defaults to False
         **kwargs : 
             additional keyword arguments for updating current settings
             (valid input keywords (strings), e.g. ``surface_fit_mask`` if
-            ``CORR_MODE == 0``
+            ``mode == 0``
         
         Returns
         -------
@@ -468,7 +541,7 @@ class PlumeBackgroundModel(object):
         for k, v in kwargs.iteritems():
             self.__setitem__(k, v)   
             
-        mode = self.CORR_MODE
+        mode = self.mode
         if mode == 0:
             mask = self.surface_fit_mask
             po = self.surface_fit_polyorder
@@ -477,20 +550,13 @@ class PlumeBackgroundModel(object):
                                                             mask, po, pyr)
             (bg_off, fit_off) = self.bg_from_poly_surface_fit(plume_off,
                                                               mask, po, pyr)
-            r_on = bg_on / plume_on.img
-            #make sure no 0 values or neg. numbers are in the image
-            r_on[r_on <= 0] = finfo(float).eps
-            
-            r_off = bg_off / plume_off.img
-            #make sure no 0 values or neg. numbers are in the image
-            r_off[r_off <= 0] = finfo(float).eps
-            aa = log(r_on) - log(r_off)
+            tau_on = _calculate_tau(plume_on.img, bg_on)
+            tau_off = _calculate_tau(plume_off.img, bg_off)
+            aa = tau_on - tau_off
         else:
-            r1 = bg_on.img / plume_on.img
-            r1[r1<=0] = finfo(float).eps
-            r2 = bg_off.img / plume_off.img
-            r2[r2<=0] = finfo(float).eps
-            aa = log(r1) - log(r2)
+            tau_on = _calculate_tau(plume_on, bg_on)
+            tau_off = _calculate_tau(plume_off, bg_off)
+            aa = tau_on - tau_off
             if mode != 99:               
                 aa = self.correct_tau_curvature_ref_areas(aa)
         
@@ -513,7 +579,7 @@ class PlumeBackgroundModel(object):
     def correct_tau_curvature_ref_areas(self, tau_init):
         """Scale and correct curvature in initial tau image
                 
-        The method used is depends on the current ``CORR_MODE``. This method 
+        Which routine is used depends on the current ``self.mode``. This method 
         only applies for correction modes 1-6.
         
         Parameters
@@ -527,12 +593,12 @@ class PlumeBackgroundModel(object):
             modelled tau image
         
         """
-        mode = self.CORR_MODE
+        mode = self.mode
         tau = None
         
         if not 1 <= mode <= 6:
             raise ValueError("This method only works for background model"
-                "modes (param CORR_MODE) 1-6")
+                "modes 1-6")
         try:
             tau_init = tau_init.img
         except:
@@ -621,7 +687,7 @@ class PlumeBackgroundModel(object):
     """Plotting"""
     def plot_sky_reference_areas(self, plume):
         """Plot the current sky ref areas into a plume image"""
-        d = self.settings_dict()
+        d = self.sky_ref_areas_to_dict()
         return plot_sky_reference_areas(plume, d)
         
     def plot_tau_result_old(self, tau_img=None, tau_min=None, tau_max=None,
@@ -664,7 +730,7 @@ class PlumeBackgroundModel(object):
         ax.append(subplot(gs[3]))
         ax.append(subplot(gs[0]))
         
-        if self.CORR_MODE == 0:
+        if self.mode == 0:
             ax.append(subplot(gs[1]))
             palette = colors.ListedColormap(['white', 'lime'])
             norm = colors.BoundaryNorm([0, .5, 1], palette.N)
@@ -773,7 +839,7 @@ class PlumeBackgroundModel(object):
             
         ax[1].set_xlabel(r"$\tau$", fontsize=16)
         ax[2].set_ylabel(r"$\tau$", fontsize=16)  
-        fig.suptitle("CORR_MODE: %s" %self.CORR_MODE, fontsize=16)
+        fig.suptitle("Mode: %s" %self.mode, fontsize=16)
         ax[0].legend(loc=legend_loc, fancybox=True, framealpha=0.7, fontsize=11)
         return fig
     
@@ -841,7 +907,7 @@ class PlumeBackgroundModel(object):
         ax.append(fig.add_axes([lm, bm + tau_frac + im,
                                 tau_frac, d_panels]))
         
-        if self.CORR_MODE == 0:
+        if self.mode == 0:
             ax.append(fig.add_axes([lm + tau_frac + im,
                                     bm + tau_frac + im,
                                     d_panels, d_panels]))
@@ -954,55 +1020,28 @@ class PlumeBackgroundModel(object):
         ax[1].set_xlabel(r"$\tau$", fontsize=fsize_labels)
         ax[2].set_ylabel(r"$\tau$", fontsize=fsize_labels)  
         if add_mode_info:
-            ax[0].set_xlabel("CORR_MODE: %s" %self.CORR_MODE, 
+            ax[0].set_xlabel("Mode: %s" %self.mode, 
                              fontsize=fsize_labels)
         ax[0].legend(loc=legend_loc, fancybox=True, framealpha=0.7, 
                      fontsize=fsize_legend)
         return fig
     
     """Helpers"""
-    def settings_dict(self):
-        """Write current sky reference areas and masks into dictionary"""
-        d = {}
-        d["mode"] = self.mode
-        d["surface_fit_mask"] = self.surface_fit_mask 
-        d["surface_fit_pyrlevel"] = self.surface_fit_pyrlevel
-        d["surface_fit_polyorder"] = self.surface_fit_polyorder
-        d["scale_rect"] = self.scale_rect
-        d["ygrad_rect"] = self.ygrad_rect
+    def sky_ref_areas_to_dict(self):
+        """Create a dictionary with the current sky reference area settings"""
+        results = {}
+
+        results["ygrad_line_colnum"] = self.ygrad_line_colnum
+        results["ygrad_line_stoprow"] = self.ygrad_line_stoprow
+        results["ygrad_line_startrow"] = self.ygrad_line_startrow
         
-        d["ygrad_line_colnum"] = self.ygrad_line_colnum
-        d["ygrad_line_polyorder"] = self.ygrad_line_polyorder
-        d["ygrad_line_startrow"] = self.ygrad_line_startrow
-        d["ygrad_line_stoprow"] = self.ygrad_line_stoprow
-        d["ygrad_line_mask"] = self.ygrad_line_mask
-        
-        d["xgrad_rect"] = self.xgrad_rect
-    
-        d["xgrad_line_rownum"] = self.xgrad_line_rownum
-        d["xgrad_line_polyorder"] = self.xgrad_line_polyorder
-        d["xgrad_line_stopcol"] = self.xgrad_line_stopcol
-        d["xgrad_line_startcol"] = self.xgrad_line_startcol
-        d["xgrad_line_mask"] = self.xgrad_line_mask
-        return d
-        
-#==============================================================================
-#     def sky_ref_areas_to_dict(self):
-#         """Create a dictionary with the current sky reference area settings"""
-#         results = {}
-# 
-#         results["ygrad_line_colnum"] = self.ygrad_line_colnum
-#         results["ygrad_line_stoprow"] = self.ygrad_line_stoprow
-#         results["ygrad_line_startrow"] = self.ygrad_line_startrow
-#         
-#         results["xgrad_line_rownum"] = self.xgrad_line_rownum
-#         results["xgrad_line_startcol"] = self.xgrad_line_startcol
-#         results["xgrad_line_stopcol"] = self.xgrad_line_stopcol
-#         results["scale_rect"] = self.scale_rect
-#         results["ygrad_rect"] = self.ygrad_rect
-#         results["xgrad_rect"] = self.xgrad_rect
-#         return results
-#==============================================================================
+        results["xgrad_line_rownum"] = self.xgrad_line_rownum
+        results["xgrad_line_startcol"] = self.xgrad_line_startcol
+        results["xgrad_line_stopcol"] = self.xgrad_line_stopcol
+        results["scale_rect"] = self.scale_rect
+        results["ygrad_rect"] = self.ygrad_rect
+        results["xgrad_rect"] = self.xgrad_rect
+        return results
     
     @property
     def mode_info_dict(self):
@@ -1055,7 +1094,7 @@ class PlumeBackgroundModel(object):
     def __setitem__(self, key, value):
         """Update class item"""
         if self.__dict__.has_key(key):
-            print "Updating %s in background model" %key
+            #print "Updating %s in background model" %key
             self.__dict__[key] = value
         elif key == "mode":
             "Updating %s in background model" %key
@@ -1064,9 +1103,38 @@ class PlumeBackgroundModel(object):
             warn("Got input key CORR_MODE which is out-dated in versions 0.10+)"
                 ". Updated background modelling mode accordingly")
             self.mode = value
+        else:
+            warn("Updating of %s in background model failed" %key)
             
     def __call__(self, plume, bg, **kwargs):
         return self.get_tau_image(plume, bg, **kwargs)
+
+def _calculate_tau(plume, bg):
+    """ Calculate the tau image of a plume and background image
+    
+    :param (ndarray, Img) bg: background image
+    :param (ndarray, Img) plume: plume image
+    :return ndarray: plume tau image        
+    """
+    
+    # Extract image data array in case input is of type pyplis.Img
+    try:
+        bg = bg.img
+    except:
+        pass
+    try:
+        plume = plume.img
+    except:
+        pass    
+    
+    if not bg.shape == plume.shape:
+        raise Exception('Input images have not the same shape.')
+        
+    radiance_ratio = bg / plume
+    #make sure no 0 values or neg. numbers are in the image
+    radiance_ratio[radiance_ratio<=0] = finfo(float).eps
+    tau = log(radiance_ratio)
+    return tau
 
 def _mean_in_rect(img_array, rect=None):
     """Helper to get mean and standard deviation of pixels within rectangle

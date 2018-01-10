@@ -48,7 +48,112 @@ from .image import Img
 from .inout import get_camera_info
 from .setupclasses import Camera
 
-class DoasCalibData(object):
+
+class CalibData(object):
+    """ Class for the most possible simple calibration with only slope
+    and y_offset, without breaking the ImgList implementation """
+    
+    def __init__(self, slope=None, y_offset=None, slope_err=None, y_offset_err=None,
+                 polyorder=1):
+        
+        # put these in the cov somehow
+        self.slope_err = slope_err
+        self.y_offset_err = y_offset_err
+        try:
+            self._poly = poly1d([slope, y_offset])
+        except:
+            print('Set CalibData.poly attribute with poly = <numpy.poly1d>')
+        self.polyorder = polyorder
+
+    @property
+    def poly(self):
+        """Calibration polynomial"""
+        return self._poly
+    
+    @poly.setter
+    def poly(self, value):
+        if not isinstance(value, poly1d):
+            raise ValueError("Need `numpy.poly1d` object. Can be initialized \
+                             manually by using numpy.poly1d([slope,y_offset])")
+        self._poly = value
+
+    @property
+    def coeffs(self):
+        """Coefficients of current calibration polynomial"""
+        return self.poly.coeffs
+        
+    @property
+    def slope(self):
+        """Slope of current calib curve"""
+        return self.coeffs[-2]
+        
+#    @property
+#    def slope_err(self):
+#        """Slope error of current calib curve"""
+#        return sqrt(self.cov[-2][-2])
+    
+    @property
+    def y_offset(self):
+        """Y-axis offset of calib curve"""
+        return self.coeffs[-1]
+    
+#    @property
+#    def y_offset_err(self):
+#        """Error of y axis offset of calib curve"""
+#        return sqrt(self.cov[-1][-1])
+
+    ###########################################################################
+    # Calibrate a value
+
+    def _calibrate_image(self, img):
+        ''' Calibrate a tau or AA pyplis.Img to CDs'''
+        calib_img = img.duplicate()
+        calib_img.img = self.poly(calib_img.img) - self.y_offset
+        calib_img.edit_log["gascalib"] = True
+        return calib_img
+    
+    def _calibrate_stack(self, stack):
+        ''' Calibrate a tau or AA pyplis.ImgStack to CDs'''
+        try:
+            calib_stack = stack.duplicate()
+        except MemoryError:
+            calib_stack = stack
+            warn("Stack cannot be duplicated, applying calibration to "
+                "input stack")
+        calib_stack.stack = self.poly(calib_stack.stack) - self.y_offset
+        calib_stack.img_prep["gascalib"] = True
+        return calib_stack
+        
+    # This decreases the readability of the other module's code
+    # Better use a method "calibrate" etc
+    def __call__(self, value, **kwargs):
+        """Define call function to apply calibration
+        
+        Parameters
+        ----------
+        value : Img, ImgStack, float, float array
+            tau or AA value(s)
+        kwargs 
+            additional keyword, needed for ImgList because CellCalibData could
+            have kwargs
+        
+        Returns
+        -------
+        Img, ImgStack, float, float array
+            calibrated value (typically S02 CD)
+        """
+        if not isinstance(self.poly, poly1d):
+            self.fit_calib_polynomial()
+            
+        if isinstance(value, Img):
+            return self._calibrate_image(value)
+        elif isinstance(value, ImgStack):
+            return self._calibrate_stack(self, value)
+        else: # singele values or arrays of integer, float etc
+            return self.poly(value) - self.y_offset
+
+
+class DoasCalibData(CalibData):
     """Class containing DOAS calibration data
     
     Parameters
@@ -131,11 +236,12 @@ class DoasCalibData(object):
             self.fit_calib_polynomial()
         return self._poly
     
-    @poly.setter
+    @poly.setter #Hmm...maybe there is a cleaner way
     def poly(self, value):
         if not isinstance(value, poly1d):
-            raise ValueError("Need numpy poly1d object...")
-        self._poly=value
+            raise ValueError("Need `numpy.poly1d` object. Can be initialized \
+                             manually by using numpy.poly1d([slope,y_offset])")
+        self._poly = value
     
     @property
     def cov(self):
@@ -149,26 +255,11 @@ class DoasCalibData(object):
         raise IOError("Covariance matrix of calibration polynomial cannot "
                       "be set manually, please call function "
                       "fit_calib_polynomial")
-            
-    @property
-    def coeffs(self):
-        """Coefficients of current calibration polynomial"""
-        return self.poly.coeffs 
-        
-    @property
-    def slope(self):
-        """Slope of current calib curve"""
-        return self.coeffs[-2]
         
     @property
     def slope_err(self):
         """Slope error of current calib curve"""
         return sqrt(self.cov[-2][-2])
-    
-    @property
-    def y_offset(self):
-        """Y-axis offset of calib curve"""
-        return self.coeffs[-1]
     
     @property
     def y_offset_err(self):
@@ -262,8 +353,8 @@ class DoasCalibData(object):
         if not self.has_calib_data():
             raise ValueError("Calibration data is not available")
             
-        if polyorder is None:
-            polyorder = self.polyorder
+        if polyorder is not None:
+            self.polyorder = polyorder
     
         if sum(isnan(self.tau_vec)) + sum(isnan(self.doas_vec)) > 0:
             raise ValueError("Encountered nans in data")
@@ -292,8 +383,7 @@ class DoasCalibData(object):
             cds = concatenate([cds, zeros(num)])
             ws = concatenate([ws, ones(num)])
         coeffs, cov = polyfit(tau_vals, cds, 
-                              polyorder, w=ws, cov=True)
-        self.polyorder = polyorder
+                              self.polyorder, w=ws, cov=True)
         self.poly = poly1d(coeffs * 10**exp)
         self._cov = cov * 10**(2*exp)
         if plot:
@@ -536,30 +626,30 @@ class DoasCalibData(object):
         val = self(value)
         r = self.slope_err / self.slope
         return val * r
-        
+
+    # This decreases the readability of the other module's code
+    # Better use a method "calibrate" etc
     def __call__(self, value, **kwargs):
         """Define call function to apply calibration
         
-        :param float value: tau or AA value
-        :return: corresponding column density
+        Parameters
+        ----------
+        value : Img, ImgStack, float, float array
+            tau or AA value(s)
+        kwargs 
+            additional keyword, needed for ImgList because CellCalibData could
+            have kwargs
+        
+        Returns
+        -------
+        Img, ImgStack, float, float array
+            calibrated value (typically S02 CD)
         """
         if not isinstance(self.poly, poly1d):
             self.fit_calib_polynomial()
-        if isinstance(value, Img):
-            calib_im = value.duplicate()
-            calib_im.img = self.poly(calib_im.img) - self.y_offset
-            calib_im.edit_log["gascalib"] = True
-            return calib_im
-        elif isinstance(value, ImgStack):
-            try:
-                value = value.duplicate()
-            except MemoryError:
-                warn("Stack cannot be duplicated, applying calibration to "
-                "input stack")
-            value.stack = self.poly(value.stack) - self.y_offset
-            value.img_prep["gascalib"] = True
-            return value
-        return self.poly(value) - self.y_offset
+        
+        super(DoasCalibData, self).__call__()
+
         
 class DoasFOV(object):
     """Class for storage of FOV information"""

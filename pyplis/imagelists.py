@@ -22,8 +22,8 @@ from numpy import asarray, zeros, argmin, arange, ndarray, float32,\
     isnan, logical_or, uint8, finfo, exp, ones
 from datetime import timedelta, datetime, date
 #from bunch import Bunch
-from pandas import Series, DataFrame
-from matplotlib.pyplot import figure, draw, ion, ioff, close
+from pandas import Series, DataFrame, to_datetime, concat
+from matplotlib.pyplot import figure, draw, subplots, ion, ioff, close
 from copy import deepcopy
 from scipy.ndimage.filters import gaussian_filter
 from warnings import warn
@@ -45,6 +45,10 @@ from .plumebackground import PlumeBackgroundModel
 from .plumespeed import OptflowFarneback, LocalPlumeProperties
 from .helpers import check_roi, map_roi, _print_list, closest_index,exponent,\
     isnum, get_pyr_factor_rel
+
+# For custom defined ImgListMultiFits which needs to access the images for meta info
+from .custom_image_import import load_comtessa, _read_binary_timestamp
+
 
 class BaseImgList(object):
     """Basic image list object
@@ -774,7 +778,7 @@ class BaseImgList(object):
         
         self.auto_reload = False
         if pyrlevel is not None and pyrlevel != _pyrlevel:
-            print ("Changing image list pyrlevel from %d to %d"\
+            print("Changing image list pyrlevel from %d to %d"\
                                             %(_pyrlevel, pyrlevel))
             self.pyrlevel = pyrlevel
         if check_roi(roi_abs):
@@ -811,7 +815,7 @@ class BaseImgList(object):
             exp = 1
         for k in range(num):
             if k % exp == 0:
-                print ("Building img-stack from list %s, progress: (%s | %s)" 
+                print("Building img-stack from list %s, progress: (%s | %s)" 
                        %(lid, k, num-1))
             img = self.loaded_images["this"]
             #print im.meta["start_acq"]
@@ -830,7 +834,7 @@ class BaseImgList(object):
         stack.texps = asarray(stack.texps)
         stack.roi_abs = self._roi_abs
         
-        print ("Img stack calculation finished, rolling back to intial list"
+        print("Img stack calculation finished, rolling back to intial list"
             "state:\npyrlevel: %d\ncrop modus: %s\nroi (abs coords): %s "
             %(_pyrlevel, _crop, _roi))
         self.auto_reload = False
@@ -1061,7 +1065,30 @@ class BaseImgList(object):
             self._list_modes["darkcorr"] = True
         if onload["vigncorr"]:
             self._list_modes["vigncorr"]
-            
+
+    def load_img(self, index):
+        """ Loads a single img; wrappes the custom_image_import to a single 
+        method needing only the index
+        
+        Note
+        ----
+        Can be redefined in child classes without need of redifing methods like
+        load(), load_next() etc
+        
+        Parameters
+        ----------
+        index : int
+            index of image which should be loaded
+        Returns
+        -------
+        pyplis.Img
+            loaded image including meta data
+        """
+        img_file = self.files[self.index]
+        image = Img(img_file, import_method=self.camera.image_import_method,
+                     **self.get_img_meta_from_filename(img_file))
+        return image
+        
     def load(self):
         """Load current image
         
@@ -1081,10 +1108,7 @@ class BaseImgList(object):
                                                                 %self.list_id)
             return False        
         try:
-            img_file = self.files[self.index]
-            img = Img(img_file,
-                      import_method=self.camera.image_import_method,
-                      **self.get_img_meta_from_filename(img_file))
+            img = self.load_img(self.index)
             self.loaded_images["this"] = img
             self._load_edit.update(img.edit_log)
             
@@ -1227,13 +1251,7 @@ class BaseImgList(object):
         """
         self.load_next()
         return self.loaded_images["this"]
-        
-    def next_img(self):
-        """Old name of method goto_next"""
-        warn("This method was renamed (but still works). Please use method "
-             "goto_next in the future")
-        return self.goto_next()
-    
+
     def goto_prev(self):
         """Go to previous image
         
@@ -1241,13 +1259,19 @@ class BaseImgList(object):
         """
         self.load_prev()
         return self.loaded_images["this"]
-    
+
+    def next_img(self):
+        """Old name of method goto_next"""
+        warn("This method was renamed (but still works). Please use method "
+             "goto_next in the future")
+        return self.goto_next()
+
     def prev_img(self):
         """Old name of method goto_next"""
         warn("This method was renamed (but still works). Please use method "
              "goto_prev in the future")
         return self.goto_prev()
-    
+
     def append(self, file_path):
         """Append image file to list
         
@@ -1757,7 +1781,7 @@ class ImgList(BaseImgList):
     def calib_mode(self, value):
         """Change current list calibration mode"""
         self.activate_calib_mode(value)
-        
+
     @property
     def ext_coeff(self):
         """Current extinction coefficient"""
@@ -1894,23 +1918,25 @@ class ImgList(BaseImgList):
         """Get set object to perform calibration"""
         from pyplis.cellcalib import CellCalibEngine as cc
         from pyplis.doascalib import DoasCalibData as dc
-        if not any([isinstance(self._calib_data, x) for x in [cc, dc]]):
+        from pyplis.doascalib import CalibData as c
+        if not any([isinstance(self._calib_data, x) for x in [cc, dc, c]]):
             warn("No calibration data available in imglist %s" %self.list_id)
         return self._calib_data
     
     @calib_data.setter
-    def calib_data(self, val):
+    def calib_data(self, value):
         from pyplis.cellcalib import CellCalibEngine as cc
         from pyplis.doascalib import DoasCalibData as dc
-        if not any([isinstance(val, x) for x in [cc, dc]]):
+        from pyplis.doascalib import CalibData as c
+        if not any([isinstance(value, x) for x in [cc, dc, c]]):
             raise TypeError("Could not set calibration data in imglist %s: "
             "need CellCalibData obj or DoasCalibData obj" %self.list_id)
         try:
-            val(0.1) #try converting a fake tau value into a gas column
+            value(0.1) #try converting a fake tau value into a gas column
         except ValueError:
             raise ValueError("Cannot set calibration data in image list, "
                 "calibration object is not ready")
-        self._calib_data = val
+        self._calib_data = value
         
     @property
     def doas_fov(self):
@@ -2002,8 +2028,7 @@ class ImgList(BaseImgList):
                 self.vign_mask
             except:
                 self.det_vign_mask_from_bg_img() 
-            sh = Img(self.files[self.cfn],
-                     import_method=self.camera.image_import_method).img.shape
+            sh = (self.load_img(self.index)).img.shape
             if not self.vign_mask.shape == sh:
                 raise ValueError("Shape of vignetting mask %s deviates from "
                             "raw img shape %s" %(list(self.vign_mask.shape),
@@ -2031,8 +2056,9 @@ class ImgList(BaseImgList):
                      "current image is already a tau image"
                      %self.list_id)
                 return
-            cim = Img(self.files[self.cfn],
-                      import_method=self.camera.image_import_method)
+            vc = self.vigncorr_mode
+            self.vigncorr_mode = False
+            cim = self.load_img(self.cfn)
             try:
                 dark = self.get_dark_image("this")
                 cim.subtract_dark_image(dark)
@@ -2050,7 +2076,7 @@ class ImgList(BaseImgList):
                     warn("Background access mask could not be retrieved for "
                         "PolySurfaceFit in background model of image list %s"
                         %self.list_id)
-                
+
             else:
                 if not self.has_bg_img():
                     raise AttributeError("no background image available in "
@@ -2058,8 +2084,9 @@ class ImgList(BaseImgList):
                         "using method set_bg_img, or change current bg " 
                         "modelling mode to 0 using self.bg_model.mode=0)" 
                         %self.list_id)
-                bg_img = self._bg_imgs[0]
-            self.bg_model.get_tau_image(cim, bg_img)
+                bg_img = self.bg_img
+            self.bg_model.get_tau_image(cim, bg_img) #or cim or self.this? depending on the case both produces faulty results
+            self.vigncorr_mode = vc
         self._list_modes["tau"] = value
         self.load()
     
@@ -2652,10 +2679,7 @@ class ImgList(BaseImgList):
             print ("Image load aborted...")
             return False
         if self.nof > 1:
-            next_file = self.files[self.next_index]
-            self.loaded_images["next"] = Img(next_file,
-                            import_method=self.camera.image_import_method,                            
-                            **self.get_img_meta_from_filename(next_file))
+            self.loaded_images["next"] = self.load_img(self.next_index)
             self._apply_edit("next")
         else:
             #self.loaded_images["prev"] = self.loaded_images["this"]
@@ -2690,12 +2714,9 @@ class ImgList(BaseImgList):
         #self.loaded_images["prev"] = self.loaded_images["this"]
         self.loaded_images["this"] = self.loaded_images["next"]
         
-        next_file = self.files[self.next_index]
-        self.loaded_images["next"] = Img(next_file,
-                            import_method=self.camera.image_import_method,                            
-                            **self.get_img_meta_from_filename(next_file))
-    
+        self.loaded_images["next"] = self.load_img(self.next_index)    
         self._apply_edit("next")
+
         if self.optflow_mode:  
             try:
                 self.set_flow_images()
@@ -3265,9 +3286,9 @@ class ImgList(BaseImgList):
                 "be performed" %self.list_id)
             return
         if key == "this":
-            upd_bgmodel = True
+            update_bgmodel = True
         else:
-            upd_bgmodel = False
+            update_bgmodel = False
         img = self.loaded_images[key]
         bg = None
         if self.darkcorr_mode:
@@ -3291,7 +3312,7 @@ class ImgList(BaseImgList):
                 bg = self.bg_img.to_pyrlevel(img.pyrlevel)
             img = bg_model.get_tau_image(plume_img=img, 
                                          bg_img=bg,
-                                         update_imgs=upd_bgmodel)
+                                         update_imgs=update_bgmodel)
         elif self.aa_mode:
             off_list = self.get_off_list()
             if off_list.dilcorr_mode:
@@ -3319,15 +3340,15 @@ class ImgList(BaseImgList):
                                         plume_off=img_off,
                                         bg_on=bg,
                                         bg_off=bg_off,
-                                        update_imgs=upd_bgmodel)
+                                        update_imgs=update_bgmodel)
             if self.sensitivity_corr_mode:
                 img = img / self.aa_corr_mask
                 img.edit_log["senscorr"] = 1
-        
+
         if self.calib_mode:
             img.img = self.calib_data(img.img)
             img.edit_log["gascalib"] = True
-
+          
         img.to_pyrlevel(self.img_prep["pyrlevel"])
         if self.img_prep["crop"]:
             img.crop(self.roi_abs)
@@ -3584,4 +3605,483 @@ class CellImgList(ImgList):
         self.cell_id = cell_id
         self.gas_cd = gas_cd
         self.gas_cd_err = gas_cd_err
-                   
+
+from astropy.io import fits
+import numpy as np
+        
+class ImgListMultiFits(ImgList):
+    """Image list object which can be used with mulitple fit files (comtessa project)
+    
+    Additional features:
+        
+            1. Indexing using double index: Filename and image plane
+            2. Function which returns a DataFrame of all available data
+            
+    Parameters
+    ----------
+    files : list
+        list containing image file paths, defaults to ``[]`` (i.e. empty list)
+    list_id : :obj:`str`, optional
+        string ID of this list, defaults to None
+    list_type : :obj:`str`, optional
+        string specifying type of image data in this list (e.g. on, off)
+    camera : :obj:`Camera`, optional
+        camera specifications, defaults to None
+    geometry : :obj:`MeasGeometry`, optional
+        measurement geometry
+    init : bool
+        if True, the first two images in list ``files`` are loaded
+    
+    """
+    
+    def __init__(self, files=[], meta=None, list_id=None, list_type=None, camera=None,
+                 geometry=None, init=True):
+        ''' let's assume I already detected all relevant fits files and give them as a parameter
+        Load ALL images inside the files (only multiple of minute intervals possible)
+        Alternatively, the the imagelist can be loaded by giving a meta DataFrame
+        --> speed up the initialisation; in this case self.fitsfiles can remain empty
+        
+        Camera can be defined by loading the first image (fov, pixel, etc...)
+        '''
+        # uses the init method from ImgList but does not load the files!
+        super(ImgListMultiFits, self).__init__(files, list_id, list_type, camera, 
+                                      geometry, init=False)
+        
+        # that should be done in a different way!
+        self.camera.image_import_method = load_comtessa
+        
+        # redefinition of several paramters and new parameter
+
+        self.sky_mask = None
+        # n files with m_n images
+        # datafiles (every file only once)
+        # only needed for fast referencing
+        # make a function/property out of it!
+        self.fitsfiles = files
+        
+        if isinstance(meta, DataFrame):
+            try:
+                self.metaData = meta
+            except:
+                self.metaData = self.get_img_meta_all()
+        else:
+            self.metaData = self.get_img_meta_all()
+
+        # filename subindex (file is repeated m_n times)
+        self.files = self.metaData['file'].values
+        # image subindex inside fits file
+        self.hdu_nr = self.metaData['hdu_nr'].values
+                                      
+        if self.data_available and init:
+            self.load()
+
+    @property
+    def sky_mask(self):
+        """Sky access mask: 0 for sky, 1 for non-sky (=invalid)
+        (in masked arrays, entries marked with 1 are invalid) """
+        return self.__sky_mask
+    
+    @sky_mask.setter
+    def sky_mask(self, value):
+        # TODO: Check if the mask has the same dimension as the images
+        # TODO: maybe load as pyplis img
+        #if not isinstance(val, ):
+        #    raise TypeError("Could not set meas_geometry, need MeasGeometry "
+        #        "object")
+        self.__sky_mask = value
+################################################################################
+    """ META DATA HANDLING """
+    def get_img_meta_from_filename(self, file_path):
+        """Loads and prepares img meta input dict for Img object
+        
+        Note
+        ----
+        Convenience method only rewritten in order to not break the code.
+        Loads meta data of first image plane in fits file_path
+        
+        Parameters
+        ----------
+        file_path : str 
+            file path of image
+        
+        Returns
+        -------
+        dict
+            dictionary containing retrieved values for ``start_acq`` and 
+            ``texp``
+        """
+        
+        warn('This method does not make a lot of sense for the ImgListMultiFits!'
+             ' Returns the meta data of the first image in file_path.'
+             ' metaData attribute to access meta information.')
+        
+        hdulist = fits.open(file_path)
+        # Load the image
+        image = hdulist[0].data
+        time = _read_binary_timestamp(image) 
+        texp = float(hdulist[0].header['EXP']) / 1000. # in s
+        return {"start_acq" : time, "texp": texp}
+    
+    
+        
+    def get_img_meta_all_filenames(self):   
+        """ returns the same data as expected
+        from ImgList.get_img_meta_all_filenames()
+        
+        Note
+        ----
+        Convenience method only rewritten in order to not break the code
+        
+        Returns
+        -------
+        tuple
+            2-element tuple containing
+            
+            - list, list containing all retrieved acq. time stamps
+            - list, containing all retrieved exposure times
+
+        """
+        meta = self.metaData
+        times = meta.start_acq.values
+        texps = meta.exposure.values         
+        return times, texps
+    
+    def get_img_meta_one_fitsfile(self, file_path):
+        """ Load all meta data from all images of one fits file """
+        
+        # temporary lists of parameters
+        imgFileStart = []
+        imgFileStop = []
+        imgFileMin = []
+        imgFileMax = []
+        imgFileMean = []
+        imgFileExp = []
+        imgFileTemp = []
+        
+        #open the file, returning a list containg Header-Data Units (HDU)
+        hdulist = fits.open(file_path)
+        imgPerFile = np.size(hdulist)
+#            hdulist.close()
+        for hdu in range(imgPerFile):
+            # Info from image
+            image = hdulist[hdu].data    
+            imgFileStop.append(_read_binary_timestamp(image))
+            image[0,0:14] = image[1,0:14] #replace binary timestamp
+            imgFileMin.append(image.min())
+            imgFileMax.append(image.max())
+            imgFileMean.append(image.mean())
+            # Info from header
+            imageHeader = hdulist[hdu].header
+            imgFileStart.append(imgFileStop[-1] - timedelta(microseconds=int(imageHeader['EXP'])*1000))
+            imgFileExp.append(float(imageHeader['EXP']) / 1000.) # in s
+            imgFileTemp.append(float(imageHeader['TCAM']))
+        
+        # Combine the temporary lists to a dataFrame and return it
+        meta = DataFrame(data={'file'       : [file_path]*imgPerFile,
+                               'hdu_nr'     : np.array(range(imgPerFile),dtype=int),
+                               'start_acq'  : imgFileStart,
+                               'stop_acq'   : imgFileStop,
+                               'exposure'   : imgFileExp,
+                               'temperature': imgFileTemp,
+                               'min'        : imgFileMin,
+                               'max'        : imgFileMax,
+                               'mean'       : imgFileMean},
+                            index=imgFileStart)
+        meta.index = to_datetime(meta.index)
+        return meta
+        
+    
+    def get_img_meta_all(self):
+        """ Load all available meta data from fits files            
+        Returns
+        -------
+        dataFrame
+            containing all metadata
+        """
+        
+        if self.fitsfiles == []:
+            print("ImgListMultiFits was intialised without providing the "
+                  "fitsfile (e.g. only by meta file). self.get_img_meta_all "
+                  "will return the existing metaData.")
+            return self.metaData
+        
+        # Exatract information of every image in every fits file in fitsFile
+        meta_single = [self.get_img_meta_one_fitsfile(file_path) for file_path in self.fitsfiles]
+        meta = concat(meta_single)
+        meta['img_id'] = arange(0,len(meta),1)
+        meta.index = to_datetime(meta.index)
+        return meta
+        
+###############################################################################
+    """INDEX AND IMAGE LOAD MANAGEMENT"""
+    def load_img(self, index):
+        """ Loads a single image
+        
+        Parameters
+        ----------
+        index : int
+            index of image which should be loaded
+        Returns
+        -------
+        pyplis.Img
+            loaded image including meta data
+         """
+        img_file = self.files[index]
+        img_hdu = self.hdu_nr[index]
+        try:
+            image =  Img(input=img_file,
+                         import_method=self.camera.image_import_method,                            
+                         **{'img_idx':img_hdu})
+        except:
+            print('Couldnt load image with self.camera.image_import_method.'
+                  'Used load_comtessa instead.')
+            image =  Img(input=img_file,
+                         import_method=load_comtessa,                            
+                         **{'img_idx':img_hdu})
+        return image
+
+    def activate_tau_mode(self, value=1):
+            """Activate tau mode
+            
+            In tau mode, images will be loaded as tau images (if background image
+            data is available). 
+            
+            Parameters
+            ----------
+            val : bool
+                new mode
+                
+            """
+            if value is self.tau_mode: #do nothing if already fullfilled
+                return
+            if value:
+                if self.this.edit_log["is_tau"]:
+                    warn("Cannot activate tau mode in image list %s: "
+                         "current image is already a tau image"
+                         %self.list_id)
+                    return
+                
+                ### Why can't I set a load() for the new images?
+                
+                vc_original = self.vigncorr_mode
+                # Reload image without vignetting correction
+                self.vigncorr_mode = False
+                cim = self.load_img(self.index) # this was changed
+                # what is this needed for?
+                self.bg_model.set_missing_ref_areas(cim) 
+                # Dark correction should go before logically?
+                try:
+                    dark = self.get_dark_image("this")
+                    cim.subtract_dark_image(dark)
+                except:
+                    warn("Dark images not available")
+                    
+                if self.bg_model.mode == 0:
+                    # Create a empty backgound image
+                    bg_img = None                    
+                    print("Customed changed by Solvejg."
+                          "Surface map is calcualted on intensity thresholds"
+                          "directly in plumebackground model.")
+#                    print ("Background correction mode is 0, initiating settings "
+#                        "for poly surface fit")
+#                    try:
+#                        mask = self.prepare_bg_fit_mask(dilation=True)
+#                        self.bg_model.surface_fit_mask = mask
+#                    except:
+#                        warn("Background access mask could not be retrieved for "
+#                            "PolySurfaceFit in background model of image list %s"
+#                            %self.list_id)                    
+                else:
+                    if not self.has_bg_img():
+                        raise AttributeError("no background image available in "
+                            "list %s, please set a suitable background image "
+                            "using method set_bg_img, or change current bg " 
+                            "modelling mode to 0 using self.bg_model.mode=0)" 
+                            %self.list_id)
+                    bg_img = self.bg_img
+                self.bg_model.get_tau_image(cim, bg_img)
+                self.vigncorr_mode = vc_original
+            self._list_modes["tau"] = value
+            self.load()
+            
+    def make_stack2(self, new_index, stack_id=None, pyrlevel=None, roi_abs=None,
+                   start_idx=0, stop_idx=None, ref_check_roi_abs=None,
+                   ref_check_min_val=None, ref_check_max_val=None,
+                   dtype=float32):
+        """Stack all images in this list 
+        
+        The stacking is performed using the current image preparation
+        settings (blurring, dark correction etc). Only stack ROI and pyrlevel
+        can be set explicitely.
+        
+        Note
+        ----
+        In case of ``MemoryError`` try stacking less images (specifying 
+        start / stop index) or reduce the size setting a different Gauss
+        pyramid level
+        
+        Parameters
+        ----------
+        stack_id : :obj:`str`, optional
+            identification string of the image stack
+        pyrlevel : :obj:`int`, optional
+            Gauss pyramid level of stack
+        roi_abs : list
+            build stack of images cropped in ROI
+        start_idx : int
+            index of first considered image, defaults to 0
+        stop_idx : :obj:`int`, optional
+            index of last considered image (if None, the last image in this 
+            list is used), defaults to last index
+        ref_check_roi_abs : :obj:`list`, optional
+            rectangular area specifying a reference area which can be specified
+            in combination with the following 2 parameters in order to include
+            only images in the stack that are within a certain intensity range
+            within this ROI (Note that this ROI needs to be specified in
+            absolute coordinate, i.e. corresponding to pyrlevel 0).
+        ref_check_min_val : :obj:`float`, optional
+            if attribute ``roi_ref_check`` is a valid ROI, then only images 
+            are included in the stack that exceed the specified intensity 
+            value (can e.g. be optical density or minimum gas CD in calib
+            mode)
+        ref_check_max_val : :obj:`float`, optional
+            if attribute ``roi_ref_check`` is a valid ROI, then only images 
+            are included in the stack that are smaller than the specified 
+            intensity value (can e.g. be optical density or minimum gas CD in 
+            calib mode)    
+        dtype 
+            data type of stack
+            
+        Returns
+        -------
+        ImgStack
+            result stack
+        
+        
+        """
+        
+        self.activate_edit()
+        if stop_idx is None:
+            stop_idx = self.nof-1 #counting starts at 0
+        
+        def truncate_to_timeseries(data, timeseries, start_idx=0, stop_idx=-1,):
+            data.sort_index(inplace=True)
+            first = data.index.get_loc(timeseries.index[start_idx], method='bfill')
+            last = data.index.get_loc(timeseries.index[stop_idx], method='ffill')
+            return data.truncate(before=data.index[first], after=data.index[last])
+
+        new_index_trunc = truncate_to_timeseries(new_index, timeseries=self.metaData,
+                                                 start_idx=start_idx, stop_idx=stop_idx)
+        times = deepcopy(new_index_trunc)
+
+        # Prepare images
+        #remember last image shape settings
+        _roi = deepcopy(self._roi_abs)
+        _pyrlevel = deepcopy(self.pyrlevel)
+        _crop = self.crop
+        
+        self.auto_reload = False
+        if pyrlevel is not None and pyrlevel != _pyrlevel:
+            print("Changing image list pyrlevel from %d to %d"\
+                                            %(_pyrlevel, pyrlevel))
+            self.pyrlevel = pyrlevel
+
+        if check_roi(roi_abs):
+            print "Activate cropping in ROI %s (absolute coordinates)" %roi_abs
+            self.roi_abs = roi_abs
+            self.crop = True
+
+        if stack_id is None:
+            stack_id = self.list_id + "_" + self.img_mode           
+            
+        if stack_id in ["raw", "tau"]:
+            stack_id = "%s_%s" %(self.list_id, stack_id)
+            
+        #create a new settings object for stack preparation
+        self.goto_img(start_idx)
+        self.auto_reload = True
+        h, w = self.current_img().shape
+        stack = ImgStack(h, w, len(times)-1, dtype, stack_id, camera=self.camera,
+                         img_prep=self.current_img().edit_log)
+        lid = self.list_id
+        
+        # Create image stack averaged to these times
+        exp = int(10**exponent(len(times))/4.0)
+        if not exp:
+            exp = 1
+        
+        def average_img(idx1, idx2):
+            ''' average images between two indices '''
+            n_img = idx2 - idx1 + 1
+            if not self.cfn == idx1:
+                self.goto_img(idx1)
+            img = self.this.duplicate()
+            for k in range(n_img-1):
+                self.goto_next()
+                img = img + self.this
+            img = img / n_img
+            return img
+        
+        # Create the stack, one image by a time
+        # Images are directly averaged to timeseries
+        for time_idx in range(len(times)-1):
+            # Console output every exp images
+            if time_idx % exp == 0:
+                print("Building img-stack from list %s, progress: (%s | %s)" 
+                               %(lid, time_idx, len(times)-1))
+            # 1) Set time interval
+            doas_t1 = times.index[time_idx]
+            doas_t2 = times.index[time_idx+1]
+            # 2) Find the first index after doas_t1
+            #self.metaData.iloc[] to get the row
+            idx_first = self.metaData.index.get_loc(doas_t1,method='bfill')
+            # 3) Find the last index before doas_t2
+            idx_last = self.metaData.index.get_loc(doas_t2,method='ffill')
+            # 4) Average the image
+            #print('{}: {} to {}'.format(doas_t1, idx_first, idx_last))
+            img = average_img(idx_first, idx_last)           
+            stack.append_img(img.img, img.meta["start_acq"])
+            
+        stack.start_acq = np.asarray(stack.start_acq)
+        stack.roi_abs = self._roi_abs
+        
+        print("Img stack calculation finished, rolling back to intial list"
+            "state:\npyrlevel: %d\ncrop modus: %s\nroi (abs coords): %s "
+            %(_pyrlevel, _crop, _roi))
+        # Reset original state of the image list
+        self.auto_reload = False
+        self.pyrlevel = _pyrlevel
+        self.crop = _crop
+        self.roi_abs = _roi
+        self.auto_reload = True
+        if not sum(stack._access_mask) > 0: # all images were excluded
+            raise ValueError("Failed to build stack, stack is empty...")
+        return stack
+        ###
+        
+        '''
+        ref_check = True
+        if not check_roi(ref_check_roi_abs):
+            ref_check = False
+        try:
+            ref_check_min_val = float(ref_check_min_val)
+        except:
+            ref_check = False
+        try:
+            ref_check_max_val = float(ref_check_max_val)
+        except:
+            ref_check = False
+        ###
+            append = True
+            # Check if background correction worked in reference window
+            if ref_check:
+                sub_val = img.crop(roi_abs=ref_check_roi_abs, new_img=1).mean()
+                if not ref_check_min_val <= sub_val <= ref_check_max_val:
+                    print("Exclude image no. %d from stack, got value=%.2f in "
+                        "ref check ROI (out of specified range)" %(k, sub_val))
+                append = False
+            # append image
+            if append:
+                stack.append_img(img.img, img.meta["start_acq"], 
+                                 img.meta["texp"])
+        '''

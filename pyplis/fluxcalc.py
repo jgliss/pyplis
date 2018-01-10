@@ -1176,16 +1176,20 @@ class EmissionRateAnalysis(object):
         the analysis.
         """
         lst = self.imglist
-        span = (lst.stop - lst.start).total_seconds()
+        from numpy import timedelta64 #numpy 1.7+ API
+        span = (lst.stop - lst.start) / timedelta64(1, 's') # type independent
+        #span = (lst.stop - lst.start).total_seconds()
         
         for key, line in self.pcs_lines.iteritems():
             try:
                 p = line.plume_props
-                dt0 = (p.start - lst.start).total_seconds()
+                #dt0 = (p.start - lst.start).total_seconds()
+                dt0 = (p.start - lst.start) / timedelta64(1, 's')
                 if dt0 > 0 and dt0 / span > 0.05:
                     raise ValueError("Insufficient overlap of time stamps in "
                         "plume properties of line %s with time stamps in list...")
-                dt1 = (lst.stop - p.stop).total_seconds()
+                #dt1 = (lst.stop - p.stop).total_seconds()
+                dt1 = (lst.stop - p.stop) / timedelta64(1, 's')
                 if dt1 > 0 and dt1 / span > 0.05:
                     raise ValueError("Insufficient overlap of time stamps in "
                         "plume properties of line %s with time stamps in list...")

@@ -154,18 +154,34 @@ class Img(object):
                         ("file_type"     ,   ""),
                         ("device_id"     ,   ""),
                         ("ser_no"        ,   ""),
-                        ("img_idx"       ,   0)])
+                        ("temperature"   ,   float('nan')),   # temperature in Celsius
+                        ("img_idx"       ,   int(0)),    # index in multi-img file formats as *.fits
+                        ("custom1"       ,   nan),  # 3 dummy attributes which can be used for custom defined parameters
+                        ("custom2"       ,   nan),
+                        ("custom3"       ,   nan),
+                        ("custom_float"  ,   float('nan')),
+                        ("custom_dt"     ,   datetime(1900, 1, 1))],)
                         
         try:
             data, meta_info = import_method(input, meta_info) 
             input = data
+            #print('image: meta_info')
+            #print(meta_info)
             #meta_info.update(add_meta)
         except:
             pass
           
         for k, v in meta_info.iteritems():
-            if self.meta.has_key(k) and isinstance(v, type(self.meta[k])):
-                self.meta[k] = v
+            #print(k,v)
+            if self.meta.has_key(k):
+                if isinstance(v, type(self.meta[k])):
+                    self.meta[k] = v
+                else:
+                    warn("Provided meta_info when calling pyplis.Img has "
+                         "wrong type. Key " + str(k) + " is of type " + 
+                         str(type(v)) + " but has to be of type " + 
+                         str(type(self.meta[k])) +
+                         ". Img.meta[" + str(k) + "] was not updated." )                        
             elif self.edit_log.has_key(k):
                 self.edit_log[k] = v
         if input is not None:                              
@@ -1076,7 +1092,7 @@ class Img(object):
         self.meta["read_gain"] = gain_info[ec2header['GAIN']]
         self.meta["pix_width"] = self.meta["pix_height"] = 4.65e-6 #m
     
-    """PLOTTING AND VISUALSATION FUNCTIONS"""  
+    """PLOTTING AND VISUALISATION FUNCTIONS"""  
     def get_cmap(self, vmin=None, vmax=None, **kwargs):
         """Determine and return default cmap for current image"""
         if self.is_tau or self.is_aa:

@@ -816,7 +816,7 @@ class LineOnImage(object):
 #             dx0 = -dx0
 #             dy0 = -dy0
 #==============================================================================
-        x0 = self.x0 + int(dx0)    
+        x0 = self.x0 + int(dx0)
         y0 = self.y0 + int(dy0)
         offs = array([x0, y0])
         
@@ -897,6 +897,7 @@ class LineOnImage(object):
             bool array that can be used to access pixels within the ROI
         """
         try:
+            #if self._last_rot_roi_mask==None:
             if not self._last_rot_roi_mask.shape == shape:
                 raise Exception
             mask = self._last_rot_roi_mask
@@ -1766,10 +1767,14 @@ class ImgStack(object):
                 return self._merge_tseries_average(time_series, **kwargs)
             except:
                 print ("Failed to merge data using method average, trying "
-                       "method nearest instead")
+                       "method nearest instead. Average method is only "
+                       "compatible with input from pydoas library.")
                 method = "nearest"
         if method == "nearest":
             return self._merge_tseries_nearest(time_series, **kwargs)
+        elif method == "comtessa":
+            self._merge_tseries_average_comtessa(time_series, start_acq_col="",
+                                                 texp_acq_col="", **kwargs)
         elif method == "interpolation":
             return self._merge_tseries_cross_interpolation(time_series,
                                                            **kwargs)
@@ -1784,7 +1789,7 @@ class ImgStack(object):
         data point for each image in this stack. Then, get rid of all indices
         showing double occurences using time delta information. 
         
-            
+        TODO: Make use of pandas.merge_asof instead to improve performance   
         """
         stack, time_stamps, texps = self.get_data()
         nearest_idxs, del_ts = self.get_nearest_indices(time_series.index)
@@ -1792,7 +1797,8 @@ class ImgStack(object):
         spec_idxs_final = []
         del_ts_abs = []
         for idx in range(min(nearest_idxs),max(nearest_idxs) + 1):
-            print "Current tseries index %s" %idx
+            if idx % 250 == 0:
+                print("Current tseries index {}".format(idx))
             matches =  where(nearest_idxs == idx)[0]
             if len(matches) > 0:
                 del_ts_temp = del_ts[matches]
@@ -1832,6 +1838,9 @@ class ImgStack(object):
         
         #first crop time series data based on start / stop time stamps
         time_series = self.crop_other_tseries(time_series)
+        print "Len cropped tseries: %d" %len(time_series)
+        print "Number of images in stack: %d" %self.num_of_imgs
+        
         time_series.name =  None
         if not len(time_series) > 0:
             raise IndexError("Time merging failed, data does not overlap")
@@ -1845,21 +1854,31 @@ class ImgStack(object):
         except:
             df0 = concat([s0, time_series], axis=1).\
                                 interpolate(itp_type).dropna()
+        
         new_num = len(df0[0])
-        if not new_num >= self.num_of_imgs:
-            raise ValueError("Unexpected error, length of merged data "
-                             "array does not exceed length of inital image "
-                             "stack...")
+        print "Number of data points in merged array: %d" %new_num
+        print df0.head()
+#==============================================================================
+#         if not new_num >= self.num_of_imgs:
+#             raise ValueError("Unexpected error, length of merged data "
+#                              "array does not exceed length of inital image "
+#                              "stack...")
+#==============================================================================
         #create new arrays for the merged stack
         new_stack = empty((new_num, h, w))
         new_acq_times = df0[0].index
         new_texps = df0[0].values
         
-        
-        for i in range(h):
-            for j in range(w):
-                print ("Stack interpolation active...: current img row (y):"
-                                                           "%s (%s)" %(i, j))
+        for i in range(h): #col
+            try:
+                if i % 100 == 0:            
+                    print("Stack interpolation: Row %s of %s" %(i,h))
+            except:
+                pass
+            for j in range(w): #row
+
+                #print ("Stack interpolation active...: current img row (y):"
+                #                                           "%s (%s)" %(i, j))
                 #get series from stack at current pixel
                 series_stack = Series(stack[:, i, j], time_stamps)
                 #create a dataframe
@@ -1967,6 +1986,100 @@ class ImgStack(object):
             pass
         return (stack_obj, tseries)
     
+    def _merge_tseries_average_comtessa(self, time_series,
+                                        start_acq_col="", stop_acq_col="",
+                                        texp_col=""):
+        """Make new stack of averaged images based on input start / stop arrays
+        
+        The averaging is based on the start / stop time stamps (e.g. of 
+        measured spectra) specified by two input arrays. 
+        These arrays must have the same length. 
+        The method loops over these arrays indices and at each iteration step 
+        k, all images (wihin this stack) falling into the corresponding 
+        start / stop interval are averaged and added to a new stack of averaged 
+        images. Indices k (of the input arrays) for which
+        no images can be found are added to the list ``bad_indices`` (second
+        return parameter) and have to be removed from the corresponding data
+        in case, these data (e.g. DOAS SO2 CD time series) is supposed to be 
+        compared with the averaged stack.
+        
+        Parameters
+        ----------
+        time_series : Pandas DateFrame or Series
+            Time series containing DOAS results, including arrays
+            for start / stop acquisition time stamps (required for averaging)
+        
+        Returns
+        -------
+        tuple
+            2-element tuple containing
+            - :class:`ImgStack`: new stack object with averaged images
+            - :obj:`list`: list of bad indices (where no overlap was found)
+        """
+        from numpy import timedelta64
+        
+        start_acq = time_series[start_acq_col].values
+        
+        if not stop_acq_col=="":
+            stop_acq = time_series[stop_acq_col].values
+        elif not texp_col=="":            
+            stop_acq = start_acq + timedelta64(time_series[texp_col].values, 's')
+        '''
+        try:
+            if not time_series.has_start_stop_acqtamps():
+                raise ValueError("No start / stop acquisition time stamps "
+                                 "available in input data...")
+            start_acq = asarray(time_series.start_acq)
+            stop_acq = asarray(time_series.stop_acq)
+        except:
+            raise 
+        '''
+        stack, times, texps = self.get_data()
+        h, w = stack.shape[1:]
+        num = len(start_acq)
+        
+        #new_stack = empty((h, w, self.num_of_imgs))
+        new_acq_times = []
+        new_texps = []
+        bad_indices = []
+        counter = 0
+        for k in range(num):
+            i = start_acq[k]
+            f = stop_acq[k]
+            texp = (f - i) / timedelta64(1, 's')
+            cond = (times >= i) & (times < f)
+            if sum(cond) > 0:
+#==============================================================================
+#                 print ("Found %s images for spectrum #%s (of %s)" 
+#                                                 %(sum(cond), k, num))
+#==============================================================================
+                im = stack[cond].mean(axis = 0)
+                if counter == 0:
+                    new_stack = im
+                else:
+                    new_stack = dstack((new_stack, im))
+                new_acq_times.append(i + (f - i)/2)
+                #img_avg_info.append(sum(cond))
+                new_texps.append(texp)
+                counter += 1
+            else:
+                bad_indices.append(k)
+        new_stack = rollaxis(new_stack, 2)
+        stack_obj = ImgStack(len(new_texps), h, w, 
+                             stack_id=self.stack_id+"_avg", 
+                             img_prep=self.img_prep)
+        stack_obj.roi_abs = self.roi_abs
+        stack_obj.set_stack_data(new_stack, asarray(new_acq_times), 
+                                 asarray(new_texps))
+        
+        tseries = time_series.drop(time_series.index[bad_indices])
+        try:
+            errs = delete(time_series.fit_errs, bad_indices)
+            tseries.fit_errs = errs
+        except:
+            pass
+        return (stack_obj, tseries)
+    
     """Helpers
     """
     def crop_other_tseries(self, time_series):
@@ -2004,6 +2117,10 @@ class ImgStack(object):
             diff = [x.total_seconds() for x in abs(tstamps_other - tstamp)]
             delt.append(min(diff))
             idx.append(argmin(diff))
+        
+        ### rewrite using pandas directly
+        #df.iloc[df.index.get_loc(datetime.datetime(2016,02,02),method='nearest')] 
+            
         return asarray(idx), asarray(delt)
             
     def get_nearest_img(self, time_stamp):
