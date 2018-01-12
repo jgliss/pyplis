@@ -112,6 +112,7 @@ class BaseImgList(object):
         
         self._vign_mask = None #a vignetting correction mask can be stored here
         self.loaded_images = {"this"  :    None}
+        self._this_raw = None #the raw version of the current image is stored as well
         #used to store the img edit state on load
         self._load_edit = {}
 
@@ -225,7 +226,7 @@ class BaseImgList(object):
             raise AttributeError("Invalid input for vignetting mask, need "
                                  "Img object or numpy ndarray")
         try:
-            value=Img(value)
+            value = Img(value)
         except:
             pass
         pyrlevel_rel = get_pyr_factor_rel(self.this.img, value.img)
@@ -1085,6 +1086,7 @@ class BaseImgList(object):
             img = Img(img_file,
                       import_method=self.camera.image_import_method,
                       **self.get_img_meta_from_filename(img_file))
+            self._this_raw = deepcopy(img)
             self.loaded_images["this"] = img
             self._load_edit.update(img.edit_log)
             
@@ -1793,13 +1795,18 @@ class ImgList(BaseImgList):
                 img = self._bg_imgs[self.loaded_images["this"].\
                     edit_log["vigncorr"]]
             except:
-                warn("No background image assigned to list %s" %self.list_id)
-        else:
+                raise AttributeError("No background image assigned to list "
+                                     "%s" %self.list_id)
+        elif self.which_bg == "list":
             lst = self.bg_list
             try:
                 img = lst.current_img()
             except:
-                pass
+                raise AttributeError("Background image list not assigned or "
+                                     "does not contain images %s" %self.list_id)
+        else:
+            raise ValueError("Invalid bg-img access mode: %s (check attr "
+                             "which_bg")
         return img
     
     @bg_img.setter
@@ -1822,21 +1829,8 @@ class ImgList(BaseImgList):
                 
     @bg_list.setter
     def bg_list(self, val):
-        if isinstance(val, str):
-            if not self.linked_lists.has_key(val):
-                raise AttributeError("No linked list with ID %s found in image"
-                    " list %s" %(self.list_id, val))
-            self._bg_list_id = val
-        elif isinstance(val, ImgList):
-            lid = "bg_" + self.list_id
-            self.link_imglist(val, list_id=lid)
-            self._bg_list_id = lid
-        else:
-            raise ValueError("Invalid input for assignment of background image"
-                " list. Please provide either a string of one of the image "
-                "lists already linked to this list or provide an ImgList object"
-                "containing BG images")
-                
+        self.set_bg_list(val)
+                    
     @property
     def which_bg(self):
         """Specifies from where background images are accessed"""
@@ -1845,6 +1839,9 @@ class ImgList(BaseImgList):
     @which_bg.setter
     def which_bg(self, val):
         if val in ["img", "list"]:
+            if val == "list" and self.vigncorr_mode:
+                raise AttributeError("Cannot set bg-img access mode to list "
+                                     "since vigncorr_mode is active...")
             self._which_bg = val
             #warns if no background image is available for this access method
             self.bg_img 
@@ -1987,11 +1984,16 @@ class ImgList(BaseImgList):
         
         Parameters
         ----------
-        val : bool
+        value : bool
             new mode
         """
         if value is self.vigncorr_mode: #do nothing
             return
+        elif self.which_bg == "list":
+            raise AttributeError("Feature not yet available: vigncorr mode "
+                                 "cannot be activated if bg-img access mode "
+                                 "is set to <list>. Please update using attr. "
+                                 "which_bg='img'.")
         elif value:
             if self.this.edit_log["vigncorr"]:
                 warn("Cannot activate vignetting correction in image list %s: "
@@ -2019,7 +2021,7 @@ class ImgList(BaseImgList):
         
         Parameters
         ----------
-        val : bool
+        value : bool
             new mode
             
         """
@@ -2043,9 +2045,9 @@ class ImgList(BaseImgList):
             if self.bg_model.mode == 0:
                 print ("Background correction mode is 0, initiating "
                        "settings for poly surface fit")
+                #self.calc_sky_background_mask()
                 try:
-                    mask = self.prepare_bg_fit_mask(dilation=True)
-                    self.bg_model.surface_fit_mask = mask
+                    self.calc_sky_background_mask()
                 except:
                     warn("Background access mask could not be retrieved for "
                         "PolySurfaceFit in background model of image list %s"
@@ -2058,7 +2060,14 @@ class ImgList(BaseImgList):
                         "using method set_bg_img, or change current bg " 
                         "modelling mode to 0 using self.bg_model.mode=0)" 
                         %self.list_id)
-                bg_img = self._bg_imgs[0]
+                if self.which_bg == "img":
+                    bg_img = self._bg_imgs[0]
+                else:
+                    bg_img = self.bg_list.this
+                    if bg_img.is_vigncorr:
+                        raise AttributeError("Background image in bg_list is "
+                                             "corrected for vignetting. Please "
+                                             "check")
             self.bg_model.get_tau_image(cim, bg_img)
         self._list_modes["tau"] = value
         self.load()
@@ -2113,12 +2122,15 @@ class ImgList(BaseImgList):
             #offlist.update_img_prep(**self.img_prep)
             #offlist.init_bg_model(mode = self.bg_model.mode)
             self._list_modes["tau"] = False
-            offlist._list_modes["tau"] = False
+            #updated on 12/1/17 (i.e. the current image in the offband list
+            #needs to be reloaded in case the list is in tau mode)
+            #offlist._list_modes["tau"] = False
+            offlist.tau_mode=False
             aa_test = self._aa_test_img(offlist)
         self._list_modes["aa"] = value
         
+        
         self.load()
-
         return aa_test
     
     def activate_calib_mode(self, value=True):
@@ -2230,8 +2242,9 @@ class ImgList(BaseImgList):
             raise ValueError("Dark image could not be accessed in list %s: "
                 "DARK_CORR_OPT is zero, please set DARK_CORR_OPT according "
                 "to your data type")
-                
-        img = self.current_img(key)
+        # this was changed on 8/1/2017
+        img = self._this_raw
+        #img = self.current_img(key)
         read_gain = img.meta["read_gain"]
         self.update_index_dark_offset_lists()
         if self.DARK_CORR_OPT == 1:
@@ -2239,13 +2252,16 @@ class ImgList(BaseImgList):
                 dark = self.dark_lists[read_gain]["list"].current_img()
                 offset = self.offset_lists[read_gain]["list"].current_img()
                 dark = model_dark_image(img, dark, offset)
-            except:
+            except Exception as e:
+                msg = format_exc(e)
                 try:
                     dark = model_dark_image(img, self.master_dark,
                                             self.master_offset)
+                    print "Using master dark and offset image"
                 except:
                     raise ValueError("Dark image could not be accessed in "
-                            "image list %s (DARK_CORR_OPT=1)")
+                            "image list %s (DARK_CORR_OPT=1), traceback: %s"
+                            %(self.list_id, msg))
 
         if self.DARK_CORR_OPT == 2:
             try:
@@ -2256,7 +2272,7 @@ class ImgList(BaseImgList):
                 dark = self.master_dark
                 if not isinstance(dark, Img):
                     raise ValueError("Dark image could not be accessed in "
-                            "image list %s (DARK_CORR_OPT=2)")
+                            "image list %s (DARK_CORR_OPT=2)" %self.list_id)
         try:
             texp_ratio = img.meta["texp"] / dark.meta["texp"]
             if not 0.8 <= texp_ratio <= 1.2:
@@ -2344,6 +2360,37 @@ class ImgList(BaseImgList):
                 bg = bg_img.duplicate().correct_vignetting(vign_mask,
                                                            new_state=0)
             self._bg_imgs = [bg, bg_vigncorr]
+    
+    def set_bg_list(self, lst):
+        """Assign background image list to this list
+        
+        Assigns and links an image list containing background images to this
+        list. Similar to other linked lists, the index of the current BG image
+        is automatically updated such that the current BG image is closest in
+        time to the current image in this list. Please note also, that a single
+        master BG image can be assigned using :attr:`bg_img`.
+        
+        Parameters
+        ----------
+        lst : ImgList
+            image list containing background images. Note that the input can
+            also be a string specifying the list_id of an image list that is
+            already linked to this list.
+        """
+        if isinstance(lst, str):
+            if not self.linked_lists.has_key(lst):
+                raise AttributeError("No linked list with ID %s found in image"
+                    " list %s" %(self.list_id, lst))
+            self._bg_list_id = lst
+        elif isinstance(lst, ImgList):
+            lid = "bg_" + self.list_id
+            self.link_imglist(lst, list_id=lid)
+            self._bg_list_id = lid
+        else:
+            raise ValueError("Invalid input for assignment of background image"
+                " list. Please provide either a string of one of the image "
+                "lists already linked to this list or provide an ImgList object"
+                "containing BG images")
             
     def set_bg_corr_mode(self, mode=1):
         """Update the current background correction mode in ``self.bg_model``
@@ -2485,33 +2532,36 @@ class ImgList(BaseImgList):
             offset.meta["start_acq"] = acq_time
         offset.meta["read_gain"] = read_gain
         self.master_offset = offset
-    
-    def set_bg_img_from_polyfit(self, mask=None, **kwargs):
-        """Sets background image from results of a poly surface fit
         
-        Parameters
-        ----------
-        mask : array
-            mask specifying sky background pixels, if None (default) then this
-            mask is determined automatically using :func:`prepare_bg_fit_mask`
-        **kwargs:
-            additional keyword arguments for :class:`PolySurfaceFit
-        Returns
-        -------
-        Img
-            fitted background image
-        """
-        if mask is None:
-            mask = self.prepare_bg_fit_mask(dilation=True)
-        fit = PolySurfaceFit(self.current_img(), mask, **kwargs)
-        bg = fit.model
-        try:
-            low = self.get_dark_image().mean()
-        except:
-            low = finfo(float).eps
-        print "LOW: %s" %low
-        bg [bg <= low] = low
-        self.bg_img = Img(bg)
+# this method was commented out on 9/1/2018    
+# =============================================================================
+#     def set_bg_img_from_polyfit(self, mask=None, **kwargs):
+#         """Sets background image from results of a poly surface fit
+#         
+#         Parameters
+#         ----------
+#         mask : array
+#             mask specifying sky background pixels, if None (default) then this
+#             mask is determined automatically using :func:`prepare_bg_fit_mask`
+#         **kwargs:
+#             additional keyword arguments for :class:`PolySurfaceFit
+#         Returns
+#         -------
+#         Img
+#             fitted background image
+#         """
+#         if mask is None:
+#             mask = self.prepare_bg_fit_mask(dilation=True)
+#         fit = PolySurfaceFit(self.current_img(), mask, **kwargs)
+#         bg = fit.model
+#         try:
+#             low = self.get_dark_image().mean()
+#         except:
+#             low = finfo(float).eps
+#         print "LOW: %s" %low
+#         bg [bg <= low] = low
+#         self.bg_img = Img(bg)
+# =============================================================================
     
     def set_closest_dark_offset(self):
         """Updates the index of the current dark and offset images 
@@ -2819,10 +2869,9 @@ class ImgList(BaseImgList):
                                 **settings_movement_search):
         """Retrieve and set background mask for 2D poly surface fit
         
-        Wrapper for method :func:`find_sky_background` 
-        
         Calculates mask specifying sky radiance pixels for background 
-        modelling mode 0 
+        modelling mode 0. The mask is updated in the background model 
+        (class attribute :attr:`bg_model`).
         
         Parameters
         ----------
@@ -2842,29 +2891,29 @@ class ImgList(BaseImgList):
         array
             2D-numpy boolean numpy array specifying sky background pixels
         """
-        mask = self.bg_model.\
+        return self.bg_model.\
             calc_sky_background_mask(self.this, 
                                      self.loaded_images["next"],
                                      lower_thresh,
                                      apply_movement_search,
                                      **settings_movement_search)
-        self.surface_fit_mask = mask
-        return mask
-    
-    def prepare_bg_fit_mask(self, **kwargs):
-        """Calculate mask specifying sky-reference pixels in current image
-        
-        Note
-        ----
-        
-        1. The method was redefined and renamed, please see (and use) 
-            :func:`calc_sky_background_mask` instead
-        2. This is a beta version
-        
-        """
-        warn("Old name (wrapper) for method calc_sky_background_mask")
-        
-        return self.calc_sky_background_mask(**kwargs)
+
+# =============================================================================
+#     def prepare_bg_fit_mask(self, **kwargs):
+#         """Calculate mask specifying sky-reference pixels in current image
+#         
+#         Note
+#         ----
+#         
+#         1. The method was redefined and renamed, please see (and use) 
+#             :func:`calc_sky_background_mask` instead
+#         2. This is a beta version
+#         
+#         """
+#         warn("Old name (wrapper) for method calc_sky_background_mask")
+#         
+#         return self.calc_sky_background_mask(**kwargs)
+# =============================================================================
     
     def prep_data_dilutioncorr_old(self, tau_thresh=0.05, plume_pix_mask=None, 
                                    plume_dists=None, ext_coeff=None):
@@ -3280,10 +3329,12 @@ class ImgList(BaseImgList):
             # stored in the settings class is set at mode 99, i.e. no modelling
             # is performed
             bg_model = s.bg_model
-            (img, bg, mask)=self.correct_dilution(img,
-                                               s.tau_thresh,
-                                               erode_mask_size=s.erode_mask_size, 
-                                               dilate_mask_size=s.dilate_mask_size)
+            (img, 
+             bg, 
+             mask) = self.correct_dilution(img,
+                                           s.tau_thresh,
+                                           erode_mask_size=s.erode_mask_size, 
+                                           dilate_mask_size=s.dilate_mask_size)
         elif self.vigncorr_mode: #elif because if dilcorr is active the image is already vign corrected
             img.correct_vignetting(self.vign_mask, new_state=True)
         if self.tau_mode:

@@ -49,10 +49,7 @@ class PlumeBackgroundModel(object):
         are all keys in self.__dict__.keys())    
     """
     def __init__(self, bg_raw=None, plume_init=None, **kwargs):
-        """Initialisation of object
         
-        
-        """        
         if isinstance(bg_raw, ndarray):
             bg_raw = Img(bg_raw)
         if isinstance(plume_init, ndarray):
@@ -131,6 +128,14 @@ class PlumeBackgroundModel(object):
     def CORR_MODE(self, val):
         self.mode = val
         
+    @property
+    def pyrlevel(self):
+        """The pyramid level of the current plume image"""
+        try:
+            return self._current_imgs["plume"].pyrlevel
+        except AttributeError:
+            raise AttributeError("No plume image available...")
+            
     @property
     def current_plume_background(self):
         """Retrieve the current plume background from modelled tau image and
@@ -308,36 +313,81 @@ class PlumeBackgroundModel(object):
         array
             2D-numpy boolean numpy array specifying sky background pixels
         """
+# =============================================================================
+#         try:
+#             plume_img = plume_img.duplicate().to_pyrlevel(self.pyrlevel)
+#             next_img = next_img.duplicate().to_pyrlevel(self.pyrlevel)
+#         except:
+#             self._current_imgs["plume"] = plume_img
+# =============================================================================
         mask = find_sky_background(plume_img, next_img,
                                    self.settings_dict(),
                                    lower_thresh,
                                    apply_movement_search,
                                    **settings_movement_search)
-        self.surface_fit_mask = mask
+        self.surface_fit_mask = Img(mask)
+        print("PLUME / NEXT: %s / %s" %(plume_img.shape, next_img.shape))
+        print(mask.shape)
         return mask
     
     def bg_from_poly_surface_fit(self, plume, mask=None, polyorder=2,
                                  pyrlevel=4):
         """Applies poly surface fit to plume image for bg retrieval
         
-        :param ndarray plume: plume image
-        :param ndarray mask (None): mask specifying gas free areas (if None, 
-            use all pixels)
-        :param int polyorder (2): order of polynomial used for fit
-        :param int pyrlevel (4): scale space level in which fit is performed (
-            e.g. 4 => image size for fit is reduced by factor 2^4 = 16)
+        Parameters
+        ----------
+        plume : Img
+            plume image
+        mask : ndarray 
+            mask specifying gas free areas (if None, use all pixels). Note that
+            the mask needs to be computed within the same ROI and at the same
+            pyrlevel as the input plume image
+        polyorder : int
+            order of polynomial used for fit, defaults to 4
+        pyrlevel : int  
+            pyramid level in which fit is performed 
+            (e.g. 4 => image size for fit is reduced by factor 2^4 = 16). Note 
+            that the 
         :return tuple: 1st entry: fitted background image
             second: ``PolySurfaceFit`` object 
     
         """
+        if not isinstance(plume, Img):
+            raise TypeError("Need instance of pyplis Img class")
+        try:
+            mask = Img(mask)
+        except:
+            pass
+        if mask is None:
+            mask=self.surface_fit_mask
+        pyrlevel_rel = pyrlevel - plume.pyrlevel
+        if pyrlevel_rel < 0:
+            warn("Pyramid level of input image (%d) is larger than desired "
+                 "pyramid level for computation of surface fit (%d). Using "
+                 "the current pyrlevel %d of input image" %(plume.pyrlevel,
+                                                            pyrlevel))
+            pyrlevel_rel=0
         #update settings from input keyword args
-        if mask is None or not mask.shape == plume.shape:
-            print ("Warning: invalid mask for poly surface fit (bg modelling)"
-                    " considering all image pixels for retrieval")
-            mask = full(plume.shape, True, dtype = bool)   
-    
-        fit = PolySurfaceFit(plume, mask.astype(float), polyorder=polyorder,
-                             pyrlevel=pyrlevel)
+        if not mask.shape == plume.shape:
+            try:
+                mask = mask.to_pyrlevel(plume.pyrlevel)
+                if not mask.shape == plume.shape:
+                    #one may be cropped
+                    raise Exception
+            except:
+                warn("Shape mismatch between mask for poly surface fit "
+                     "and input plume image: considering all image pixels for "
+                     "retrieval") 
+                mask = full(plume.shape, True, dtype = bool)   
+      
+        print(self.surface_fit_mask.shape)
+        fit = PolySurfaceFit(plume.img, mask.img.astype(float), 
+                             polyorder=polyorder,
+                             pyrlevel=pyrlevel_rel)
+        if not fit.model.shape == plume.shape:
+            raise ValueError("Mismatch in shape between input plume image and "
+                             "fit result of PolySurfaceFit. Check pyramid "
+                             "level of input image")
         return (fit.model, fit)
         
     def subtract_tau_offset(self, tau0, rect):
@@ -394,7 +444,6 @@ class PlumeBackgroundModel(object):
             warn("plume image is not corrected for dark current")
         if plume_img.is_tau:
             raise AttributeError("Input image is already tau image")
-        plume = plume_img.img
         if mode != 0:
             if not isinstance(bg_img, Img):
                 bg_img = self.get_current("bg_raw")
@@ -407,18 +456,18 @@ class PlumeBackgroundModel(object):
                                      "vignetting correction states.")
         tau = None
         if mode == 0: #no sky radiance image, poly surface fit
-            (bg, fit)=self.bg_from_poly_surface_fit(plume,
+            (bg, fit)=self.bg_from_poly_surface_fit(plume_img,
                                                     self.surface_fit_mask,
                                                     self.surface_fit_polyorder,
                                                     self.surface_fit_pyrlevel)
-            r = bg / plume
+            r = bg / plume_img.img
             #make sure no 0 values or neg. numbers are in the image
             r[r<=0] = finfo(float).eps
             tau = log(r)
     
         else:
             #bg_norm = scale_bg_img(bg, plume, self.scale_rect)
-            r = bg / plume
+            r = bg / plume_img.img
             #make sure no 0 values or neg. numbers are in the image
             r[r<=0] = finfo(float).eps
             tau = log(r)
@@ -622,12 +671,13 @@ class PlumeBackgroundModel(object):
     def plot_sky_reference_areas(self, plume):
         """Plot the current sky ref areas into a plume image"""
         d = self.settings_dict()
-        if None in d.values():
-            raise ValueError("Some of the sky reference areas are not "
-                             "set: please set them manually or use class method "
+        try:
+            return plot_sky_reference_areas(plume, d)
+        except:
+            raise ValueError("Could not plot sky reference areas. Please check "
+                             "if all relevant sky reference areas are set and "
+                             "if not, set them manually or use class method "
                              "set_missing_ref_areas")
-        return plot_sky_reference_areas(plume, d)
-        
     def plot_tau_result_old(self, tau_img=None, tau_min=None, tau_max=None,
                         edit_profile_labels=True, legend_loc=3, **add_lines):
         """Plot current tau image including all reference areas 
@@ -1430,8 +1480,8 @@ def find_sky_background(plume_img, next_img=None,
         if not isinstance(next_img, Img):
             raise ValueError("Invalid input for parameter next_img: need"
                              "Img object, got %s" %type(next_img))
-        no_movement =  ~find_movement(plume_img, next_img,
-                                      **settings_movement_search)
+        no_movement = ~find_movement(plume_img, next_img,
+                                     **settings_movement_search)
         mask = mask * no_movement
     
     return mask.astype(bool)

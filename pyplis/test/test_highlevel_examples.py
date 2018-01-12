@@ -45,7 +45,8 @@ PLUME_FILE = join(IMG_DIR,
                   'EC2_1106307_1R02_2015091607110434_F01_Etna.fts')
 PLUME_FILE_NEXT = join(IMG_DIR, 
                        'EC2_1106307_1R02_2015091607113241_F01_Etna.fts')
-BG_FILE = join(IMG_DIR, 'EC2_1106307_1R02_2015091607022602_F01_Etna.fts')
+BG_FILE_ON = join(IMG_DIR, 'EC2_1106307_1R02_2015091607022602_F01_Etna.fts')
+BG_FILE_OFF = join(IMG_DIR, 'EC2_1106307_1R02_2015091607022216_F02_Etna.fts')
 
 if exists(BASE_DIR):
      
@@ -58,9 +59,12 @@ if exists(BASE_DIR):
         return Img(PLUME_FILE_NEXT).pyr_up(1)
     
     @pytest.fixture
-    def bg_img(scope="module"):
-        return Img(BG_FILE).pyr_up(1)
+    def bg_img_on(scope="module"):
+        return Img(BG_FILE_ON).to_pyrlevel(0)
     
+    @pytest.fixture
+    def bg_img_off(scope="module"):
+        return Img(BG_FILE_OFF).to_pyrlevel(0)
     
     @pytest.fixture
     def setup(scope="module"):
@@ -118,6 +122,65 @@ if exists(BASE_DIR):
         # The dataset takes care of finding all vali
         return Dataset(stp)   
     
+    @pytest.fixture(scope="module")
+    def aa_image_list():
+        """Prepares AA image list for further analysis"""
+        ds = plume_dataset()
+        geom = test_find_viewdir()
+    
+        ### Get on and off lists and activate dark correction
+        lst = ds.get_list("on")
+        lst.activate_darkcorr() #same as lst.darkcorr_mode = 1
+        
+        off_list = ds.get_list("off")
+        off_list.activate_darkcorr()
+    
+        # Prepare on and offband background images
+        bg_on = bg_img_on() 
+        bg_on.subtract_dark_image(lst.get_dark_image().to_pyrlevel(0))
+        
+        bg_off = bg_img_off()
+        bg_off.subtract_dark_image(off_list.get_dark_image().to_pyrlevel(0))
+        
+        #set the background images within the lists
+        lst.set_bg_img(bg_on)
+        off_list.set_bg_img(bg_off)
+        
+        # automatically set gas free areas
+        # NOTE: this corresponds to pyramid level 3 as the test data is 
+        # stored in low res
+        lst.bg_model.set_missing_ref_areas(lst._this_raw)
+        #Now update some of the information from the automatically set sky ref 
+        #areas    
+        lst.bg_model.xgrad_line_startcol = 1
+        lst.bg_model.xgrad_line_rownum = 2
+        off_list.bg_model.xgrad_line_startcol = 1
+        off_list.bg_model.xgrad_line_rownum = 2
+        
+        lst.bg_model.CORR_MODE = 0
+        off_list.bg_model.CORR_MODE = 0
+
+        #lst.aa_mode = True # activate AA mode 
+# =============================================================================
+#         
+#         m = lst.bg_model
+#         ax = lst.show_current()
+#         ax.set_title("MODE: %d" %m.mode)
+#         m.plot_tau_result()
+#     
+# =============================================================================
+# =============================================================================
+#         for mode in range(1,7):
+#             lst.bg_model.CORR_MODE = mode
+#             off_list.bg_model.CORR_MODE = mode
+#             lst.load()
+#             ax = lst.show_current()
+#             ax.set_title("MODE: %d" %m.mode)
+#             m.plot_tau_result()
+# =============================================================================
+        lst.meas_geometry = geom
+        return lst
+    
     @pytest.fixture
     def line(scope="module"):
         """Create an example retrieval line"""
@@ -150,7 +213,33 @@ if exists(BASE_DIR):
         nominal_exact = [178, 2368, ["on", "off"], "ecII"]
         
         assert vals_exact == nominal_exact
+    
+    def test_find_viewdir():
+        """Correct viewing direction using location of Etna SE crater
+        """
+        from geonum import GeoPoint
+        geom = plume_dataset().meas_geometry
+        # Position of SE crater in the image (x, y)
+        se_crater_img_pos = [806, 736] 
         
+        # Geographic position of SE crater (extracted from Google Earth)
+        # The GeoPoint object (geonum library) automatically retrieves the altitude
+        # using SRTM data 
+        se_crater = GeoPoint(37.747757, 15.002643, altitude=3103.0)
+        
+        print "Prev. elev / azim: %.2f / %.2f" %(geom.cam["elev"], geom.cam["azim"])
+        # The following method finds the camera viewing direction based on the
+        # position of the south east crater. 
+        new_elev, new_azim, _, basemap =\
+        geom.find_viewing_direction(pix_x=se_crater_img_pos[0], 
+                                    pix_y=se_crater_img_pos[1],
+                                    pix_pos_err=100, #for uncertainty estimate
+                                    geo_point=se_crater,
+                                    draw_result=False,
+                                    update=True) #overwrite old settings
+        print "Prev. elev / azim (NEW): %.2f / %.2f" %(geom.cam["elev"], geom.cam["azim"])
+        return geom
+    
     def test_imglists():
         """Test some properties of the on and offband image lists"""
         ds = plume_dataset()
@@ -241,10 +330,13 @@ if exists(BASE_DIR):
         
 if __name__=="__main__":
     import matplotlib.pyplot as plt
-    plt.rcParams["font.size"] =14
+    plt.rcParams["font.size"] = 14
     plt.close("all")
     
-    m = test_bg_model()
+    lst = aa_image_list()
+    lst.tau_mode = True
+    #lst.bg_model.plot_sky_reference_areas(lst.bg_model._current_imgs["plume"])
+    
     
 # =============================================================================
 #     

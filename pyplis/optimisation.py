@@ -1655,8 +1655,6 @@ class PolySurfaceFit(object):
             print format_exc()
             return 0   
     
-    
-        
     def get_residual(self):
         """Get the current residual image array"""
         return self.data - self.model  

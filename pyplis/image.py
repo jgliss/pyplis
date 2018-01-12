@@ -668,7 +668,7 @@ class Img(object):
         return tau
         
     def to_pyrlevel(self, final_state=0):
-        """Down / upscale image to a given pyramide level"""
+        """Down / upscale image to a given pyramid level"""
         steps = final_state - self.edit_log["pyrlevel"]
         if steps > 0:
             return self.pyr_down(steps)

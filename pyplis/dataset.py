@@ -670,7 +670,7 @@ class Dataset(object):
             
         return dark_list
         
-    def find_master_darks(self, dark_ids = []):
+    def find_master_darks(self, dark_ids=[]):
         """Search master dark image for dark image lists
         
         Search a master dark image for all dark image lists that do not
