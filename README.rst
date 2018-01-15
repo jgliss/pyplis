@@ -52,7 +52,7 @@ Requirements are listed ordered in decreasing likelyhood to run into problems wh
 - opencv (cv2) >= 2.4.11
 - Pillow (PIL fork) >= 3.3.0 (installs scipy.misc.pilutil)
 - astropy >= 1.0.3
-- geonum >= 1.0.0
+- geonum >= 1.2.0
     
   - latlon >= 1.0.2
   - srtm.py >= 0.3.2
