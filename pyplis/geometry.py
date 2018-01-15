@@ -270,16 +270,28 @@ class MeasGeometry(object):
         mag = 20
         if cam_ok:
             print "Updating camera in GeoSetup of MeasGeometry"
-            cam = GeoPoint(self.cam["lat"], self.cam["lon"],
-                           self.cam["altitude"], name="cam",
-                           auto_topo_access=self.auto_topo_access)
+            try:
+                cam = GeoPoint(self.cam["lat"], self.cam["lon"],
+                               self.cam["altitude"], name="cam",
+                               auto_topo_access=self.auto_topo_access)
+            except:
+                cam = GeoPoint(self.cam["lat"], self.cam["lon"],
+                               self.cam["altitude"], name="cam")
+                from geonum import __version__ as v
+                warn("Outdated version of Geonum: %s. Require >= v1.2.0" %v)
             self.geo_setup.add_geo_point(cam)
             
         if source_ok:       
             print "Updating source in GeoSetup of MeasGeometry"
-            source = GeoPoint(self.source["lat"], self.source["lon"],
-                              self.source["altitude"], name="source",
-                              auto_topo_access=self.auto_topo_access)
+            try:
+                source = GeoPoint(self.source["lat"], self.source["lon"],
+                                  self.source["altitude"], name="source",
+                                  auto_topo_access=self.auto_topo_access)
+            except:
+                from geonum import __version__ as v
+                source = GeoPoint(self.source["lat"], self.source["lon"],
+                                  self.source["altitude"], name="source")
+                warn("Outdated version of Geonum: %s. Require >= v1.2.0" %v)
             self.geo_setup.add_geo_point(source)
 
         if cam_ok and source_ok:
