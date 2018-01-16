@@ -36,6 +36,9 @@ from .helpers import shifted_color_map, bytescale, map_roi, check_roi
 from .exceptions import ImgMetaError
 from .optimisation import PolySurfaceFit
 
+# For Solvejg's methods
+import numpy.ma as ma
+
 class Img(object):
     """ Image base class
     
@@ -220,7 +223,32 @@ class Img(object):
             warn("Image reload failed, no valid filepath set in meta info")
         else:
             self.__init__(input=file_path)
-        
+    
+    
+    def get_masked_img(self, mask):
+        """ Returns a np.ma.masked_array of the img array
+        Parameters:
+        -----------
+        mask : numpy.ndarray
+            entries which should be masked (True=invalid entry)
+            has to be same shape as current state of self.img
+        Returns:
+        --------
+        numpy.ma.masked_array
+            masked array
+        """
+        data = deepcopy(self.img)
+        return ma.masked_array(data, mask)
+    
+    def get_filled_masked_img(self, mask, fill_value=nan):
+        """ Returns an numpy.ndarray in which invalid entries are replaced by fill_value """
+        # fill_value = numpy.nan
+        masked_array = self.get_masked_img(mask)
+        return masked_array.filled(fill_value=fill_value)
+        #img_filled = deepcopy(self.img)
+        #img_filled[mask] = fill_value
+        #return img_filled
+    
     def load_input(self, input):
         """Try to load input as numpy array and additional meta data"""
         try:
@@ -1059,7 +1087,9 @@ class Img(object):
         hdu = fits.PrimaryHDU()
         hdu.data = self._img
         hdu.header.update(self.edit_log)
-        hdu.header.update(self._header_raw)
+        hdu.header.update({'texp':self.meta['texp'],
+                           'temperature':self.meta['temperature']})
+        hdu.header.update(self._header_raw) #empty string?
         hdu.header.append()
         
     

@@ -49,6 +49,8 @@ from .helpers import check_roi, map_roi, _print_list, closest_index,exponent,\
 # For custom defined ImgListMultiFits which needs to access the images for meta info
 from .custom_image_import import load_comtessa, _read_binary_timestamp
 
+# Extra imports from Solvejg
+from numpy.ma import masked_array, nomask
 
 class BaseImgList(object):
     """Basic image list object
@@ -1067,13 +1069,14 @@ class BaseImgList(object):
             self._list_modes["vigncorr"]
 
     def load_img(self, index):
-        """ Loads a single img; wrappes the custom_image_import to a single 
-        method needing only the index
+        """ Loads a single img based on index
+        The `self.camera.image_import_method` and potential parameters are
+        wrapped to this mehtod.
         
         Note
         ----
         Can be redefined in child classes without need of redifing methods like
-        load(), load_next() etc
+        load(), load_next() etc.
         
         Parameters
         ----------
@@ -3652,7 +3655,7 @@ class ImgListMultiFits(ImgList):
         
         # redefinition of several paramters and new parameter
 
-        self.sky_mask = None
+        self.sky_mask = nomask # if numpy.ma.nomask, self.sky_mask is ignored
         # n files with m_n images
         # datafiles (every file only once)
         # only needed for fast referencing
@@ -3688,7 +3691,8 @@ class ImgListMultiFits(ImgList):
         #if not isinstance(val, ):
         #    raise TypeError("Could not set meas_geometry, need MeasGeometry "
         #        "object")
-        self.__sky_mask = value
+        self.__sky_mask = deepcopy(value)
+
 ################################################################################
     """ META DATA HANDLING """
     def get_img_meta_from_filename(self, file_path):
@@ -3903,7 +3907,59 @@ class ImgListMultiFits(ImgList):
                 self.vigncorr_mode = vc_original
             self._list_modes["tau"] = value
             self.load()
+
+###############################################################################
+# new methods
+   
+    def average_img(self, idx1, idx2):
+        """ Average images between two indices
+        circa 10% faster than self.get_mean_img
+        
+        Note: `np.mean` can handle masked arrays
+        
+        Parameters
+        ----------
+        idx1 : int
+            start index
+        idx2 : int
+            end index
+        Returns
+        -------
+        Pyplis.Img
+            averaged image with meta data from first image
+        """
+        n_img = idx2 - idx1 + 1 #including second idx
+        if n_img > 500:
+            warn("Averaging more than 500 images in a single step")
+        if idx2 <= idx1:
+            warn('Second index is smaller than or equal to first index')
+        if idx2 > self.nof:
+            warn("Second index is larger than the total file number")
             
+        if not self.cfn == idx1:
+            self.goto_img(idx1)        
+        # Keep selected meta data of the first image
+        start_acq = self.this.meta["start_acq"]
+        texp = self.this.meta["texp"]
+        temperature = self.this.meta["temperature"]
+
+        images = []
+        for i in range(n_img):
+            images.append(self.this.img)
+            self.goto_next()
+        
+        images = np.array(images)
+        img_avg = images.mean(axis=0)
+        
+        stop_acq = self.this.meta["stop_acq"]
+        try:
+            Img_avg = Img(img_avg, **{'start_acq':start_acq, 'stop_acq':stop_acq,
+                                      'texp':texp, 'temperature':temperature})
+        except:
+            Img_avg = Img(img_avg)
+        Img_avg.edit_log = self.this.edit_log
+        return Img_avg
+        
     def make_stack2(self, new_index, stack_id=None, pyrlevel=None, roi_abs=None,
                    start_idx=0, stop_idx=None, ref_check_roi_abs=None,
                    ref_check_min_val=None, ref_check_max_val=None,
@@ -3922,6 +3978,8 @@ class ImgListMultiFits(ImgList):
         
         Parameters
         ----------
+        new_index : pandas timeseries
+            new time index to which the stack will be averaged
         stack_id : :obj:`str`, optional
             identification string of the image stack
         pyrlevel : :obj:`int`, optional
@@ -3956,8 +4014,6 @@ class ImgListMultiFits(ImgList):
         -------
         ImgStack
             result stack
-        
-        
         """
         
         self.activate_edit()
@@ -3972,7 +4028,9 @@ class ImgListMultiFits(ImgList):
 
         new_index_trunc = truncate_to_timeseries(new_index, timeseries=self.metaData,
                                                  start_idx=start_idx, stop_idx=stop_idx)
+        
         times = deepcopy(new_index_trunc)
+        print('Create a stack between from {:%d.%m.%y %H:%M:%S} to {:%H:%M:%S} with {} entries.'.format(times.index[0], times.index[-1], len(times)-1))
 
         # Prepare images
         #remember last image shape settings
@@ -4010,18 +4068,6 @@ class ImgListMultiFits(ImgList):
         if not exp:
             exp = 1
         
-        def average_img(idx1, idx2):
-            ''' average images between two indices '''
-            n_img = idx2 - idx1 + 1
-            if not self.cfn == idx1:
-                self.goto_img(idx1)
-            img = self.this.duplicate()
-            for k in range(n_img-1):
-                self.goto_next()
-                img = img + self.this
-            img = img / n_img
-            return img
-        
         # Create the stack, one image by a time
         # Images are directly averaged to timeseries
         for time_idx in range(len(times)-1):
@@ -4037,9 +4083,12 @@ class ImgListMultiFits(ImgList):
             idx_first = self.metaData.index.get_loc(doas_t1,method='bfill')
             # 3) Find the last index before doas_t2
             idx_last = self.metaData.index.get_loc(doas_t2,method='ffill')
+            if idx_last < idx_first:
+                warn("No image data available for averaging within period {:%d.%m.%y %H:%M:%S} to {:%H:%M:%S}".format(doas_t1, doas_t2))
+                continue
             # 4) Average the image
             #print('{}: {} to {}'.format(doas_t1, idx_first, idx_last))
-            img = average_img(idx_first, idx_last)           
+            img = self.average_img(idx_first, idx_last)           
             stack.append_img(img.img, img.meta["start_acq"])
             
         stack.start_acq = np.asarray(stack.start_acq)

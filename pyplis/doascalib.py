@@ -42,7 +42,7 @@ from .glob import SPECIES_ID, CALIB_ID_STRINGS
 from .processing import ImgStack
 from .helpers import shifted_color_map, mesh_from_img, get_img_maximum,\
         sub_img_to_detector_coords, map_coordinates_sub_img, exponent,\
-        rotate_xtick_labels
+        rotate_xtick_labels, align_yaxis_np
 from .optimisation import gauss_fit_2d, GAUSS_2D_PARAM_INFO
 from .image import Img
 from .inout import get_camera_info
@@ -603,6 +603,7 @@ class DoasCalibData(CalibData):
             
         p2 = ax2.plot(s2.index.to_pydatetime(), s2.values,"--xr", 
                       label="DOAS CDs")
+        align_yaxis_np([ax,ax2])
         ax2.set_ylabel(r"$S_{%s}$ [cm$^{-2}$]" %SPECIES_ID)
         ax.set_title("Time series overlay DOAS calib data")
         
@@ -616,7 +617,7 @@ class DoasCalibData(CalibData):
         labs = [l.get_label() for l in ps]
         ax.legend(ps, labs, loc="best",fancybox=True, framealpha=0.5)
         ax.grid()
-        rotate_xtick_labels(ax)
+        #rotate_xtick_labels(ax)
         return (ax, ax2)
     
     def err(self, value):
@@ -932,6 +933,7 @@ class DoasFOVEngine(object):
                  **settings):
         
         self._settings = {"method"              :   "pearson",
+                          "minrad"              :   1,
                           "maxrad"              :   80,
                           "ifrlbda"             :   1e-6, #lambda val IFR
                           "g2dasym"             :   True, #elliptic FOV
@@ -967,6 +969,15 @@ class DoasFOVEngine(object):
     @maxrad.setter
     def maxrad(self, val):
         self._settings["maxrad"] = val
+
+    @property
+    def minrad(self):
+        """For Pearson method: minimum expected disk radius of FOV """
+        return self._settings["minrad"]
+    
+    @minrad.setter
+    def minrad(self, val):
+        self._settings["minrad"] = val
         
     @property
     def ifrlbda(self):
@@ -1376,14 +1387,13 @@ class DoasFOVEngine(object):
         h, w =  stack.shape[1:]
         #find maximum radius (around CFOV pos) which still fits into the image
         #shape of the stack used to find the best radius
+        #replace if it is smaller than set value
         max_rad = min([cx, cy, w - cx, h - cy])
-        if self._settings["maxrad"] < max_rad:
-            max_rad = self._settings["maxrad"]
-        else:
+        if max_rad < self._settings["maxrad"]:
             self._settings["maxrad"] = max_rad
         #radius array
-        radii = arange(1, max_rad + 1, 1)
-        print "Maximum radius: " + str(max_rad - 1)
+        radii = arange(self.minrad, self.maxrad + 1, 1)
+        print("Search radii between {} and {}".format(self.minrad, self.maxrad))
         #some variable initialisations
         coeffs, coeffs_err = [], []
         max_corr = 0
@@ -1393,7 +1403,7 @@ class DoasFOVEngine(object):
         #loop over all radii, get tauSeries at each, (merge) and determine 
         #correlation coefficient
         for r in radii:
-            print "current radius:" + str(r)
+            #print "current radius:" + str(r)
             #now get mean values of all images in stack in circular ROI around
             #CFOV
             tau_series, m = stack.get_time_series(cx, cy, radius=r)

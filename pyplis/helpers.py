@@ -24,9 +24,9 @@ import matplotlib.colors as colors
 from datetime import datetime, time, date
 from warnings import warn
 from matplotlib.pyplot import draw
-from numpy import mod, linspace, hstack, vectorize, uint8, cast, asarray, log2,\
+from numpy import array, mod, linspace, hstack, vectorize, uint8, cast, asarray, log2,\
     unravel_index, nanargmax, meshgrid, int, floor, log10, isnan, argmin, sum,\
-    zeros, float32
+    zeros, float32, isclose
 from scipy.ndimage.filters import gaussian_filter
 from cv2 import pyrUp
 
@@ -504,6 +504,69 @@ def bytescale(data, cmin=None, cmax=None, high=255, low=0):
     bytedata[bytedata > high] = high
     bytedata[bytedata < 0] = 0
     return cast[uint8](bytedata) + cast[uint8](low)
+
+def align_yaxis_np(axes):
+    """Align zeros of two or more axes, zooming them out by same ratio
+    Note:
+    -----
+        This function is copied from stackoverflow. Credits to Tim P
+        https://stackoverflow.com/questions/10481990/matplotlib-axis-with-two-scales-shared-origin
+    Parameters:
+    -----------
+    axes : list of matplotlib axes objects
+        axes which should be aligned around zero
+    """
+    axes = array(axes)
+    extrema = array([ax.get_ylim() for ax in axes])
+
+    # reset for divide by zero issues
+    for i in range(len(extrema)):
+        if isclose(extrema[i, 0], 0.0):
+            extrema[i, 0] = -1
+        if isclose(extrema[i, 1], 0.0):
+            extrema[i, 1] = 1
+
+    # upper and lower limits
+    lowers = extrema[:, 0]
+    uppers = extrema[:, 1]
+
+    # if all pos or all neg, don't scale
+    all_positive = False
+    all_negative = False
+    if lowers.min() > 0.0:
+        all_positive = True
+
+    if uppers.max() < 0.0:
+        all_negative = True
+
+    if all_negative or all_positive:
+        # don't scale
+        return
+
+    # pick "most centered" axis
+    res = abs(uppers+lowers)
+    min_index = argmin(res)
+
+    # scale positive or negative part
+    multiplier1 = abs(uppers[min_index]/lowers[min_index])
+    multiplier2 = abs(lowers[min_index]/uppers[min_index])
+
+    for i in range(len(extrema)):
+        # scale positive or negative part based on which induces valid
+        if i != min_index:
+            lower_change = extrema[i, 1] * -1*multiplier2
+            upper_change = extrema[i, 0] * -1*multiplier1
+            if upper_change < extrema[i, 1]:
+                extrema[i, 0] = lower_change
+            else:
+                extrema[i, 1] = upper_change
+
+        # bump by 10% for a margin
+        extrema[i, 0] *= 1.1
+        extrema[i, 1] *= 1.1
+
+    # set axes limits
+    [axes[i].set_ylim(*extrema[i]) for i in range(len(extrema))]
         
 if __name__ == "__main__":
     import numpy as np
