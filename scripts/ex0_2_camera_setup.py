@@ -27,7 +27,8 @@ In this script, a newer version of the camera type "ecII" is created manually
 in order to illustrate all relevant parameters. The only difference to the 
 classic ecII camera is, that the filter setup is different.
 """
-from SETTINGS import check_version
+from SETTINGS import check_version, OPTPARSE
+from numpy.testing import assert_array_equal
 # Raises Exception if conflict occurs
 check_version()
 
@@ -159,4 +160,53 @@ if __name__ == "__main__":
         # conflict occurs, e.g. if the camera was already added to the database)
         cam.save_as_default()
         
+    (options, args)   =  OPTPARSE.parse_args()
+    # apply some tests. This is done only if TESTMODE is active: testmode can
+    # be activated globally (see SETTINGS.py) or can also be activated from
+    # the command line when executing the script using the option --test 1
+    if int(options.test):
+        # quick and dirty test
+        cam_dict_nominal = {'DARK_CORR_OPT': 1,
+                            '_fid_subnum_max': 1,
+                            '_fname_access_flags': {'filter_id': False,
+                                                    'meas_type': False,
+                                                    'start_acq': False,
+                                                    'texp': False},
+                            '_mtype_subnum_max': 1,
+                            '_time_info_subnum': 1,
+                            'cam_id': 'ecII_new',
+                            'delim': '_',
+                            'file_type': 'fts',
+                            'filter_id_pos': 4,
+                            'focal_length': '',
+                            'image_import_method': None,
+                            'main_filter_id': 'on',
+                            'meas_type_pos': 4,
+                            'pix_height': 4.65e-06,
+                            'pix_width': 4.65e-06,
+                            'pixnum_x': 1344,
+                            'pixnum_y': 1024,
+                            'ser_no': 9999,
+                            'texp_pos': '',
+                            'texp_unit': '',
+                            'time_info_pos': 3,
+                            'time_info_str': '%Y%m%d%H%M%S%f'}
+        
+        from collections import OrderedDict
+        geom_data_nominal = OrderedDict([('lon', None),
+                         ('lat', None),
+                         ('altitude', None),
+                         ('azim', None),
+                         ('azim_err', None),
+                         ('elev', None),
+                         ('elev_err', None),
+                         ('alt_offset', 0)])
+        arr_nominal = geom_data_nominal.items()
+        arr_nominal.extend(cam_dict_nominal.items())
+        
+        arr_vals = cam.geom_data.items()
+        for k in cam_dict_nominal:
+            arr_vals.append((k, cam.__dict__[k]))
+        
+        assert_array_equal(arr_nominal, arr_vals)     
     

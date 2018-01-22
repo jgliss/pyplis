@@ -24,6 +24,9 @@ from matplotlib import rcParams
 rcParams.update({'figure.autolayout': True})
 rcParams.update({'font.size': 13})
 
+# if True, some of the actual results of the scripts are verified
+TESTMODE = False
+
 # the pyplis version for which these scripts
 SCRIPTS_VERSION = "1.0"
 
@@ -57,6 +60,7 @@ LINES = [PCS1, PCS2]
 
 OPTPARSE = OptionParser(usage='')
 OPTPARSE.add_option('--show', dest="show", default=SCREENPRINT)
+OPTPARSE.add_option('--test', dest="test", default=TESTMODE)
 
 def check_version():
     v_code = [int(x) for x in __version__.split(".")[:2]]

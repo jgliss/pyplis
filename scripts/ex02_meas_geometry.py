@@ -130,8 +130,6 @@ if __name__ == "__main__":
     
     # Display images or not (nothing to understand here...)
     (options, args)   =  OPTPARSE.parse_args()
-    
-    (options, args)   =  OPTPARSE.parse_args()
     try:
         if int(options.show) == 1:
             show()

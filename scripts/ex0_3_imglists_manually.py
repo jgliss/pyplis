@@ -152,8 +152,15 @@ if __name__ == "__main__":
     
     # Display images or not    
     (options, args)   =  OPTPARSE.parse_args()
-    try:
-        if int(options.show) == 1:
-            show()
+    if int(options.test):
+        from numpy.testing import assert_array_equal
+        
+
+        assert_array_equal([501, 1, 500, 0],
+                           [on_list.nof + off_list.nof,
+                            on_list.this.edit_log["darkcorr"], 
+                            sum(on_list.this.shape),
+                            on_list.gaussian_blurring - on_list.this.edit_log["blurring"]])
+
     except:
         print "Use option --show 1 if you want the plots to be displayed"

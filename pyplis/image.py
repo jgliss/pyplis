@@ -981,6 +981,9 @@ class Img(object):
     def load_fits(self, file_path):
         """Import a FITS file 
         
+        This import method assumes, that data and corresponding meta-info is 
+        stored in the first HDU of the FITS file (index = 0).
+        
         `Fits info <http://docs.astropy.org/en/stable/io/fits/>`_
         """
         hdu = fits.open(file_path)
@@ -1000,7 +1003,12 @@ class Img(object):
             if k in editkeys:
                 self.edit_log[k] = val
             elif k in metakeys:
-                self.meta[k] = val
+                try:
+                    self.meta[k] = datetime.strptime(val, "%Y%m%d%H%M%S%f")
+                except:
+                    if val == "nan":
+                        val = nan
+                    self.meta[k] = val
         try:
             self._roi_abs = hdu[1].data["roi_abs"]
         except:
@@ -1010,7 +1018,22 @@ class Img(object):
             print "Fits file includes vignetting mask"
         except:
             pass
-            
+    
+    def _prep_meta_dict_fits(self):
+        """Prepares current meta-information for storage in FITS header"""
+        d = od()
+        for k, v in self.meta.iteritems():
+            try:
+                d[k] = v.strftime("%Y%m%d%H%M%S%f")
+            except:
+                try:
+                    if isnan(v):
+                        v = "nan"
+                except:
+                    pass
+                d[k] = v
+        return d
+    
     def save_as_fits(self, save_dir=None, save_name=None):
         """Save this image as FITS file
         
@@ -1044,8 +1067,8 @@ class Img(object):
         hdu.data = self._img
         hdu.header.update(self.edit_log)
         hdu.header.update(self._header_raw)
+        hdu.header.update(self._prep_meta_dict_fits())
         hdu.header.append()
-        
     
         roi_abs = fits.BinTableHDU.from_columns([fits.Column(name = "roi_abs",\
                                 format = "I", array = self._roi_abs)])
