@@ -161,6 +161,8 @@ if __name__ == "__main__":
                             on_list.this.edit_log["darkcorr"], 
                             sum(on_list.this.shape),
                             on_list.gaussian_blurring - on_list.this.edit_log["blurring"]])
-
+    try:
+        if int(options.show) == 1:
+            show()
     except:
         print "Use option --show 1 if you want the plots to be displayed"

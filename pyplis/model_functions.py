@@ -20,6 +20,43 @@ Pyplis module containing mathematical model functions
 """
 from numpy import exp, sin, cos
 
+# Polynomial fit functions of different order, including versions that go
+# through the origin of the coordinate system
+# (e.g. used in doascalib.py), dictionary keys are the polynomial order
+polys = {1 : lambda x, a0, a1: a0*x + a1,
+         2 : lambda x, a0, a1, a2: a0*x**2 + a1*x + a2,
+         3 : lambda x, a0, a1, a2, a3: a0*x**3 + a1*x**2 + a2*x + a3}
+
+polys_through_origin = {1 : lambda x, a0: a0*x,
+                        2 : lambda x, a0, a1: a0*x**2 + a1*x,
+                        3 : lambda x, a0, a1, a2: a0*x**3 + a1*x**2 + a2*x}
+
+def get_poly_model(order=1, through_origin=False):
+    """Helper method that returns a polynomial model function
+    
+    Parameters
+    ----------
+    order : int
+        order of polynomial model (choose from 1-3)
+    through_origin : bool
+        if True, then the corresponding polynomial model function is returned
+        that goes through the origin
+    
+    Returns
+    -------
+    lambda
+        polynomial model function
+    """
+    if through_origin:
+        if not polys_through_origin.has_key(order):
+            raise ValueError("Polynomial model not available for input order "
+                             "%.1f" %order)
+        return polys_through_origin[order]
+    if not polys.has_key(order):
+        raise ValueError("Polynomial model not available for input order "
+                             "%.1f" %order)
+    return polys[order]
+
 def dilutioncorr_model(dist, rad_ambient, i0, ext):
     """Model function for light dilution correction
     

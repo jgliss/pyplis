@@ -2897,7 +2897,8 @@ class OptflowFarneback(object):
                 return res
         else:
             dir_mu, dir_sigma = self.mu_sigma_from_moments(count, bins)
-            dir_sigma *= sigma_tol
+            ### NEXT LINE WAS COMMENTED OUT ON 24/1/2018
+            #dir_sigma *= sigma_tol
             add_gaussians = 0
 #==============================================================================
 #             warn("Could not retrieve predominant peak of orientation histogram "
@@ -2933,7 +2934,10 @@ class OptflowFarneback(object):
         count, bins, _ = self.flow_length_histo(lens=lens)
         #len_mu, _ = self.mu_sigma_from_moments(count, bins)
         len_mu, len_sigma = self.mu_sigma_from_moments(count, bins)
-        len_sigma
+# =============================================================================
+#         ### NEXT LINE WAS ADDED ON 24/1/2018
+#         len_sigma *= sigma_tol
+# =============================================================================
         
         #print("Avg. displ. length: %.1f +/- %.1f" %(len_mu, len_sigma))
         
@@ -3476,7 +3480,7 @@ def find_movement(first_img, next_img, pyrlevel=2, num_contrast_ivals=8,
                   ival_overlap=0.05, imin=None, imax=None,
                   apply_erosion=True, erosion_kernel_size=20,
                   apply_dilation=True, dilation_kernel_size=20,
-                  **optflow_settings):
+                  verbose=False, **optflow_settings):
     """Iterative movement search algorithm using optical flow
     
     This algorithm searches for pixels containing movement between two 
@@ -3534,6 +3538,8 @@ def find_movement(first_img, next_img, pyrlevel=2, num_contrast_ivals=8,
         to the mask at the specified input pyramid level (if e.g. a size 
         of 20 pixels is used at pyramid level 2, this corresponds to 80 
         pixels in the original image resolution)
+    verbose : bool
+        print search information
     **optflow_settings
         additional keyword arguments specifying settings for optical 
         flow computation
@@ -3579,9 +3585,10 @@ def find_movement(first_img, next_img, pyrlevel=2, num_contrast_ivals=8,
     
     # initiate mask specifying movement pixels
     cond_movement = zeros_like(first_img.img)
-    print fl.settings
-    print ("\nIterative movement search, varying input contrast range for"
-           " optflow calculation. Current contrast interval:")    
+    if verbose:
+        print(fl.settings)
+        print("\nIterative movement search, varying input contrast range for"
+          " optflow calculation. Current contrast interval:")    
     for ival in ivals:        
         fl.settings.i_min=ival[0]
         fl.settings.i_max=ival[1]
@@ -3590,18 +3597,22 @@ def find_movement(first_img, next_img, pyrlevel=2, num_contrast_ivals=8,
         len_im = Img(fl.get_flow_vector_length_img())
     
         c = (len_im.img > fl.settings.min_length).astype(uint8)
-        print ("Low: %.3f, High: %.3f, movement detected in %d pixels"
-               %(ival[0], ival[1], sum(c)))
+        if verbose:
+            print("Low: %.3f, High: %.3f, movement detected in %d pixels"
+                  %(ival[0], ival[1], sum(c)))
         cond_movement[c==1]=1
     
     if apply_erosion:
-        print "Applying erosion using kernel size: %d" %erosion_kernel_size
+        if verbose:
+            print("Applying erosion using kernel size: %d" %erosion_kernel_size)
         erosion_kernel = ones((erosion_kernel_size,
                                erosion_kernel_size), dtype=uint8)   
         cond_movement = erode(cond_movement, erosion_kernel)
     
     if apply_dilation:
-        print "Applying dilation using kernel size: %d" %dilation_kernel_size
+        if verbose:
+            print("Applying dilation using kernel size: %d" 
+                  %dilation_kernel_size)
         dilation_kernel = ones((dilation_kernel_size,
                                dilation_kernel_size), dtype=uint8)   
         cond_movement = dilate(cond_movement, dilation_kernel)

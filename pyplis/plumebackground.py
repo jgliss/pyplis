@@ -326,8 +326,8 @@ class PlumeBackgroundModel(object):
                                    apply_movement_search,
                                    **settings_movement_search)
         self.surface_fit_mask = Img(mask)
-        print("PLUME / NEXT: %s / %s" %(plume_img.shape, next_img.shape))
-        print(mask.shape)
+        #print("PLUME / NEXT: %s / %s" %(plume_img.shape, next_img.shape))
+        #print(mask.shape)
         return mask
     
     def bg_from_poly_surface_fit(self, plume, mask=None, polyorder=2,
@@ -380,7 +380,7 @@ class PlumeBackgroundModel(object):
                      "retrieval") 
                 mask = full(plume.shape, True, dtype = bool)   
       
-        print(self.surface_fit_mask.shape)
+        #print(self.surface_fit_mask.shape)
         fit = PolySurfaceFit(plume.img, mask.img.astype(float), 
                              polyorder=polyorder,
                              pyrlevel=pyrlevel_rel)

@@ -1176,7 +1176,7 @@ class Img(object):
         except:
             l, h = self.img.min(), self.img.max()
             i, f = l - abs(l) * 0.2, h + abs(h) * 0.2
-        print i, f
+        #print i, f
         ax.fill_between(linspace(i, f, len(hist)), hist, 0,\
                                         color = '#0000FF', alpha = 0.5)
         ax.set_xlim([i, f])

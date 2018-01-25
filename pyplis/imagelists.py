@@ -1160,7 +1160,7 @@ class BaseImgList(object):
         img.add_gaussian_blurring(self.img_prep["blurring"])
         img.apply_median_filter(self.img_prep["median"])
         if self.img_prep["8bit"]:
-            img._to_8bit_int(new_im = False)
+            img._to_8bit_int(new_im=False)
         self.loaded_images[key] = img
         
     def cam_id(self):

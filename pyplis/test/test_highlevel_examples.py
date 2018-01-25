@@ -283,8 +283,8 @@ if exists(BASE_DIR):
         l = line().convert(img.pyrlevel)
         res = flow.local_flow_params(line=l, dir_multi_gauss=False)
         flow.plot_flow_histograms()
-        nominal = [2.0323,-43.881, -67.625, 36.531, 0.174, 0.089,
-                   28.07,0.949]
+        nominal = [2.032, -43.881, -67.625, 18.266, 0.185, 0.085,  
+                   28.07, 0.864]
         vals = [len_img.mean(), angle_img.mean(), res["_dir_mu"],
                 res["_dir_sigma"], res["_len_mu_norm"], 
                 res["_len_sigma_norm"], res["_del_t"], 
@@ -335,6 +335,9 @@ if __name__=="__main__":
     
     lst = aa_image_list()
     lst.tau_mode = True
+    
+
+    
     #lst.bg_model.plot_sky_reference_areas(lst.bg_model._current_imgs["plume"])
     
     
