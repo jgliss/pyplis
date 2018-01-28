@@ -39,7 +39,7 @@ check_version()
 import pyplis
 
 ### IMPORT GLOBAL SETTINGS
-from SETTINGS import IMG_DIR
+from SETTINGS import IMG_DIR, OPTPARSE
 
 ### IMPORTS FROM OTHER EXAMPLE SCRIPTS
 from ex0_2_camera_setup import create_ecII_cam_new_filters
@@ -50,7 +50,7 @@ if __name__ == "__main__":
     cam = create_ecII_cam_new_filters()
     
     #now throw all this stuff into the BaseSetup objec
-    stp = pyplis.setupclasses.MeasSetup(IMG_DIR, camera = cam)
+    stp = pyplis.setupclasses.MeasSetup(IMG_DIR, camera=cam)
     
     # Create a Dataset which creates separate ImgLists for all types (dark,
     # offset, etc.)
@@ -89,4 +89,28 @@ if __name__ == "__main__":
     # edit_info method
     on_list.edit_info()
     
+    # Import script options
+    (options, args) = OPTPARSE.parse_args()
+    
+    # If applicable, do some tests. This is done only if TESTMODE is active: 
+    # testmode can be activated globally (see SETTINGS.py) or can also be 
+    # activated from the command line when executing the script using the 
+    # option --test 1
+    if int(options.test):
+        import numpy.testing as npt
+        
+        
+        npt.assert_array_equal([501, 2, 2368, 0, 50],
+                           [on_list.nof + off_list.nof,
+                            on_list.this.is_darkcorr + 
+                            off_list.this.is_darkcorr, 
+                            sum(on_list.this.shape),
+                            on_list.gaussian_blurring - 
+                            on_list.this.edit_log["blurring"],
+                            on_list.cfn])
+    
+        npt.assert_allclose(actual=[on_list.get_dark_image().mean()],
+                            desired=[190.56119],
+                            rtol=1e-7)
+
     

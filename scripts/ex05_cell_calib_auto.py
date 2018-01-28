@@ -100,8 +100,8 @@ if __name__ == "__main__":
     c = perform_auto_cell_calib()
     stop = time()
     ### Plot search result of on
-    ax0 = c.plot_cell_search_result("on", include_tit = False)
-    ax1 = c.plot_cell_search_result("off", include_tit = False)
+    ax0 = c.plot_cell_search_result("on", include_tit=False)
+    ax1 = c.plot_cell_search_result("off", include_tit=False)
     # Plot all calibration curves for center pixel and in a radial 
     # neighbourhood of 20 pixels
     ax2 = c.plot_all_calib_curves(pos_x_abs=672, pos_y_abs=512, radius_abs=20)

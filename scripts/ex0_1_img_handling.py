@@ -50,15 +50,16 @@ if __name__ == "__main__":
     
     img_path = join(IMG_DIR, IMG_FILE_NAME)
     
-    # Create Img object
+    # Create Img object (Img objects can be initiated both with image file
+    # paths but also with data in memory in form of a 2D numpy array)
     img = pyplis.image.Img(img_path)
     
     #log mean of uncropped image for testing mode
     avg = img.mean()
     
-    # The file name includes some image meta information which can be set manually
-    # (this is normally done automatically by defining a file name convention, see
-    # next script)
+    # The file name of the image includes some image meta information which can 
+    # be set manually (this is normally done automatically by defining a file 
+    # name convention, see next script)
     
     # split filename using delimiter "_"
     spl = IMG_FILE_NAME.split(".")[0].split("_")
@@ -93,10 +94,14 @@ if __name__ == "__main__":
     # print image information
     print img
     
+    ### IMPORTANT STUFF FINISHED - everything below is of minor importance 
+    # for educational purposes
+    
     (options, args)   =  OPTPARSE.parse_args()
-    # apply some tests. This is done only if TESTMODE is active: testmode can
-    # be activated globally (see SETTINGS.py) or can also be activated from
-    # the command line when executing the script using the option --test 1
+    # If applicable, do some tests. This is done only if TESTMODE is active: 
+    # testmode can be activated globally (see SETTINGS.py) or can also be 
+    # activated from the command line when executing the script using the 
+    # option --test 1
     if int(options.test):
         assert_almost_equal([2526.4624, 2413.0872, 201509160708, 0.335, 0.335, 
                              2.8, 25e-3], 

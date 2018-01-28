@@ -134,9 +134,28 @@ if __name__ == "__main__":
         fig.savefig(join(SAVE_DIR, "ex0_6_out_1.%s" %FORMAT),
                            format=FORMAT, dpi=DPI)
         
+    # Import script options
+    (options, args) = OPTPARSE.parse_args()
     
-    # Display images or not    
-    (options, args)   =  OPTPARSE.parse_args()
+    # If applicable, do some tests. This is done only if TESTMODE is active: 
+    # testmode can be activated globally (see SETTINGS.py) or can also be 
+    # activated from the command line when executing the script using the 
+    # option --test 1
+    if int(options.test):
+        import numpy.testing as npt
+        
+        npt.assert_array_equal([sum([x.length() for x in lines_l]),
+                                sum([x.length() for x in lines_r]),
+                                sum([sum(x.coords) for x in lines_r]),
+                                int(sum([sum(x.normal_vector+y.normal_vector) 
+                                    for x,y in zip(lines_l, lines_r)])),
+                                int(sum([sum(x.center_pix) for x in lines_l])),
+                                ],
+                               [459, 459, 1030, 0, 515])
+    
+        npt.assert_allclose(actual=[sum([sum(x) for x in lines_l[2].rect_roi_rot])],
+                            desired=[368.79393923],
+                            rtol=1e-7)
     try:
         if int(options.show) == 1:
             show()

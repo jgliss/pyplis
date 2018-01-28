@@ -26,6 +26,11 @@ such as number of pixels, pixel size, focal length, etc.
 In this script, a newer version of the camera type "ecII" is created manually 
 in order to illustrate all relevant parameters. The only difference to the 
 classic ecII camera is, that the filter setup is different.
+
+See also here for more information:
+    
+https://pyplis.readthedocs.io/en/latest/tutorials.html#data-import-specifying-
+custom-camera-information
 """
 from SETTINGS import check_version, OPTPARSE
 from numpy.testing import assert_array_equal
@@ -35,7 +40,8 @@ check_version()
 import pyplis
 ### SCRIPT OPTIONS
 
-# Save the new camera as default in database 
+# Save the new camera as default in database (cam_info.txt file that can be
+# found in the "data" directory of the installation.
 SAVE_TO_DATABASE = False
 
 ### SCRIPT FUNCTION DEFINITIONS
@@ -159,7 +165,10 @@ if __name__ == "__main__":
         # you can add the cam to the database (raises error if ID 
         # conflict occurs, e.g. if the camera was already added to the database)
         cam.save_as_default()
-        
+    
+    ### IMPORTANT STUFF FINISHED - everything below is of minor importance 
+    # for educational purposes
+    
     (options, args)   =  OPTPARSE.parse_args()
     # apply some tests. This is done only if TESTMODE is active: testmode can
     # be activated globally (see SETTINGS.py) or can also be activated from
@@ -194,13 +203,13 @@ if __name__ == "__main__":
         
         from collections import OrderedDict
         geom_data_nominal = OrderedDict([('lon', None),
-                         ('lat', None),
-                         ('altitude', None),
-                         ('azim', None),
-                         ('azim_err', None),
-                         ('elev', None),
-                         ('elev_err', None),
-                         ('alt_offset', 0)])
+                                         ('lat', None),
+                                         ('altitude', None),
+                                         ('azim', None),
+                                         ('azim_err', None),
+                                         ('elev', None),
+                                         ('elev_err', None),
+                                         ('alt_offset', 0)])
         arr_nominal = geom_data_nominal.items()
         arr_nominal.extend(cam_dict_nominal.items())
         

@@ -129,8 +129,32 @@ if __name__ == "__main__":
         ax.figure.savefig(join(SAVE_DIR, "ex0_7_out_1.%s" %FORMAT),
                            format=FORMAT, dpi=DPI)
                 
-    # Display images or not    
-    (options, args)   =  OPTPARSE.parse_args()
+    # Import script options
+    (options, args) = OPTPARSE.parse_args()
+    
+    # If applicable, do some tests. This is done only if TESTMODE is active: 
+    # testmode can be activated globally (see SETTINGS.py) or can also be 
+    # activated from the command line when executing the script using the 
+    # option --test 1
+    if int(options.test):
+        import numpy.testing as npt
+        
+        slope, offs = aa_calib.poly
+        npt.assert_allclose(actual=[aa_calib.tau_stack.sum(),
+                                    aa_calib.tau_stack.mean(),
+                                    aa_calib.gas_cds.sum(),
+                                    aa_calib.tau_std_allpix.sum(),
+                                    slope, 
+                                    offs,
+                                    aa_calib.slope_err],
+                            desired=[1007480.35895,
+                                     0.24401477,
+                                     3.194e18,
+                                     0.1234381,
+                                     4.77978339e+18,  
+                                     -2.72445631e+16,
+                                     9.484181779e+16],
+                            rtol=1e-7)
     try:
         if int(options.show) == 1:
             show()

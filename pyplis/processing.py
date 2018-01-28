@@ -2020,7 +2020,24 @@ class ImgStack(object):
     def has_data(self):
         """Returns bool"""
         return bool(sum(self._access_mask))
+     
+    def sum(self, *args, **kwargs):
+        """Sum over all pixels of stack
         
+        Parameters
+        ----------
+        *args
+            non-keyword arguments passed to :func:`sum` of numpy array
+        **kwargs
+            keyword arguments passed to :func:`sum` of numpy array
+        
+        Returns
+        -------
+        float
+            result of summation operation
+        """
+        return self.stack.sum(*args, **kwargs)
+    
     def mean(self, *args, **kwargs):
         """Applies numpy.mean function to stack data
         

@@ -419,7 +419,7 @@ class CellCalibData(object):
     @property
     def poly(self):
         try:
-            self.print_last_fit_info()
+            #self.print_last_fit_info()
             return self.last_polyfit_info["poly"]
         except:
             raise ValueError("Calibration data is not available, call method "
@@ -434,7 +434,7 @@ class CellCalibData(object):
     def cov(self):
         """Covariance matriy of calibration polynomial"""
         try:
-            self.print_last_fit_info()
+            #self.print_last_fit_info()
             return self.last_polyfit_info["cov"]
         except:
             raise ValueError("Calibration data is not available, call method "
@@ -450,7 +450,7 @@ class CellCalibData(object):
     def coeffs(self):
         """Coefficients of current calibration polynomial"""
         try:
-            self.print_last_fit_info()
+            #self.print_last_fit_info()
             return self.last_polyfit_info["poly"].coeffs 
         except:
             raise ValueError("Calibration data is not available, call method "

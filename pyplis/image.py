@@ -914,6 +914,11 @@ class Img(object):
         return 2 ** self.edit_log["pyrlevel"]
     
     @property
+    def is_darkcorr(self):
+        """Boolean specifying whether image is dark corrected"""
+        return self.edit_log["darkcorr"]
+    
+    @property
     def is_tau(self):
         """Returns boolean whether image is a tau image or not"""
         return self.edit_log["is_tau"]

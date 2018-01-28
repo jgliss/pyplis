@@ -150,17 +150,27 @@ if __name__ == "__main__":
                            format=FORMAT, dpi=DPI)
         
     
-    # Display images or not    
+    # Import script options
     (options, args)   =  OPTPARSE.parse_args()
+    
+    # If applicable, do some tests. This is done only if TESTMODE is active: 
+    # testmode can be activated globally (see SETTINGS.py) or can also be 
+    # activated from the command line when executing the script using the 
+    # option --test 1
     if int(options.test):
-        from numpy.testing import assert_array_equal
+        import numpy.testing as npt
         
-
-        assert_array_equal([501, 1, 500, 0],
+        
+        npt.assert_array_equal([501, 1, 500, 0],
                            [on_list.nof + off_list.nof,
                             on_list.this.edit_log["darkcorr"], 
                             sum(on_list.this.shape),
-                            on_list.gaussian_blurring - on_list.this.edit_log["blurring"]])
+                            on_list.gaussian_blurring - 
+                            on_list.this.edit_log["blurring"]])
+
+        npt.assert_allclose([402.66284],
+                            [off_img.mean() - on_img.mean()], 
+                            rtol=1e-7, atol=0)
     try:
         if int(options.show) == 1:
             show()
