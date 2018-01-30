@@ -114,6 +114,10 @@ if __name__ == "__main__":
     #now reactive image reload in list (loads image no. 50 with all changes
     #that where set in the previous lines)
     aa_list.auto_reload = True
+    
+    #store some results for tests below
+    shape_log, mean_log = sum(aa_list.this.shape), aa_list.this.mean()
+    
     ax = aa_list.show_current(zlabel=r"$\tau_{AA}$")
     print "Elapsed time: %s s" %(time() - t0)
     
@@ -126,10 +130,50 @@ if __name__ == "__main__":
         ax.figure.savefig(join(SAVE_DIR, "ex04_out_1.%s" %FORMAT), 
                           format=FORMAT, dpi=DPI)
 
-    # Display images or not    
-    (options, args)   =  OPTPARSE.parse_args()
+    ### IMPORTANT STUFF FINISHED (Below follow tests and display options)
+    
+    # Import script options
+    (options, args) = OPTPARSE.parse_args()
+    
+    # If applicable, do some tests. This is done only if TESTMODE is active: 
+    # testmode can be activated globally (see SETTINGS.py) or can also be 
+    # activated from the command line when executing the script using the 
+    # option --test 1
+    if int(options.test):
+        import numpy.testing as npt
+        from os.path import basename
+        
+        m=aa_list.bg_model
+        npt.assert_array_equal([2682, 4144, 1380, 6, 1337, 1, 791, 25, 20,
+                                1343],
+                               [sum(m.scale_rect),
+                                sum(m.ygrad_rect),
+                                sum(m.xgrad_rect),
+                                m.mode,
+                                m.ygrad_line_colnum,
+                                m.ygrad_line_startrow,
+                                m.ygrad_line_stoprow,
+                                m.xgrad_line_rownum,
+                                m.xgrad_line_startcol,
+                                m.xgrad_line_stopcol])
+        
+        actual = [aa_list.meas_geometry.cam["elev"],
+                  aa_list.meas_geometry.cam["azim"],
+                  aa_list.meas_geometry.plume_dist(),
+                  aa_list.this.mean(),
+                  shape_log, mean_log]
+        
+        npt.assert_allclose(actual=actual,
+                            desired=[15.477542213,
+                                     279.30130009,
+                                     10341.86508879,
+                                     0.00908144, 1520, 0.014377367],
+                            rtol=1e-7)
+        print("All tests passed in script: %s" %basename(__file__)) 
     try:
         if int(options.show) == 1:
             show()
     except:
         print "Use option --show 1 if you want the plots to be displayed"
+    
+    

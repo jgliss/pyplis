@@ -87,6 +87,9 @@ class Dataset(object):
     def __init__(self, input=None, lst_type=ImgList, init=1):
         self.setup = None
         
+        #Options (capitalised)
+        self.LINK_OFF_TO_ONBAND = True
+        
         self.lst_type = lst_type
         self._lists_intern = od()
         self.lists_access_info = od()
@@ -275,12 +278,13 @@ class Dataset(object):
                 lst.init_filelist()
         
         self.assign_dark_offset_lists()
-        
-        try:
-            off_list = self.get_list(self.filters.default_key_off)
-            self.get_list(self.filters.default_key_on).link_imglist(off_list)
-        except:
-            pass
+        if self.LINK_OFF_TO_ONBAND:
+            try:
+                off_list = self.get_list(self.filters.default_key_off)
+                self.get_list(self.filters.default_key_on).\
+                    link_imglist(off_list)
+            except:
+                pass
         [warn(x) for x in warnings]
         return True
     

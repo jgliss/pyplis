@@ -36,19 +36,16 @@ Furthermore, some basic image preparation features of ImgList objects are
 introduced (e.g. linking of lists, dark correction, automatic blurring, 
 cropping, size reduction).
 """
-from SETTINGS import check_version
-# Raises Exception if conflict occurs
+from SETTINGS import check_version, IMG_DIR, SAVEFIGS, SAVE_DIR, FORMAT, DPI,\
+    OPTPARSE
 check_version()
 
 import pyplis
 from matplotlib.pyplot import subplots, close, show
 from datetime import datetime
 
-from os.path import join, isfile
+from os.path import join, isfile, basename
 from os import listdir
-
-### IMPORT GLOBAL SETTINGS
-from SETTINGS import IMG_DIR, SAVEFIGS, SAVE_DIR, FORMAT, DPI, OPTPARSE
 
 ### RELEVANT DIRECTORIES AND PATHS
 OFFSET_FILE = join(IMG_DIR, "EC2_1106307_1R02_2015091607064723_D0L_Etna.fts")
@@ -171,6 +168,7 @@ if __name__ == "__main__":
         npt.assert_allclose([402.66284],
                             [off_img.mean() - on_img.mean()], 
                             rtol=1e-7, atol=0)
+        print("All tests passed in script: %s" %basename(__file__)) 
     try:
         if int(options.show) == 1:
             show()

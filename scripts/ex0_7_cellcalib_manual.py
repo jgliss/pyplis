@@ -39,7 +39,7 @@ from SETTINGS import check_version
 check_version()
 
 import pyplis
-from os.path import join
+from os.path import join, basename
 from matplotlib.pyplot import close, show
 from time import time
 
@@ -140,21 +140,24 @@ if __name__ == "__main__":
         import numpy.testing as npt
         
         slope, offs = aa_calib.poly
-        npt.assert_allclose(actual=[aa_calib.tau_stack.sum(),
-                                    aa_calib.tau_stack.mean(),
-                                    aa_calib.gas_cds.sum(),
-                                    aa_calib.tau_std_allpix.sum(),
-                                    slope, 
-                                    offs,
-                                    aa_calib.slope_err],
-                            desired=[1007480.35895,
-                                     0.24401477,
-                                     3.194e18,
-                                     0.1234381,
-                                     4.77978339e+18,  
-                                     -2.72445631e+16,
-                                     9.484181779e+16],
+        actual = [aa_calib.tau_stack.sum(),
+                  aa_calib.tau_stack.mean(),
+                  aa_calib.gas_cds.sum(),
+                  aa_calib.tau_std_allpix.sum(),
+                  slope, 
+                  offs,
+                  aa_calib.slope_err]
+        
+        npt.assert_allclose(actual=actual,
+                            desired=[1007480.2053987,
+                                     0.244014729,
+                                     3.1939999e+18,
+                                     0.12343832,
+                                     4.7797831e+18,  
+                                     -2.7244353e16,
+                                     9.4840865e16],
                             rtol=1e-7)
+        print("All tests passed in script: %s" %basename(__file__)) 
     try:
         if int(options.show) == 1:
             show()

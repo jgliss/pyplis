@@ -45,7 +45,7 @@ def zip_example_scripts(repo_base):
             "does not exist" %scripts_dir)
     save_dir = join(scripts_dir, "old_versions")
     if not exists(save_dir):
-        raise IOError("Cannot created zipped version of scripts, folder %s "
+        raise IOError("Cannot create zipped version of scripts, folder %s "
             "does not exist" %save_dir)
     name = "scripts-%s.zip" %vstr
     zipf = ZipFile(join(save_dir, name), 'w', ZIP_DEFLATED)
@@ -54,8 +54,24 @@ def zip_example_scripts(repo_base):
             zipf.write(join(scripts_dir, fname))
     zipf.close()
     
-    
 def get_all_files_in_dir(directory, file_type=None, include_sub_dirs=False):
+    """Find all files in a certain directory
+    
+    Parameters
+    ----------
+    directory : str
+        path to directory
+    file_type : :obj:`str`, optional
+        specify file type (e.g. "png", "fts"). If unspecified, then all files
+        are considered
+    include_sub_dirs : bool
+        if True, also all files from all sub-directories are extracted
+    
+    Returns
+    -------
+    list 
+        sorted list containing paths of all files detected
+    """
     
     p = directory
     if p is None or not exists(p):
@@ -99,7 +115,7 @@ def create_temporary_copy(path):
     copy2(path, temp_path)
     return temp_path
     
-def download_test_data(save_path = None):
+def download_test_data(save_path=None):
     """Download pyplis test data from
     
     :param save_path: location where path is supposed to be stored

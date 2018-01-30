@@ -32,14 +32,12 @@ definitions  contains information about the camera specs a the
 image base directory (note that in this example, start / stop acq. time stamps
 are ignored, i.e. all images available in the specified directory are imported)
 """
-from SETTINGS import check_version
-# Raises Exception if conflict occurs
+# Import from SETTINGS.py
+from SETTINGS import check_version, IMG_DIR, OPTPARSE
 check_version()
 
 import pyplis
-
-### IMPORT GLOBAL SETTINGS
-from SETTINGS import IMG_DIR, OPTPARSE
+from os.path import basename
 
 ### IMPORTS FROM OTHER EXAMPLE SCRIPTS
 from ex0_2_camera_setup import create_ecII_cam_new_filters
@@ -112,5 +110,7 @@ if __name__ == "__main__":
         npt.assert_allclose(actual=[on_list.get_dark_image().mean()],
                             desired=[190.56119],
                             rtol=1e-7)
+        
+        print("All tests passed in script: %s" %basename(__file__)) 
 
     

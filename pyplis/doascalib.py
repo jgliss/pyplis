@@ -20,8 +20,7 @@
 Pyplis module for DOAS calibration including FOV search engines
 """
 from numpy import min, arange, asarray, zeros, linspace, column_stack,\
-    ones, nan, float64, polyfit, poly1d, sqrt, isnan, round,\
-    concatenate, ndarray, append
+    ones, nan, float64, poly1d, sqrt, isnan, round, ndarray,append
 from scipy.stats.stats import pearsonr 
 from scipy.sparse.linalg import lsmr
 from scipy.optimize import curve_fit
@@ -184,7 +183,7 @@ class DoasCalibData(object):
     @property
     def slope(self):
         """Slope of current calib curve"""
-        if self.polyorder > 0:
+        if self.polyorder > 1:
             warn("Order of calibration polynomial > 1: use value of slope with "
                  "care (i.e. also check curvature coefficients of polynomial")
              

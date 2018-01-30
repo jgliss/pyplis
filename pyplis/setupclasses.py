@@ -830,10 +830,11 @@ class BaseSetup(object):
         self.start = start
         self.stop = stop
         
-        self.options = od([("USE_ALL_FILES"      ,   False),
-                           ("SEPARATE_FILTERS"   ,   True),
-                           ("USE_ALL_FILE_TYPES" ,   False),
-                           ("INCLUDE_SUB_DIRS"   ,   False)])
+        self.options = od([("USE_ALL_FILES"         ,   False),
+                           ("SEPARATE_FILTERS"      ,   True),
+                           ("USE_ALL_FILE_TYPES"    ,   False),
+                           ("INCLUDE_SUB_DIRS"      ,   False),
+                           ])
                            
         self.check_timestamps()
         

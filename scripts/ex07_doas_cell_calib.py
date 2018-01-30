@@ -182,12 +182,30 @@ if __name__ == "__main__":
     mask = pyplis.Img(masks[so2min])
     mask.save_as_fits(SAVE_DIR, "ex07_aa_corr_mask")
     
-    # Display images or not    
-    (options, args)   =  OPTPARSE.parse_args()
+    ### IMPORTANT STUFF FINISHED (Below follow tests and display options)
+    
+    # Import script options
+    (options, args) = OPTPARSE.parse_args()
+    
+    # If applicable, do some tests. This is done only if TESTMODE is active: 
+    # testmode can be activated globally (see SETTINGS.py) or can also be 
+    # activated from the command line when executing the script using the 
+    # option --test 1
+    if int(options.test):
+        import numpy.testing as npt
+        from os.path import basename
+        
+        npt.assert_array_equal([],
+                               [])
+        
+        npt.assert_allclose(actual=[],
+                            desired=[],
+                            rtol=1e-7)
+        print("All tests passed in script: %s" %basename(__file__)) 
     try:
         if int(options.show) == 1:
             show()
     except:
         print "Use option --show 1 if you want the plots to be displayed"
-
-
+    
+    

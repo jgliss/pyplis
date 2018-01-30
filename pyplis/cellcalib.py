@@ -906,7 +906,7 @@ class CellCalibEngine(Dataset):
                         
         self.type = "cell_calib"
         
-        self.cell_search_performed = 0
+        self.cell_search_performed = False
         self._cell_info_auto_search = od()
         
         if isinstance(self.setup, MeasSetup):
@@ -1338,7 +1338,7 @@ class CellCalibEngine(Dataset):
         self._assign_calib_specs()
         self.add_search_results()
         self.check_all_lists()
-        self.cell_search_performed=1
+        self.cell_search_performed=True
             
     def bg_img_available(self, filter_id):
         """Checks if a background image is available

@@ -131,10 +131,55 @@ if __name__ == "__main__":
            %(aa_calib.poly, aa_calib.slope, aa_calib.slope_err))
     
     print "Time elapsed for preparing calibration data: %.4f s" %(stop-start)
-    # Display images or not    
-    (options, args)   =  OPTPARSE.parse_args()
+    
+    ### IMPORTANT STUFF FINISHED (Below follow tests and display options)
+    
+    # Import script options
+    (options, args) = OPTPARSE.parse_args()
+    
+    # If applicable, do some tests. This is done only if TESTMODE is active: 
+    # testmode can be activated globally (see SETTINGS.py) or can also be 
+    # activated from the command line when executing the script using the 
+    # option --test 1
+    if int(options.test):
+        import numpy.testing as npt
+        from os.path import basename
+        # test some basic features of calibraiton dataset (e.g. different 
+        # ImgList classes for on and off and the different cells)
+        npt.assert_array_equal([c.cell_search_performed,
+                                c.cell_lists["on"]["a37"].nof,
+                                c.cell_lists["on"]["a53"].nof,
+                                c.cell_lists["on"]["a57"].nof,
+                                c.cell_lists["off"]["a37"].nof,
+                                c.cell_lists["off"]["a53"].nof,
+                                c.cell_lists["off"]["a57"].nof,
+                                len(c.calib_data)],
+                               [1, 2, 3, 3, 2, 3, 3, 3])
+        d = c._cell_info_auto_search
+        npt.assert_allclose(actual=[d["a37"][0], d["a53"][0], d["a57"][0]],
+                            desired=[8.59e+17, 4.15e+17, 1.924e+18],
+                            rtol=1e-7)
+        
+        # explicitely check calibration data for on, off and aa (plotted in 
+        # this script)
+        npt.assert_allclose(actual=[c.calib_data["on"].slope,
+                                    c.calib_data["on"].y_offset,
+                                    c.calib_data["off"].slope,
+                                    c.calib_data["off"].y_offset,
+                                    c.calib_data["aa"].slope,
+                                    c.calib_data["aa"].y_offset],
+                            desired=[4.47610841e+18,
+                                     -7.07573909e+17,
+                                     -1.07385070e+20,
+                                     1.56863747e+19,
+                                     3.99171814e+18,
+                                     -9.994261065e16],
+                            rtol=1e-7)
+        print("All tests passed in script: %s" %basename(__file__)) 
     try:
         if int(options.show) == 1:
             show()
     except:
         print "Use option --show 1 if you want the plots to be displayed"
+    
+    

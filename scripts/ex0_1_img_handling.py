@@ -28,23 +28,21 @@ encrypted in the image file name. The latter can be performed automatically in
 pyplis using file name conventions (which can be specified globally, see next 
 script).
 """
-from os.path import join
+# imports from SETTINGS.py
+from SETTINGS import check_version, OPTPARSE, SAVE_DIR
+
+check_version()
+
+from os.path import join, basename
 from datetime import datetime
 from matplotlib.pyplot import close
 import pyplis
-
-from numpy.testing import assert_almost_equal
-
-from SETTINGS import check_version, OPTPARSE, SAVE_DIR
-
-# Raises Exception if conflict occurs
-check_version()
 
 # file name of test image stored in data folder 
 IMG_FILE_NAME = "test_201509160708_F01_335.fts"
 
 IMG_DIR = join(pyplis._LIBDIR, "data")
-
+        
 if __name__ == "__main__":
     close("all")    
     
@@ -103,9 +101,12 @@ if __name__ == "__main__":
     # activated from the command line when executing the script using the 
     # option --test 1
     if int(options.test):
-        assert_almost_equal([2526.4624, 2413.0872, 201509160708, 0.335, 0.335, 
-                             2.8, 25e-3], 
-                            [img.mean(), avg, int(spl[1]), texp, 
-                             img_reload.meta["texp"],
-                             img_reload.meta["f_num"],
-                             img_reload.meta["focal_length"]], 4)
+        import numpy.testing as npt
+        npt.assert_almost_equal([2526.4624, 2413.0872, 201509160708, 0.335, 
+                                 0.335, 2.8, 25e-3], 
+                                [img.mean(), avg, int(spl[1]), texp, 
+                                 img_reload.meta["texp"],
+                                 img_reload.meta["f_num"],
+                                 img_reload.meta["focal_length"]], 4)
+        
+        print("All tests passed in script: %s" %basename(__file__)) 

@@ -35,11 +35,12 @@ from SETTINGS import SAVEFIGS, SAVE_DIR, FORMAT, DPI, IMG_DIR, OPTPARSE
 
 ### SCRIPT OPTIONS
 
-# If this is True, then sky reference areas are set in auto mode
+# If this is True, then sky reference areas are set in auto mode (note that 
+# in this case, the tests at the end of the script will fail!)
 USE_AUTO_SETTINGS = False 
 
 #intensity threshold to init mask for bg surface fit
-POLYFIT_2D__MASK_THRESH = 2600 
+POLYFIT_2D_MASK_THRESH = 2600 
 
 # Choose the background correction modes you want to use
 
@@ -119,9 +120,10 @@ def load_and_prepare_images():
 
 def autosettings_vs_manual_settings(bg_model):
     """Perform automatic retrieval of sky reference areas
+    
     If you are lazy... (i.e. you dont want to define all these reference areas), 
     then you could also use the auto search function, a comparison is plotted 
-    here
+    here.
     """
     auto_params = pyplis.plumebackground.find_sky_reference_areas(plume)
     current_params = bg_model.settings_dict()
@@ -137,7 +139,7 @@ def autosettings_vs_manual_settings(bg_model):
     return auto_params, fig
 
 def plot_pcs_profiles_4_tau_images(tau0, tau1, tau2, tau3, pcs_line):
-    ### Plot PCS profiles for all 4 methods
+    """Plot PCS profiles for all 4 methods"""
     fig, ax = subplots(1,1)
     tau_imgs = [tau0, tau1, tau2, tau3]
     
@@ -167,7 +169,7 @@ if __name__=="__main__":
                                              y0=730, 
                                              x1=890,
                                              y1=300,
-                                             line_id = "example PCS",
+                                             line_id="example PCS",
                                              color="lime")
     
     plume, plume_vigncorr, bg = load_and_prepare_images()
@@ -184,8 +186,8 @@ if __name__=="__main__":
     _tau_figs = [] 
     
     #mask for corr mode 0 (i.e. 2D polyfit)
-    mask = np.ones(plume_vigncorr.img.shape, dtype = np.float32)   
-    mask[plume_vigncorr.img < POLYFIT_2D__MASK_THRESH] = 0
+    mask = np.ones(plume_vigncorr.img.shape, dtype=np.float32)   
+    mask[plume_vigncorr.img < POLYFIT_2D_MASK_THRESH] = 0
     
     
     ### First method: retrieve tau image using poly surface fit
@@ -195,7 +197,7 @@ if __name__=="__main__":
                                   surface_fit_polyorder=1)
     
     #Plot the result and append the figure to _tau_figs                                 
-    _tau_figs.append(bg_model.plot_tau_result(tau0, PCS = pcs_line))
+    _tau_figs.append(bg_model.plot_tau_result(tau0, PCS=pcs_line))
     
     ### Second method: scale background image to plume image in "scale" rect
     tau1 = bg_model.get_tau_image(plume, bg, mode=BG_CORR_MODES[1])
@@ -223,10 +225,64 @@ if __name__=="__main__":
         
         fig6.savefig(join(SAVE_DIR, "ex03_out_6.%s" %FORMAT), format=FORMAT,
                     dpi=DPI)
-    # Display images or not    
-    (options, args)   =  OPTPARSE.parse_args()
+    ### IMPORTANT STUFF FINISHED (Below follow tests and display options)
+    
+    # Import script options
+    (options, args) = OPTPARSE.parse_args()
+    
+    # If applicable, do some tests. This is done only if TESTMODE is active: 
+    # testmode can be activated globally (see SETTINGS.py) or can also be 
+    # activated from the command line when executing the script using the 
+    # option --test 1
+    if int(options.test):
+        import numpy.testing as npt
+        from os.path import basename
+        m = bg_model
+        
+        #test settings for clear sky reference areas
+        npt.assert_array_equal([2680, 3960, 160, 6, 1300, 10, 700, 40, 20,
+                                1323, 567584],
+                               [sum(m.scale_rect),
+                                sum(m.ygrad_rect),
+                                sum(m.xgrad_rect),
+                                m.mode,
+                                m.ygrad_line_colnum,
+                                m.ygrad_line_startrow,
+                                m.ygrad_line_stoprow,
+                                m.xgrad_line_rownum,
+                                m.xgrad_line_startcol,
+                                m.xgrad_line_stopcol,
+                                int(m.surface_fit_mask.sum())])
+        
+        m.update(**auto_params)
+        #test settings for clear sky reference areas
+        npt.assert_array_equal([2682, 4142, 1380, 6, 1337, 1, 790, 6, 672,
+                                1343, 567584],
+                               [sum(m.scale_rect),
+                                sum(m.ygrad_rect),
+                                sum(m.xgrad_rect),
+                                m.mode,
+                                m.ygrad_line_colnum,
+                                m.ygrad_line_startrow,
+                                m.ygrad_line_stoprow,
+                                m.xgrad_line_rownum,
+                                m.xgrad_line_startcol,
+                                m.xgrad_line_stopcol,
+                                int(m.surface_fit_mask.sum())])
+        
+        #test all tau-modelling results
+        actual = [tau0.mean(), tau1.mean(), tau2.mean(), tau3.mean()]
+        npt.assert_allclose(actual=actual,
+                            desired=[0.11395559,
+                                     0.25279653,
+                                     0.13842881,
+                                     0.13944146],
+                            rtol=1e-7)
+        print("All tests passed in script: %s" %basename(__file__)) 
     try:
         if int(options.show) == 1:
             show()
     except:
         print "Use option --show 1 if you want the plots to be displayed"
+    
+    

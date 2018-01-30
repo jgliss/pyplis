@@ -92,10 +92,10 @@ def plot_plume_distance_image(meas_geometry):
     # the vertical (in this case they are the same since pixel height and 
     # pixel width are the same for this detector). The third image gives 
     # camera to plume distances on a pixel basis
-    (dist_img, _, plume_dist_img) = meas_geometry.compute_all_integration_step_lengths()
+    (dist_img, _, plume_dist_img) =\
+        meas_geometry.compute_all_integration_step_lengths()
     
     fig, ax = subplots(2, 1, figsize = (7,8))
-    
     
     # Show pix-to-pix distance image
     dist_img.show(cmap="gray", ax=ax[0], zlabel="Pixel to pixel distance [m]")
@@ -118,7 +118,39 @@ if __name__ == "__main__":
     
     # execute 2. script function (see above for definition and information)
     fig =  plot_plume_distance_image(ds.meas_geometry)
-        
+    
+    # You can compute the plume distance for the camera CFOV pixel column just
+    # by calling the method plume_dist() without specifying the input azimuth
+    # angle...
+    plume_dist_cfov = geom_corr.plume_dist()[0]
+    
+    # ... and the corresponding uncertainty 
+    plume_dist_err_cfov = geom_corr.plume_dist_err()
+    
+    # You can also retrieve an array containing the camera azimuth angles for 
+    # each pixel column...
+    all_azimuths = geom_corr.all_azimuths_camfov()
+    
+    # ... and use this to compute plume distances on a pixel column basis
+    plume_dists_all_cols = geom_corr.plume_dist(all_azimuths)
+    
+    # If you want, you can update information about camera, source or 
+    # meteorolgy using either of the following methods (below we apply a 
+    # change in the wind-direction such that the plume propagation direction
+    # is changed from S to SE )
+    #geom_corr.update_cam_specs()
+    #geom_corr.update_source_specs()
+    
+    geom_corr.update_wind_specs(dir=315)
+    geom_corr.draw_map_2d() # this figure is only displayed and not saved 
+    
+    #recompute plume distance of CFOV pixel
+    plume_dist_cfov_new = geom_corr.plume_dist()[0]
+    
+    print("Comparison of plume distances after change of wind direction:\n"
+          "Previous: %.3f m\n"
+          "New: %.3f m" %(plume_dist_cfov, plume_dist_cfov_new))
+    # Using this a
     ### IMPORTANT STUFF FINISHED    
     if SAVEFIGS:
         map.ax.figure.savefig(join(SAVE_DIR, "ex02_out_1.%s" %FORMAT), 
@@ -126,18 +158,57 @@ if __name__ == "__main__":
         fig.savefig(join(SAVE_DIR, "ex02_out_2.%s" %FORMAT), format=FORMAT,
                     dpi=DPI)
     
+    ### IMPORTANT STUFF FINISHED (Below follow tests and display options)
     
+    # Import script options
+    (options, args) = OPTPARSE.parse_args()
     
-    # Display images or not (nothing to understand here...)
-    (options, args)   =  OPTPARSE.parse_args()
+    # If applicable, do some tests. This is done only if TESTMODE is active: 
+    # testmode can be activated globally (see SETTINGS.py) or can also be 
+    # activated from the command line when executing the script using the 
+    # option --test 1
+    if int(options.test):
+        import numpy.testing as npt
+        from os.path import basename
+        
+        npt.assert_array_equal([],
+                               [])
+        
+        # check some propoerties of the basemap (displayed in figure)
+        
+        #map basemap coordinates to lon / lat values
+        lon, lat = map(8335, 9392, inverse=True)
+        npt.assert_allclose(actual=[lon, lat, map.delta_lon, map.delta_lat],
+                            desired=[15.075131135, 37.76678834,
+                                     0.149263852982,
+                                     0.118462659944],
+                            rtol=1e-7)
+        
+        # check some basic properties / values of the geometry
+        npt.assert_allclose(actual=[geom_corr.cam["elev"],
+                                    geom_corr.cam["elev_err"],
+                                    geom_corr.cam["azim"],
+                                    geom_corr.cam["azim_err"],
+                                    geom_corr.azim_cfov, 
+                                    plume_dist_cfov,
+                                    plume_dist_err_cfov,
+                                    plume_dists_all_cols.mean(),
+                                    plume_dist_cfov_new],
+                            desired=[15.4775422,
+                                     1.06455589,
+                                     279.30130009,
+                                     1.065410737,
+                                     279.30130009,
+                                     10341.865088793651,
+                                     164.55855589678592,
+                                     10370.24319513553,
+                                     9600.3372372732192],
+                            rtol=1e-7)
+        print("All tests passed in script: %s" %basename(__file__)) 
     try:
         if int(options.show) == 1:
             show()
     except:
         print "Use option --show 1 if you want the plots to be displayed"
-    
-    
-    
-    
     
     

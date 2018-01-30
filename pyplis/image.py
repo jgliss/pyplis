@@ -183,7 +183,7 @@ class Img(object):
     @img.setter
     def img(self, val):
         """Setter for image data"""
-        self._img = val
+        self._img = val.astype(self.dtype)
     
     @property
     def is_vigncorr(self):

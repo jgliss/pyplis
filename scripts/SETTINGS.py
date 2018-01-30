@@ -15,12 +15,16 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
-from pyplis.inout import find_test_data
-from pyplis import __version__, LineOnImage
+
 from numpy import subtract
 from os.path import join
+from warnings import warn
 from optparse import OptionParser
 from matplotlib import rcParams
+
+from pyplis.inout import find_test_data
+from pyplis import __version__, LineOnImage
+
 rcParams.update({'figure.autolayout': True})
 rcParams.update({'font.size': 13})
 
@@ -66,7 +70,7 @@ def check_version():
     v_code = [int(x) for x in __version__.split(".")[:2]]
     v_scripts = [int(x) for x in SCRIPTS_VERSION.split(".")[:2]]
     if any(subtract(v_scripts, v_code)) != 0:
-        raise Exception("Version conflict between pyplis installation (v%s) "
+        warn("Version conflict between pyplis installation (v%s) "
             "and version of example scripts used (v%s). Please "
             "update your pyplis installation or use the set of example "
             "scripts corresponding to your installation. "

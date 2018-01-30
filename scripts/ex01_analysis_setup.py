@@ -54,17 +54,12 @@ displayed.
 The Dataset object created here is used in script  ex04_prep_aa_imglist.py which shows 
 how to create an image list displaying AA images.
 """
-from SETTINGS import check_version
-# Raises Exception if conflict occurs
+from SETTINGS import check_version, IMG_DIR, OPTPARSE
 check_version()
 
 import pyplis as pyplis
 from datetime import datetime
 from matplotlib.pyplot import show, close
-
-
-### IMPORT GLOBAL SETTINGS
-from SETTINGS import IMG_DIR, OPTPARSE
 
 ### SCRIPT FUNCTION DEFINITIONS
 def create_dataset():
@@ -103,7 +98,11 @@ def create_dataset():
     cam = pyplis.setupclasses.Camera(cam_id, filter_list=filters, 
                                      **geom_cam)
     
-    ### Load default information for Etna
+    ### Load default information for Etna. This information is stored in 
+    # the source_info.txt file of the Pyplis information. You may also access 
+    # information about any volcano via the available online access to the NOAA 
+    # database using the method pyplis.inout.get_source_info_online(source_id).
+    
     source = pyplis.setupclasses.Source("etna")
     
     #### Provide wind direction
@@ -127,22 +126,33 @@ def create_dataset():
 if __name__ == "__main__":
     close("all")
     ds = create_dataset()
-    #get on-band image list
-    lst = ds.get_list("on")
-    print ("On-band list contains %d images, current image index: %d" 
-           %(lst.nof, lst.cfn))
     
-    img = lst.current_img()
+    #get on-band image list
+    on_list = ds.get_list("on")
+    on_list.goto_next()
+    off_list = ds.get_list("off")
+    
+    # activate dark correction in both lists. Dark and offset image lists are
+    # automatically assigned to plume on and off-band image lists on initiation
+    # of the dataset object
+    on_list.darkcorr_mode = True
+    off_list.darkcorr_mode = True
+    
+    print ("On-band list contains %d images, current image index: %d" 
+           %(on_list.nof, on_list.cfn))
+    
+    img = on_list.current_img()
     
     #plume distance image retrieved from MeasGeometry class...
-    plume_dists = lst.plume_dists 
+    plume_dists = on_list.plume_dists
+    
     #...these may be overwritten or set manually if desired
-    lst.plume_dists=10000
+    on_list.plume_dists = 10000
     
     # The same applies for the integration step lengths for emission rate 
     # retrievals
-    step_lengths = lst.integration_step_length
-    lst.integration_step_length = 1.8 #m
+    step_lengths = on_list.integration_step_length
+    on_list.integration_step_length = 1.8 #m
     
     #Set pixel intensities below 2000 to 0 (method of Img class)
     img.set_val_below_thresh(val=0, threshold=2000)
@@ -150,14 +160,40 @@ if __name__ == "__main__":
     img.show()
     print str(img) #the image object has an informative string representation
     
+    ### IMPORTANT STUFF FINISHED (Below follow tests and display options)
     
-    ### IMPORTANT STUFF FINISHED
+    # Import script options
+    (options, args) = OPTPARSE.parse_args()
     
-    # Display images or not (nothing to understand here...)
-    (options, args)   =  OPTPARSE.parse_args()
+    # If applicable, do some tests. This is done only if TESTMODE is active: 
+    # testmode can be activated globally (see SETTINGS.py) or can also be 
+    # activated from the command line when executing the script using the 
+    # option --test 1
+    if int(options.test):
+        import numpy.testing as npt
+        from os.path import basename
+        
+        npt.assert_allclose(actual=[plume_dists.mean(), plume_dists.std(),
+                                    on_list.get_dark_image().mean()],
+                            desired=[10232.611, 23.93812, 190.56119],
+                            rtol=1e-7)
+        
+        npt.assert_array_equal([418, 2, 2368, 1, 1, 0,
+                                20150916070600,
+                                20150916072200],
+                               [on_list.nof + off_list.nof,
+                                on_list.this.is_darkcorr + 
+                                off_list.this.is_darkcorr, 
+                                sum(on_list.this.shape),
+                                on_list.cfn,
+                                off_list.cfn,
+                                sum(img.img[img.img < 2000]),
+                                int(ds.setup.start.strftime("%Y%m%d%H%M%S")),
+                                int(ds.setup.stop.strftime("%Y%m%d%H%M%S"))])
+    
+        print("All tests passed in script: %s" %basename(__file__)) 
     try:
         if int(options.show) == 1:
-            img.show()
             show()
     except:
         print "Use option --show 1 if you want the plots to be displayed"

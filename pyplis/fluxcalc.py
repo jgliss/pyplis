@@ -1121,7 +1121,8 @@ class EmissionRateAnalysis(object):
         lst = self.imglist
         PYR = self.imglist.pyrlevel
         # get pixel distance image
-        dist_img = lst.meas_geometry.compute_all_integration_step_lengths(pyrlevel=PYR)[0]
+        dist_img = lst.meas_geometry.compute_all_integration_step_lengths(\
+                                                            pyrlevel=PYR)[0]
         #init dicts
         dists, dist_errs = {}, {}
         for line_id, line in self.pcs_lines.iteritems():
@@ -1129,7 +1130,7 @@ class EmissionRateAnalysis(object):
             col = line.center_pix[0] #pixel column of center of PCS
             dist_errs[line_id] = lst.meas_geometry.pix_dist_err(col, PYR)
             
-        return dists, dist_errs
+        return (dists, dist_errs)
     
     def init_results(self):
         """Reset results

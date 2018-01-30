@@ -25,17 +25,13 @@ where, for instance velcoity displacement vectors (e.g. from an optical flow
 algorithm) have to be multiplied with the normal vector of such a line (using
 the dot product).
 """
-from SETTINGS import check_version
-# Raises Exception if conflict occurs
+from SETTINGS import check_version, SAVEFIGS, SAVE_DIR, FORMAT, DPI, OPTPARSE
 check_version()
 
 from pyplis.processing import LineOnImage
-from os.path import join
+from os.path import join, basename
 from matplotlib.pyplot import show, subplots, close
 from matplotlib.cm import get_cmap
-
-### IMPORT GLOBAL SETTINGS
-from SETTINGS import SAVEFIGS, SAVE_DIR, FORMAT, DPI, OPTPARSE
 
 def create_example_lines():
     """Create some exemplary lines"""
@@ -156,6 +152,8 @@ if __name__ == "__main__":
         npt.assert_allclose(actual=[sum([sum(x) for x in lines_l[2].rect_roi_rot])],
                             desired=[368.79393923],
                             rtol=1e-7)
+        
+        print("All tests passed in script: %s" %basename(__file__)) 
     try:
         if int(options.show) == 1:
             show()

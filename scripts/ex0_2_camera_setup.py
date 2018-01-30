@@ -33,9 +33,10 @@ https://pyplis.readthedocs.io/en/latest/tutorials.html#data-import-specifying-
 custom-camera-information
 """
 from SETTINGS import check_version, OPTPARSE
-from numpy.testing import assert_array_equal
-# Raises Exception if conflict occurs
 check_version()
+
+from os.path import basename
+from numpy.testing import assert_array_equal
 
 import pyplis
 ### SCRIPT OPTIONS
@@ -217,5 +218,7 @@ if __name__ == "__main__":
         for k in cam_dict_nominal:
             arr_vals.append((k, cam.__dict__[k]))
         
-        assert_array_equal(arr_nominal, arr_vals)     
+        assert_array_equal(arr_nominal, arr_vals)   
+        
+        print("All tests passed in script: %s" %basename(__file__)) 
     

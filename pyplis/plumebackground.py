@@ -138,10 +138,17 @@ class PlumeBackgroundModel(object):
             
     @property
     def current_plume_background(self):
-        """Retrieve the current plume background from modelled tau image and
-        plume image, i.e::
+        """Returns the current plume background 
+        
+        The background image is computed using the current modelled tau image 
+        and the corresponding plume image plume image, i.e::
 
             bg_img = Img(exp(tau_img) * plume_img)
+            
+        Returns
+        -------
+        Img 
+            modelled sky background image
             
         """
         return Img(exp(self._current_imgs["tau"].img) * 

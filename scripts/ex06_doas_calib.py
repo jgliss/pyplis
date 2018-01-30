@@ -59,18 +59,19 @@ from ex04_prep_aa_imglist import prepare_aa_image_list
 
 ### SCRIPT OPTONS  
 
-#reload and save stack in folder SAVE_DIR, results in increased
-#running time due to stack calculation (is automatically switched on if
-#the stack is not found at this location)
-RELOAD_STACK = 0
+# reload and save stack in folder SAVE_DIR, results in increased
+# running time due to stack calculation (is automatically switched on if
+# the stack is not found at this location)
+RELOAD_STACK = True
 
-#Default search settings are at pyramid level 2, the FOV results are upscaled
-#to original resolution, if the following option is set 1, then, based on 
-#the result from pyrlevel=2, another stack is determined at pyrlevel = 0 
-#(i.e. in full resolution) within ROI around the center position from 
-#pyrlevel=2
-DO_FINE_SEARCH = 0
 PYRLEVEL_ROUGH_SEARCH = 2
+# Default search settings are at pyramid level 2, the FOV results are upscaled
+# to original resolution, if the following option is set 1, then, based on 
+# the result from pyrlevel=2, another stack is determined at pyrlevel = 0 
+# (i.e. in full resolution) within a ROI around the center position from the 
+# search performed at pyrlevel=PYRLEVEL_ROUGH_SEARCH (defined 2 lines below)
+DO_FINE_SEARCH = False
+
 
 ### RELEVANT DIRECTORIES AND PATHS
 
@@ -175,6 +176,19 @@ if __name__ == "__main__":
     # close all plots
     close("all")
     
+    # Import script options
+    (options, args) = OPTPARSE.parse_args()
+    
+    if options.test:
+        # if test mode is active, the image stack is always recomputed from
+        # scratch and the option DO_FINE_SEARCH is activated, since the tests
+        # are based on this. This will lead to an increased computation time
+        # Test mode can be activated / deactivated in SETTINGS.py or via 
+        # the script option --test 1 (on) or --test 0 (off)
+        RELOAD_STACK = True
+        PYRLEVEL_ROUGH_SEARCH = 2
+        DO_FINE_SEARCH = True
+    
     # reload or create the AA image stack based on current script settings
     stack, aa_list = get_stack()
     
@@ -238,10 +252,27 @@ if __name__ == "__main__":
             ax.figure.savefig(join(SAVE_DIR, "ex06_out_%d.%s" 
                               %((k+1), FORMAT)), format=FORMAT, dpi=DPI)
     
-    # Display images or not    
-    (options, args)   =  OPTPARSE.parse_args()
+    ### IMPORTANT STUFF FINISHED (Below follow tests and display options)
+    
+    # If applicable, do some tests. This is done only if TESTMODE is active: 
+    # testmode can be activated globally (see SETTINGS.py) or can also be 
+    # activated from the command line when executing the script using the 
+    # option --test 1
+    if int(options.test):
+        import numpy.testing as npt
+        from os.path import basename
+        
+        npt.assert_array_equal([],
+                               [])
+        
+        npt.assert_allclose(actual=[],
+                            desired=[],
+                            rtol=1e-7)
+        print("All tests passed in script: %s" %basename(__file__)) 
     try:
         if int(options.show) == 1:
             show()
     except:
         print "Use option --show 1 if you want the plots to be displayed"
+    
+    

@@ -131,27 +131,34 @@ class MeasGeometry(object):
     @property
     def azim_cfov(self):
         """Azimuth of camera viewing direction (CFOV)"""
-        return self.cam["azim"]
-        
-    def get_cam_specs(self, img_obj):
-        """Reads camera meta information from image meta data
-            
-            1. Focal length lense
-            2. Image sensor
-                i. Pixel width
-                #. Pixel height
-        
-        Parameters
-        ----------
-        img_obj : Img
-            image data containing information about camera specs in meta
-            dictionary
-        """
-        #self.cam["pixLengthY"],self.cam["pixLengthX"]=img_obj.img.shape
-        param_keys = ["focal_length","pix_width","pix_height"]
-        for key in param_keys:
-            if isnan(self.cam[key]):
-                self.cam[key] = img_obj.meta[key]
+        az = self.cam["azim"]
+        if isnan(az):
+            raise AttributeError("Camera azimuth angle is not assigned to "
+                                 "MeasGeometry")
+        return az
+    
+# METHOD REMOVED ON 29/1/2018
+# =============================================================================
+#     def get_cam_specs(self, img_obj):
+#         """Reads camera meta information from image meta data
+#             
+#             1. Focal length lense
+#             2. Image sensor
+#                 i. Pixel width
+#                 #. Pixel height
+#         
+#         Parameters
+#         ----------
+#         img_obj : Img
+#             image data containing information about camera specs in meta
+#             dictionary
+#         """
+#         #self.cam["pixLengthY"],self.cam["pixLengthX"]=img_obj.img.shape
+#         param_keys = ["focal_length","pix_width","pix_height"]
+#         for key in param_keys:
+#             if isnan(self.cam[key]):
+#                 self.cam[key] = img_obj.meta[key]
+# =============================================================================
     
     def update_cam_specs(self, info_dict=None, update_geosetup=True,
                          **kwargs):
@@ -782,9 +789,9 @@ class MeasGeometry(object):
         """
         ratio = self.cam["pix_width"] / self.cam["focal_length"] #in m
         azims = self.all_azimuths_camfov()
-        dists = self.plume_dist(azims) * 1000.0 #in m
-        pix_dists_m = dists * ratio
-        return pix_dists_m, dists
+        plume_dists = self.plume_dist(azims) #* 1000.0 #in m
+        pix_dists_m = plume_dists * ratio
+        return (pix_dists_m, plume_dists)
         
     def pix_dist_err(self, col_num, pyrlevel=0):
         """Get uncertainty measure for pixel distance of a pixel column 
@@ -804,25 +811,40 @@ class MeasGeometry(object):
             pyramid level
         """
         az = self.all_azimuths_camfov()[int(col_num)]
-        return self.plume_dist_err(az) *1000 * self.cam["pix_width"] /\
+        return self.plume_dist_err(az) * self.cam["pix_width"] /\
                         self.cam["focal_length"] * 2**pyrlevel
                                         
     def compute_all_integration_step_lengths(self, pyrlevel=0, roi_abs=None):
         """Determine images containing pixel and plume distances
         
         Computes and returns three images where each pixel value corresponds 
-        to 1. the horizontal physical integration step length in units of m 
-        corresponding to the plum
-        :param int pyrlevel: returns images at a given gauss pyramid level
-        :param roi_abs: ROI in absolute detector coordinates, if valid, then 
-            the images are cropped
-        :return:
-            - Img, col_dist_img: image where each pixel corresponds to pixel 
+        to: 
+        
+        1. the horizontal physical integration step length in units of m 
+        2. the vertical physical integration step length in units of m (is \
+            the same as 1. for standard detectors where the vertical and \
+            horizontal pixel pitch is the same)
+        3. image where each pixel corresponds to the computed plume distance
+        
+        Parameters
+        ----------
+        pyrlevel : int 
+            returns images at a given gauss pyramid level
+        roi_abs : list
+            ROI ``[x0, y0, x1, y1]`` in absolute detector coordinates. If
+            valid, then the images are cropped accordingly
+        
+        Returns
+        -------
+        tuple
+            3-element tuple, containing
+        
+            - :obj:`Img`: image where each pixel corresponds to pixel\
                 column distances in m
-            - Img, row_dist_img: image where each pixel corresponds to pixel 
-                row distances in m (same as col_dist_img if pixel width and
+            - :obj:`Img`: image where each pixel corresponds to pixel\
+                row distances in m (same as col_dist_img if pixel width and\
                 height are equal)
-            - Img, plume_dist_img: image where each pixel corresponds to plume
+            - :obj:`Img`: image where each pixel corresponds to plume\
                 distance in m
         """
         col_dists_m, plume_dists = self.calculate_pixel_col_distances()
@@ -843,7 +865,7 @@ class MeasGeometry(object):
             col_dist_img.crop(roi_abs)
             row_dist_img.crop(roi_abs)
             plume_dist_img.crop(roi_abs)
-        return col_dist_img, row_dist_img, plume_dist_img
+        return (col_dist_img, row_dist_img, plume_dist_img)
         
     def get_plume_direction(self):
         """Return the plume direction plus error based on wind direction"""
@@ -1159,11 +1181,23 @@ class MeasGeometry(object):
         return rad2deg(arctan((delta * self.cam["pix_width"]) /\
                                         self.cam["focal_length"]))
     
-    def plume_dist(self, az):
+    def plume_dist(self, az=None):
         """Return plume distance for input azimuth angle(s)
         
-        :param az: azimuth value(s) (single val or array of values)
+        
+        Parameters
+        ----------
+        az : :obj:`float` or :obj:`list`
+            azimuth value(s) (single val or array of values). If `None`, then 
+            the azimuth angle of the camera CFOV is used.
+            
+        Returns
+        -------
+        :obj:`float` or :obj:`list`
+            plume distance(s) in m for input azimuth(s)
         """
+        if az is None:
+            az = [self.azim_cfov]
         try:
             len(az)
         except TypeError:
@@ -1176,15 +1210,30 @@ class MeasGeometry(object):
                                     (tan(pdrad) - tan(azrad))
         x = tan(pdrad) * y
         v = array((x,y)) - dv
-        return linalg.norm(v, axis = 0)
+        return linalg.norm(v, axis=0)*1000.0
     
     def plume_dist_err(self, az=None):
-        """Estimate plume distance error from uncertainties"""
-        try:
-            az=float(az)
-        except:
-            warn("invalid input, using camera CFOV azimuth")
-            az = self.cam["azim"]
+        """Compute uncertainty in plume distances
+        
+        The computation is based on uncertainties in the camera azimuth and 
+        the uncertainty in the horizontal wind direction (i.e. plume 
+        propagation direction).
+        
+        Parameters
+        ----------
+        az : :obj:`float`, optional
+            camera azimuth angle for which the uncertainty is computed (if None
+            then the CFOV azimuth is used).
+            
+        Returns
+        -------
+        float
+            absolute uncertainty in plume distance in units of m
+        """
+        if az is None:
+            az = self.azim_cfov
+        az=float(az)
+        
         #the vector between camera and source (errors here are assumed
         #negligible)
         diff_vec = self.geo_setup.vectors["source2cam"]
@@ -1206,9 +1255,9 @@ class MeasGeometry(object):
                                         (tan(pdrad) - tan(azrad))
                 x = tan(pdrad) * y
                 v = array((x,y)) - dv
-            dists.append(linalg.norm(v, axis = 0))
+            dists.append(linalg.norm(v, axis=0))
         dists = asarray(dists)
-        return dists.max() - dists.mean()
+        return (dists.max()-dists.mean())*1000
     
     def all_azimuths_camfov(self):
         colnum = self.cam["pixnum_x"]
