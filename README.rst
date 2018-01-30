@@ -45,11 +45,11 @@ You should have received a copy of the GNU General Public License along with thi
 Requirements
 ============
 
-Requirements are listed ordered in decreasing likelyhood to run into problems when using pip for installation (on Windows machines you may use the pre-compiled binary wheels on Christoph Gohlke's `webpage <http://www.lfd.uci.edu/~gohlke/pythonlibs/>`_)
+Requirements are listed ordered in decreasing likelyhood to run into problems when using pip for installation (on Windows machines you may use the pre-compiled binary wheels on Christoph Gohlke's `webpage <http://www.lfd.uci.edu/~gohlke/pythonlibs/>`_).
 
 - numpy >= 1.11.0
 - scipy >= 0.17.0
-- opencv (cv2) >= 2.4.11
+- opencv (cv2) >= 2.4.11 (please note `this issue <https://github.com/jgliss/pyplis/issues/4>`__)
 - Pillow (PIL fork) >= 3.3.0 (installs scipy.misc.pilutil)
 - astropy >= 1.0.3
 - geonum >= 1.2.0
