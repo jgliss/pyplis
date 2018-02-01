@@ -205,6 +205,8 @@ def load_comtessa(file_path, meta={}):
                 "stop_acq"      : endtime,
                 "texp"          : float(imageHeader['EXP']) / 1000., # in seconds
                 "temperature"   : float(imageHeader['TCAM']),
+                "ser_no"        : imageHeader['SERNO'],
+                "custom1"       : float(imageHeader['GAIN']),
                 "custom_dt"     :  datetime.strptime(imageHeader['ENDTIME'],
                                                      '%Y.%m.%dZ%H:%M:%S.%f') })
     return (image, meta) 

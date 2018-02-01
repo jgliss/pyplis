@@ -3270,8 +3270,8 @@ class ImgList(BaseImgList):
 
         ctime = self.current_time()
 
-        if not (t_last - timedelta(minutes = self.update_dark_ival)) < ctime <\
-                        (t_last + timedelta(minutes = self.update_dark_ival)):
+        if not (t_last - timedelta(minutes=self.update_dark_ival)) < ctime <\
+                        (t_last + timedelta(minutes=self.update_dark_ival)):
             if self.set_closest_dark_offset():
                 print ("Updated dark / offset in img_list %s at %s"
                         %(self.list_id, ctime))

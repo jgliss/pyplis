@@ -647,7 +647,7 @@ class DoasCalibData(CalibData):
         if not isinstance(self.poly, poly1d):
             self.fit_calib_polynomial()
         
-        super(DoasCalibData, self).__call__()
+        return super(DoasCalibData, self).__call__(value, **kwargs)
 
         
 class DoasFOV(object):
@@ -1376,9 +1376,12 @@ class DoasFOVEngine(object):
         with spectrometer data to find the radius showing highest 
         correlation.
         
-        :param int cx: pixel x coordinate of center position
-        :param int cy: pixel y coordinate of center position
-            
+        Parameters
+        ----------
+        cx : int
+            pixel x coordinate of center position
+        cy : int
+            pixel y coordinate of center position 
         """
         stack = self.img_stack
         doas_vec = self.doas_series.values
