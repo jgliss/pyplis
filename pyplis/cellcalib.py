@@ -1563,7 +1563,7 @@ class CellCalibEngine(Dataset):
             tau_img.img = log(bg_img.img / cell_img.img)
             
             tau_img.to_pyrlevel(pyrlevel)
-            tau_stack.append_img(tau_img.img,
+            tau_stack.add_img(tau_img.img,
                                  start_acq=cell_img.meta["start_acq"],
                                  texp=cell_img.meta["texp"],
                                  add_data=lst.gas_cd)

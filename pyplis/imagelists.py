@@ -616,8 +616,6 @@ class BaseImgList(object):
         """
         info = self.camera.get_img_meta_from_filename(file_path)
         return {"start_acq" : info[0], "texp": info[3]}
-    
-    
         
     def get_img_meta_all_filenames(self):   
         """Try to load acquisition and exposure times from filenames
@@ -824,7 +822,7 @@ class BaseImgList(object):
                         "ref check ROI (out of specified range)" %(k, sub_val))
                 append = False
             if append:
-                stack.append_img(img.img, img.meta["start_acq"], 
+                stack.add_img(img.img, img.meta["start_acq"], 
                                  img.meta["texp"])
             self.goto_next()  
         stack.start_acq = asarray(stack.start_acq)

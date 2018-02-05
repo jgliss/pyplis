@@ -33,7 +33,7 @@ This Pyplis module contains the following processing classes and methods:
 from numpy import vstack, ogrid, empty, ones, asarray, ndim, round, hypot,\
     linspace, sum, dstack, float32, zeros, poly1d, polyfit, argmin, where,\
     logical_and, rollaxis, complex, angle, array, ndarray, cos, sin,\
-    arctan, dot, int32, pi, isnan, nan, delete, mean
+    arctan, dot, int32, pi, isnan, nan, delete, mean, hstack
     
 from numpy.linalg import norm
 from scipy.ndimage import map_coordinates 
@@ -1449,8 +1449,47 @@ class ImgStack(object):
         self.dtype = dtype
         self.current_index = 0
         
+        self.stack = None
+        self.start_acq = None
+        self.texps = None
+        self.add_data = None
+        self._access_mask = None
+        
+        if img_prep is None:
+            img_prep = {"pyrlevel"  :   0}
+        self.img_prep = img_prep 
+        
+        self.roi_abs = [0, 0, 9999, 9999]
+        
+        self._cam = Camera()
+        
+        self.init_stack_array(height, width, img_num)
+        if stack_data.has_key("stack"):
+            self.set_stack_data(**stack_data)
+        
+        if isinstance(camera, Camera):
+            self.camera = camera
+       
+    def init_stack_array(self, height=0, width=0, img_num=0):
+        """Initiate the actual stack data array
+        
+        Note
+        ----
+        All current data stored in :attr:`stack`, :attr:`start_acq`, 
+        :attr:`texps`, :attr:`add_data` will be deleted.
+        
+        Parameters
+        ----------
+        height : int
+            height of images to be stacked
+        width : int
+            width of images to be stacked
+        num : int
+            number of images to be stacked (can be zero, then, whenever an 
+            image is added to stack, the method :func:`append_img` is used)
+        """
         try:
-            self.stack = empty((img_num, height, width))
+            self.stack = empty((img_num, height, width)).astype(self.dtype)
         except MemoryError:
             raise MemoryError("Could not initiate empty 3D numpy array "
                 "(d, h, w): (%s, %s, %s)" %(img_num, height, width))
@@ -1459,22 +1498,8 @@ class ImgStack(object):
         self.add_data = zeros(img_num, dtype=float32)
         
         self._access_mask = zeros(img_num, dtype=bool)
-        
-        if img_prep is None:
-            img_prep = {"pyrlevel"     :   0}
-        self.img_prep = img_prep 
-        
-        
-        self.roi_abs = [0, 0, 9999, 9999]
-        
-        self._cam = Camera()
-        
-        if stack_data.has_key("stack"):
-            self.set_stack_data(**stack_data)
-        
-        if isinstance(camera, Camera):
-            self.camera = camera
-        
+        self.current_index = 0
+    
     @property
     def last_index(self):
         """Returns last index"""
@@ -1535,35 +1560,30 @@ class ImgStack(object):
     def num_of_imgs(self):
         """Depth of stack"""
         return self.stack.shape[0]
+     
+    def check_index(self, idx=0):
+        if 0 <= idx <= self.last_index:
+            return
+        elif idx == self.num_of_imgs:
+            self._extend_stack_array()
+        else:
+            raise IndexError("Invalid index %d for inserting image in stack "
+                             "with current depth %d" %(idx, self.num_of_imgs))
+    
+    def _extend_stack_array(self):
+        """Extend the first index of the stack array"""
+        h, w = self.shape[1:]
+        try:
+            self.stack = vstack((self.stack, empty((1, h, w))))
+        except MemoryError:
+            raise MemoryError("Cannot add more data to stack due to memory "
+                              "overflow...")
+        self.start_acq = hstack((self.start_acq, [datetime(1900, 1, 1)]))
+        self.texps = hstack((self.texps, [0.0]))
+        self.add_data = hstack((self.add_data, [0.0]))
+        self._access_mask = hstack((self._access_mask, [False]))
         
-    def append_img(self, img_arr, start_acq=datetime(1900, 1, 1), texp=0.0, 
-                   add_data=0.0):
-        """Append at the end of the stack
-        
-        The image is inserted at the current index position ``self.current_index``
-        which is increased by 1 afterwards.
-        
-        Parameters
-        ----------
-        img_arr : array
-            image data (must have same dimension than ``self.stack.shape[:2]``)
-        start_acq : datetime
-            acquisition time stamp of image, defaults to datetime(1900, 1, 1)
-        texp : float 
-            exposure time of image (in units of s), defaults to 0.0
-        add_data 
-            arbitrary additional data appended to list :attr:`add_data`
-        
-        """
-#==============================================================================
-#         if self.current_index >= self.last_index:
-#             print self.last_index
-#             raise IndexError("Last stack index reached...")
-#==============================================================================
-        self.set_img(self.current_index, img_arr, start_acq, texp, add_data)
-        self.current_index += 1
-            
-    def set_img(self, pos, img_arr, start_acq=datetime(1900, 1, 1),
+    def insert_img(self, pos, img_arr, start_acq=datetime(1900, 1, 1),
                 texp=0.0, add_data=0.0):
         """Insert an image into the stack at provided index
         
@@ -1586,12 +1606,45 @@ class ImgStack(object):
             img_arr = img_arr.img
         except:
             pass
+        if sum(self.shape) == 0:
+            h, w = img_arr.shape
+            self.init_stack_array(height=h, width=w, img_num=1)
+        self.check_index(pos)
         self.stack[pos] = img_arr
         self.start_acq[pos] = to_datetime(start_acq)
         self.texps[pos] = texp
         self.add_data[pos] = add_data
         self._access_mask[pos] = True
     
+    def add_img(self, img_arr, start_acq=datetime(1900, 1, 1), texp=0.0, 
+                   add_data=0.0):
+        """Add image at current index position
+        
+        The image is inserted at the current index position ``current_index``
+        which is increased by 1 afterwards. If the latter exceeds the dimension
+        of the actual stack data array :attr:`stack`, the stack shape will be
+        extended by 1.
+        
+        Parameters
+        ----------
+        img_arr : array
+            image data (must have same dimension than ``self.stack.shape[:2]``)
+        start_acq : datetime
+            acquisition time stamp of image, defaults to datetime(1900, 1, 1)
+        texp : float 
+            exposure time of image (in units of s), defaults to 0.0
+        add_data 
+            arbitrary additional data appended to list :attr:`add_data`
+        
+        """
+#==============================================================================
+#         if self.current_index >= self.last_index:
+#             print self.last_index
+#             raise IndexError("Last stack index reached...")
+#==============================================================================
+        self.insert_img(self.current_index, img_arr, start_acq, texp, add_data)
+        self.current_index += 1
+        
     def make_circular_access_mask(self, cx, cy, radius):
         """Create a circular mask for stack 
         
@@ -2016,7 +2069,6 @@ class ImgStack(object):
         """
         raise NotImplementedError
         
-        
     def has_data(self):
         """Returns bool"""
         return bool(sum(self._access_mask))
@@ -2108,7 +2160,7 @@ class ImgStack(object):
             im = self.stack[i]
             for k in range(steps):
                 im = pyrDown(im)
-            new_stack.append_img(img_arr=im, start_acq=self.start_acq[i],
+            new_stack.add_img(img_arr=im, start_acq=self.start_acq[i],
                                  texp=self.texps[i], add_data=self.add_data[i])
         new_stack._format_check()
         new_stack.img_prep["pyrlevel"] += steps
@@ -2133,7 +2185,7 @@ class ImgStack(object):
             im = self.stack[i]
             for k in range(steps):
                 im = pyrUp(im)
-            new_stack.append_img(img_arr=im, start_acq=self.start_acq[i],
+            new_stack.add_img(img_arr=im, start_acq=self.start_acq[i],
                                  texp=self.texps[i], add_data=self.add_data[i])
         new_stack._format_check()
         new_stack.img_prep["pyrlevel"] -= steps

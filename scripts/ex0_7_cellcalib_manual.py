@@ -149,13 +149,13 @@ if __name__ == "__main__":
                   aa_calib.slope_err]
         
         npt.assert_allclose(actual=actual,
-                            desired=[1007480.2053987,
-                                     0.244014729,
+                            desired=[1007480.4,
+                                     0.24401478,
                                      3.1939999e+18,
                                      0.12343832,
-                                     4.7797831e+18,  
-                                     -2.7244353e16,
-                                     9.4840865e16],
+                                     4.77978303e+18,  
+                                     -2.72443366e16,
+                                     9.48408968e16],
                             rtol=1e-7)
         print("All tests passed in script: %s" %basename(__file__)) 
     try:

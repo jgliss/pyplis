@@ -168,12 +168,12 @@ if __name__ == "__main__":
                                     c.calib_data["off"].y_offset,
                                     c.calib_data["aa"].slope,
                                     c.calib_data["aa"].y_offset],
-                            desired=[4.47610841e+18,
-                                     -7.07573909e+17,
-                                     -1.07385070e+20,
-                                     1.56863747e+19,
-                                     3.99171814e+18,
-                                     -9.994261065e16],
+                            desired=[4.47610825e+18,
+                                     -7.07573914e+17,
+                                     -1.07385079e+20,
+                                     1.56863758e+19,
+                                     3.99171795e+18,
+                                     -9.99425564e16],
                             rtol=1e-7)
         print("All tests passed in script: %s" %basename(__file__)) 
     try:
