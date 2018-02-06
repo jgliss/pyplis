@@ -25,10 +25,14 @@ rcParams["mathtext.default"] = u"regular"
 __dir__ = abspath(dirname(__file__))
 __version__ = get_distribution('pyplis').version
 _LIBDIR = __dir__ #from older version
+# =============================================================================
+# 
+# URL_TESTDATA = ("https://folk.nilu.no/~gliss/pyplis_testdata/"
+#                 "pyplis_etna_testdata.zip")
+# =============================================================================
 
-URL_TESTDATA = ("https://folk.nilu.no/~gliss/pyplis_testdata/"
+URL_TESTDATA = ("https://folk.nilu.no/~arve/pyplis/"
                 "pyplis_etna_testdata.zip")
-
 try:
     import pydoas
     PYDOASAVAILABLE =True

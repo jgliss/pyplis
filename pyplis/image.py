@@ -184,12 +184,144 @@ class Img(object):
     def img(self, val):
         """Setter for image data"""
         self._img = val.astype(self.dtype)
+        
+    @property
+    def start_acq(self):
+        """Get image acquisition time
+        
+        :returns: acquisition time if available (i.e. it deviates from the
+            default 1/1/1900), else, raises ImgMetaError
+        """
+        if self.meta["start_acq"] == datetime(1900, 1, 1):
+            raise ImgMetaError("Image acquisition time not set")
+        return self.meta["start_acq"]
+    
+    @property
+    def stop_acq(self):
+        """Returns stop time of acquisition (if available)"""
+        return self.meta["stop_acq"]
+    
+    @property
+    def texp(self):
+        """Get image acquisition time
+        
+        :returns: acquisition time if available (i.e. it deviates from the
+            default 1/1/1900), else, raises ImgMetaError
+        """
+        if self.meta["texp"] == 0.0:
+            raise ImgMetaError("Image exposure time not set")
+        return self.meta["texp"]
+        
+    @property
+    def gain(self):
+        """Returns read gain value from meta info"""
+        gain = self.meta["read_gain"]
+        if not gain in [1, 0]:
+            raise Exception("Invalid gain value in Img: %s " %gain)
+        return gain
+    
+    @property
+    def shape(self):
+        """Return shape of image data"""
+        return self.img.shape
+        
+    @property
+    def xy_aspect(self):
+        """Aspect ratio (delx / dely)"""
+        s = self.shape[:2]
+        return s[1] / float(s[0]) 
+    
+    @property    
+    def pyr_up_factor(self):
+        """Factor to convert coordinates at current pyramid level into 
+        original size coordinates
+        """
+        return 2 ** self.edit_log["pyrlevel"]
+    
+    @property
+    def is_darkcorr(self):
+        """Boolean specifying whether image is dark corrected"""
+        return self.edit_log["darkcorr"]
+    
+    @property
+    def is_tau(self):
+        """Returns boolean whether image is a tau image or not"""
+        return self.edit_log["is_tau"]
+        
+    @property
+    def is_aa(self):
+        """Returns boolean whether current image is AA image"""
+        return self.edit_log["is_aa"]
+    
+    @property
+    def is_calibrated(self):
+        """Flag for image calibration status"""
+        return self.edit_log["gascalib"]
+        
+    @property
+    def is_vignetting_corrected(self):
+        """Boolean stating whether image is vignetting corrected or not"""
+        return self.edit_log["vigncorr"]
+    
+    @property
+    def is_gray(self):
+        """Checks if image is gray image"""
+        if self.img.ndim == 2:
+            return True
+        elif self.img.ndim == 3:
+            return False
+        else:
+            raise Exception("Unexpected image dimension %s..." %self.img.ndim)
+    
+    @property
+    def is_binary(self):
+        """Attribute specifying whether image is binary image"""
+        return self.edit_log["is_bin"]
+    
+    @property
+    def is_inverted(self):
+        """Flag specifying whether image was inverted or not"""
+        return self.edit_log["is_inv"]
     
     @property
     def is_vigncorr(self):
         """Bool specifying whether or not image is vignetting corrected"""
         return bool(self.edit_log["vigncorr"])
+      
+    @property
+    def modified(self):
+        """Check if this image was already modified"""
+        if sum(self.edit_log.values()) > 0:
+            return 1
+        return 0
+    
+    @property
+    def pyrlevel(self):
+        """Returns current gauss pyramid level (stored in ``self.edit_log``)"""
+        return self.edit_log["pyrlevel"]
+    
+    @property 
+    def roi(self):
+        """Returns current roi (in consideration of current pyrlevel)"""
+        roi_sub = map_roi(self._roi_abs, self.edit_log["pyrlevel"])
+        return roi_sub
+    
+    @property
+    def roi_abs(self):
+        """Get / set current ROI in absolute image coordinates
         
+        .. note::
+        
+            use :func:`roi` to get ROI for current pyrlevel
+        """
+        return self._roi_abs
+        
+    @roi_abs.setter
+    def roi_abs(self, val):
+        """Updates current ROI"""
+        if check_roi(val):
+            self._roi_abs = val
+            
     def set_data(self, input):
         """Try load input"""
         try:
@@ -307,6 +439,7 @@ class Img(object):
 #             raise TypeError("Invalid input, failed to retrieve mean in ROI")
 #             
 # =============================================================================
+       
     def crop(self, roi_abs=[0, 0, 9999, 9999], new_img=False):
         """Cut subimage specified by rectangular ROI
         
@@ -327,37 +460,10 @@ class Img(object):
         if new_img:
             im = self.duplicate()
 #        im._roi_abs = roi
-        im.edit_log["crop"] = 1
+        im.edit_log["crop"] = True
         im.img = sub
         return im
     
-    @property
-    def pyrlevel(self):
-        """Returns current gauss pyramid level (stored in ``self.edit_log``)"""
-        return self.edit_log["pyrlevel"]
-    
-    @property 
-    def roi(self):
-        """Returns current roi (in consideration of current pyrlevel)"""
-        roi_sub = map_roi(self._roi_abs, self.edit_log["pyrlevel"])
-        return roi_sub
-    
-    @property
-    def roi_abs(self):
-        """Get / set current ROI in absolute image coordinates
-        
-        .. note::
-        
-            use :func:`roi` to get ROI for current pyrlevel
-        """
-        return self._roi_abs
-        
-    @roi_abs.setter
-    def roi_abs(self, val):
-        """Updates current ROI"""
-        if check_roi(val):
-            self._roi_abs = val
-            
     def correct_dark_offset(self, dark, offset):
         """Perform dark frame subtraction, 3 different modi possible
         
@@ -387,6 +493,21 @@ class Img(object):
         
         return dark
     
+    def subtract_dark_image(self, dark):
+        """Subtracts a dark (+offset) image and updates ``self.edit_log``
+        
+        :param Img dark: dark image data
+        
+        Simple image subtraction without any modifications of input image
+        """
+        try:
+            corr = self.img - dark
+        except:
+            corr = self.img - dark.img
+        corr[corr <= 0] = finfo(float32).eps
+        self.img = corr
+        self.edit_log["darkcorr"] = True
+    
     def correct_vignetting(self, mask, new_state=True):
         """Apply vignetting correction
         
@@ -415,21 +536,6 @@ class Img(object):
         self.edit_log["vigncorr"] = new_state
         self.vign_mask = mask
         return self
-        
-    def subtract_dark_image(self, dark):
-        """Subtracts a dark (+offset) image and updates ``self.edit_log``
-        
-        :param Img dark: dark image data
-        
-        Simple image subtraction without any modifications of input image
-        """
-        try:
-            corr = self.img - dark
-        except:
-            corr = self.img - dark.img
-        corr[corr <= 0] = finfo(float32).eps
-        self.img = corr
-        self.edit_log["darkcorr"] = 1
         
     def set_roi_whole_image(self):
         """Set current ROI to whole image area based on shape of image data"""
@@ -701,7 +807,7 @@ class Img(object):
         for i in range(steps):
             self.img = pyrUp(self.img)
         self.edit_log["pyrlevel"] -= steps  
-        self.edit_log["others"] = 1
+        self.edit_log["others"] = True
         return self
     
     def bytescale(self, cmin=None, cmax=None, high=255, low=0):
@@ -742,7 +848,7 @@ class Img(object):
             img = self.duplicate()
         else:
             img = self
-            self.edit_log["8bit"] = 1
+            self.edit_log["8bit"] = True
         img.meta["bit_depth"] = 8
         img.img = sc
         return img
@@ -858,112 +964,6 @@ class Img(object):
     def meta(self, meta_key):
         """Returns current meta data for input key"""
         return self.meta[meta_key]
-    
-    """DECORATORS"""    
-    @property
-    def start_acq(self):
-        """Get image acquisition time
-        
-        :returns: acquisition time if available (i.e. it deviates from the
-            default 1/1/1900), else, raises ImgMetaError
-        """
-        if self.meta["start_acq"] == datetime(1900, 1, 1):
-            raise ImgMetaError("Image acquisition time not set")
-        return self.meta["start_acq"]
-    
-    @property
-    def stop_acq(self):
-        """Returns stop time of acquisition (if available)"""
-        return self.meta["stop_acq"]
-    
-    @property
-    def texp(self):
-        """Get image acquisition time
-        
-        :returns: acquisition time if available (i.e. it deviates from the
-            default 1/1/1900), else, raises ImgMetaError
-        """
-        if self.meta["texp"] == 0.0:
-            raise ImgMetaError("Image exposure time not set")
-        return self.meta["texp"]
-        
-    @property
-    def gain(self):
-        """Returns read gain value from meta info"""
-        gain = self.meta["read_gain"]
-        if not gain in [1, 0]:
-            raise Exception("Invalid gain value in Img: %s " %gain)
-        return gain
-    
-    @property
-    def shape(self):
-        """Return shape of image data"""
-        return self.img.shape
-        
-    @property
-    def xy_aspect(self):
-        """Aspect ratio (delx / dely)"""
-        s = self.shape[:2]
-        return s[1] / float(s[0]) 
-    
-    @property    
-    def pyr_up_factor(self):
-        """Factor to convert coordinates at current pyramid level into 
-        original size coordinates
-        """
-        return 2 ** self.edit_log["pyrlevel"]
-    
-    @property
-    def is_darkcorr(self):
-        """Boolean specifying whether image is dark corrected"""
-        return self.edit_log["darkcorr"]
-    
-    @property
-    def is_tau(self):
-        """Returns boolean whether image is a tau image or not"""
-        return self.edit_log["is_tau"]
-        
-    @property
-    def is_aa(self):
-        """Returns boolean whether current image is AA image"""
-        return self.edit_log["is_aa"]
-    
-    @property
-    def is_calibrated(self):
-        """Flag for image calibration status"""
-        return self.edit_log["gascalib"]
-        
-    @property
-    def is_vignetting_corrected(self):
-        """Boolean stating whether image is vignetting corrected or not"""
-        return self.edit_log["vigncorr"]
-    
-    @property
-    def is_gray(self):
-        """Checks if image is gray image"""
-        if self.img.ndim == 2:
-            return True
-        elif self.img.ndim == 3:
-            return False
-        else:
-            raise Exception("Unexpected image dimension %s..." %self.img.ndim)
-    
-    @property
-    def is_binary(self):
-        """Attribute specifying whether image is binary image"""
-        return self.edit_log["is_bin"]
-    
-    @property
-    def is_inverted(self):
-        """Flag specifying whether image was inverted or not"""
-        return self.edit_log["is_inv"]
-            
-    @property
-    def modified(self):
-        """Check if this image was already modified"""
-        if sum(self.edit_log.values()) > 0:
-            return 1
-        return 0
 
     def load_file(self, file_path):
         """Try to import file specified by input path"""
@@ -976,13 +976,6 @@ class Img(object):
         self.meta["file_name"] = basename(file_path)
         self.meta["file_type"] = ext
     
-
-        
-#==============================================================================
-#         except:
-#             self.img = imread(file_path).astype(self.dtype)
-#==============================================================================
-            
     def load_fits(self, file_path):
         """Import a FITS file 
         

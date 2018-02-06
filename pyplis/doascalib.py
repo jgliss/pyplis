@@ -1165,12 +1165,12 @@ class DoasFOVEngine(object):
             extend = self.calib_data.fov.pixel_extend(abs_coords=True)
             pos_x, pos_y = self.calib_data.fov.pixel_position_center(abs_coords=True)
             
-            del self.img_stack # make space for new stack
+            self.img_stack=None # make space for new stack
             #create ROI around center position of FOV
             roi = [ pos_x-extend_fac*extend, pos_y-extend_fac*extend,
                     pos_x+extend_fac*extend, pos_y+extend_fac*extend]
                     
-            stack = img_list.make_stack(pyrlevel=0, roi_abs=roi)
+            self.img_stack = stack = img_list.make_stack(pyrlevel=0, roi_abs=roi)
             s = DoasFOVEngine(stack, self.doas_series, **self._settings)
             calib=s.perform_fov_search()
             calib.fit_calib_polynomial()

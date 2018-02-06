@@ -101,7 +101,7 @@ The Pyplis `example scripts <https://github.com/jgliss/pyplis/tree/master/script
 Example and test data
 =====================
 
-The pyplis example data (required to run example scripts) is not part of the installation. It can be downloaded `here <https://folk.nilu.no/~gliss/pyplis_testdata/pyplis_etna_testdata.zip>`__ or automatically within a Python shell (after installation) using::
+The pyplis example data (required to run example scripts) is not part of the installation. It can be downloaded `here <https://folk.nilu.no/~arve/pyplis/pyplis_etna_testdata.zip>`__ or automatically within a Python shell (after installation) using::
 
   import pyplis
   pyplis.inout.download_test_data(LOCAL_DIR)

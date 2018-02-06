@@ -21,7 +21,7 @@ Pyplis module containing features related to cell calibration
 from matplotlib.pyplot import subplots
 from warnings import warn
 from numpy import float, log, arange, polyfit, poly1d, linspace, isnan,\
-    diff, mean, argmin, ceil, round, ndim, asarray, sqrt
+    diff, mean, argmin, ceil, round, ndim, asarray, sqrt, zeros, nan
 from matplotlib.pyplot import Figure
 from matplotlib.cm import get_cmap
 from datetime import timedelta
@@ -434,7 +434,6 @@ class CellCalibData(object):
     def cov(self):
         """Covariance matriy of calibration polynomial"""
         try:
-            #self.print_last_fit_info()
             return self.last_polyfit_info["cov"]
         except:
             raise ValueError("Calibration data is not available, call method "
@@ -610,9 +609,17 @@ class CellCalibData(object):
                                         y_rel, rad_rel, mask)[0].values
         cd_arr = self.gas_cds
         exp = exponent(max(cd_arr))
+        # perform fit avoiding the typically large numbers of CDs
         cds = cd_arr / 10**exp
-        # perform fit avoiding the typically large numbers
-        coeffs, cov = polyfit(tau_arr, cds, polyorder, cov=True)
+        if len(cd_arr) <= polyorder + 3:
+            warn("the number of data points must exceed polydegree + 2 for "
+                 "Bayesian estimate the covariance matrix. Polyfit of cell "
+                 "calibration curve is performed without retrieval of "
+                 "covariance matrix ")
+            coeffs = polyfit(tau_arr, cds, polyorder, cov=False)
+            cov = zeros((2,2))*nan
+        else:    
+            coeffs, cov = polyfit(tau_arr, cds, polyorder, cov=True)
         poly = poly1d(coeffs * 10**exp)
         self.last_polyfit_info = od(pos_x_abs=pos_x_abs,
                                     pos_y_abs=pos_y_abs,
@@ -1529,6 +1536,7 @@ class CellCalibEngine(Dataset):
                             pyrlevel=pyrlevel)
         
         num = len(self.cell_lists[filter_id])
+
         tau_stack = ImgStack(h, w, num, stack_id=filter_id)
         # TEMPORARY SOLUTION
         tau_stack.add_data_err = []

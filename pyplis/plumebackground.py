@@ -483,7 +483,7 @@ class PlumeBackgroundModel(object):
             
         tau_img = plume_img.duplicate()
         tau_img.meta["bit_depth"] = nan
-        tau_img.edit_log["is_tau"] = 1
+        tau_img.edit_log["is_tau"] = True
         tau_img.img = tau
         if update_imgs:
             self.set_current_images(plume_img, bg_img, tau_img)
@@ -552,8 +552,8 @@ class PlumeBackgroundModel(object):
         
         aa_img = plume_on.duplicate()
         aa_img.meta["bit_depth"] = nan
-        aa_img.edit_log["is_tau"] = 1
-        aa_img.edit_log["is_aa"] = 1
+        aa_img.edit_log["is_tau"] = True
+        aa_img.edit_log["is_aa"] = True
         aa_img.img = aa
         if update_imgs:
             try:

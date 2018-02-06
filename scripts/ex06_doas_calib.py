@@ -222,6 +222,9 @@ if __name__ == "__main__":
         """
         if aa_list is None:
             aa_list = prepare_aa_image_list()
+        #remember some properties of the current image stack that is stored in
+        #the DoasFOVEngine object (i.e. the merged one in low pixel res.)
+        num_merge, h, w = s.img_stack.shape
         s_fine = s.run_fov_fine_search(aa_list, doas_time_series, 
                                        method="pearson")
     
@@ -262,9 +265,21 @@ if __name__ == "__main__":
         import numpy.testing as npt
         from os.path import basename
         
-        npt.assert_array_equal([],
-                               [])
+        num, h, w = stack.shape
+        num2, h2, w2 = s.img_stack.shape #stack after fine FOV search
+        prep = stack.img_prep
+        #check some basic properties of the data used for the different FOV
+        #searches
+        npt.assert_array_equal([len(doas_time_series), num, num_merge, h, w, 
+                                stack.pyrlevel,
+                                prep["darkcorr"]*prep["is_tau"]*prep["is_aa"], 
+                                num2, h2, w2],
+                               [120, 209, 88, 256, 336, 2, 1, 
+                                209, 170, 170])
         
+        #check IFR calibration results including FOV
+        # ... under development (NOT FINISHED)
+        c = calib_ifr
         npt.assert_allclose(actual=[],
                             desired=[],
                             rtol=1e-7)

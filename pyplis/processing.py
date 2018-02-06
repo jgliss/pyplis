@@ -1489,7 +1489,8 @@ class ImgStack(object):
             image is added to stack, the method :func:`append_img` is used)
         """
         try:
-            self.stack = empty((img_num, height, width)).astype(self.dtype)
+            self.stack = empty((int(img_num), int(height), int(width))).\
+                astype(self.dtype)
         except MemoryError:
             raise MemoryError("Could not initiate empty 3D numpy array "
                 "(d, h, w): (%s, %s, %s)" %(img_num, height, width))

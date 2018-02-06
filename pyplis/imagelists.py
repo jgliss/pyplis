@@ -18,10 +18,10 @@
 """
 Image list objects of pyplis library   
 """
-from numpy import asarray, zeros, argmin, arange, ndarray, float32,\
-    isnan, logical_or, uint8, finfo, exp, ones
+from numpy import asarray, zeros, argmin, arange, ndarray, float32, isnan,\
+    logical_or, uint8, exp, ones
 from datetime import timedelta, datetime, date
-#from bunch import Bunch
+
 from pandas import Series, DataFrame
 from matplotlib.pyplot import figure, draw, ion, ioff, close
 from copy import deepcopy
@@ -39,8 +39,8 @@ from .exceptions import ImgMetaError
 from .setupclasses import Camera
 from .geometry import MeasGeometry
 from .processing import ImgStack, PixelMeanTimeSeries, LineOnImage,\
-                                                            model_dark_image
-from .optimisation import PolySurfaceFit                                                    
+    model_dark_image
+#from .optimisation import PolySurfaceFit                                                    
 from .plumebackground import PlumeBackgroundModel
 from .plumespeed import OptflowFarneback, LocalPlumeProperties
 from .helpers import check_roi, map_roi, _print_list, closest_index,exponent,\
