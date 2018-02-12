@@ -268,6 +268,7 @@ if __name__ == "__main__":
         num, h, w = stack.shape
         num2, h2, w2 = s.img_stack.shape #stack after fine FOV search
         prep = stack.img_prep
+        
         #check some basic properties of the data used for the different FOV
         #searches
         npt.assert_array_equal([len(doas_time_series), num, num_merge, h, w, 
@@ -280,8 +281,20 @@ if __name__ == "__main__":
         #check IFR calibration results including FOV
         # ... under development (NOT FINISHED)
         c = calib_ifr
-        npt.assert_allclose(actual=[],
-                            desired=[],
+        vals = list(c.fov.result_ifr["popt"])
+        vals.extend(c.fov.pos_abs)
+        vals.append(c.fov.sigma_x_abs)
+        vals.append(c.fov.sigma_y_abs)
+        npt.assert_allclose(actual=vals,
+                            desired=[1.07808621,  
+                                     1.59344973e+02,  
+                                     1.23791125e+02,  
+                                     7.08819489e+00,
+                                     1.90030991e+00,  
+                                     3.37942801e-01, 
+                                     -4.23539904e-03,
+                                     28.352779577670304,
+                                     14.920081933140823],
                             rtol=1e-7)
         print("All tests passed in script: %s" %basename(__file__)) 
     try:

@@ -1283,9 +1283,9 @@ class DoasFOVEngine(object):
             
         # construct H-matrix through reshaping image stack
         #h_matrix = transpose(self.img_stack.stack, (2,0,1)).reshape(m, nx * ny)
-        h_matrix = self.img_stack.stack.reshape(m, nx * ny)
+        h_matrix = self.img_stack.stack.reshape(m, nx*ny)
         # and one-vector
-        h_vec = ones((m,1), dtype = h_matrix.dtype)
+        h_vec = ones((m,1), dtype=h_matrix.dtype)
         # and stacking in the end
         h = column_stack((h_vec, h_matrix))
         # solve using LSMR regularisation
@@ -1413,7 +1413,7 @@ class DoasFOVEngine(object):
                 mask = m.astype(float64)
                 max_corr = coeff
                 tau_vec = tau_dat
-        corr_curve = Series(asarray(coeffs, dtype = float),radii)
+        corr_curve = Series(asarray(coeffs, dtype=float),radii)
         return radius, corr_curve, tau_vec, doas_vec, mask
         
     # define IFR model function (Super-Gaussian)    

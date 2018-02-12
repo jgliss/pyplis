@@ -119,7 +119,7 @@ def create_dataset():
     
     ### Create analysis object (from BaseSetup)
     # The dataset takes care of finding all vali
-    return pyplis.dataset.Dataset(stp)
+    return pyplis.Dataset(stp)
 
 
 ### SCRIPT MAIN FUNCTION    
