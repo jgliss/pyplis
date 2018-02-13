@@ -313,6 +313,10 @@ class DoasCalibData(object):
                 warn("Could not perform weighted calibration fit: "
                      "Length mismatch between DOAS data vector"
                      " and corresponding error vector")
+            elif sum(self.doas_vec_err) == 0:
+                warn("Could not performed weighted calibration fit: "
+                     "Values of DOAS fit errors are 0. Do you have pydoas "
+                     "installed?")
             else:
                 try:
                     if weights_how == "abs":

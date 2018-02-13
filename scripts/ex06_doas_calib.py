@@ -176,6 +176,9 @@ if __name__ == "__main__":
     # close all plots
     close("all")
     
+    #import DOAS results
+    doas_time_series = load_doas_results()
+    
     # Import script options
     (options, args) = OPTPARSE.parse_args()
     
@@ -192,7 +195,6 @@ if __name__ == "__main__":
     # reload or create the AA image stack based on current script settings
     stack, aa_list = get_stack()
     
-    doas_time_series = load_doas_results()
     s = pyplis.doascalib.DoasFOVEngine(stack, doas_time_series, maxrad=10)
     calib_pears = s.perform_fov_search(method="pearson")
     calib_ifr= s.perform_fov_search(method="ifr", ifrlbda=2e-3)
