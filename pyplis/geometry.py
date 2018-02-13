@@ -19,8 +19,9 @@
 Pyplis module containing functionality for all relevant geometrical 
 calculations
 """
-from numpy import nan, arctan, deg2rad, linalg, sqrt, abs, array, radians, sin,\
-     cos, arcsin, tan, rad2deg, linspace, isnan, asarray, ones, arange, argmin
+from numpy import nan, arctan, deg2rad, linalg, sqrt, abs, array, radians,\
+    sin, cos, arcsin, tan, rad2deg, linspace, isnan, asarray, ones, arange,\
+    argmin, newaxis
 from collections import OrderedDict as od
 from warnings import warn
 from matplotlib.pyplot import figure
@@ -132,10 +133,18 @@ class MeasGeometry(object):
         """Azimuth of camera viewing direction (CFOV)"""
         az = self.cam["azim"]
         if isnan(az):
-            raise AttributeError("Camera azimuth angle is not assigned to "
+            raise ValueError("Camera azimuth angle is not assigned to "
                                  "MeasGeometry")
         return az
     
+    @property
+    def elev_cfov(self):
+        """Azimuth of camera viewing direction (CFOV)"""
+        az = self.cam["elev"]
+        if isnan(az):
+            raise ValueError("Camera elevation angle is not assigned to "
+                                 "MeasGeometry")
+        return az
 # METHOD REMOVED ON 29/1/2018
 # =============================================================================
 #     def get_cam_specs(self, img_obj):
@@ -304,6 +313,7 @@ class MeasGeometry(object):
             source2cam = cam - source #Vector pointing from source to camera
             mag = source2cam.norm #length of this vector
             source2cam.name = "source2cam"
+            
             #vector representing the camera center pix viewing direction (CFOV),
             #anchor at camera position
             cam_view_vec = GeoVector3D(azimuth=self.cam["azim"], 
@@ -771,26 +781,28 @@ class MeasGeometry(object):
     
         return elev_cam, az_cam, geom_old, map
     
-    def calculate_pixel_col_distances(self):
-        """Determine pix to pix distances for all pix cols on the detector
-        
-        Based on angle between horizontal plume propagation and the individual
-        horizontal viewing directions for each pixel column in original image
-        coordinates. Thus, note that these values need to be converted in 
-        case binning was applied or the images were downscaled (i.e. using
-        gaussian pyramid).
-
-        .. note::
-        
-            this is inadequate for complicated viewing geometries (i.e if 
-            the the angles between viewing direction and plume are sharp)
-            
-        """
-        ratio = self.cam["pix_width"] / self.cam["focal_length"] #in m
-        azims = self.all_azimuths_camfov()
-        plume_dists = self.plume_dist(azims) #* 1000.0 #in m
-        pix_dists_m = plume_dists * ratio
-        return (pix_dists_m, plume_dists)
+# =============================================================================
+#     def calculate_pixel_col_distances(self):
+#         """Determine pix to pix distances for all pix cols on the detector
+#         
+#         Based on angle between horizontal plume propagation and the individual
+#         horizontal viewing directions for each pixel column in original image
+#         coordinates. Thus, note that these values need to be converted in 
+#         case binning was applied or the images were downscaled (i.e. using
+#         gaussian pyramid).
+# 
+#         .. note::
+#         
+#             this is inadequate for complicated viewing geometries (i.e if 
+#             the the angles between viewing direction and plume are sharp)
+#             
+#         """
+#         ratio = self.cam["pix_width"] / self.cam["focal_length"] #in m
+#         azims = self.all_azimuths_camfov()
+#         plume_dists = self.plume_dist(azims) #* 1000.0 #in m
+#         pix_dists_m = plume_dists * ratio
+#         return (pix_dists_m, plume_dists)
+# =============================================================================
         
     def pix_dist_err(self, col_num, pyrlevel=0):
         """Get uncertainty measure for pixel distance of a pixel column 
@@ -846,14 +858,22 @@ class MeasGeometry(object):
             - :obj:`Img`: image where each pixel corresponds to plume\
                 distance in m
         """
-        col_dists_m, plume_dists = self.calculate_pixel_col_distances()
+        ratio_hor = self.cam["pix_width"] / self.cam["focal_length"] #in m
+        #ratio_vert = self.cam["pix_height"] / self.cam["focal_length"] #in m
+        
+        azims = self.all_azimuths_camfov()
+        elevs = self.all_elevs_camfov()
+        
+        plume_dists = self.plume_dist(azims, elevs) #* 1000.0 #in m
+        col_dists_m = plume_dists * ratio_hor
+        
+        #col_dists_m, plume_dists = self.calculate_pixel_col_distances()
         row_dists_m = col_dists_m * self.cam["pix_height"] /\
                                                     self.cam["pix_width"]
                                                 
-        h = self.cam["pixnum_y"]
-        col_dist_img = Img(col_dists_m * ones(h).reshape((h, 1)))
-        row_dist_img = Img(row_dists_m * ones(h).reshape((h, 1)))
-        plume_dist_img = Img(plume_dists * ones(h).reshape((h, 1)))
+        col_dist_img = Img(col_dists_m)# * ones(h).reshape((h, 1)))
+        row_dist_img = Img(row_dists_m)# * ones(h).reshape((h, 1)))
+        plume_dist_img = Img(plume_dists)# * ones(h).reshape((h, 1)))
         #the pix-to-pix distances need to be transformed based on pyrlevel
         col_dist_img.pyr_down(pyrlevel)
         col_dist_img = col_dist_img * 2**pyrlevel
@@ -1168,32 +1188,67 @@ class MeasGeometry(object):
         """
         return self.geo_len_scale() / fac
                                 
-    def del_az(self, pixel_col1=0, pixel_col2=1):
+    def del_az(self, pixcol1=0, pixcol2=1):
         """Determine the difference in azimuth angle between 2 pixel columns
-        
-        Par
-        :param int pixel_col1: first pixel column
-        :param int pixel_col2: second pixel column
-        :return: float, azimuth difference
-        """
-        delta = int(abs(pixel_col1 - pixel_col2))
-        return rad2deg(arctan((delta * self.cam["pix_width"]) /\
-                                        self.cam["focal_length"]))
-    
-    def plume_dist(self, az=None):
-        """Return plume distance for input azimuth angle(s)
-        
         
         Parameters
         ----------
-        az : :obj:`float` or :obj:`list`
+        pixcol1 : int
+            first pixel column
+        pixcol2 : int 
+            second pixel column
+        
+        Returns
+        -------
+        float 
+            azimuth difference in degrees
+        """
+        delta = int(abs(pixcol1 - pixcol2))
+        return rad2deg(arctan((delta * self.cam["pix_width"]) /\
+                                        self.cam["focal_length"]))
+        
+    def del_elev(self, pixrow1=0, pixrow2=1):
+        """Determine the difference in azimuth angle between 2 pixel columns
+        
+        Parameters
+        ----------
+        pixrow1 : int
+            first pixel row
+        pixrow2 : int 
+            second pixel row
+        
+        Returns
+        -------
+        float 
+            elevation difference in degrees
+        """
+        delta = int(abs(pixrow1 - pixrow2))
+        return rad2deg(arctan((delta * self.cam["pix_height"]) /\
+                                        self.cam["focal_length"]))
+    
+    def plume_dist(self, az=None, elev=None):
+        """Return plume distance for input azim and elev angles
+        
+        Computes the distance to the plume for the whole image plane, assuming 
+        that the horizontal plume propagation direction is given by the 
+        meteorological wind direction. The vertical component of the plume 
+        distance for each pixel row and column is computed based on the 
+        corresponding elevation angle and horizontal distance to the plume. 
+        
+        Parameters
+        ----------
+        az : :obj:`float` or :obj:`list`, optional
             azimuth value(s) (single val or array of values). If `None`, then 
             the azimuth angle of the camera CFOV is used.
+        
+        elev : :obj:`float` or :obj:`list`, optional
+            elevation angle(s) (single val or array of values). If `None`, then 
+            the elevation angle of the camera CFOV is used.
             
         Returns
         -------
         :obj:`float` or :obj:`list`
-            plume distance(s) in m for input azimuth(s)
+            plume distance(s) in m for input azimuth(s) and elevations
         """
         if az is None:
             az = [self.azim_cfov]
@@ -1201,6 +1256,15 @@ class MeasGeometry(object):
             len(az)
         except TypeError:
             az = [az]
+        az = array(az)
+        if elev is None:
+            elev = [self.elev_cfov]
+        try:
+            len(elev)
+        except TypeError:
+            elev = [elev]
+        #transpose elevation array so
+        elev = deg2rad(array(elev)[newaxis].T)
         diff_vec = self.geo_setup.vectors["source2cam"]
         dv = array((diff_vec.dx, diff_vec.dy)).reshape(2, 1)
         pdrad = deg2rad(self.plume_dir[0])
@@ -1209,7 +1273,16 @@ class MeasGeometry(object):
                                     (tan(pdrad) - tan(azrad))
         x = tan(pdrad) * y
         v = array((x,y)) - dv
-        return linalg.norm(v, axis=0)*1000.0
+        
+        # 1D horizontal array containing horizontal plume distances
+        dists_hor = linalg.norm(v, axis=0)*1000.0
+        
+        # 2D array containing vertical distances
+        dzs = tan(elev) * dists_hor
+        
+        dists = sqrt(dists_hor**2 + dzs**2)
+    
+        return dists
     
     def plume_dist_err(self, az=None):
         """Compute uncertainty in plume distances
@@ -1258,12 +1331,29 @@ class MeasGeometry(object):
         dists = asarray(dists)
         return (dists.max()-dists.mean())*1000
     
+    def all_elevs_camfov(self):
+        """Returns array containing elevation angles for each image row"""
+        rownum = self.cam["pixnum_y"]
+        if isnan(rownum):
+            raise ValueError("Number of pixels of camera detector is not "
+                             "available")
+        daz = self.del_elev(0,1)
+        offs = -daz/2.0 if rownum%2==0 else 0.0
+        angles_rel = linspace(rownum/2., -rownum/2., rownum)*daz
+        return self.elev_cfov + angles_rel + offs
+    
     def all_azimuths_camfov(self):
+        """Returns array containing azimuth angles for each image row"""
         colnum = self.cam["pixnum_x"]
-        offs = 0.0
+        if isnan(colnum):
+            raise ValueError("Number of pixels of camera detector is not "
+                             "available")
         daz = self.del_az(0,1)
-        if colnum%2 == 0: #even number of pixels
-            offs = -daz/2.0
+        offs = -daz/2.0 if colnum%2==0 else 0.0
+# =============================================================================
+#         if colnum%2 == 0: #even number of pixels
+#             offs = -daz/2.0
+# =============================================================================
         angles_rel = linspace(-colnum/2., colnum/2., colnum)*daz
         return self.azim_cfov + angles_rel + offs
     
@@ -1331,10 +1421,7 @@ class MeasGeometry(object):
 #             az_angles[k] = az0 + k * del_az
 #         return az_angles          
 # =============================================================================
-        
-    """
-    Magic methods (overloading)
-    """
+
     def __str__(self):
         """String representation of this object"""
         s = "pyplis MeasGeometry object\n##################################\n"

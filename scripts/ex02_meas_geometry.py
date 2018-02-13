@@ -98,12 +98,12 @@ def plot_plume_distance_image(meas_geometry):
     fig, ax = subplots(2, 1, figsize = (7,8))
     
     # Show pix-to-pix distance image
-    dist_img.show(cmap="gray", ax=ax[0], zlabel="Pixel to pixel distance [m]")
-    ax[0].set_title("Parametrised pixel to pixel distances")
+    dist_img.show(cmap="gray", ax=ax[0], zlabel="Pix-to-pix distance [m]")
+    ax[0].set_title("Parameterised pix-to-pix dists")
     
     # Show plume distance image (convert pixel values to from m -> km)
     (plume_dist_img / 1000.0).show(cmap="gray", ax=ax[1], zlabel="Plume distance [km]")
-    ax[1].set_title("Retrieved plume distances")
+    ax[1].set_title("Plume dists")
     return fig
 
 ### SCRIPT MAIN FUNCTION
@@ -114,7 +114,7 @@ if __name__ == "__main__":
     ds = create_dataset()
     
     # execute function defined above (see above for definition and information)
-    geom_corr, map = find_viewing_direction(ds.meas_geometry)
+    geom_corr, map_ = find_viewing_direction(ds.meas_geometry)
     
     # execute 2. script function (see above for definition and information)
     fig =  plot_plume_distance_image(ds.meas_geometry)
@@ -153,7 +153,7 @@ if __name__ == "__main__":
     # Using this a
     ### IMPORTANT STUFF FINISHED    
     if SAVEFIGS:
-        map.ax.figure.savefig(join(SAVE_DIR, "ex02_out_1.%s" %FORMAT), 
+        map_.ax.figure.savefig(join(SAVE_DIR, "ex02_out_1.%s" %FORMAT), 
                               format=FORMAT, dpi=DPI)
         fig.savefig(join(SAVE_DIR, "ex02_out_2.%s" %FORMAT), format=FORMAT,
                     dpi=DPI)
@@ -177,8 +177,8 @@ if __name__ == "__main__":
         # check some propoerties of the basemap (displayed in figure)
         
         #map basemap coordinates to lon / lat values
-        lon, lat = map(8335, 9392, inverse=True)
-        npt.assert_allclose(actual=[lon, lat, map.delta_lon, map.delta_lat],
+        lon, lat = map_(8335, 9392, inverse=True)
+        npt.assert_allclose(actual=[lon, lat, map_.delta_lon, map_.delta_lat],
                             desired=[15.075131135, 37.76678834,
                                      0.149263852982,
                                      0.118462659944],
@@ -194,16 +194,16 @@ if __name__ == "__main__":
                                     plume_dist_err_cfov,
                                     plume_dists_all_cols.mean(),
                                     plume_dist_cfov_new],
-                            desired=[15.4775422,
-                                     1.06455589,
-                                     279.30130009,
-                                     1.065410737,
-                                     279.30130009,
-                                     10341.865088793651,
-                                     164.55855589678592,
-                                     10370.24319513553,
-                                     9600.3372372732192],
-                            rtol=1e-7)
+                            desired=[1.547754e+01, 
+                                     1.064556e+00, 
+                                     2.793013e+02, 
+                                     1.065411e+00,
+                                     2.793013e+02,
+                                     1.073102e+04, 
+                                     1.645586e+02, 
+                                     1.076047e+04,
+                                     9.961593e+03],
+                            rtol=1e-6)
         print("All tests passed in script: %s" %basename(__file__)) 
     try:
         if int(options.show) == 1:

@@ -175,7 +175,7 @@ if __name__ == "__main__":
         
         npt.assert_allclose(actual=[plume_dists.mean(), plume_dists.std(),
                                     on_list.get_dark_image().mean()],
-                            desired=[10232.611, 23.93812, 190.56119],
+                            desired=[10909.873, 221.48848, 190.56119],
                             rtol=1e-7)
         
         npt.assert_array_equal([418, 2, 2368, 1, 1, 0,
