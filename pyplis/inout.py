@@ -20,6 +20,7 @@ Module containing all sorts of I/O-routines (e.g. test data access)
 """
 from os.path import join, basename, exists, isfile, abspath
 from os import listdir, remove, walk
+from re import split
 
 from matplotlib.pyplot import imread
 from collections import OrderedDict as od
@@ -245,6 +246,7 @@ def get_camera_info(cam_id):
     with open(join(_LIBDIR, "data", "cam_info.txt")) as f:
         filters = []
         darkinfo = []
+        io_opts = {}
         found = 0
         for ll in f:
             line = ll.rstrip()
@@ -252,6 +254,7 @@ def get_camera_info(cam_id):
                 if "END" in line and found:
                     dat["default_filters"] = filters
                     dat["dark_info"] = darkinfo
+                    dat["io_opts"] = io_opts
                     return dat
                 spl = line.split(":")
                 if found:
@@ -264,6 +267,13 @@ def get_camera_info(cam_id):
                         elif k == "filter":
                             l = [x.strip() for x in spl[1].split("#")[0].split(',')]
                             filters.append(l)
+                        elif k == "io_opts":                            
+                            l = [x.strip() for x in split("=|,", spl[1].split("#")[0])]
+                            keys, vals = l[::2], l[1::2]
+                            if len(keys) == len(vals):
+                                for i in range(len(keys)):
+                                    io_opts[keys[i]]=bool(vals[i])
+                        
                         else:
                             data_str = spl[1].split("#")[0].strip()
                             if any([data_str == x for x in ["''", '""']]):
@@ -340,6 +350,51 @@ def save_new_default_camera(info_dict):
     print ("Successfully added new default camera %s to database" 
             %info_dict["cam_id"])
 
+def save_default_source(info_dict):
+    """Adds a new default source to file source_info.txt"""
+    if not all(k in info_dict for k in ("name","lon","lat","altitude")):
+        raise ValueError("Cannot save source information, require at least "
+                         "name, lon, lat and altitude")
+    if info_dict["name"] in get_source_ids():
+        raise NameError("A source with name %s already exists in database"
+                        %info_dict["name"])
+    from pyplis import _LIBDIR
+    source_file = join(_LIBDIR, "data", "my_sources.txt")
+    raise NotImplementedError("We are working on that...")                   
+    source_file_temp = create_temporary_copy(source_file)
+    with open(source_file_temp, "a") as info_file:
+        info_file.write("\n")
+        cam_ids = [str(x) for x in cam_ids]
+        info_file.write(",".join(cam_ids))
+        info_file.write("\n")
+        for k, v in info_dict.iteritems():
+            if k in keys:
+                print "Writing to file:\t%s: %s" %(k,v)   
+                if k == "default_filters":
+                    for finfo in v:
+                        info_file.write("filter:")
+                        finfo = [str(x) for x in finfo]
+                        info_file.write(",".join(finfo))
+                        info_file.write("\n")
+                elif k == "dark_info":
+                    for finfo in v:
+                        info_file.write("dark_info:")
+                        finfo = [str(x) for x in finfo]
+                        info_file.write(",".join(finfo))
+                        info_file.write("\n")
+                elif k == "cam_ids":
+                    pass
+                else:
+                    info_file.write("%s:%s\n" %(k,v))
+        info_file.write("ENDCAM")
+    info_file.close()
+    #Writing ended without errors: replace data base file "cam_info.txt" with 
+    #the temporary file and delete the temporary file
+    copy2(cam_file_temp, cam_file)
+    remove(cam_file_temp)
+    
+    print ("Successfully added new default camera %s to database" 
+            %info_dict["cam_id"])
 def get_all_valid_cam_ids():
     """Load all valid camera string ids
     

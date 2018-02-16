@@ -63,7 +63,7 @@ class PlumeBackgroundModel(object):
         self._mode = 0
         
         #: settings for poly surface fit (corr mode: 0)
-        self.surface_fit_mask = None
+        self._surface_fit_mask = None
         self.surface_fit_pyrlevel = 4
         self.surface_fit_polyorder = 2
     
@@ -154,6 +154,18 @@ class PlumeBackgroundModel(object):
         return Img(exp(self._current_imgs["tau"].img) * 
                     self._current_imgs["plume"].img)
     
+    @property
+    def surface_fit_mask(self):
+        """Mask for retrieval mode 0: fit 2D polynomial"""
+        return self._surface_fit_mask
+    
+    @surface_fit_mask.setter
+    def surface_fit_mask(self, val):
+        print("CALLING SETTER FOR MASK, input type: %s" %type(val))
+        if not isinstance(val, Img):
+            val = Img(val)
+        self._surface_fit_mask = val
+        
     def get_current(self, key="tau"):
         """Returns current image, specify type via input key
         
@@ -909,7 +921,7 @@ class PlumeBackgroundModel(object):
             palette = colors.ListedColormap(['white', 'lime'])
             norm = colors.BoundaryNorm([0, .5, 1], palette.N)
     
-            ax[3].imshow(self.surface_fit_mask, cmap=palette, norm=norm,
+            ax[3].imshow(self.surface_fit_mask.img, cmap=palette, norm=norm,
                          alpha=.7)
 
             ax[3].set_xticklabels([])
@@ -1121,6 +1133,8 @@ class PlumeBackgroundModel(object):
         elif key == "mode":
             "Updating %s in background model" %key
             self.mode = value
+        elif key == "surface_fit_mask":
+            self.surface_fit_mask = value
         elif key == "CORR_MODE":
             warn("Got input key CORR_MODE which is out-dated in versions 0.10+)"
                 ". Updated background modelling mode accordingly")

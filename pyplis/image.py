@@ -111,7 +111,7 @@ class Img(object):
             meta_info.update(input.meta)
             input = input.img
             
-        self._img = None #: the actual image data
+        self._img = None #: the actual image data (use method `img` for access)
         self.dtype = dtype
         self.vign_mask = None
         
@@ -148,14 +148,22 @@ class Img(object):
                         ("bit_depth"     ,   nan), # pix bit depth
                         ("f_num"         ,   nan), # f number of lense
                         ("read_gain"     ,   0),   # boolean (on / off)
-                        ("filter"        ,   ""),
+                        ("lon"           ,   nan),   #longitude (dec deg)
+                        ("lat"           ,   nan),   #latitude (dec. deg)
+                        ("altitude"      ,   nan),    # in m
+                        ("alt_offset"    ,   nan),    # offset in altitude above topography
+                        ("elev"         ,    nan),
+                        ("elev_err"     ,    nan),
+                        ("azim"         ,    nan),
+                        ("azim_err"     ,    nan),
+                        ("filter_id"     ,   ""),
                         ("path"          ,   ""),
                         ("file_name"     ,   ""),
                         ("file_type"     ,   ""),
                         ("device_id"     ,   ""),
                         ("ser_no"        ,   ""),
-                        ("img_idx"       ,   0)])
-                        
+                        ("wvlngth"       ,   nan)])
+                      
         try:
             data, meta_info = import_method(input, meta_info) 
             input = data
@@ -168,6 +176,7 @@ class Img(object):
                 self.meta[k] = v
             elif self.edit_log.has_key(k):
                 self.edit_log[k] = v
+    
         if input is not None:                              
             self.load_input(input)
         try:
@@ -892,6 +901,10 @@ class Img(object):
         """Returns mean value of current image data"""
         return self.img.mean()
         
+    def sum(self):
+        """The sum of all pixel values"""
+        return self.img.sum()
+    
     def std(self):
         """Returns standard deviation of current image data"""
         return self.img.std()

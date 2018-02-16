@@ -113,7 +113,6 @@ class MeasGeometry(object):
                                 ('pixnum_y'     ,   nan),
                                 ('alt_offset'   ,   0.0)])  #altitude above 
                                                             #topo in m
-        
         self.auto_topo_access = auto_topo_access
         self.geo_setup = GeoSetup(id=self.cam_id)
         

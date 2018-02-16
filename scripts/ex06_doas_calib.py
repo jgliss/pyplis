@@ -288,16 +288,18 @@ if __name__ == "__main__":
         vals.append(c.fov.sigma_x_abs)
         vals.append(c.fov.sigma_y_abs)
         npt.assert_allclose(actual=vals,
-                            desired=[1.07808621,  
-                                     1.59344973e+02,  
-                                     1.23791125e+02,  
-                                     7.08819489e+00,
-                                     1.90030991e+00,  
-                                     3.37942801e-01, 
-                                     -4.23539904e-03,
-                                     28.352779577670304,
-                                     14.920081933140823],
-                            rtol=1e-7)
+                            desired=[1.078086e+00,  
+                                     1.593450e+02,  
+                                     1.237911e+02,  
+                                     7.088195e+00,
+                                     1.900310e+00,  
+                                     3.379428e-01, 
+                                     -4.235399e-03,  
+                                     6.373799e+02,
+                                     4.951645e+02,  
+                                     2.835278e+01,  
+                                     1.492008e+01],
+                            rtol=1e-5)
         print("All tests passed in script: %s" %basename(__file__)) 
     try:
         if int(options.show) == 1:

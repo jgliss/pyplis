@@ -42,12 +42,16 @@ Valid keys for import of image meta information:
 'device_id', 'ser_no'
       
 """
+from __future__ import division
 from matplotlib.pyplot import imread
 from numpy import swapaxes, flipud, asarray, rot90
 from warnings import warn
+from astropy.io import fits
 from cv2 import resize
 from os.path import basename
 from datetime import datetime
+from .helpers import matlab_datenum_to_datetime
+
 from re import sub
 
 try:
@@ -55,8 +59,7 @@ try:
 except:
     pass
 
-
-def load_hd_custom(file_path, meta={}):
+def load_hd_custom(file_path, meta={}, **kwargs):
     """Load image from HD custom camera
     
     The camera specs can be found in 
@@ -93,7 +96,7 @@ def load_hd_custom(file_path, meta={}):
         warn("Failed to read image meta data from text file (cam_id: hd)")                                         
     return (img, meta)                                                
                                                 
-def load_hd_new(file_path, meta={}):
+def load_hd_new(file_path, meta={}, **kwargs):
     """Load new format from Heidelberg group
     
     This format contains IPTC information
@@ -114,3 +117,36 @@ def load_hd_new(file_path, meta={}):
     
     return (img, meta)
 
+def load_usgs_multifits(file_path, meta={}):
+    if not "filter_id" in meta:
+        raise ValueError("Please specify filter_id (i.e. on or off) in "
+                         "input arg meta")
+    try:
+        f = fits.open(file_path)
+        idx = 2 if meta["filter_id"] == "off" else 1
+        hdu = f[idx]
+        h = hdu.header
+        try:
+            meta["start_acq"] = matlab_datenum_to_datetime(h["DATETIME"])
+            meta["texp"] = h["EXPTIME"] * h["NUMEXP"] / 1000
+            meta["bit_depth"] = h["BITDEPTH"]
+        except:
+            warn("Failed to import image specific meta information from image "
+                 "HDU")
+        h = f[0].header
+        try:
+            meta["lon"] = h["LON"]
+            meta["lat"] = h["LAT"]
+            meta["altitude"] = h["ALT"]
+            meta["elev"] = h["ELEVANGL"]
+            meta["azim"] = h["AZMTANGL"]
+            print meta["azim"]
+        except:
+            warn("Failed to import camera specific meta information from "
+                 "primary HDU of FITS file...")
+        img = hdu.data
+        f.close()
+    except:
+        warn("Failed to import image data using custom method")
+    return (img, meta)
+    

@@ -73,7 +73,7 @@ class Source(object):
     the source information is extracted from the database and the 
     parameter ``info_dict`` is ignored.
     """
-    def __init__(self, name="", info_dict={}):
+    def __init__(self, name="", info_dict={}, **kwargs):
         self.name = name
         self.lon = nan
         self.lat = nan
@@ -91,6 +91,8 @@ class Source(object):
                 info_dict = info
                 
         self.load_source_info(info_dict)
+        for k, v in kwargs.iteritems():
+            self[k] = v
         
     @property
     def source_id(self):
@@ -607,6 +609,11 @@ class Camera(CameraBaseInfo):
         warn("Old name of method update")
         self.update(**settings)
         
+    def load_default(self, cam_id):
+        """Redefinition of method from base class :class:`CameraBaseInfo`"""
+        super(Camera, self).load_default(cam_id)
+        self.prepare_filter_setup()
+        
     def update(self, **settings):
         """Update camera parameters
         
@@ -807,6 +814,7 @@ class BaseSetup(object):
         #. :attr:`SEPARATE_FILTERS`
         #. :attr:`USE_ALL_FILE_TYPES`
         #. :attr:`INCLUDE_SUB_DIRS`
+        #. :attr:`ON_OFF_SAME_FILE`
         
     Parameters
     ----------
@@ -834,10 +842,11 @@ class BaseSetup(object):
                            ("SEPARATE_FILTERS"      ,   True),
                            ("USE_ALL_FILE_TYPES"    ,   False),
                            ("INCLUDE_SUB_DIRS"      ,   False),
-                           ])
+                           ("ON_OFF_SAME_FILE"      ,   False),
+                           ("LINK_OFF_TO_ON"        ,   True)])
                            
         self.check_timestamps()
-        
+        print self.LINK_OFF_TO_ON
         for k, v in opts.iteritems():
             if self.options.has_key(k):
                 self.options[k] = v
@@ -906,8 +915,8 @@ class BaseSetup(object):
         """File import option (boolean)
         
         If True, all files found are imported, disregarding the file type 
-        (i.e. if image file type is not specified, we strongly recommend NOT to 
-        use this option)
+        (i.e. if image file type is not specified. It is strongly recommended 
+        NOT to use this option)
         """
         return self.options["USE_ALL_FILE_TYPES"]
     
@@ -931,6 +940,46 @@ class BaseSetup(object):
             raise ValueError("need boolean")
         self.options["INCLUDE_SUB_DIRS"] = value
     
+    @property
+    def ON_OFF_SAME_FILE(self):
+        """File import option (boolean)
+        
+        If True, it is assumed, that each image file contains both on and 
+        offband images. In this case, both the off and the onband image lists
+        are filled with the same file paths. Which image to load in each list 
+        is then handled within the :class:`ImgList`itself on :func:`load` 
+        using the attribute :attr:`list_id` which is passed using the key 
+        ``filter_id`` to the respective customised image import method that 
+        has to be defined in the :mod:`custom_image_import` file of the pyplis
+        installation and linked to your Camera settings in the ``cam_info.txt``
+        file which can be found in the data directory of the installation.
+        
+        An example for such a file convention is the SO2 camera from CVO (USGS)
+        in Portland. See e.g. 
+        """
+        return self.options["ON_OFF_SAME_FILE"]
+    
+    @ON_OFF_SAME_FILE.setter
+    def ON_OFF_SAME_FILE(self, value):
+        if not value in [0, 1]:
+            raise ValueError("need boolean")
+        self.options["ON_OFF_SAME_FILE"] = value
+     
+    @property
+    def LINK_OFF_TO_ON(self):
+        """File import option (boolean)
+        
+        If True, the offband ImgList is automatically linked to the onband
+        list on initiation of a :class:`Dataset` object.
+        """
+        return self.options["LINK_OFF_TO_ON"]
+    
+    @LINK_OFF_TO_ON.setter
+    def LINK_OFF_TO_ON(self, value):
+        if not value in [0, 1]:
+            raise ValueError("need boolean")
+        self.options["LINK_OFF_TO_ON"] = value
+        
     def check_timestamps(self):
         """Check if timestamps are valid and set to current time if not"""
         if not isinstance(self.start, datetime):
@@ -1035,7 +1084,6 @@ class MeasSetup(BaseSetup):
                  lines={}, auto_topo_access=True, **opts):
     
         super(MeasSetup, self).__init__(base_dir, start, stop, **opts)
-        self.id = "meas"
         
         if not isinstance(camera, Camera):
             camera = Camera()
@@ -1060,9 +1108,11 @@ class MeasSetup(BaseSetup):
                                           self.camera.to_dict(), 
                                           self.wind_info,
                                           auto_topo_access=
-                                          self.auto_topo_access)    
-        #self.update_meas_geometry()
-    
+                                          self.auto_topo_access)  
+        # If specified in custom camera, update the file I/O options 
+        # defined in :class:`BaseSetup`
+        self.options.update(self.camera._io_opts)
+        
     @property
     def source(self):
         """Emission source"""

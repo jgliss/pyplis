@@ -96,6 +96,8 @@ class CameraBaseInfo(object):
         self.texp_pos = None
         self.texp_unit = "ms"
         
+        self._io_opts = {}
+        
         self.image_import_method = None
         
         self.meas_type_pos = None#nan
@@ -217,7 +219,7 @@ class CameraBaseInfo(object):
                 flags[key] = False
             warnings.append("Filename delimiter is not set")
                
-        spl = basename(file_path).split(".")[0].split(self.delim)
+        spl = basename(file_path).rsplit(".", 1)[0].split(self.delim)
         try:
             pos = self.time_info_pos
             sub = self.delim.join(spl[pos:(pos + self._time_info_subnum)])
@@ -380,7 +382,7 @@ class CameraBaseInfo(object):
         
         self.default_filters = filters
         self.dark_info = dark_info
-        
+        self._io_opts = info_dict["io_opts"]
         self.update_file_access_flags()
             
         return missed, err

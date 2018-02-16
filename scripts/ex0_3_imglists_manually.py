@@ -63,7 +63,7 @@ if __name__ == "__main__":
     # Note that the files are not separated by filter type, or dark and offset, 
     # etc. so the list simply contains all images of type fts which were found
     # in IMG_DIR
-    list_all_imgs = pyplis.imagelists.ImgList(all_paths, list_id = "all")
+    list_all_imgs = pyplis.imagelists.ImgList(all_paths, list_id="all")
     
     # Split the list by on band file type (which is identified by acronym
     # "F01" at 4th position in file name after splitting using delimiter "_")
@@ -140,6 +140,9 @@ if __name__ == "__main__":
     ax[1].set_title("Current img (off-band list): %s" %off_time_str)
      
     on_list.edit_info()
+    
+    on_list.skip_files = 3
+    on_list.goto_img(15)
     
     ### IMPORTANT STUFF FINISHED    
     if SAVEFIGS:

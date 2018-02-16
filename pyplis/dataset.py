@@ -87,9 +87,6 @@ class Dataset(object):
     def __init__(self, input=None, lst_type=ImgList, init=1):
         self.setup = None
         
-        #Options (capitalised)
-        self.LINK_OFF_TO_ONBAND = True
-        
         self.lst_type = lst_type
         self._lists_intern = od()
         self.lists_access_info = od()
@@ -100,6 +97,158 @@ class Dataset(object):
             self.init_image_lists()
         else:
             self.create_lists_default()
+    
+    @property 
+    def camera(self):
+        """Return camera base info object"""
+        return self.setup.camera
+        
+    @camera.setter
+    def camera(self, val):
+        self.setup.camera = val
+        
+    @property
+    def source(self):
+        """Get / set current Source"""
+        return self.setup.source
+        
+    @source.setter
+    def source(self, val):
+        self.setup.source = val
+        
+    @property
+    def cam_id(self):
+        """Returns current camera ID"""
+        return self.setup.camera.cam_id
+        
+    @property
+    def base_dir(self):
+        """Getter / setter of current image base_dir"""
+        return self.setup.base_dir
+    
+    @base_dir.setter
+    def base_dir(self, val):
+        if exists(val):
+            self.setup.base_dir = val
+            self.init_image_lists()
+    
+    @property
+    def USE_ALL_FILES(self):
+        """Return USE_ALL_FILES boolen from setup"""
+        return self.setup.USE_ALL_FILES
+    
+    @USE_ALL_FILES.setter
+    def USE_ALL_FILES(self, val):
+        self.setup.USE_ALL_FILES = val
+        print ("Option USE_ALL_FILES was updated in Dataset, please call class"
+            " method ``init_image_lists`` in order to apply the changes")
+    @property
+    def USE_ALL_FILE_TYPES(self):
+        """Return USE_ALL_FILE_TYPES option from setup"""
+        return self.setup.USE_ALL_FILE_TYPES
+    
+    @USE_ALL_FILE_TYPES.setter
+    def USE_ALL_FILE_TYPES(self, val):
+        self.setup.USE_ALL_FILE_TYPES = val
+        print ("Option USE_ALL_FILE_TYPES was updated in Dataset, please call "
+            "class method ``init_image_lists`` in order to apply the changes")
+        
+    @property
+    def INCLUDE_SUB_DIRS(self):
+        """Returns boolean sub directory inclusion option"""
+        return self.setup.INCLUDE_SUB_DIRS
+    
+    @INCLUDE_SUB_DIRS.setter
+    def INCLUDE_SUB_DIRS(self, val):
+        self.setup.INCLUDE_SUB_DIRS = val
+        print ("Option INCLUDE_SUB_DIRS was updated in Dataset, please call "
+            "class method ``init_image_lists`` in order to apply the changes")
+    
+    @property
+    def LINK_OFF_TO_ON(self):
+        """I/O option defined in :class:`BaseSetup`"""
+        return self.setup.LINK_OFF_TO_ON
+    
+    @LINK_OFF_TO_ON.setter
+    def LINK_OFF_TO_ON(self, val):
+        self.setup.LINK_OFF_TO_ON = val
+        print ("Option INCLUDE_SUB_DIRS was updated in Dataset, please call "
+            "class method ``init_image_lists`` in order to apply the changes")
+        
+    @property
+    def start(self):
+        """Getter / setter for current start time stamp"""
+        return self.setup.start
+        
+    @start.setter
+    def start(self, val):
+        self.setup.start = val
+        print ("Start time stamp was updated in Dataset, please call "
+            "class method ``init_image_lists`` in order to apply the changes")
+    
+    @property
+    def stop(self):
+        """Getter / setter for current stop time stamp"""
+        return self.setup.stop
+    
+    @stop.setter
+    def stop(self, val):
+        self.setup.stop = val
+        print ("Stop time stamp was updated in Dataset, please call "
+            "class method ``init_image_lists`` in order to apply the changes")
+        
+    @property
+    def file_type(self):
+        """Returns current image file type"""
+        return self.setup.camera.file_type
+        
+    @property
+    def meas_geometry(self):
+        """Returns current measurement geometry"""
+        return self.setup.meas_geometry
+        
+    @property
+    def filters(self):
+        """Returns the current filter setup"""
+        return self.setup.camera.filter_setup
+    
+    @property
+    def filter_acronyms(self):
+        """Make a dictionary of filter IDs and corresponding acronyms"""
+        acros = {}
+        for key, val in self.filters.filters.iteritems():
+            #read the acronym from the filter object
+            acros[key] = val.acronym 
+        return acros
+
+    @property
+    def num_of_filters(self):
+        """Returns the number of filters in ``self.filters``"""
+        return len(self.filters.filters.keys())
+    
+    @property
+    def _fname_access_flags(self):
+        return self.camera._fname_access_flags
+    
+    @property
+    def rects(self):
+        """Returns rectangle collection"""
+        return self.setup.forms.rects
+        
+    @rects.setter
+    def rects(self, name, value):
+        """Setter method for rectangle collection stored in ``self.setup``"""
+        self.setup.forms.rects[name] = value
+    
+    @property
+    def lines(self):
+        """Returns rectangle collection"""
+        return self.setup.forms.lines
+        
+    @lines.setter
+    def lines(self, name, value):
+        """Setter method for rectangle collection stored in ``self.setup``"""
+        self.setup.forms.lines[name] = value
                                                         
     def load_input(self, input):
         """Extract information from input and set / update self.setup
@@ -249,36 +398,43 @@ class Dataset(object):
                 self.setup.options["USE_ALL_FILES"] = True
             else:
                 paths = paths_temp
+        if self.setup.ON_OFF_SAME_FILE:
+            print("Option ON_OFF_SAME_FILE is active: using same file paths "
+                  "in default on and offband list. Please note that no "
+                  "further file separation is applied (e.g. separation of dark "
+                  "images)")
+            self.img_lists[self.filters.default_key_on].add_files(paths)
+            self.img_lists[self.filters.default_key_off].add_files(paths)
+        else:
+            if not (flags["filter_id"] and flags["meas_type"]):
+                #: it is not possible to separate different image types (on, off, 
+                #: dark..) from filename, thus all are loaded into on image list
+                warnings.append("Images can not be separated by type / meas_type "
+                    "(e.g. on, off, dark, offset...) from filename info, loading "
+                    "all files into on-band list")
+                self.setup.options["SEPARATE_FILTERS"] = False
+                i = self.lists_access_info[self.filters.default_key_on]
+                self._lists_intern[i[0]][i[1]].add_files(paths)
+                [warn(x) for x in warnings]
+                return True
                 
-        if not (flags["filter_id"] and flags["meas_type"]):
-            #: it is not possible to separate different image types (on, off, 
-            #: dark..) from filename, thus all are loaded into on image list
-            warnings.append("Images can not be separated by type / meas_type "
-                "(e.g. on, off, dark, offset...) from filename info, loading "
-                "all files into on-band list")
-            self.setup.options["SEPARATE_FILTERS"] = False
-            i = self.lists_access_info[self.filters.default_key_on]
-            self._lists_intern[i[0]][i[1]].add_files(paths)
-            [warn(x) for x in warnings]
-            return True
+            not_added = 0
+            #: now perform separation by meastype and filter
+            for p in paths:
+                try:
+                    _, filter_id, meas_type, _, _ = self.camera.\
+                                            get_img_meta_from_filename(p)
+                    self._lists_intern[meas_type][filter_id].files.append(p)
+                except Exception as e:
+                    print repr(e)
+                    not_added += 1
             
-        not_added = 0
-        #: now perform separation by meastype and filter
-        for p in paths:
-            try:
-                _, filter_id, meas_type, _, _ = self.camera.\
-                                        get_img_meta_from_filename(p)
-                self._lists_intern[meas_type][filter_id].files.append(p)
-            except Exception as e:
-                print repr(e)
-                not_added += 1
-        
-        for meas_type, sub_dict in self._lists_intern.iteritems():
-            for filter_id, lst in sub_dict.iteritems():
-                lst.init_filelist()
-        
-        self.assign_dark_offset_lists()
-        if self.LINK_OFF_TO_ONBAND:
+            for meas_type, sub_dict in self._lists_intern.iteritems():
+                for filter_id, lst in sub_dict.iteritems():
+                    lst.init_filelist()
+            
+            self.assign_dark_offset_lists()
+        if self.LINK_OFF_TO_ON:
             try:
                 off_list = self.get_list(self.filters.default_key_off)
                 self.get_list(self.filters.default_key_on).\
@@ -871,182 +1027,7 @@ class Dataset(object):
     def draw_map_3d(self,*args, **kwargs):
         """Wrapper for :func:`draw_map_3d` of ``self.meas_geometry`` object"""
         return self.meas_geometry.draw_map_3d(*args, **kwargs)    
-    """
-    Decorators
-    """    
-    @property 
-    def camera(self):
-        """Return camera base info object"""
-        return self.setup.camera
-        
-    @camera.setter
-    def camera(self, val):
-        self.setup.camera = val
-        
-    @property
-    def source(self):
-        """Get / set current Source"""
-        return self.setup.source
-        
-    @source.setter
-    def source(self, val):
-        self.setup.source = val
-        
-    @property
-    def cam_id(self):
-        """Returns current camera ID"""
-        return self.setup.camera.cam_id
-        
-    @property
-    def base_dir(self):
-        """Getter / setter of current image base_dir"""
-        return self.setup.base_dir
-    
-    @base_dir.setter
-    def base_dir(self, val):
-        if exists(val):
-            self.setup.base_dir = val
-            self.init_image_lists()
-    
-    @property
-    def USE_ALL_FILES(self):
-        """Return USE_ALL_FILES boolen from setup"""
-        return self.setup.USE_ALL_FILES
-    
-    @USE_ALL_FILES.setter
-    def USE_ALL_FILES(self, val):
-        self.setup.USE_ALL_FILES = val
-        print ("Option USE_ALL_FILES was updated in Dataset, please call class"
-            " method ``init_image_lists`` in order to apply the changes")
-    @property
-    def USE_ALL_FILE_TYPES(self):
-        """Return USE_ALL_FILE_TYPES option from setup"""
-        return self.setup.USE_ALL_FILE_TYPES
-    
-    @USE_ALL_FILE_TYPES.setter
-    def USE_ALL_FILE_TYPES(self, val):
-        self.setup.USE_ALL_FILE_TYPES = val
-        print ("Option USE_ALL_FILE_TYPES was updated in Dataset, please call "
-            "class method ``init_image_lists`` in order to apply the changes")
-        
-    @property
-    def INCLUDE_SUB_DIRS(self):
-        """Returns boolean sub directory inclusion option"""
-        return self.setup.INCLUDE_SUB_DIRS
-    
-    @INCLUDE_SUB_DIRS.setter
-    def INCLUDE_SUB_DIRS(self, val):
-        self.setup.INCLUDE_SUB_DIRS = val
-        print ("Option INCLUDE_SUB_DIRS was updated in Dataset, please call "
-            "class method ``init_image_lists`` in order to apply the changes")
             
-    @property
-    def start(self):
-        """Getter / setter for current start time stamp"""
-        return self.setup.start
-        
-    @start.setter
-    def start(self, val):
-        self.setup.start = val
-        print ("Start time stamp was updated in Dataset, please call "
-            "class method ``init_image_lists`` in order to apply the changes")
-    
-    @property
-    def stop(self):
-        """Getter / setter for current stop time stamp"""
-        return self.setup.stop
-    
-    @stop.setter
-    def stop(self, val):
-        self.setup.stop = val
-        print ("Stop time stamp was updated in Dataset, please call "
-            "class method ``init_image_lists`` in order to apply the changes")
-        
-    @property
-    def file_type(self):
-        """Returns current image file type"""
-        return self.setup.camera.file_type
-        
-    @property
-    def meas_geometry(self):
-        """Returns current measurement geometry"""
-        return self.setup.meas_geometry
-        
-    @property
-    def filters(self):
-        """Returns the current filter setup"""
-        return self.setup.camera.filter_setup
-    
-    @property
-    def filter_acronyms(self):
-        """Make a dictionary of filter IDs and corresponding acronyms"""
-        acros = {}
-        for key, val in self.filters.filters.iteritems():
-            #read the acronym from the filter object
-            acros[key] = val.acronym 
-        return acros
-
-    @property
-    def num_of_filters(self):
-        """Returns the number of filters in ``self.filters``"""
-        return len(self.filters.filters.keys())
-    
-    @property
-    def _fname_access_flags(self):
-        return self.camera._fname_access_flags
-    
-    @property
-    def rects(self):
-        """Returns rectangle collection"""
-        return self.setup.forms.rects
-        
-    @rects.setter
-    def rects(self, name, value):
-        """Setter method for rectangle collection stored in ``self.setup``"""
-        self.setup.forms.rects[name] = value
-    
-    @property
-    def lines(self):
-        """Returns rectangle collection"""
-        return self.setup.forms.lines
-        
-    @lines.setter
-    def lines(self, name, value):
-        """Setter method for rectangle collection stored in ``self.setup``"""
-        self.setup.forms.lines[name] = value
-        
-    """Magic methods"""
-    def __getitem__(self, key):
-        """Get one class item
-        
-        Searches in ``self.__dict__`` and ``self.setup`` and returns item if 
-        match found
-        
-        :param str key: name of item
-        """  
-        if self.setup.__dict__.has_key(key):
-            return self.setup.__dict__[key]
-        elif self.__dict__.has_key(key):
-            return self.__dict__[key]
-        
-                
-    def __setitem__(self, key, val):
-        """Update an item values
-        
-        Searches in ``self.__dict__`` and ``self.setup`` and overwrites if 
-        match found
-        
-        :param str key: key of item (e.g. base_dir)
-        :param val: the replacement
-        """
-        if self.setup.__dict__.has_key(key):
-            self.setup.__dict__[key] = val
-        elif self.__dict__.has_key(key):
-            self.__dict__[key] = val
-
-    """
-    Magic methods
-    """    
     def print_list_info(self):
         """Print overview information about image lists"""
         s=("info about image lists in dataset\n-------------------------\n\n" +
@@ -1058,7 +1039,7 @@ class Dataset(object):
         for lst in self.dark_lists.values():
             s += ("ID: %s, type: %s, read_gain: %s,  %s images\n" 
                         %(lst.list_id, lst.list_type, lst.read_gain, lst.nof))
-        print s
+        print(s)
 
     """
     THE FOLLOWING STUFF WAS COPIED FROM OLD PLUMEDATA OBJECT
@@ -1128,10 +1109,30 @@ class Dataset(object):
             lists[k].activate_tau_mode(v)
         return axes
     
-    """
-    OLD METHODS (RENAMED)
-    """
-    def init_all_img_lists(self):
-        """Wrapper method for create_lists_cam"""
-        warn("Old name of method create_lists_cam")
-        return self.create_lists_cam()
+    def __getitem__(self, key):
+        """Get one class item
+        
+        Searches in ``self.__dict__`` and ``self.setup`` and returns item if 
+        match found
+        
+        :param str key: name of item
+        """  
+        if self.setup.__dict__.has_key(key):
+            return self.setup.__dict__[key]
+        elif self.__dict__.has_key(key):
+            return self.__dict__[key]
+        
+                
+    def __setitem__(self, key, val):
+        """Update an item values
+        
+        Searches in ``self.__dict__`` and ``self.setup`` and overwrites if 
+        match found
+        
+        :param str key: key of item (e.g. base_dir)
+        :param val: the replacement
+        """
+        if self.setup.__dict__.has_key(key):
+            self.setup.__dict__[key] = val
+        elif self.__dict__.has_key(key):
+            self.__dict__[key] = val

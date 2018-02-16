@@ -166,7 +166,7 @@ if __name__ == "__main__":
         npt.assert_allclose(actual=actual,
                             desired=[15.477542213,
                                      279.30130009,
-                                     10341.86508879,
+                                     10731.02432793,
                                      0.00908144, 1520, 0.014377367],
                             rtol=1e-7)
         print("All tests passed in script: %s" %basename(__file__)) 

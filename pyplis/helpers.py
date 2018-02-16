@@ -21,7 +21,7 @@ Pyplis module containing all sorts of helper methods
 from __future__ import division
 import matplotlib.cm as colormaps
 import matplotlib.colors as colors
-from datetime import datetime, time, date
+from datetime import datetime, time, date, timedelta
 from warnings import warn
 from matplotlib.pyplot import draw
 from numpy import mod, linspace, hstack, vectorize, uint8, cast, asarray, log2,\
@@ -33,6 +33,10 @@ from cv2 import pyrUp
 exponent = lambda num: int(floor(log10(abs(num))))
 
 time_delta_to_seconds = vectorize(lambda x: x.total_seconds())
+
+matlab_datenum_to_datetime = lambda num: (datetime.fromordinal(int(num)) + 
+                                          timedelta(days=num%1) - 
+                                          timedelta(days=366))
 
 def get_pyr_factor_rel(img1, img2):
     """Get difference in pyramid level between two input images

@@ -116,7 +116,7 @@ def create_dataset():
     stp = pyplis.setupclasses.MeasSetup(IMG_DIR, start, stop, camera=cam,
                                         source=source, 
                                         wind_info=wind_info)
-    
+    print stp.LINK_OFF_TO_ON
     ### Create analysis object (from BaseSetup)
     # The dataset takes care of finding all vali
     return pyplis.Dataset(stp)

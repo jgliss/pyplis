@@ -117,8 +117,15 @@ class BaseImgList(object):
         self._load_edit = {}
 
         self.index = 0
+        self.skip_files = 1
         self.next_index = 0
         self.prev_index = 0
+        
+        #: Other image lists can be linked to this and are automatically updated
+        self.linked_lists = {}
+        #: this dict (linked_indices) is filled in :func:`link_imglist` to 
+        #: increase the linked reload image performance
+        self.linked_indices = {}
         
         # update image preparation settings (if applicable)
         for key, val in img_prep_settings.iteritems():
@@ -126,7 +133,7 @@ class BaseImgList(object):
                 self.img_prep[key] = val
                 
         if bool(files):
-            self.add_files(files)
+            self.add_files(files, load=False)
         
         if isinstance(geometry, MeasGeometry):
             self.meas_geometry = geometry
@@ -135,6 +142,7 @@ class BaseImgList(object):
             self.load()
             
     """ATTRIBUTES / DECORATORS"""
+        
     @property
     def start(self):
         """Acquisistion time of first image"""
@@ -425,7 +433,160 @@ class BaseImgList(object):
         warn("Old name of attribute start_acq: still works, but annoys you "
             "with this warning")
         return self.start_acq
+    
+    def add_files(self, files, load=True):
+        """Add images to this list
+    
+        Parameters
+        ----------
+        file_list : list
+            list with file paths
+            
+        Returns
+        -------
+        bool
+            success / failed
+        """
+        if isinstance(files, str):
+            files = [files]
+        if not isinstance(files, list):
+            raise TypeError("Error: file paths could not be added to image list,"
+                " wrong input type %s" %type(files))
         
+        self.files.extend(files)
+        self.init_filelist(at_index=self.index)
+        if load and self.data_available:
+            self.load()
+        
+    def init_filelist(self, at_index=0):
+        """Initiate the filelist
+        
+        Sets current list index and resets loaded images 
+        
+        Parameters
+        ----------
+        at_index : int
+            desired image index, defaults to 0
+        """
+        self.iter_indices(to_index=at_index)
+        for key, val in self.loaded_images.iteritems():
+            self.loaded_images[key] = None
+        
+        if self.nof > 0:
+            print "\nInit ImgList %s" %self.list_id
+            print "-------------------------"
+            print "Number of files: " + str(self.nof)
+            print "-----------------------------------------"
+            
+    def load(self):
+        """Load current image
+        
+        Try to load the current file ``self.files[self.cfn]`` and if remove the 
+        file from the list if the import fails
+        
+        Raises
+        ------
+        
+        Returns
+        -------
+        bool
+            if True, image was loaded, if False not        
+        """
+        if not self._auto_reload:
+            print ("Automatic image reload deactivated in image list %s"\
+                                                                %self.list_id)
+            return False        
+        try:
+            img = self._load_image(self.index)
+            self._this_raw = deepcopy(img)
+            self.loaded_images["this"] = img
+            self._load_edit.update(img.edit_log)
+            
+            if img.vign_mask is not None:
+                self.vign_mask = img.vign_mask
+            
+            #self.update_prev_next_index()
+            self._apply_edit("this")
+                    
+        except IOError:
+            warn("Invalid file encountered at list index %s, file will"
+                " be removed from list" %self.index)
+            self.pop()
+            if self.nof == 0:
+                raise IndexError("No filepaths left in image list...")
+            self.load()
+            
+        except IndexError:
+            try:
+                self.init_filelist()
+                self.load()
+            except:
+                raise IndexError("Could not load image in list %s: file list "
+                    " is empty" %(self.list_id))
+        return True
+    
+    def iter_indices(self, to_index):
+        """Change the current image indices for previous, this and next img
+        
+        Note
+        ----
+        This method only updates the actual list indices and does not perform
+        a reload.
+        """
+        try:
+            self.index = to_index%self.nof
+            self.next_index = (self.index + self.skip_files)%self.nof
+            self.prev_index = (self.index - self.skip_files)%self.nof
+            
+        except:
+            self.index, self.prev_index, self.next_index = 0, 0, 0
+            
+    def pop(self, idx=None):
+        """Remove one file from this list"""
+        warn("Removing image at index %n from image list")
+        if idx == None:
+            idx = self.index
+        self.files.pop(idx)
+        
+    def goto_next(self):
+        """Goto next index in list"""
+        if self.nof < 2:
+            warn("Only one image available, no index change or "
+                 "reload performed")
+            return self.this
+        self.iter_indices(to_index=self.next_index)
+        self.load()
+        return self.this
+        
+    def goto_prev(self):  
+        """Load previous image in list"""
+        if self.nof < 2:
+            warn("Only one image available, no index change or "
+                 "reload performed")
+            return self.this
+        self.iter_indices(to_index=self.prev_index)
+        self.load()
+        return self.this
+        
+    def goto_img(self, to_index):
+        """Change current image based on index of file list"""
+        if not -1 < to_index < self.nof:
+            raise IndexError("Invalid index %d. List contains only %d files"
+                             %(to_index, self.nof))
+        elif to_index == self.index:
+            print("Did not change index in list. List is already at index %d"
+                  %to_index)
+        elif to_index  == self.next_index:
+            self.goto_next()
+            return
+        elif to_index == self.prev_index:
+            self.goto_prev()
+        else:
+            self.iter_indices(to_index)
+            self.load()
+
+        return self.loaded_images["this"]
+            
     def activate_edit(self, val=True):
         """Activate / deactivate image edit mode
         
@@ -519,51 +680,6 @@ class BaseImgList(object):
         lst_match = ImgList(match, list_id="match", camera=self.camera)
         lst_rest = ImgList(rest, list_id="rest", camera=self.camera)
         return (lst_match, lst_rest)
-        
-    def add_files(self, file_list):
-        """Add images to this list
-    
-        Parameters
-        ----------
-        file_list : list
-            list with file paths
-            
-        Returns
-        -------
-        bool
-            success / failed
-        """
-        if isinstance(file_list, str):
-            file_list = [file_list]
-        if not isinstance(file_list, list):
-            print ("Error: file paths could not be added to image list,"
-                " wrong input type %s" %type(file_list))
-            return False
-        
-        self.files.extend(file_list)
-        self.init_filelist()
-        return True
-        
-    def init_filelist(self, num=0):
-        """Initiate the filelist
-        
-        Sets current list index and resets loaded images 
-        
-        Parameters
-        ----------
-        num : int
-            desired image index, defaults to 0
-        """
-        self.index = num
-                   
-        for key, val in self.loaded_images.iteritems():
-            self.loaded_images[key] = None
-        
-        if self.nof > 0:
-            print "\nInit ImgList %s" %self.list_id
-            print "-------------------------"
-            print "Number of files: " + str(self.nof)
-            print "-----------------------------------------"
         
     def set_dummy(self):
         """Load dummy image"""
@@ -666,7 +782,7 @@ class BaseImgList(object):
         array
             array contining linked indices
         """
-        idx_array = zeros(self.nof, dtype = int)
+        idx_array = zeros(self.nof, dtype=int)
         times, _ = self.get_img_meta_all_filenames()
         times_lst, _ = lst.get_img_meta_all_filenames()
         if lst.nof == 1:
@@ -857,7 +973,7 @@ class BaseImgList(object):
         Img 
             average image 
         """
-        cfn = self.cfn
+        cfn = self.index
         self.goto_img(start_idx)
         if stop_idx is None or stop_idx > self.nof:
             print "Setting stop_idx to last list index"
@@ -1020,19 +1136,7 @@ class BaseImgList(object):
         except Exception as e:
             print repr(e)
             return "Creating img header failed...(Do you see the img Dummy??)"
-            
-    def update_prev_next_index(self):
-        """Get and set the filenumbers of the previous and next image"""
-        if self.index == 0:
-            self.prev_index = self.nof - 1
-            self.next_index = 1
-        elif self.index == (self.nof - 1):
-            #raise IndexError("Last image reached in ImgList")
-            self.prev_index = self.nof - 2
-            self.next_index = 0
-        else:
-            self.prev_index = self.index - 1
-            self.next_index = self.index + 1
+    
     """
     Image loading functions 
     """
@@ -1060,76 +1164,6 @@ class BaseImgList(object):
             self._list_modes["darkcorr"] = True
         if onload["vigncorr"]:
             self._list_modes["vigncorr"]
-            
-    def load(self):
-        """Load current image
-        
-        Try to load the current file ``self.files[self.cfn]`` and if remove the 
-        file from the list if the import fails
-        
-        Raises
-        ------
-        
-        Returns
-        -------
-        bool
-            if True, image was loaded, if False not        
-        """
-        if not self._auto_reload:
-            print ("Automatic image reload deactivated in image list %s"\
-                                                                %self.list_id)
-            return False        
-        try:
-            img_file = self.files[self.index]
-            img = Img(img_file,
-                      import_method=self.camera.image_import_method,
-                      **self.get_img_meta_from_filename(img_file))
-            self._this_raw = deepcopy(img)
-            self.loaded_images["this"] = img
-            self._load_edit.update(img.edit_log)
-            
-            if img.vign_mask is not None:
-                self.vign_mask = img.vign_mask
-            
-            self.update_prev_next_index()
-            self._apply_edit("this")
-                    
-        except IOError:
-            warn("Invalid file encountered at list index %s, file will"
-                " be removed from list" %self.index)
-            self.pop()
-            if self.nof == 0:
-                raise IndexError("No filepaths left in image list...")
-            self.load()
-            
-        except IndexError:
-            try:
-                self.init_filelist()
-                self.load()
-            except:
-                raise IndexError("Could not load image in list %s: file list "
-                    " is empty" %(self.list_id))
-        return True
-    
-    def pop(self, idx=None):
-        """Remove one file from this list"""
-        if idx == None:
-            idx = self.index
-        self.files.pop(idx)
-        
-    def load_next(self):
-        """Load next image in list"""
-        if self.nof < 2:
-            return
-        self.index = self.next_index
-        self.load()
-        
-    def load_prev(self):  
-        """Load previous image in list"""
-        if self.nof < 2:
-            return
-        self.index = self.prev_index
-        self.load()
         
     """
     Functions related to image editing and edit management
@@ -1208,45 +1242,6 @@ class BaseImgList(object):
     def show_current(self, **kwargs):
         """Show the current image"""
         return self.current_img().show(**kwargs)
-                 
-    def goto_img(self, num):
-        """Go to a specific image
-        
-        :param int num: file number index of the desired image
-        
-        """
-        #print "Go to img number %s in img list %s" %(num, self.list_id)
-        self.index = num
-        self.load()
-        return self.loaded_images["this"]
-    
-    def goto_next(self):
-        """Go to next image 
-        
-        Calls :func:`load_next` 
-        """
-        self.load_next()
-        return self.loaded_images["this"]
-        
-    def next_img(self):
-        """Old name of method goto_next"""
-        warn("This method was renamed (but still works). Please use method "
-             "goto_next in the future")
-        return self.goto_next()
-    
-    def goto_prev(self):
-        """Go to previous image
-        
-        Calls :func:`load_prev`
-        """
-        self.load_prev()
-        return self.loaded_images["this"]
-    
-    def prev_img(self):
-        """Old name of method goto_next"""
-        warn("This method was renamed (but still works). Please use method "
-             "goto_prev in the future")
-        return self.goto_prev()
     
     def append(self, file_path):
         """Append image file to list
@@ -1310,8 +1305,32 @@ class BaseImgList(object):
         Img
             the current image loaded and unmodified from file    
         """
-        return Img(self.files[self.cfn],
-                   import_method=self.camera.image_import_method)
+        return self._load_image(self.index)
+    
+    def _load_image(self, list_index):
+        """This method loads the actual image data for a given index
+        
+        Parameters
+        ----------
+        list_index : int
+            Index of image in file list ``self.files``
+            
+        Returns
+        -------
+        Img 
+            the actual loaded image data (unmodified)
+        """
+        file_path = self.files[list_index]
+        try:
+            meta = self.get_img_meta_from_filename(file_path)
+        except:
+            warn("Failed to retrieve image meta information from file path %s"
+                 %file_path)
+            meta = {}
+        meta["filter_id"] = self.list_id
+        return Img(file_path, 
+                   import_method=self.camera.image_import_method,                            
+                   **meta)
         
     def plot_tseries_vert_profile(self, pos_x, start_y=0, stop_y=None,
                                   step_size=0.1, blur=4):
@@ -1477,7 +1496,9 @@ class DarkImgList(BaseImgList):
                                           init=False)
         self.read_gain = read_gain
         if init:
-            self.add_files(files)
+            self.add_files(files, load=False)
+        if self.data_available:
+            self.load()
  
 class AutoDilcorrSettings(object):
     """This class stores settings for automatic dilution correction in ImgLists
@@ -1517,7 +1538,8 @@ class AutoDilcorrSettings(object):
         """String representation"""
         for k, v in self.__dict__.iteritems():
             print "%s: %s" %(k, v)
-                 
+
+               
 class ImgList(BaseImgList):
     """Image list object with expanded functionality (cf. :class:`BaseImgList`)
     
@@ -1600,14 +1622,6 @@ class ImgList(BaseImgList):
         # tau threshold for calculation of plume pixel mask fro dilution 
         # correction
         self.dilcorr_settings = AutoDilcorrSettings(**dilcorr_settings)
-        """
-        Additional variables
-        """
-        #: Other image lists can be linked to this and are automatically updated
-        self.linked_lists = {}
-        #: this dict (linked_indices) is filled in :func:`link_imglist` to 
-        #: increase the linked reload image performance
-        self.linked_indices = {}
         #self.currentMaxI=None
     
         #Optical flow engine
@@ -1789,12 +1803,8 @@ class ImgList(BaseImgList):
         """Return background image based on current vignetting corr setting"""
         img = None
         if self.which_bg == "img":
-            try:
-                img = self._bg_imgs[self.loaded_images["this"].\
+            img = self._bg_imgs[self.loaded_images["this"].\
                     edit_log["vigncorr"]]
-            except:
-                raise AttributeError("No background image assigned to list "
-                                     "%s" %self.list_id)
         elif self.which_bg == "list":
             lst = self.bg_list
             try:
@@ -1805,6 +1815,8 @@ class ImgList(BaseImgList):
         else:
             raise ValueError("Invalid bg-img access mode: %s (check attr "
                              "which_bg")
+        if not isinstance(img, Img):
+            raise AttributeError("No background image found in image list")
         return img
     
     @bg_img.setter
@@ -1822,8 +1834,9 @@ class ImgList(BaseImgList):
         try:
             return self.linked_lists[self._bg_list_id]
         except KeyError:
-            warn("No linked list with ID %s found in list %s. " 
-                            %(self._bg_list_id, self.list_id))
+            raise AttributeError("No linked background list found with ID %s "
+                                 "found in ImgList %s. " 
+                                 %(self._bg_list_id, self.list_id))
                 
     @bg_list.setter
     def bg_list(self, val):
@@ -1871,8 +1884,7 @@ class ImgList(BaseImgList):
             warn("AA correction mask is required to be at pyramid level 0 and "
                 "will be converted")
             val.to_pyrlevel(0)
-        img_temp = Img(self.files[self.cfn],
-                       import_method=self.camera.image_import_method)
+        img_temp = self._load_image(self.index)
         if val.shape != img_temp.shape:
             try:
                 val = val.to_pyrlevel(img_temp.pyrlevel)
@@ -1932,9 +1944,11 @@ class ImgList(BaseImgList):
             return "raw"
             
     """RESETTING AND INIT METHODS"""      
-    def init_filelist(self):
-        """Adding functionality to filelist init"""
-        super(ImgList, self).init_filelist()
+# =============================================================================
+#     def init_filelist(self):
+#         """Adding functionality to filelist init"""
+#         super(ImgList, self).init_filelist()
+# =============================================================================
         
     def init_bg_model(self, **kwargs):
         """Init clear sky reference areas in background model"""
@@ -2002,8 +2016,7 @@ class ImgList(BaseImgList):
                 self.vign_mask
             except:
                 self.det_vign_mask_from_bg_img() 
-            sh = Img(self.files[self.cfn],
-                     import_method=self.camera.image_import_method).img.shape
+            sh = self._load_image(self.index).img.shape
             if not self.vign_mask.shape == sh:
                 raise ValueError("Shape of vignetting mask %s deviates from "
                             "raw img shape %s" %(list(self.vign_mask.shape),
@@ -2031,8 +2044,7 @@ class ImgList(BaseImgList):
                      "current image is already a tau image"
                      %self.list_id)
                 return
-            cim = Img(self.files[self.cfn],
-                      import_method=self.camera.image_import_method)
+            cim = self._load_image(self.index)
             try:
                 dark = self.get_dark_image("this")
                 cim.subtract_dark_image(dark)
@@ -2093,7 +2105,8 @@ class ImgList(BaseImgList):
         if value is self.aa_mode:
             return
         if not self.list_type == "on":
-            raise TypeError("AA mode could not be actu")
+            raise TypeError("AA mode could not be activated: This list is "
+                            "not an onband list")
         aa_test = None
         if value:
             if self.this.edit_log["is_aa"]:
@@ -2599,11 +2612,14 @@ class ImgList(BaseImgList):
         if list_id is None:
             list_id = other_list.list_id
         self.current_img(), other_list.current_img()
+        if self.linked_lists.has_key(list_id):
+            raise AttributeError("ImgList %s has already linked an ImgList "
+                                 "with list_id %s. Please choose a different ID")
         self.linked_lists[list_id] = other_list
         self.linked_indices[list_id] = {}
         idx_array = self.assign_indices_linked_list(other_list)
         self.linked_indices[list_id] = idx_array
-        self.update_index_linked_lists()  
+        self.change_index_linked_lists()  
         self.load()
 
     def disconnect_linked_imglist(self, list_id):
@@ -2693,17 +2709,19 @@ class ImgList(BaseImgList):
         return dark_assigned, offset_assigned
     
     """INDEX AND IMAGE LOAD MANAGEMENT"""
+    def change_index_linked_lists(self):
+        """Update current index in all linked lists based on ``cfn``"""
+        for key, lst in self.linked_lists.iteritems():
+            lst.goto_img(self.linked_indices[key][self.index])
+            
     def load(self):
         """Try load current and next image"""
-        self.update_index_linked_lists() #based on current index in this list
+        self.change_index_linked_lists() #based on current index in this list
         if not super(ImgList, self).load():
             print ("Image load aborted...")
             return False
         if self.nof > 1:
-            next_file = self.files[self.next_index]
-            self.loaded_images["next"] = Img(next_file,
-                            import_method=self.camera.image_import_method,                            
-                            **self.get_img_meta_from_filename(next_file))
+            self.loaded_images["next"] = self._load_image(self.next_index)
             self._apply_edit("next")
         else:
             #self.loaded_images["prev"] = self.loaded_images["this"]
@@ -2718,31 +2736,23 @@ class ImgList(BaseImgList):
                     "deactivated")
                 self.optflow_mode = 0
         return True
-    
-    def update_index_linked_lists(self):
-        """Update current index in all linked lists based on ``cfn``"""
-        for key, lst in self.linked_lists.iteritems():
-            lst.change_index(self.linked_indices[key][self.index])
-            
-    def load_next(self):
+          
+    def goto_next(self):
         """Load next image in list"""
         if self.nof < 2 or not self._auto_reload:
             print ("Could not load next image, number of files in list: " +
                 str(self.nof))
             return False
-        self.index = self.next_index
-        self.update_prev_next_index()
-        
-        self.update_index_linked_lists() #loads new images in all linked lists
+# =============================================================================
+#         self.index = self.next_index
+#         self.update_prev_next_index()
+# =============================================================================
+        self.iter_indices(to_index=self.next_index)
+        self.change_index_linked_lists() #loads new images in all linked lists
         
         #self.loaded_images["prev"] = self.loaded_images["this"]
         self.loaded_images["this"] = self.loaded_images["next"]
-        
-        next_file = self.files[self.next_index]
-        self.loaded_images["next"] = Img(next_file,
-                            import_method=self.camera.image_import_method,                            
-                            **self.get_img_meta_from_filename(next_file))
-    
+        self.loaded_images["next"] = self._load_image(self.next_index)
         self._apply_edit("next")
         if self.optflow_mode:  
             try:
@@ -2754,37 +2764,39 @@ class ImgList(BaseImgList):
                 self.optflow_mode = 0
         return True
         
-    def change_index(self, idx):
-        """Change current image based on index of file list
-        
-        :param idx: index in `self.files` which is supposed to be loaded
-        
-        Dependend on the input index, the following scenarii are possible:
-        If..
-        
-            1. idx < 0 or idx > `self.nof`
-                then: do nothing (return)
-            #. idx == `self.index`
-                then: do nothing
-            #. idx == `self.next_index`
-                then: call :func:`next_img`
-            #. idx == `self.prev_index`
-                then: call :func:`prev_img`
-            #. else
-                then: call :func:`goto_img`
-        """
-        if not -1 < idx < self.nof or idx == self.index:
-            return
-        elif idx == self.next_index:
-            self.goto_next()
-            return
-        elif idx == self.prev_index:
-            self.prev_img()
-            return
-        #: goto_img calls :func:`load` which calls prepare_additional_data
-        self.goto_img(idx)
-
-        return self.loaded_images["this"]
+# =============================================================================
+#     def change_index(self, idx):
+#         """Change current image based on index of file list
+#         
+#         :param idx: index in `self.files` which is supposed to be loaded
+#         
+#         Dependend on the input index, the following scenarii are possible:
+#         If..
+#         
+#             1. idx < 0 or idx > `self.nof`
+#                 then: do nothing (return)
+#             #. idx == `self.index`
+#                 then: do nothing
+#             #. idx == `self.next_index`
+#                 then: call :func:`next_img`
+#             #. idx == `self.prev_index`
+#                 then: call :func:`prev_img`
+#             #. else
+#                 then: call :func:`goto_img`
+#         """
+#         if not -1 < idx < self.nof or idx == self.index:
+#             return
+#         elif idx == self.next_index:
+#             self.goto_next()
+#             return
+#         elif idx == self.prev_index:
+#             self.prev_img()
+#             return
+#         #: goto_img calls :func:`load` which calls prepare_additional_data
+#         self.goto_img(idx)
+# 
+#         return self.loaded_images["this"]
+# =============================================================================
     
     """PROCESSING AND ANALYSIS METHODS""" 
     def optflow_histo_analysis(self, lines=[], start_idx=0, stop_idx=None, 
@@ -3336,7 +3348,7 @@ class ImgList(BaseImgList):
         elif self.vigncorr_mode: #elif because if dilcorr is active the image is already vign corrected
             img.correct_vignetting(self.vign_mask, new_state=True)
         if self.tau_mode:
-            if bg is None: #dilution_corr is not active
+            if bg is None and self.bg_model.mode > 0: #dilution_corr is not active
                 bg = self.bg_img.to_pyrlevel(img.pyrlevel)
             img = bg_model.get_tau_image(plume_img=img, 
                                          bg_img=bg,
@@ -3390,10 +3402,8 @@ class ImgList(BaseImgList):
     
     def _aa_test_img(self, off_list):
         """Try to compute an AA test-image"""
-        on = Img(self.files[self.cfn],
-                 import_method=self.camera.image_import_method)
-        off = Img(off_list.files[off_list.cfn],
-                  import_method=self.camera.image_import_method)
+        on = self._load_image(self.index)
+        off = off_list._load_image(off_list.index)
         if self.which_bg == "img":
             # the stored images may be vignetting corrected, then also a
             # vignetting corrected BG image is required. The attribute
@@ -3606,7 +3616,7 @@ class ImgList(BaseImgList):
             
             self.goto_next()
         ion()
-        
+
 class CellImgList(ImgList):
     """Image list object for cell images
     
