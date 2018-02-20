@@ -20,7 +20,7 @@ Pyplis module containing functionality for all relevant geometrical
 calculations
 """
 from numpy import nan, arctan, deg2rad, linalg, sqrt, abs, array, radians,\
-    sin, cos, arcsin, tan, rad2deg, linspace, isnan, asarray, ones, arange,\
+    sin, cos, arcsin, tan, rad2deg, linspace, isnan, asarray, arange,\
     argmin, newaxis
 from collections import OrderedDict as od
 from warnings import warn
@@ -189,7 +189,7 @@ class MeasGeometry(object):
         """
         if isinstance(info_dict, dict):
             for key, val in info_dict.iteritems():
-                if key in self.cam.keys() and val is not None:
+                if self.cam.has_key(key) and not isnan(val) and val is not None:
                     self.cam[key] = val
         self.cam.update(**kwargs)
         if update_geosetup:

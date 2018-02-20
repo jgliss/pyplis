@@ -574,8 +574,7 @@ class BaseImgList(object):
             raise IndexError("Invalid index %d. List contains only %d files"
                              %(to_index, self.nof))
         elif to_index == self.index:
-            print("Did not change index in list. List is already at index %d"
-                  %to_index)
+            return self.this
         elif to_index  == self.next_index:
             self.goto_next()
             return
@@ -1899,7 +1898,7 @@ class ImgList(BaseImgList):
     @property
     def calib_data(self):
         """Get set object to perform calibration"""
-        from pyplis.cellcalib import CellCalibEngine as cc
+        from pyplis.cellcalib import CellCalibData as cc
         from pyplis.doascalib import DoasCalibData as dc
         if not any([isinstance(self._calib_data, x) for x in [cc, dc]]):
             warn("No calibration data available in imglist %s" %self.list_id)
@@ -1907,7 +1906,7 @@ class ImgList(BaseImgList):
     
     @calib_data.setter
     def calib_data(self, val):
-        from pyplis.cellcalib import CellCalibEngine as cc
+        from pyplis.cellcalib import CellCalibData as cc
         from pyplis.doascalib import DoasCalibData as dc
         if not any([isinstance(val, x) for x in [cc, dc]]):
             raise TypeError("Could not set calibration data in imglist %s: "
@@ -2148,7 +2147,8 @@ class ImgList(BaseImgList):
         """Activate calibration mode"""
         if value == self._list_modes["gascalib"]:
             return
-        if value:    
+        
+        if value: 
             if not self.aa_mode:
                 self._list_modes["aa"] = True
                 warn("List is not in AA mode")
@@ -2156,7 +2156,11 @@ class ImgList(BaseImgList):
             if not self.sensitivity_corr_mode:
                 warn("AA sensitivity correction mode is deactivated. This "
                     "may yield erroneous results at the image edges")
-            self.calib_data(self.current_img())
+            try:
+                self.calib_data(self.current_img())
+            except TypeError:
+                raise AttributeError("Calibration data is not available "
+                                     "in image list")
             
         self._list_modes["gascalib"] = value
         self.load()

@@ -16,7 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-from setuptools import setup
+from setuptools import setup, find_packages
 from codecs import open
 from os.path import join, abspath, dirname
 
@@ -58,19 +58,19 @@ setup(
         # Specify the Python versions you support here. In particular, ensure
         # that you indicate whether you support Python 2, Python 3 or both.,
         'Programming Language :: Python :: 2.7',
+        'Programming Language :: Python :: 2 :: Only'
     ],
-
-    # What does your project relate to?
-    keywords='sample setuptools development',
     #packages    =   ['pyplis'],
     package_dir =   {'pyplis'     :    'pyplis'},
                      #'pyplis.gui_features' :    'pyplis/gui_features'},
-    packages =  ['pyplis'], #'pyplis.gui_features'],
+    packages =  find_packages(exclude=['contrib', 'docs', 'tests*']),
                  
     package_data=   {'pyplis'     :   ['data/*.txt',
                                        'data/*.rst',
                                        'data/*.png',
-                                       'data/*.fts'],
+                                       'data/*.fts',
+                                       'data/testdata_minimal/doas_results/*.dat',
+                                       'data/testdata_minimal/images/*.fts'],
                     },
 
     install_requires    =   [],

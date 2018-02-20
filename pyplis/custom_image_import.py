@@ -119,8 +119,9 @@ def load_hd_new(file_path, meta={}, **kwargs):
 
 def load_usgs_multifits(file_path, meta={}):
     if not "filter_id" in meta:
-        raise ValueError("Please specify filter_id (i.e. on or off) in "
-                         "input arg meta")
+        warn("filter_id (i.e. on or off) in input arg meta not specified."
+             "Using default filer_id=on")
+        meta["filter_id"] = "on"
     try:
         f = fits.open(file_path)
         idx = 2 if meta["filter_id"] == "off" else 1

@@ -51,6 +51,724 @@ from .image import Img
 from .inout import get_camera_info
 from .setupclasses import Camera
 
+class CalibData(object):
+    """Base class representing calibration data
+    
+    Parameters
+    ----------
+    tau_vec : ndarray
+        tau data vector for calibration data
+    cd_vec : ndarray
+        DOAS-CD data vector for calibration data
+    cd_vec_err : ndarray
+        Fit errors of DOAS-CDs
+    time_stamps : ndarray
+        array with datetime objects containing time stamps 
+        (e.g. start acquisition) of calibration data
+    senscorr_mask : :obj:`ndarray`or :obj:`Img`, optional
+        sensitivity correction mask that was normalised relative to the 
+        pixel position where the calibration data was retrieved (i.e. 
+        position of DOAS FOV in case of DOAS calibration data, or image pixel 
+        position, where cell calibration data was retrieved)
+    calib_id : str
+        calibration ID (e.g. "aa", "tau_on", "tau_off")
+    camera : Camera
+        camera object (not necessarily required). A camera can be assigned 
+        in order to convert the FOV extend from pixel coordinates into 
+        decimal degrees
+        
+    """
+    def __init__(self, tau_vec=[], cd_vec=[], cd_vec_err=[], 
+                 time_stamps=[], senscorr_mask=None, calib_id="", 
+                 camera=None, polyorder=1):
+        
+        #tau data vector within FOV
+        self.tau_vec = asarray(tau_vec).astype(float64)
+        #doas data vector
+        self.cd_vec = asarray(cd_vec).astype(float64)
+        self.cd_vec_err = asarray(cd_vec_err).astype(float64)
+        
+        self.senscorr_mask = senscorr_mask
+        self.time_stamps = time_stamps
+        self.calib_id = calib_id
+        
+        if camera is None:
+            camera = Camera()
+        self.camera = camera
+                
+        self._poly = None
+        self._cov = None
+        self._polyorder = None
+        self._allowed_polyorders = polys.keys()
+        
+        self.polyorder = polyorder
+    
+    @property
+    def start(self):
+        """Start time of calibration data (datetime)"""
+        try:
+            return self.time_stamps[0]
+        except:
+            raise ValueError("Start time could not be accessed")
+    
+    @property
+    def stop(self):
+        """Stop time of calibration data (datetime)"""
+        try:
+            return self.time_stamps[-1]
+        except:
+            raise ValueError("Start time could not be accessed")
+            
+    @property
+    def calib_id_str(self):
+        """String for calibration ID"""
+        idx=0
+        try:
+            if self.calib_id.split("_")[1].lower() == "aa":
+                idx=1
+            try:
+                return CALIB_ID_STRINGS[self.calib_id.split("_")[idx]]
+            except:
+                return self.calib_id.split("_")[idx]
+        except:
+            return ""
+        
+    @property
+    def polyorder(self):
+        """Current order of fit polynomial"""
+        return self._polyorder
+    
+    @polyorder.setter
+    def polyorder(self, val):
+        if not val in self._allowed_polyorders:
+            raise ValueError("Invalid value for polyorder: %.1f. "
+                             "Choose from %s" %(val, self._allowed_polyorders))
+        self._polyorder = val
+        if isinstance(self._poly, poly1d):
+            warn("Polynomial order was changed and changes were not yet "
+                 "applied. Please call "
+                 "fit_calib_polynomial to retrieve the calibration polynomial "
+                 "for the new settings")
+            
+    @property
+    def poly(self):
+        """Calibration polynomial"""
+        if not isinstance(self._poly, poly1d):
+            self.fit_calib_polynomial()
+        return self._poly
+    
+    @poly.setter
+    def poly(self, value):
+        if not isinstance(value, poly1d):
+            raise ValueError("Need numpy poly1d object...")
+        self._poly=value
+    
+    @property
+    def cov(self):
+        """Covariance matriy of calibration polynomial"""
+        if not isinstance(self._cov, ndarray):
+            self.fit_calib_polynomial()
+        return self._cov
+    
+    @cov.setter
+    def cov(self, value):
+        raise IOError("Covariance matrix of calibration polynomial cannot "
+                      "be set manually, please call function "
+                      "fit_calib_polynomial")
+            
+    @property
+    def coeffs(self):
+        """Coefficients of current calibration polynomial"""
+        return self.poly.coeffs 
+        
+    @property
+    def slope(self):
+        """Slope of current calib curve"""
+        if self.polyorder > 1:
+            warn("Order of calibration polynomial > 1: use value of slope with "
+                 "care (i.e. also check curvature coefficients of polynomial")
+             
+        return self.coeffs[-2]
+        
+    @property
+    def slope_err(self):
+        """Slope error of current calib curve"""
+        if self.polyorder > 1:
+            warn("Order of calibration polynomial > 1: use slope error with "
+                 "care")
+        return sqrt(self.cov[-2][-2])
+    
+    @property
+    def y_offset(self):
+        """Y-axis offset of calib curve"""
+        return self.coeffs[-1]
+    
+    @property
+    def y_offset_err(self):
+        """Error of y axis offset of calib curve"""
+        return sqrt(self.cov[-1][-1])
+        
+    @property
+    def cd_tseries(self):
+        """Pandas Series object of doas data"""
+        return Series(self.cd_vec, self.time_stamps)
+    
+    @property
+    def tau_tseries(self):
+        """Pandas Series object of tau data"""
+        return Series(self.tau_vec, self.time_stamps)
+    
+    @property
+    def tau_range(self):
+        """Range of tau values extended by 5%
+        
+        Returns
+        -------
+        tuple
+            2-element tuple, containing
+            
+            - float, tau_min: lower end of tau range
+            - float, tau_max: upper end of tau range
+        """
+        tau = self.tau_vec
+        taumin, taumax = tau.min(), tau.max()
+        if taumin > 0:
+            taumin = 0
+        add = (taumax - taumin) * 0.05
+        return taumin - add, taumax + add
+    
+    @property
+    def cd_range(self):
+        """Range of DOAS cd values extended by 5%"""
+        cds = self.cd_vec
+        cdmin, cdmax = cds.min(), cds.max()
+        if cdmin > 0:
+            cdmin = 0
+        add = (cdmax - cdmin) * 0.05
+        return cdmin - add, cdmax + add
+    
+    @property
+    def residual(self):
+        """Residual of calibration curve"""
+        return self.poly(self.tau_vec) - self.tau_vec
+
+    @property
+    def _poly_str(self):
+        """Return custom string representation of polynomial"""
+        exp = exponent(self.poly.coeffs[0])
+        p = poly1d(round(self.poly / 10**(exp - 2))/10**2)
+        s = "(%s)E%+d" %(p, exp)
+        return s.replace("x", r"$\tau$")
+        
+    def has_calib_data(self):
+        """Checks if calibration data is available"""
+        if not all([len(x) > 0 for x in [self.cd_vec, self.tau_vec]]):
+            return False
+        if not len(self.tau_vec) == len(self.cd_vec):
+            return False
+        return True
+        
+    def fit_calib_polynomial(self, polyorder=None, weighted=True, 
+                             weights_how="abs",
+                             through_origin=False,
+                             plot=False):
+        """Fit calibration polynomial to current data
+        
+        Parameters
+        ----------
+        polyorder : :obj:`int`, optional
+            update current polyorder
+        weighted : bool
+            performs weighted fit based on DOAS errors in ``cd_vec_err``
+            (if available), defaults to True
+        weights_how : str
+            use "rel" if relative errors are supposed to be used (i.e.
+            w=CD_sigma / CD) or "abs" if absolute error is supposed to be 
+            used (i.e. w=CD_sigma).
+        through_origin : bool
+            if True, the fit is forced to cross the coordinate origin (
+            done by adding data points)
+        plot : bool
+            If True, the calibration curve and the polynomial are plotted
+        
+        Returns
+        -------
+        poly1d
+            calibration polynomial
+        """
+        if not weights_how in ["rel", "abs"]:
+            raise IOError("Invalid input for parameter weights_how:"
+                          "Use rel for relative errors or abs for absolute"
+                          "errors for calculation of weights")
+        if not self.has_calib_data():
+            raise ValueError("Calibration data is not available")
+        try:
+            self.polyorder = polyorder
+        except:
+            pass
+# =============================================================================
+#         if polyorder is None:
+#             polyorder = self.polyorder
+#     
+# =============================================================================
+        if sum(isnan(self.tau_vec)) + sum(isnan(self.cd_vec)) > 0:
+            raise ValueError("Encountered nans in data")
+        
+        exp = exponent(self.cd_vec.max())
+        yerr = ones(len(self.cd_vec))
+        yerr_abs = True
+        if weighted:
+            if not len(self.cd_vec) == len(self.cd_vec_err):
+                warn("Could not perform weighted calibration fit: "
+                     "Length mismatch between DOAS data vector"
+                     " and corresponding error vector")
+            elif sum(self.cd_vec_err) == 0:
+                warn("Could not performed weighted calibration fit: "
+                     "Values of DOAS fit errors are 0. Do you have pydoas "
+                     "installed?")
+            else:
+                try:
+                    if weights_how == "abs":
+                        yerr = self.cd_vec_err / 10**exp
+                    else:
+                        yerr = self.cd_vec_err / self.cd_vec
+                        yerr_abs = False
+                    #ws = ws / max(ws)
+                except:
+                    warn("Failed to calculate weights")
+        tau_vals = self.tau_vec
+        cds = self.cd_vec / 10**exp
+        
+        fun = get_poly_model(self.polyorder, through_origin)
+        
+        coeffs, cov = curve_fit(fun, tau_vals.astype(float64), 
+                                cds.astype(float64), 
+                                sigma=yerr.astype(float64),
+                                absolute_sigma=yerr_abs)
+        if through_origin:
+            coeffs = append(coeffs, 0.0)
+# =============================================================================
+#         if through_origin:
+#             num = len(tau_vals)
+#             tau_vals = concatenate([tau_vals, zeros(num)])
+#             cds = concatenate([cds, zeros(num)])
+#             ws = concatenate([ws, ones(num)])
+#         
+# =============================================================================
+# =============================================================================
+#         coeffs, cov = polyfit(tau_vals, cds, 
+#                               polyorder, w=ws, cov=True)
+# =============================================================================
+        #self.polyorder = polyorder
+        #return (fun, coeffs, cov, tau_vals, cds, yerr, yerr_abs)
+        self.poly = poly1d(coeffs * 10**exp)
+        self._cov = cov * 10**(2*exp)
+        if plot:
+            self.plot()
+        return self.poly
+    
+    def _prep_fits_save(self):
+        """Prepare FITS HDU list for storing calibration data"""
+        if not len(self.cd_vec) == len(self.tau_vec):
+            raise ValueError("Could not save calibration data, mismatch in "
+                " lengths of data arrays")
+        if not len(self.time_stamps) == len(self.cd_vec):
+            self.time_stamps = asarray([datetime(1900,1,1)] *\
+                                                len(self.cd_vec))
+        
+        tstamps = [x.strftime("%Y%m%d%H%M%S%f") for x in self.time_stamps]
+        col1 = fits.Column(name="time_stamps", format="25A", array=tstamps)
+        col2 = fits.Column(name="tau_vec", format="D", array=self.tau_vec)
+        col3 = fits.Column(name="cd_vec", format="D", array=self.cd_vec)
+        col4 = fits.Column(name="cd_vec_err", format="D", array=self.cd_vec_err)
+        
+                                                        
+        cols = fits.ColDefs([col1, col2, col3, col4])
+        arrays = fits.BinTableHDU.from_columns(cols)
+        arrays.header["calib_id"] = self.calib_id
+        return arrays
+        
+    def save_as_fits(self, save_dir=None, save_name=None):
+        """Save calibration data as FITS file
+        
+        Parameters
+        ----------
+        save_dir : str
+            save directory, if None, the current working directory is used
+        save_name : str
+            filename of the FITS file (if None, use pyplis default naming)
+        """
+        hdulist = fits.HDUList([self._prep_fits_save()])
+        #returns abspath of current wkdir if None
+        save_dir = abspath(save_dir) 
+        if not isdir(save_dir): #save_dir is a file path
+            save_name = basename(save_dir)
+            save_dir = dirname(save_dir)
+        if save_name is None:
+            save_name = "calib_id_%s_%s_%s_%s.fts" %(\
+                self.calib_id, self.start.strftime("%Y%m%d"),\
+                self.start.strftime("%H%M"), self.stop.strftime("%H%M"))
+        else:
+            save_name = save_name.split(".")[0] + ".fts"
+            
+        fpath = join(save_dir, save_name)
+        try:
+            remove(fpath)
+        except:
+            pass
+        hdulist.writeto(fpath)
+
+    def load_from_fits(self, file_path):
+        """Load stack object (fits)
+        
+        Parameters
+        ----------
+        file_path : str
+            file path of calibration data
+        """
+        if not exists(file_path):
+            raise IOError("DoasCalibData object could not be loaded, "
+                "path does not exist")
+        hdu = fits.open(file_path)
+            
+        try:
+            times = hdu[0].data["time_stamps"].byteswap().newbyteorder()
+            self.time_stamps = [datetime.strptime(x, "%Y%m%d%H%M%S%f")
+                                for x in times]
+        except:
+            print ("(Warning loading DOAS calib data): Failed to import "
+                        "time stamps")
+        try:
+            self.tau_vec = hdu[0].data["tau_vec"].byteswap().newbyteorder()
+        except:
+            print "Failed to import calibration tau data vector"
+        try:
+            self.cd_vec = hdu[0].data["cd_vec"].byteswap().newbyteorder()
+        except:
+            print "Failed to import calibration doas data vector"
+        try:
+            self.cd_vec_err = hdu[0].data["cd_vec_err"].byteswap().newbyteorder()
+        except:
+            print "Failed to import CD fit error information in calib data"
+        self.calib_id = hdu[0].header["calib_id"]
+        
+    def plot(self, add_label_str="", shift_yoffset=False, ax=None, 
+             **kwargs):
+        """Plot calibration data and fit result
+        
+        Parameters
+        ----------
+        add_label_str : str
+            additional string added to label of plots for legend
+        shift_yoffset : bool
+            if True, the data is plotted without y-offset
+        ax : 
+            matplotlib axes object, if None, a new one is created
+        """
+        if not "color" in kwargs:
+            kwargs["color"] = "b"
+            
+        if ax is None:
+            fig, ax = subplots(1,1, figsize=(10,8))
+        
+        taumin, taumax = self.tau_range
+        x = linspace(taumin, taumax, 100)
+        
+        cds = self.cd_vec
+        cds_poly = self.poly(x)
+        if shift_yoffset:
+            try:
+                cds -= self.y_offset
+                cds_poly -= self.y_offset
+            except:
+                warn("Failed to subtract y offset")
+                
+        ax.plot(self.tau_vec, cds, ls="", marker=".",
+                label="Data %s" %add_label_str, **kwargs)
+        try:
+            ax.errorbar(self.tau_vec, cds, yerr=self.cd_vec_err, 
+                        marker="None", ls=" ", c="#b3b3b3")
+        except:
+            warn("No CD errors available")
+        try:
+            ax.plot(x, cds_poly, ls="-", marker="",
+                    label="Fit result", **kwargs)
+                    
+        except TypeError:
+            print "Calibration poly probably not fitted"
+        
+        ax.set_title("Calibration data, ID: %s" %self.calib_id_str)
+        ax.set_ylabel(r"$S_{%s}$ [cm$^{-2}$]" %SPECIES_ID)
+        ax.set_xlabel(r"$\tau_{%s}$" %self.calib_id_str)
+        ax.grid()
+        ax.legend(loc='best', fancybox=True, framealpha=0.7)
+        return ax
+    
+    def plot_poly(self, add_label_str="", shift_yoffset=False, ax=None, 
+                  **kwargs):
+        """Plot calibration fit result
+        
+        Parameters
+        ----------
+        add_label_str : str
+            additional string added to label of plots for legend
+        shift_yoffset : bool
+            if True, the data is plotted without y-offset
+        ax : 
+            matplotlib axes object, if None, a new one is created
+        """
+        if not "color" in kwargs:
+            kwargs["color"] = "b"
+            
+        if ax is None:
+            fig, ax = subplots(1,1, figsize=(10,8))
+        
+        taumin, taumax = self.tau_range
+        x = linspace(taumin, taumax, 100)
+    
+        cds_poly = self.poly(x)
+        if shift_yoffset:
+            try:
+                cds_poly -= self.y_offset
+            except:
+                warn("Failed to subtract y offset")
+                
+        try:
+            ax.plot(x, cds_poly, ls="-", marker="",
+                    label="Fit result %s" %add_label_str, **kwargs)
+                    
+        except TypeError:
+            print "Calibration poly probably not fitted"
+        
+        ax.grid()
+        ax.legend(loc='best', fancybox=True, framealpha=0.7)
+        return ax
+    
+    def err(self, value):
+        """Returns measurement error of tau value based on slope error"""
+        val = self(value)
+        r = self.slope_err / self.slope
+        return val * r
+        
+    def __call__(self, value, **kwargs):
+        """Define call function to apply calibration
+        
+        :param float value: tau or AA value
+        :return: corresponding column density
+        """
+        if not isinstance(self.poly, poly1d):
+            self.fit_calib_polynomial()
+        if isinstance(value, Img):
+            calib_im = value.duplicate()
+            calib_im.img = self.poly(calib_im.img) - self.y_offset
+            calib_im.edit_log["gascalib"] = True
+            return calib_im
+        elif isinstance(value, ImgStack):
+            try:
+                value = value.duplicate()
+            except MemoryError:
+                warn("Stack cannot be duplicated, applying calibration to "
+                "input stack")
+            value.stack = self.poly(value.stack) - self.y_offset
+            value.img_prep["gascalib"] = True
+            return value
+        return self.poly(value) - self.y_offset
+    
+class DoasCalibDataDEV(CalibData):
+    """Class containing DOAS calibration data
+    
+    Parameters
+    ----------
+    tau_vec : ndarray
+        tau data vector for calibration data
+    cd_vec : ndarray
+        DOAS-CD data vector for calibration data
+    cd_vec_err : ndarray
+        Fit errors of DOAS-CDs
+    time_stamps : ndarray
+        array with datetime objects containing time stamps 
+        (e.g. start acquisition) of calibration data
+    senscorr_mask : :obj:`ndarray`or :obj:`Img`, optional
+        sensitivity correction mask that was normalised relative to the 
+        pixel position where the DOAS instrument is pointing
+    calib_id : str
+        calibration ID (e.g. "aa", "tau_on", "tau_off")
+    camera : Camera
+        camera object (not necessarily required). A camera can be assigned 
+        in order to convert the FOV extend from pixel coordinates into 
+        decimal degrees
+    fov : DoasFOV
+        information about position and shape of the FOV of the DOAS within
+        the camera images
+        
+    """
+    def __init__(self, tau_vec=[], cd_vec=[], cd_vec_err=[], 
+                 time_stamps=[], senscorr_mask=None, calib_id="", 
+                 camera=None, polyorder=1, fov=None):
+        super(DoasCalibData, self).__init__(tau_vec, cd_vec, cd_vec_err, 
+                 time_stamps, senscorr_mask, calib_id, camera, polyorder)
+        
+        if not isinstance(fov, DoasFOV):
+            fov = DoasFOV(camera)
+        self.fov = fov
+    
+    def save_as_fits(self, save_dir=None, save_name=None):
+        """Save calibration data as FITS file
+        
+        Parameters
+        ----------
+        save_dir : str
+            save directory, if None, the current working directory is used
+        save_name : str
+            filename of the FITS file (if None, use pyplis default naming)
+        """
+        arrays = self._prep_fits_save()
+        
+        fov_mask = fits.PrimaryHDU()
+        fov_mask.data = self.fov.fov_mask_rel
+        fov_mask.header.update(self.fov.img_prep)
+        fov_mask.header.update(self.fov.search_settings)
+        fov_mask.header.append()
+        
+        ifr_res = []        
+        if self.fov.method == "pearson":
+            rd = self.fov.result_pearson
+            try:
+                fov_mask.header.update(cx_rel=rd["cx_rel"], cy_rel=rd["cy_rel"],\
+                                       rad_rel=rd["rad_rel"])
+            except:
+                warn("Position of FOV (pearson method) not available")
+            
+        elif self.fov.method == "ifr":
+            ifr_res = self.fov.result_ifr["popt"]
+
+        try:
+            hdu_cim = fits.ImageHDU(data=self.fov.corr_img.img)        
+        except:
+            hdu_cim = fits.ImageHDU()
+            warn("FOV search correlation image not available")
+        
+        roi = fits.BinTableHDU.from_columns([fits.Column(name="roi",
+                                                         format="I", 
+                                                         array=self.fov.roi_abs)])
+        col_ifr = fits.Column(name="ifr_res", format="D", array=ifr_res)
+        res_ifr = fits.BinTableHDU.from_columns([col_ifr])
+    
+        hdulist = fits.HDUList([arrays, fov_mask, hdu_cim, roi, res_ifr])
+        
+        #returns abspath of current wkdir if None
+        save_dir = abspath(save_dir) 
+        if not isdir(save_dir): #save_dir is a file path
+            save_name = basename(save_dir)
+            save_dir = dirname(save_dir)
+        if save_name is None:
+            save_name = "doascalib_id_%s_%s_%s_%s.fts" %(\
+                self.calib_id, self.start.strftime("%Y%m%d"),\
+                self.start.strftime("%H%M"), self.stop.strftime("%H%M"))
+        else:
+            save_name = save_name.split(".")[0] + ".fts"
+        
+        fpath = join(save_dir, save_name)
+        try:
+            remove(fpath)
+        except:
+            pass
+        
+        hdulist.writeto(fpath)
+
+    def load_from_fits(self, file_path):
+        """Load stack object (fits)
+        
+        Parameters
+        ----------
+        file_path : str
+            file path of calibration data
+        """
+        
+        if not exists(file_path):
+            raise IOError("DoasCalibData object could not be loaded, "
+                "path does not exist")
+        hdu = fits.open(file_path)
+        self.calib_id = hdu[0].header["calib_id"]
+        try:
+            times = hdu[0].data["time_stamps"].byteswap().newbyteorder()
+            self.time_stamps = [datetime.strptime(x, "%Y%m%d%H%M%S%f")
+                                for x in times]
+        except:
+            print ("(Warning loading DOAS calib data): Failed to import "
+                        "time stamps")
+        try:
+            self.tau_vec = hdu[0].data["tau_vec"].byteswap().newbyteorder()
+        except:
+            print "Failed to import calibration tau data vector"
+        try:
+            self.cd_vec = hdu[0].data["cd_vec"].byteswap().newbyteorder()
+        except:
+            print "Failed to import calibration doas data vector"
+        try:
+            self.cd_vec_err = hdu[0].data["cd_vec_err"].byteswap().newbyteorder()
+        except:
+            print "Failed to import DOAS fit error information in calib data"
+        try:
+            self.fov.fov_mask_rel = hdu[1].data.byteswap().newbyteorder()
+        except:
+            print ("(Warning loading DOAS calib data): FOV mask not "
+                "available")
+        
+        prep_keys = Img().edit_log.keys()
+        search_keys = DoasFOVEngine()._settings.keys()
+        
+        for key, val in hdu[1].header.iteritems():
+            k = key.lower()
+            if k in prep_keys:
+                self.fov.img_prep[k] = val
+            elif k in search_keys:
+                self.fov.search_settings[k] = val
+            elif k in self.fov.result_pearson.keys():
+                self.fov.result_pearson[k] = val
+            
+        try:
+            self.fov.corr_img = Img(hdu[2].data.byteswap().newbyteorder())
+        except:
+            print ("(Warning loading DOAS calib data): FOV search correlation "
+                "image not available")
+        self.fov.roi_abs = hdu[3].data["roi"].byteswap().newbyteorder()
+        try:
+            self.fov.result_ifr["popt"] =\
+                hdu[4].data["ifr_res"].byteswap().newbyteorder()
+        except:
+            print ("Failed to import array containing IFR optimisation "
+                    " results from FOV search")
+    
+    def plot_data_tseries_overlay(self, date_fmt=None, ax=None):
+        """Plot overlay of tau and DOAS time series"""
+        if ax is None:
+            fig, ax = subplots(1,1)
+        s1 = self.tau_tseries
+        s2 = self.cd_tseries
+        p1 = ax.plot(s1.index.to_pydatetime(), s1.values, "--xb", 
+                     label = r"$\tau$")
+        ax.set_ylabel("tau")
+        ax2 = ax.twinx()
+            
+        p2 = ax2.plot(s2.index.to_pydatetime(), s2.values,"--xr", 
+                      label="DOAS CDs")
+        ax2.set_ylabel(r"$S_{%s}$ [cm$^{-2}$]" %SPECIES_ID)
+        ax.set_title("Time series overlay DOAS calib data")
+        
+        try:
+            if date_fmt is not None:
+                ax.xaxis.set_major_formatter(DateFormatter(date_fmt))
+        except:
+            pass
+            
+        ps = p1 + p2
+        labs = [l.get_label() for l in ps]
+        ax.legend(ps, labs, loc="best",fancybox=True, framealpha=0.5)
+        ax.grid()
+        rotate_xtick_labels(ax)
+        return (ax, ax2)
+       
 class DoasCalibData(object):
     """Class containing DOAS calibration data
     
@@ -58,9 +776,9 @@ class DoasCalibData(object):
     ----------
     tau_vec : ndarray
         tau data vector for calibration data
-    doas_vec : ndarray
+    cd_vec : ndarray
         DOAS-CD data vector for calibration data
-    doas_vec_err : ndarray
+    cd_vec_err : ndarray
         Fit errors of DOAS-CDs
     time_stamps : ndarray
         array with datetime objects containing time stamps 
@@ -73,15 +791,15 @@ class DoasCalibData(object):
         decimal degrees
         
     """
-    def __init__(self, tau_vec=[], doas_vec=[], doas_vec_err=[], 
+    def __init__(self, tau_vec=[], cd_vec=[], cd_vec_err=[], 
                  time_stamps=[], calib_id="", fov=None, camera=None, 
                  polyorder=1):
         
         #tau data vector within FOV
         self.tau_vec = asarray(tau_vec).astype(float64)
         #doas data vector
-        self.doas_vec = asarray(doas_vec).astype(float64)
-        self.doas_vec_err = asarray(doas_vec_err).astype(float64)
+        self.cd_vec = asarray(cd_vec).astype(float64)
+        self.cd_vec_err = asarray(cd_vec_err).astype(float64)
         
         self.time_stamps = time_stamps
         self.calib_id = calib_id
@@ -208,9 +926,9 @@ class DoasCalibData(object):
         return sqrt(self.cov[-1][-1])
         
     @property
-    def doas_tseries(self):
+    def cd_tseries(self):
         """Pandas Series object of doas data"""
-        return Series(self.doas_vec, self.time_stamps)
+        return Series(self.cd_vec, self.time_stamps)
     
     @property
     def tau_tseries(self):
@@ -237,9 +955,9 @@ class DoasCalibData(object):
         return taumin - add, taumax + add
     
     @property
-    def doas_cd_range(self):
+    def cd_range(self):
         """Range of DOAS cd values extended by 5%"""
-        cds = self.doas_vec
+        cds = self.cd_vec
         cdmin, cdmax = cds.min(), cds.max()
         if cdmin > 0:
             cdmin = 0
@@ -253,9 +971,9 @@ class DoasCalibData(object):
         
     def has_calib_data(self):
         """Checks if calibration data is available"""
-        if not all([len(x) > 0 for x in [self.doas_vec, self.tau_vec]]):
+        if not all([len(x) > 0 for x in [self.cd_vec, self.tau_vec]]):
             return False
-        if not len(self.tau_vec) == len(self.doas_vec):
+        if not len(self.tau_vec) == len(self.cd_vec):
             return False
         return True
         
@@ -270,7 +988,7 @@ class DoasCalibData(object):
         polyorder : :obj:`int`, optional
             update current polyorder
         weighted : bool
-            performs weighted fit based on DOAS errors in ``doas_vec_err``
+            performs weighted fit based on DOAS errors in ``cd_vec_err``
             (if available), defaults to True
         weights_how : str
             use "rel" if relative errors are supposed to be used (i.e.
@@ -302,33 +1020,33 @@ class DoasCalibData(object):
 #             polyorder = self.polyorder
 #     
 # =============================================================================
-        if sum(isnan(self.tau_vec)) + sum(isnan(self.doas_vec)) > 0:
+        if sum(isnan(self.tau_vec)) + sum(isnan(self.cd_vec)) > 0:
             raise ValueError("Encountered nans in data")
         
-        exp = exponent(self.doas_vec.max())
-        yerr = ones(len(self.doas_vec))
+        exp = exponent(self.cd_vec.max())
+        yerr = ones(len(self.cd_vec))
         yerr_abs = True
         if weighted:
-            if not len(self.doas_vec) == len(self.doas_vec_err):
+            if not len(self.cd_vec) == len(self.cd_vec_err):
                 warn("Could not perform weighted calibration fit: "
                      "Length mismatch between DOAS data vector"
                      " and corresponding error vector")
-            elif sum(self.doas_vec_err) == 0:
+            elif sum(self.cd_vec_err) == 0:
                 warn("Could not performed weighted calibration fit: "
                      "Values of DOAS fit errors are 0. Do you have pydoas "
                      "installed?")
             else:
                 try:
                     if weights_how == "abs":
-                        yerr = self.doas_vec_err / 10**exp
+                        yerr = self.cd_vec_err / 10**exp
                     else:
-                        yerr = self.doas_vec_err / self.doas_vec
+                        yerr = self.cd_vec_err / self.cd_vec
                         yerr_abs = False
                     #ws = ws / max(ws)
                 except:
                     warn("Failed to calculate weights")
         tau_vals = self.tau_vec
-        cds = self.doas_vec / 10**exp
+        cds = self.cd_vec / 10**exp
         
         fun = get_poly_model(self.polyorder, through_origin)
         
@@ -368,12 +1086,12 @@ class DoasCalibData(object):
         save_name : str
             filename of the FITS file (if None, use pyplis default naming)
         """
-        if not len(self.doas_vec) == len(self.tau_vec):
+        if not len(self.cd_vec) == len(self.tau_vec):
             raise ValueError("Could not save calibration data, mismatch in "
                 " lengths of data arrays")
-        if not len(self.time_stamps) == len(self.doas_vec):
+        if not len(self.time_stamps) == len(self.cd_vec):
             self.time_stamps = asarray([datetime(1900,1,1)] *\
-                                                len(self.doas_vec))
+                                                len(self.cd_vec))
         #returns abspath of current wkdir if None
         save_dir = abspath(save_dir) 
         if not isdir(save_dir): #save_dir is a file path
@@ -413,8 +1131,8 @@ class DoasCalibData(object):
         tstamps = [x.strftime("%Y%m%d%H%M%S%f") for x in self.time_stamps]
         col1 = fits.Column(name="time_stamps", format="25A", array=tstamps)
         col2 = fits.Column(name="tau_vec", format="D", array=self.tau_vec)
-        col3 = fits.Column(name="doas_vec", format="D", array=self.doas_vec)
-        col4 = fits.Column(name="doas_vec_err", format="D", array=self.doas_vec_err)
+        col3 = fits.Column(name="cd_vec", format="D", array=self.cd_vec)
+        col4 = fits.Column(name="cd_vec_err", format="D", array=self.cd_vec_err)
         
                                                         
         cols = fits.ColDefs([col1, col2, col3, col4])
@@ -485,11 +1203,11 @@ class DoasCalibData(object):
         except:
             print "Failed to import calibration tau data vector"
         try:
-            self.doas_vec = hdu[2].data["doas_vec"].byteswap().newbyteorder()
+            self.cd_vec = hdu[2].data["cd_vec"].byteswap().newbyteorder()
         except:
             print "Failed to import calibration doas data vector"
         try:
-            self.doas_vec_err = hdu[2].data["doas_vec_err"].byteswap().newbyteorder()
+            self.cd_vec_err = hdu[2].data["cd_vec_err"].byteswap().newbyteorder()
         except:
             print "Failed to import DOAS fit error information in calib data"
         try:
@@ -501,7 +1219,7 @@ class DoasCalibData(object):
         self.fov.roi_abs = hdu[3].data["roi"].byteswap().newbyteorder()
     
     @property
-    def poly_str(self):
+    def _poly_str(self):
         """Return custom string representation of polynomial"""
         exp = exponent(self.poly.coeffs[0])
         p = poly1d(round(self.poly / 10**(exp - 2))/10**2)
@@ -530,7 +1248,7 @@ class DoasCalibData(object):
         taumin, taumax = self.tau_range
         x = linspace(taumin, taumax, 100)
         
-        cds = self.doas_vec
+        cds = self.cd_vec
         cds_poly = self.poly(x)
         if shift_yoffset:
             try:
@@ -542,7 +1260,7 @@ class DoasCalibData(object):
         ax.plot(self.tau_vec, cds, ls="", marker=".",
                 label="Data %s" %add_label_str, **kwargs)
         try:
-            ax.errorbar(self.tau_vec, cds, yerr=self.doas_vec_err, 
+            ax.errorbar(self.tau_vec, cds, yerr=self.cd_vec_err, 
                         marker="None", ls=" ", c="#b3b3b3")
         except:
             warn("No DOAS-CD errors available")
@@ -605,7 +1323,7 @@ class DoasCalibData(object):
         if ax is None:
             fig, ax = subplots(1,1)
         s1 = self.tau_tseries
-        s2 = self.doas_tseries
+        s2 = self.cd_tseries
         p1 = ax.plot(s1.index.to_pydatetime(), s1.values, "--xb", 
                      label = r"$\tau$")
         ax.set_ylabel("tau")
@@ -658,7 +1376,7 @@ class DoasCalibData(object):
             value.img_prep["gascalib"] = True
             return value
         return self.poly(value) - self.y_offset
-        
+    
 class DoasFOV(object):
     """Class for storage of FOV information"""
     def __init__(self, camera=None):
@@ -1258,7 +1976,7 @@ class DoasFOVEngine(object):
         h,w = self.img_stack.shape[1:]
         corr_img = zeros((h,w), dtype=float64)
         corr_img_err = zeros((h,w), dtype=float64)
-        doas_vec = self.doas_series.values
+        cd_vec = self.doas_series.values
         exp = int(10**exponent(h) / 4.0)
         for i in range(h):
             try:
@@ -1269,7 +1987,7 @@ class DoasFOVEngine(object):
             for j in range(w):
                 #get series from stack at current pixel
                 corr_img[i,j], corr_img_err[i,j] = pearsonr(\
-                        self.img_stack.stack[:, i, j], doas_vec)
+                        self.img_stack.stack[:, i, j], cd_vec)
         self._settings["method"] = "pearson"
         return corr_img, corr_img_err
     
@@ -1326,7 +2044,7 @@ class DoasFOVEngine(object):
             cy, cx = get_img_maximum(self.calib_data.fov.corr_img.img,
                                      gaussian_blur=self._settings["blur"])
             print "Start radius search in stack around x/y: %s/%s" %(cx, cy)
-            radius, corr_curve, tau_vec, doas_vec, fov_mask =\
+            radius, corr_curve, tau_vec, cd_vec, fov_mask =\
                                     self.fov_radius_search(cx, cy)
             if not radius > 0:
                 raise ValueError("Pearson FOV search failed")
@@ -1338,9 +2056,9 @@ class DoasFOVEngine(object):
             
             self.calib_data.fov.fov_mask_rel = fov_mask
             self.calib_data.tau_vec = tau_vec.astype(float64)
-            self.calib_data.doas_vec = doas_vec.astype(float64)
+            self.calib_data.cd_vec = cd_vec.astype(float64)
             try:
-                self.calib_data.doas_vec_err = self.doas_series.fit_errs
+                self.calib_data.cd_vec_err = self.doas_series.fit_errs
             except:
                 pass
             self.calib_data.time_stamps = self.img_stack.time_stamps
@@ -1357,9 +2075,9 @@ class DoasFOVEngine(object):
             self.calib_data.fov.result_ifr["pcov"] = pcov
             self.calib_data.fov.fov_mask_rel = fov_mask            
             self.calib_data.tau_vec = tau_vec
-            self.calib_data.doas_vec = self.doas_data_vec
+            self.calib_data.cd_vec = self.doas_data_vec
             try:
-                self.calib_data.doas_vec_err = self.doas_series.fit_errs
+                self.calib_data.cd_vec_err = self.doas_series.fit_errs
             except:
                 pass
             self.calib_data.time_stamps = self.img_stack.time_stamps
@@ -1380,8 +2098,8 @@ class DoasFOVEngine(object):
             
         """
         stack = self.img_stack
-        doas_vec = self.doas_series.values
-        if not len(doas_vec) == stack.shape[0]:
+        cd_vec = self.doas_series.values
+        if not len(cd_vec) == stack.shape[0]:
             raise ValueError("Mismatch in lengths of input arrays")
         h, w =  stack.shape[1:]
         #find maximum radius (around CFOV pos) which still fits into the image
@@ -1408,7 +2126,7 @@ class DoasFOVEngine(object):
             #CFOV
             tau_series, m = stack.get_time_series(cx, cy, radius=r)
             tau_dat = tau_series.values
-            coeff, err = pearsonr(tau_dat, doas_vec)
+            coeff, err = pearsonr(tau_dat, cd_vec)
             coeffs.append(coeff)
             coeffs_err.append(err)
             #and append correlation coefficient to results
@@ -1418,7 +2136,7 @@ class DoasFOVEngine(object):
                 max_corr = coeff
                 tau_vec = tau_dat
         corr_curve = Series(asarray(coeffs, dtype=float),radii)
-        return radius, corr_curve, tau_vec, doas_vec, mask
+        return radius, corr_curve, tau_vec, cd_vec, mask
         
     # define IFR model function (Super-Gaussian)    
         
