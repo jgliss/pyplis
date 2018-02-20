@@ -141,7 +141,6 @@ def load_usgs_multifits(file_path, meta={}):
             meta["altitude"] = h["ALT"]
             meta["elev"] = h["ELEVANGL"]
             meta["azim"] = h["AZMTANGL"]
-            print meta["azim"]
         except:
             warn("Failed to import camera specific meta information from "
                  "primary HDU of FITS file...")

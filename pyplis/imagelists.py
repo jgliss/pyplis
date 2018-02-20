@@ -96,7 +96,9 @@ class BaseImgList(object):
         
         self.set_camera(camera)
         
+        self._update_cam_geodata = False
         self.edit_active = True
+        
         #the following dictionary contains settings for image preparation
         #applied on image load
         self.img_prep = {"blurring"     :   0, #width of gauss filter
@@ -176,6 +178,20 @@ class BaseImgList(object):
                 "object")
         self._meas_geometry = val
     
+    @property
+    def update_cam_geodata(self):
+        """Updates measurement geometry whenever list index is changed
+        
+        """
+        return self._update_cam_geodata
+    
+    @update_cam_geodata.setter
+    def update_cam_geodata(self, value):
+        try:
+            self._update_cam_geodata = bool(value)
+        except:
+            raise
+        
     @property
     def plume_dists(self):
         """Distance to plume
@@ -477,15 +493,39 @@ class BaseImgList(object):
             print "-------------------------"
             print "Number of files: " + str(self.nof)
             print "-----------------------------------------"
+       
+    def _update_img_addinfo(self, raw_img):
+        """Update additional parameters in list based on image
+        
+        These are:
+            
+            1. Store deepcopy of input image in class attribute :attr:`this_raw`
+            2. Update current image edit_log dictionary
+            3. Update measurement geometry based on image meta information
+            4. Update vignetting mask if applicable (i.e. if it is available\
+                                                     in the image)
+            
+        Parameters
+        ----------
+        img_raw : Img
+            image data 
+        """
+        self._this_raw = deepcopy(raw_img)
+        self._load_edit.update(raw_img.edit_log)
+        
+        if raw_img.vign_mask is not None:
+            self.vign_mask = raw_img.vign_mask
+        
+        if self.update_cam_geodata:
+            print self.meas_geometry.cam
+            print self.this.meta
+            self.meas_geometry.update_cam_specs(**self.this.meta)
             
     def load(self):
         """Load current image
         
         Try to load the current file ``self.files[self.cfn]`` and if remove the 
         file from the list if the import fails
-        
-        Raises
-        ------
         
         Returns
         -------
@@ -498,16 +538,11 @@ class BaseImgList(object):
             return False        
         try:
             img = self._load_image(self.index)
-            self._this_raw = deepcopy(img)
             self.loaded_images["this"] = img
-            self._load_edit.update(img.edit_log)
-            
-            if img.vign_mask is not None:
-                self.vign_mask = img.vign_mask
-            
+            self._update_img_addinfo(img)
             #self.update_prev_next_index()
             self._apply_edit("this")
-                    
+            
         except IOError:
             warn("Invalid file encountered at list index %s, file will"
                 " be removed from list" %self.index)
@@ -523,6 +558,7 @@ class BaseImgList(object):
             except:
                 raise IndexError("Could not load image in list %s: file list "
                     " is empty" %(self.list_id))
+            
         return True
     
     def iter_indices(self, to_index):

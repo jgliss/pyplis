@@ -96,7 +96,7 @@ class MeasGeometry(object):
                                 ("dir_err"  ,   nan),
                                 ("velo"      ,   nan),
                                 ("velo_err"  ,   nan)])
-                                
+                               
         self.cam        =   od([("cam_id"       ,   ""),
                                 ("ser_no"       ,   9999),
                                 ("lon"          ,   nan),
@@ -121,7 +121,30 @@ class MeasGeometry(object):
         self.update_wind_specs(wind_info, update_geosetup=False)
         if any([bool(x)==True for x in [source_info, cam_info, wind_info]]):
             self.update_geosetup()
-    
+   
+    @property
+    def _type_dict(self):
+        """Returns dictionary containing required data types for attributes"""
+        return od([ ("dir"      ,   float),
+                    ("dir_err"  ,   float),
+                    ("velo"      ,   float),
+                    ("velo_err"  ,   float),
+                    ("name"       ,   str),
+                    ("cam_id"       ,   str),
+                    ("ser_no"       ,   int),
+                    ("lon"          ,   float),
+                    ("lat"          ,   float),
+                    ("altitude"     ,   float),
+                    ("elev"         ,   float),
+                    ("elev_err"     ,   float),
+                    ("azim"         ,   float),
+                    ("azim_err"     ,   float),
+                    ("focal_length" ,   float), #in m
+                    ("pix_width"    ,   float), #in m
+                    ("pix_height"   ,   float), #in m
+                    ('pixnum_x'     ,   float),
+                    ('pixnum_y'     ,   float),
+                    ('alt_offset'   ,   float)])
     @property
     def cam_id(self):
         """ID of current camera"""
@@ -167,13 +190,13 @@ class MeasGeometry(object):
 #                 self.cam[key] = img_obj.meta[key]
 # =============================================================================
     
-    def update_cam_specs(self, info_dict=None, update_geosetup=True,
+    def update_cam_specs(self, info_dict={}, update_geosetup=True,
                          **kwargs):
         """Update camera settings
         
-        Update camera info dictionary (:attr:`cam`) either by providing a 
-        dictionary containing valid key / value pairs (:param:`info_dict` or by 
-        providing valid key / value pairs directly using :param:`kwargs`)
+        Update dictionary containing geometrical camera information 
+        (:attr:`cam`) by providing a dictionary containing valid key / value 
+        pairs for camera parameters.
         
         Parameters
         ----------
@@ -184,18 +207,24 @@ class MeasGeometry(object):
             If True, the method :func:`update_geosetup` is called at the end
             of this method
         **kwargs
-            alternative way to update the camera dictionary using valid 
-            keywords directly 
+            can be used to directly pass valid key / value pairs
         """
-        if isinstance(info_dict, dict):
-            for key, val in info_dict.iteritems():
-                if self.cam.has_key(key) and not isnan(val) and val is not None:
+        info_dict.update(kwargs)
+        types = self._type_dict
+        for key, val in info_dict.iteritems():
+            if self.cam.has_key(key):
+                try:
+                    val = types[key](val)
+                    if isnan(val):
+                        raise ValueError
                     self.cam[key] = val
-        self.cam.update(**kwargs)
+                except:
+                    warn("Failed to update following key / value pair in cam "
+                         "dict of MeasGeometry class: %s: %s" %(key, val))
         if update_geosetup:
             self.update_geosetup()
             
-    def update_source_specs(self, info_dict=None, update_geosetup=True, 
+    def update_source_specs(self, info_dict={}, update_geosetup=True, 
                             **kwargs):
         """Update source settings
         
@@ -215,15 +244,22 @@ class MeasGeometry(object):
             alternative way to update the source dictionary using valid 
             keywords directly
         """
-        if isinstance(info_dict, dict):
-            for key, val in info_dict.iteritems():
-                if self.source.has_key(key) and val is not None:
+        info_dict.update(kwargs)
+        types = self._type_dict
+        for key, val in info_dict.iteritems():
+            if self.source.has_key(key):
+                try:
+                    val = types[key](val)
+                    if isnan(val):
+                        raise ValueError
                     self.source[key] = val
-        self.source.update(**kwargs)
+                except:
+                    warn("Failed to update following key / value pair in source "
+                         "dict of MeasGeometry class: %s: %s" %(key, val))
         if update_geosetup:
             self.update_geosetup()
             
-    def update_wind_specs(self, info_dict=None, update_geosetup=True, 
+    def update_wind_specs(self, info_dict={}, update_geosetup=True, 
                           **kwargs):
         """Update meteorological settings
         
@@ -243,11 +279,18 @@ class MeasGeometry(object):
             alternative way to update the wind dictionary using valid 
             keywords directly
         """
-        if isinstance(info_dict, dict):
-            for key, val in info_dict.iteritems():
-                if key in self.wind.keys() and isnum(val):
+        info_dict.update(kwargs)
+        types = self._type_dict
+        for key, val in info_dict.iteritems():
+            if self.wind.has_key(key):
+                try:
+                    val = types[key](val)
+                    if isnan(val):
+                        raise ValueError
                     self.wind[key] = val
-        self.wind.update(**kwargs)
+                except:
+                    warn("Failed to update following key / value pair in wind "
+                         "dict of MeasGeometry class: %s: %s" %(key, val))
         if update_geosetup:
             self.update_geosetup()
     
@@ -280,10 +323,13 @@ class MeasGeometry(object):
         plume
             
         """   
-        cam_ok, source_ok = self._check_geosetup_info()
+# =============================================================================
+#         cam_ok, source_ok = self._check_geosetup_info()
+# =============================================================================
         mag = 20
-        if cam_ok:
-            print "Updating camera in GeoSetup of MeasGeometry"
+        cam_ok, source_ok = False, False
+        all_ok = True
+        try:
             try:
                 cam = GeoPoint(self.cam["lat"], self.cam["lon"],
                                self.cam["altitude"], name="cam",
@@ -294,9 +340,12 @@ class MeasGeometry(object):
                 from geonum import __version__ as v
                 warn("Outdated version of Geonum: %s. Require >= v1.2.0" %v)
             self.geo_setup.add_geo_point(cam)
-            
-        if source_ok:       
-            print "Updating source in GeoSetup of MeasGeometry"
+            print("Updated camera in GeoSetup of MeasGeometry")
+            cam_ok=True
+        except:
+            warn("Could not update camera in GeoSetup of MeasGeometry")
+            all_ok = False
+        try:
             try:
                 source = GeoPoint(self.source["lat"], self.source["lon"],
                                   self.source["altitude"], name="source",
@@ -307,40 +356,68 @@ class MeasGeometry(object):
                                   self.source["altitude"], name="source")
                 warn("Outdated version of Geonum: %s. Require >= v1.2.0" %v)
             self.geo_setup.add_geo_point(source)
-
+            source_ok=True
+            print("Updated source in GeoSetup of MeasGeometry")
+        except:
+            warn("Could not update source in GeoSetup of MeasGeometry")
+            all_ok = False
         if cam_ok and source_ok:
-            source2cam = cam - source #Vector pointing from source to camera
-            mag = source2cam.norm #length of this vector
-            source2cam.name = "source2cam"
-            
-            #vector representing the camera center pix viewing direction (CFOV),
-            #anchor at camera position
-            cam_view_vec = GeoVector3D(azimuth=self.cam["azim"], 
-                                       elevation=self.cam["elev"], 
-                                       dist_hor=mag, anchor=cam, 
-                                       name="cfov")
-            print ("Updating source2cam and cam viewing direction "
-                   "vectors in GeoSetup of MeasGeometry")
-
-            #vector representing the emission plume 
-            #(anchor at source coordinates)
-            plume_vec = GeoVector3D(azimuth=self.plume_dir[0],
-                                    dist_hor=mag, anchor=source, 
-                                    name="plume_vec")
-            
-            self.geo_setup.add_geo_vectors(source2cam, cam_view_vec, 
-                                           plume_vec)
-            #horizontal intersection of plume and viewing direction
-            offs = plume_vec.intersect_hor(cam_view_vec)
-            #Geopoint at intersection
-            intersect = source + offs
-            intersect.name = "intersect"
-            self.geo_setup.add_geo_point(intersect)
-            self.geo_setup.set_borders_from_points(extend_km=
+            try:
+                source2cam = cam - source #Vector pointing from source to camera
+                mag = source2cam.norm #length of this vector
+                source2cam.name = "source2cam"
+                self.geo_setup.add_geo_vector(source2cam)
+                print("Updated source2cam GeoVector in GeoSetup of MeasGeometry")
+            except:
+                warn("Failed to compute GeoVector between camera and source")
+                all_ok = False
+            try:    
+                #vector representing the camera center pix viewing direction (CFOV),
+                #anchor at camera position
+                cam_view_vec = GeoVector3D(azimuth=self.cam["azim"], 
+                                           elevation=self.cam["elev"], 
+                                           dist_hor=mag, anchor=cam, 
+                                           name="cfov")
+                print("Updated camera CFOV vector in GeoSetup of MeasGeometry")
+                self.geo_setup.add_geo_vector(cam_view_vec)
+            except:
+                warn("Failed to compute camera CFOV GeoVector"
+                     "in GeoSetup of MeasGeometry")
+                all_ok = False
+            try:
+                #vector representing the emission plume 
+                #(anchor at source coordinates)
+                plume_vec = GeoVector3D(azimuth=self.plume_dir[0],
+                                        dist_hor=mag, anchor=source, 
+                                        name="plume_vec")
+                print("Updated plume vector in GeoSetup of MeasGeometry")
+                self.geo_setup.add_geo_vector(plume_vec)
+            except:
+                warn("Failed to compute plume GeoVector"
+                     "in GeoSetup of MeasGeometry")
+                all_ok = False
+            try:
+                #horizontal intersection of plume and viewing direction
+                offs = plume_vec.intersect_hor(cam_view_vec)
+                #Geopoint at intersection
+                intersect = source + offs
+                intersect.name = "intersect"
+                print("Updated GeoPoint of intersection between camera CFOV and"
+                      "plume vector in GeoSetup of MeasGeometry")
+                self.geo_setup.add_geo_point(intersect)
+            except:
+                warn("Could not compute intersection point between camera CFOV"
+                     " and plume vector in GeoSetup of MeasGeometry")
+                all_ok = False
+            try:
+                self.geo_setup.set_borders_from_points(extend_km=
                                                    self._map_extend_km(),
                                                    to_square=True)
-            print "MeasGeometry was updated and fulfills all requirements"
-            return True
+            except:
+                pass
+            if all_ok:
+                print("MeasGeometry was updated and fulfills all requirements")
+                return True
         
         elif cam_ok:
             cam_view_vec = GeoVector3D(azimuth=self.cam["azim"], 

@@ -86,7 +86,7 @@ if __name__ == "__main__":
     # the current image preparation settings can be accessed via the 
     # edit_info method
     on_list.edit_info()
-    
+
     # Import script options
     (options, args) = OPTPARSE.parse_args()
     
