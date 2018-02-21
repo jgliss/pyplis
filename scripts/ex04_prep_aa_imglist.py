@@ -157,8 +157,8 @@ if __name__ == "__main__":
                                 m.xgrad_line_startcol,
                                 m.xgrad_line_stopcol])
         
-        actual = [aa_list.meas_geometry.cam["elev"],
-                  aa_list.meas_geometry.cam["azim"],
+        actual = [aa_list.meas_geometry.cam_elev,
+                  aa_list.meas_geometry.cam_azim,
                   aa_list.meas_geometry.plume_dist(),
                   aa_list.this.mean(),
                   shape_log, mean_log]

@@ -161,7 +161,6 @@ class PlumeBackgroundModel(object):
     
     @surface_fit_mask.setter
     def surface_fit_mask(self, val):
-        print("CALLING SETTER FOR MASK, input type: %s" %type(val))
         if not isinstance(val, Img):
             val = Img(val)
         self._surface_fit_mask = val

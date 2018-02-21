@@ -116,7 +116,8 @@ class BaseImgList(object):
         self.loaded_images = {"this"  :    None}
         
         #used to store the img edit state on load
-        self._load_edit = {}
+        self._load_edit = {"this" : {},
+                           "next" : {}}
 
         self.index = 0
         self.skip_files = 1
@@ -493,31 +494,22 @@ class BaseImgList(object):
             print "-------------------------"
             print "Number of files: " + str(self.nof)
             print "-----------------------------------------"
-       
-    def _update_img_addinfo(self, img):
-        """Update additional parameters in list based on image
+    
+    def iter_indices(self, to_index):
+        """Change the current image indices for previous, this and next img
         
-        These are:
-            
-            1. Update current image edit_log dictionary
-            2. Update measurement geometry based on image meta information
-            3. Update vignetting mask if applicable (i.e. if it is available\
-                                                     in the image)
-            
-        Parameters
-        ----------
-        img : Img
-            image data 
+        Note
+        ----
+        This method only updates the actual list indices and does not perform
+        a reload.
         """
-        self._load_edit.update(img.edit_log)
-        
-        if img.vign_mask is not None:
-            self.vign_mask = img.vign_mask
-        
-        if self.update_cam_geodata:
-            print self.meas_geometry.cam
-            print self.this.meta
-            self.meas_geometry.update_cam_specs(**self.this.meta)
+        try:
+            self.index = to_index%self.nof
+            self.next_index = (self.index + self.skip_files)%self.nof
+            self.prev_index = (self.index - self.skip_files)%self.nof
+            
+        except:
+            self.index, self.prev_index, self.next_index = 0, 0, 0
             
     def load(self):
         """Load current image
@@ -536,9 +528,17 @@ class BaseImgList(object):
             return False        
         try:
             img = self._load_image(self.index)
+            self._load_edit["this"].update(img.edit_log)
             self.loaded_images["this"] = img
-            self._update_img_addinfo(img)
-            #self.update_prev_next_index()
+            if img.vign_mask is not None:
+                print("Raw image at index %d contains vignetting mask, that "
+                      "will be set as current vignetting mask in ImgList %s"
+                      %(self.index, self.list_id))
+                self.vign_mask = img.vign_mask
+            
+            if self.update_cam_geodata:
+                self.meas_geometry.update_cam_specs(**self.this.meta) 
+        
             self._apply_edit("this")
             
         except IOError:
@@ -559,29 +559,6 @@ class BaseImgList(object):
             
         return True
     
-    def iter_indices(self, to_index):
-        """Change the current image indices for previous, this and next img
-        
-        Note
-        ----
-        This method only updates the actual list indices and does not perform
-        a reload.
-        """
-        try:
-            self.index = to_index%self.nof
-            self.next_index = (self.index + self.skip_files)%self.nof
-            self.prev_index = (self.index - self.skip_files)%self.nof
-            
-        except:
-            self.index, self.prev_index, self.next_index = 0, 0, 0
-            
-    def pop(self, idx=None):
-        """Remove one file from this list"""
-        warn("Removing image at index %n from image list")
-        if idx == None:
-            idx = self.index
-        self.files.pop(idx)
-        
     def goto_next(self):
         """Goto next index in list"""
         if self.nof < 2:
@@ -611,7 +588,6 @@ class BaseImgList(object):
             return self.this
         elif to_index  == self.next_index:
             self.goto_next()
-            return
         elif to_index == self.prev_index:
             self.goto_prev()
         else:
@@ -619,7 +595,16 @@ class BaseImgList(object):
             self.load()
 
         return self.loaded_images["this"]
-            
+      
+    def pop(self, idx=None):
+        """Remove one file from this list"""
+        raise NotImplementedError("pop method of ImgList is currently not "
+                                  "available...")
+        warn("Removing image at index %n from image list")
+        if idx == None:
+            idx = self.index
+        self.files.pop(idx)
+        
     def activate_edit(self, val=True):
         """Activate / deactivate image edit mode
         
@@ -772,7 +757,7 @@ class BaseImgList(object):
         Note
         ----
         Only works if relevant information is specified in ``self.camera`` and
-        can be accessed from the file names, missing 
+        can be accessed from the file names
         
         Returns
         -------
@@ -792,14 +777,16 @@ class BaseImgList(object):
                 texps[k] = info[3]
             except:
                 pass
-        if times[0].date() == date(1900,1,1):
-            d = self.this.meta["start_acq"].date()
-            warn("Warning accessing acq. time stamps from file names in "
-                "ImgList: date information could not be accessed, using "
-                "date of currently loaded image meta info: %s" %d)
-            times = asarray([datetime(d.year, d.month, d.day, x.hour, x.minute, 
-                              x.second, x.microsecond) for x in times])
-            
+        try:
+            if times[0].date() == date(1900,1,1):
+                d = self.this.meta["start_acq"].date()
+                warn("Warning accessing acq. time stamps from file names in "
+                    "ImgList: date information could not be accessed, using "
+                    "date of currently loaded image meta info: %s" %d)
+                times = asarray([datetime(d.year, d.month, d.day, x.hour, x.minute, 
+                                  x.second, x.microsecond) for x in times])
+        except:
+            pass
         return times, texps
 
     def assign_indices_linked_list(self, lst):
@@ -823,8 +810,8 @@ class BaseImgList(object):
                  "the corresponding image")
         elif (any([x is None for x in times]) or 
               any([x is None for x in times_lst])):
-            warn("Image acquisition times could not be accessed from file"
-                " names, assigning by indices")
+            warn("Image acquisition times could not be accessed from file "
+                 "names, assigning by indices")
             lst_idx = arange(lst.nof)
             for k in range(self.nof):
                 idx_array[k] = abs(k - lst_idx).argmin()
@@ -1636,6 +1623,7 @@ class ImgList(BaseImgList):
         
         self._aa_corr_mask = None
         self._calib_data = None
+        
         # these two images can be set manually, if desired
         self.master_dark = None
         self.master_offset = None
@@ -1659,6 +1647,7 @@ class ImgList(BaseImgList):
     
         #Optical flow engine
         self.optflow = OptflowFarneback(name=self.list_id)
+        
         
         if self.data_available and init:
             self.load()
@@ -2751,7 +2740,7 @@ class ImgList(BaseImgList):
         """Update current index in all linked lists based on ``cfn``"""
         for key, lst in self.linked_lists.iteritems():
             lst.goto_img(self.linked_indices[key][self.index])
-            
+
     def load(self):
         """Try load current and next image"""
         self.change_index_linked_lists() #based on current index in this list
@@ -2759,12 +2748,16 @@ class ImgList(BaseImgList):
             print ("Image load aborted...")
             return False
         if self.nof > 1:
-            self.loaded_images["next"] = self._load_image(self.next_index)
+            next_img = self._load_image(self.next_index)
+            self.loaded_images["next"] = next_img
+            self._load_edit["next"].update(next_img.edit_log)
             self._apply_edit("next")
         else:
-            #self.loaded_images["prev"] = self.loaded_images["this"]
+            warn("Image list contains only one image. Setting this image both"
+                 "in <this> and <next> attr.")
             self.loaded_images["next"] = self.loaded_images["this"]
-        
+            self._load_edit["next"].update(self._load_edit["this"])
+            
         if self.optflow_mode:  
             try:
                 self.set_flow_images()
@@ -2774,23 +2767,33 @@ class ImgList(BaseImgList):
                     "deactivated")
                 self.optflow_mode = 0
         return True
-          
+    
     def goto_next(self):
         """Load next image in list"""
         if self.nof < 2 or not self._auto_reload:
             print ("Could not load next image, number of files in list: " +
                 str(self.nof))
             return False
-# =============================================================================
-#         self.index = self.next_index
-#         self.update_prev_next_index()
-# =============================================================================
+
         self.iter_indices(to_index=self.next_index)
         self.change_index_linked_lists() #loads new images in all linked lists
         
-        #self.loaded_images["prev"] = self.loaded_images["this"]
-        self.loaded_images["this"] = self.loaded_images["next"]
-        self.loaded_images["next"] = self._load_image(self.next_index)
+        this_img = self.loaded_images["next"]
+        self.loaded_images["this"] = this_img
+        self._load_edit["this"].update(self._load_edit["next"])
+        
+        if this_img.vign_mask is not None:
+            print("Raw image at index %d contains vignetting mask, that "
+                  "will be set as current vignetting mask in ImgList %s"
+                  %(self.index, self.list_id))
+            self.vign_mask = this_img.vign_mask
+        
+        if self.update_cam_geodata:
+            self.meas_geometry.update_cam_specs(**this_img.meta) 
+            
+        next_img = self._load_image(self.next_index)
+        self.loaded_images["next"] = next_img
+        self._load_edit["next"].update(next_img.edit_log)
         self._apply_edit("next")
         if self.optflow_mode:  
             try:
@@ -2801,40 +2804,6 @@ class ImgList(BaseImgList):
                     "deactivated")
                 self.optflow_mode = 0
         return True
-        
-# =============================================================================
-#     def change_index(self, idx):
-#         """Change current image based on index of file list
-#         
-#         :param idx: index in `self.files` which is supposed to be loaded
-#         
-#         Dependend on the input index, the following scenarii are possible:
-#         If..
-#         
-#             1. idx < 0 or idx > `self.nof`
-#                 then: do nothing (return)
-#             #. idx == `self.index`
-#                 then: do nothing
-#             #. idx == `self.next_index`
-#                 then: call :func:`next_img`
-#             #. idx == `self.prev_index`
-#                 then: call :func:`prev_img`
-#             #. else
-#                 then: call :func:`goto_img`
-#         """
-#         if not -1 < idx < self.nof or idx == self.index:
-#             return
-#         elif idx == self.next_index:
-#             self.goto_next()
-#             return
-#         elif idx == self.prev_index:
-#             self.prev_img()
-#             return
-#         #: goto_img calls :func:`load` which calls prepare_additional_data
-#         self.goto_img(idx)
-# 
-#         return self.loaded_images["this"]
-# =============================================================================
     
     """PROCESSING AND ANALYSIS METHODS""" 
     def optflow_histo_analysis(self, lines=[], start_idx=0, stop_idx=None, 

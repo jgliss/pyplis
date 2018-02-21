@@ -66,7 +66,7 @@ def find_viewing_direction(meas_geometry, draw_result=True):
     # Geographic position of SE crater (extracted from Google Earth)
     # The GeoPoint object (geonum library) automatically retrieves the altitude
     # using SRTM data 
-    se_crater = GeoPoint(37.747757, 15.002643, name = "SE crater")
+    se_crater = GeoPoint(37.747757, 15.002643, name="SE crater")
     
     print "Retrieved altitude SE crater (SRTM): %s" %se_crater.altitude
     
@@ -185,11 +185,10 @@ if __name__ == "__main__":
                             rtol=1e-7)
         
         # check some basic properties / values of the geometry
-        npt.assert_allclose(actual=[geom_corr.cam["elev"],
-                                    geom_corr.cam["elev_err"],
-                                    geom_corr.cam["azim"],
-                                    geom_corr.cam["azim_err"],
-                                    geom_corr.azim_cfov, 
+        npt.assert_allclose(actual=[geom_corr.cam_elev,
+                                    geom_corr.cam_elev_err,
+                                    geom_corr.cam_azim,
+                                    geom_corr.cam_azim_err, 
                                     plume_dist_cfov,
                                     plume_dist_err_cfov,
                                     plume_dists_all_cols.mean(),
@@ -198,7 +197,6 @@ if __name__ == "__main__":
                                      1.064556e+00, 
                                      2.793013e+02, 
                                      1.065411e+00,
-                                     2.793013e+02,
                                      1.073102e+04, 
                                      1.645586e+02, 
                                      1.076047e+04,

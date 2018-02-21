@@ -1124,7 +1124,6 @@ class MeasSetup(BaseSetup):
             raise TypeError("Invalid input type, need Source object")
         self._cam_source_dict["source"] = value
         
-    
     @property
     def camera(self):
         """Camera"""

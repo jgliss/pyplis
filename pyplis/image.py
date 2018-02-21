@@ -151,7 +151,7 @@ class Img(object):
                         ("lon"           ,   nan),   #longitude (dec deg)
                         ("lat"           ,   nan),   #latitude (dec. deg)
                         ("altitude"      ,   nan),    # in m
-                        ("alt_offset"    ,   nan),    # offset in altitude above topography
+                        ("altitude_offs" ,   nan),    # offset in altitude above topography
                         ("elev"         ,    nan),
                         ("elev_err"     ,    nan),
                         ("azim"         ,    nan),

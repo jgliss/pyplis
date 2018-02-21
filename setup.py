@@ -65,12 +65,12 @@ setup(
                      #'pyplis.gui_features' :    'pyplis/gui_features'},
     packages =  find_packages(exclude=['contrib', 'docs', 'tests*']),
                  
-    package_data=   {'pyplis'     :   ['data/*.txt',
-                                       'data/*.rst',
-                                       'data/*.png',
-                                       'data/*.fts',
-                                       'data/testdata_minimal/doas_results/*.dat',
-                                       'data/testdata_minimal/images/*.fts'],
+    package_data = {'pyplis'    :   ['data/*.txt',
+                                     'data/*.rst',
+                                     'data/*.png',
+                                     'data/*.fts',
+                                     'data/testdata_minimal/doas_results/*.dat',
+                                     'data/testdata_minimal/images/*.fts'],
                     },
 
     install_requires    =   [],
