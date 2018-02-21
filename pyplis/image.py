@@ -1114,11 +1114,14 @@ class Img(object):
     def get_cmap(self, vmin=None, vmax=None, **kwargs):
         """Determine and return default cmap for current image"""
         if self.is_tau or self.is_aa:
-            if vmin is None:
-                vmin = self.min()
-            if vmax is None:
-                vmax = self.max()
-            return shifted_color_map(vmin, vmax, cmaps.RdBu)
+            return cmaps.viridis
+# =============================================================================
+#             if vmin is None:
+#                 vmin = self.min()
+#             if vmax is None:
+#                 vmax = self.max()
+#             return shifted_color_map(vmin, vmax, cmaps.RdBu)
+# =============================================================================
         return cmaps.gray
         
     def show(self, zlabel=None, tit=None,**kwargs):
@@ -1155,8 +1158,8 @@ class Img(object):
         """Show image using plt.imshow"""
         if not "cmap" in kwargs.keys():
             kwargs["cmap"] = self.get_cmap()
-        fig = figure(figsize = (13, 5), dpi = 80, facecolor = 'w',\
-                                                        edgecolor = 'k')  
+        fig = figure(figsize = (13, 5), dpi=80, 
+                     facecolor='w', edgecolor='k')  
         gs = gridspec.GridSpec(1, 2, width_ratios=[4, 1]) 
 
         ax = fig.add_subplot(gs[0])

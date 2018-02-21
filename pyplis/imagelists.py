@@ -120,7 +120,7 @@ class BaseImgList(object):
                            "next" : {}}
 
         self.index = 0
-        self.skip_files = 1
+        self._skip_files = 1
         self.next_index = 0
         self.prev_index = 0
         
@@ -166,6 +166,21 @@ class BaseImgList(object):
     def this(self):
         """Current image"""
         return self.current_img()         
+      
+    @property
+    def skip_files(self):
+        """Integer specifying the image iter step in the file list
+        
+        Defaults to 1: every file is used, 2 means, that every second file is
+        used.
+        """
+        return self._skip_files
+    
+    @skip_files.setter
+    def skip_files(self, val):
+        self._skip_files = int(val)
+        self.iter_indices()
+        self.load()
         
     @property
     def meas_geometry(self):
@@ -2429,6 +2444,7 @@ class ImgList(BaseImgList):
                 " list. Please provide either a string of one of the image "
                 "lists already linked to this list or provide an ImgList object"
                 "containing BG images")
+        self.which_bg = "list"
             
     def set_bg_corr_mode(self, mode=1):
         """Update the current background correction mode in ``self.bg_model``

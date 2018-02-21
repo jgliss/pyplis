@@ -38,6 +38,7 @@ matlab_datenum_to_datetime = lambda num: (datetime.fromordinal(int(num)) +
                                           timedelta(days=num%1) - 
                                           timedelta(days=366))
 
+
 def get_pyr_factor_rel(img1, img2):
     """Get difference in pyramid level between two input images
     
