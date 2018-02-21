@@ -296,7 +296,7 @@ class MeasGeometry(object):
     
     def _check_geosetup_info(self):
         """Checks if relevant information for :attr:`geo_setup` is ready"""
-        check = ["lon", "lat", "elev", "azim", "dir"]
+        check = ["lon", "lat", "altitude"]
         cam_ok, source_ok = True, True
         for key in check:
             if self.cam.has_key(key) and not isnum(self.cam[key]):
@@ -327,9 +327,9 @@ class MeasGeometry(object):
 #         cam_ok, source_ok = self._check_geosetup_info()
 # =============================================================================
         mag = 20
-        cam_ok, source_ok = False, False
+        cam_ok, source_ok = self._check_geosetup_info()
         all_ok = True
-        try:
+        if cam_ok:
             try:
                 cam = GeoPoint(self.cam["lat"], self.cam["lon"],
                                self.cam["altitude"], name="cam",
@@ -341,11 +341,7 @@ class MeasGeometry(object):
                 warn("Outdated version of Geonum: %s. Require >= v1.2.0" %v)
             self.geo_setup.add_geo_point(cam)
             print("Updated camera in GeoSetup of MeasGeometry")
-            cam_ok=True
-        except:
-            warn("Could not update camera in GeoSetup of MeasGeometry")
-            all_ok = False
-        try:
+        if source_ok:
             try:
                 source = GeoPoint(self.source["lat"], self.source["lon"],
                                   self.source["altitude"], name="source",
@@ -356,11 +352,7 @@ class MeasGeometry(object):
                                   self.source["altitude"], name="source")
                 warn("Outdated version of Geonum: %s. Require >= v1.2.0" %v)
             self.geo_setup.add_geo_point(source)
-            source_ok=True
             print("Updated source in GeoSetup of MeasGeometry")
-        except:
-            warn("Could not update source in GeoSetup of MeasGeometry")
-            all_ok = False
         if cam_ok and source_ok:
             try:
                 source2cam = cam - source #Vector pointing from source to camera

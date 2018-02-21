@@ -2334,7 +2334,7 @@ class ImgStack(object):
             new.stack_id = "%s - %s" %(self.stack_id, other)
         return new
         
-def model_dark_image(img, dark, offset):
+def model_dark_image(texp, dark, offset):
     """Model a dark image for input image based on dark and offset images
     
     Determine a modified dark image (D_mod) from the current dark and 
@@ -2355,10 +2355,10 @@ def model_dark_image(img, dark, offset):
     :returns: - :class:`Img`, modelled dark image 
  
     """
-    if not all([x.meta["texp"] > 0.0 for x in [img, dark, offset]]):
+    if not all([x.meta["texp"] > 0.0 for x in [dark, offset]]):
         raise ImgMetaError("Could not model dark image, invalid value for "
             "exposure time encountered for at least one of the input images")
-    if any([x.modified for x in [img, dark, offset]]):
+    if any([x.modified for x in [dark, offset]]):
         warn("Images used for modelling dark image are modified")
 # =============================================================================
 #         
@@ -2369,11 +2369,10 @@ def model_dark_image(img, dark, offset):
 #         img = Img(img.meta["path"], import_method=img.import_method)
 #             
 # =============================================================================
-    dark_img = (offset.img + (dark.img - offset.img) * img.meta["texp"]/
+    dark_img = (offset.img + (dark.img - offset.img) * texp/
                              (dark.meta["texp"] - offset.meta["texp"]))
     
-    return Img(dark_img, start_acq=img.meta["start_acq"], 
-               texp=img.meta["texp"], **img.edit_log)
+    return Img(dark_img, texp=texp)
 #==============================================================================
 # import matplotlib.animation as animation
 # 

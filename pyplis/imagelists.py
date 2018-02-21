@@ -114,7 +114,7 @@ class BaseImgList(object):
         
         self._vign_mask = None #a vignetting correction mask can be stored here
         self.loaded_images = {"this"  :    None}
-        self._this_raw = None #the raw version of the current image is stored as well
+        
         #used to store the img edit state on load
         self._load_edit = {}
 
@@ -494,27 +494,25 @@ class BaseImgList(object):
             print "Number of files: " + str(self.nof)
             print "-----------------------------------------"
        
-    def _update_img_addinfo(self, raw_img):
+    def _update_img_addinfo(self, img):
         """Update additional parameters in list based on image
         
         These are:
             
-            1. Store deepcopy of input image in class attribute :attr:`this_raw`
-            2. Update current image edit_log dictionary
-            3. Update measurement geometry based on image meta information
-            4. Update vignetting mask if applicable (i.e. if it is available\
+            1. Update current image edit_log dictionary
+            2. Update measurement geometry based on image meta information
+            3. Update vignetting mask if applicable (i.e. if it is available\
                                                      in the image)
             
         Parameters
         ----------
-        img_raw : Img
+        img : Img
             image data 
         """
-        self._this_raw = deepcopy(raw_img)
-        self._load_edit.update(raw_img.edit_log)
+        self._load_edit.update(img.edit_log)
         
-        if raw_img.vign_mask is not None:
-            self.vign_mask = raw_img.vign_mask
+        if img.vign_mask is not None:
+            self.vign_mask = img.vign_mask
         
         if self.update_cam_geodata:
             print self.meas_geometry.cam
@@ -2294,19 +2292,19 @@ class ImgList(BaseImgList):
                 "DARK_CORR_OPT is zero, please set DARK_CORR_OPT according "
                 "to your data type")
         # this was changed on 8/1/2017
-        img = self._this_raw
+        texp = self.this.meta["texp"]
         #img = self.current_img(key)
-        read_gain = img.meta["read_gain"]
+        read_gain = self.this.meta["read_gain"]
         self.update_index_dark_offset_lists()
         if self.DARK_CORR_OPT == 1:
             try:
                 dark = self.dark_lists[read_gain]["list"].current_img()
                 offset = self.offset_lists[read_gain]["list"].current_img()
-                dark = model_dark_image(img, dark, offset)
+                dark = model_dark_image(texp, dark, offset)
             except Exception as e:
                 msg = format_exc(e)
                 try:
-                    dark = model_dark_image(img, self.master_dark,
+                    dark = model_dark_image(texp, self.master_dark,
                                             self.master_offset)
                     print "Using master dark and offset image"
                 except:
@@ -2325,7 +2323,7 @@ class ImgList(BaseImgList):
                     raise ValueError("Dark image could not be accessed in "
                             "image list %s (DARK_CORR_OPT=2)" %self.list_id)
         try:
-            texp_ratio = img.meta["texp"] / dark.meta["texp"]
+            texp_ratio = texp / dark.meta["texp"]
             if not 0.8 <= texp_ratio <= 1.2:
                 warn("Exposure time of current dark image in list %s "
                      "deviates by more than 20% from list image %s "

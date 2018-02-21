@@ -103,9 +103,11 @@ def load_and_prepare_images():
     dark, offset = pyplis.Img(DARK_FILE), pyplis.Img(OFFSET_FILE)
     
     # Model dark image for tExp of plume image
-    dark_plume = pyplis.processing.model_dark_image(plume, dark, offset)
+    dark_plume = pyplis.processing.model_dark_image(plume.meta["texp"], 
+                                                    dark, offset)
     # Model dark image for tExp of background image
-    dark_bg = pyplis.processing.model_dark_image(bg, dark, offset)
+    dark_bg = pyplis.processing.model_dark_image(bg.meta["texp"], 
+                                                 dark, offset)
     
     plume.subtract_dark_image(dark_plume)
     bg.subtract_dark_image(dark_bg)
