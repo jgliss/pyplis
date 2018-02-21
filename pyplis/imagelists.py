@@ -179,7 +179,7 @@ class BaseImgList(object):
     @skip_files.setter
     def skip_files(self, val):
         self._skip_files = int(val)
-        self.iter_indices()
+        self.iter_indices(self.index)
         self.load()
         
     @property
