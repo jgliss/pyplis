@@ -31,6 +31,9 @@ polys_through_origin = {1 : lambda x, a0: a0*x,
                         2 : lambda x, a0, a1: a0*x**2 + a1*x,
                         3 : lambda x, a0, a1, a2: a0*x**3 + a1*x**2 + a2*x}
 
+calibfun_kern_2015 = lambda x, a0, a1 : a0 * exp(x*a1) - 1
+calibfun_kern_2015_withoffs = lambda x, a0, a1, a2 : a0*(exp(x*a1) - 1) + a2
+
 def get_poly_model(order=1, through_origin=False):
     """Helper method that returns a polynomial model function
     

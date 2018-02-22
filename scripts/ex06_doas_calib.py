@@ -62,7 +62,7 @@ from ex04_prep_aa_imglist import prepare_aa_image_list
 # reload and save stack in folder SAVE_DIR, results in increased
 # running time due to stack calculation (is automatically switched on if
 # the stack is not found at this location)
-RELOAD_STACK = True
+RELOAD_STACK = False
 
 PYRLEVEL_ROUGH_SEARCH = 2
 # Default search settings are at pyramid level 2, the FOV results are upscaled

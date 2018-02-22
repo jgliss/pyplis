@@ -21,6 +21,7 @@ Pyplis module for DOAS calibration including FOV search engines
 """
 from numpy import min, arange, asarray, zeros, linspace, column_stack,\
     ones, nan, float64, poly1d, sqrt, isnan, round, ndarray,append
+from inspect import getargspec
 from scipy.stats.stats import pearsonr 
 from scipy.sparse.linalg import lsmr
 from scipy.optimize import curve_fit
@@ -52,7 +53,17 @@ from .inout import get_camera_info
 from .setupclasses import Camera
 
 class CalibData(object):
-    """Base class representing calibration data
+    """Base class representing calibration data and optimisation parameters
+    
+    The default calibration curve is a polynomial of first order. Calibration
+    data is represneted by two arrays ``cd_vec`` and ``tau_vec`` and
+    optionally, a vector containing errors in the column densities 
+    ``cd_vec_err`` (note that errors in the optical densities are not 
+    supported). 
+    Furthermore, an array of ``time_stamps`` can be provided and
+    If you want to use a custom calibration function you can 
+    provide the function using :param:`calib_fun`. 
+    
     
     Parameters
     ----------
@@ -65,6 +76,10 @@ class CalibData(object):
     time_stamps : ndarray
         array with datetime objects containing time stamps 
         (e.g. start acquisition) of calibration data
+    calib_fun : function
+        optimisation function used for fitting of calibration data
+    calib_coeffs : ;obj:`list`, optional
+        optimisation parameters for calibration curve. 
     senscorr_mask : :obj:`ndarray`or :obj:`Img`, optional
         sensitivity correction mask that was normalised relative to the 
         pixel position where the calibration data was retrieved (i.e. 
@@ -78,9 +93,9 @@ class CalibData(object):
         decimal degrees
         
     """
-    def __init__(self, tau_vec=[], cd_vec=[], cd_vec_err=[], 
-                 time_stamps=[], senscorr_mask=None, calib_id="", 
-                 camera=None, polyorder=1):
+    def __init__(self, tau_vec=[], cd_vec=[], cd_vec_err=[], time_stamps=[], 
+                 calib_fun=None, calib_coeffs=[], senscorr_mask=None, 
+                 polyorder=1, calib_id="", camera=None):
         
         #tau data vector within FOV
         self.tau_vec = asarray(tau_vec).astype(float64)
@@ -88,21 +103,100 @@ class CalibData(object):
         self.cd_vec = asarray(cd_vec).astype(float64)
         self.cd_vec_err = asarray(cd_vec_err).astype(float64)
         
-        self.senscorr_mask = senscorr_mask
+        try:
+            num = len(tau_vec)
+            if not len(time_stamps) == num:
+                raise AttributeError
+            elif not isinstance(time_stamps[0], datetime):
+                raise ValueError
+        except:
+            time_stamps = asarray([datetime(1900,1,1)] * num)
+        
         self.time_stamps = time_stamps
         self.calib_id = calib_id
         
         if camera is None:
             camera = Camera()
         self.camera = camera
+        
+        if senscorr_mask is None:
+            try:
+                senscorr_mask = ones((self.camera.pixnum_y,
+                                      self.camera.pixnum_x))
+            except:
+                warn("Could not retrieve image dimensions from camera "
+                     "(probably since no camera was provided on input). "
+                     "Initiating attribute senscorr_mask with ones and "
+                     "shape=(10, 10)")
+                senscorr_mask = ones((10, 10))
                 
-        self._poly = None
+        self.senscorr_mask = senscorr_mask
+        
+        self.fit_weighted = True
+        # irrelevant if custom fit function is provided
+        self.poly_through_origin = False
+        
+        self._calib_fun = None
+        self._calib_coeffs = None
         self._cov = None
+        
         self._polyorder = None
+        
         self._allowed_polyorders = polys.keys()
         
+        self.calib_fun = calib_fun
+        self.calib_coeffs = calib_coeffs
         self.polyorder = polyorder
     
+    @property
+    def fit_coeffs(self):
+        """List containing calibration coefficients for :attr:`calib_fun`"""
+        return self._fit_coeffs
+    
+    @fit_coeffs.setter
+    def fit_coeffs(self, val):
+        try:
+            iter(val)
+        except:
+            raise TypeError("Input is not iterable, need list, tuple or "
+                            "similar, containing optimisation coefficients")
+        fun = self.calib_fun
+        req_num_args = len(getargspec(fun).args) - 1
+        if not len(val) == req_num_args:
+            raise AttributeError("Number of provided coefficients does not "
+                                     "match the number of optimisation params "
+                                     "in current optimisation function. "
+                                     "Please check and update class attribute "
+                                     "calib_fun first...")
+        if len(self._calib_coeffs) > 0:
+            warn("Setting calibration coefficients manually. This may introduce "
+                 "analysis errors. It is recommended to use the method "
+                 "fit_calib_data instead")
+        self._calib_coeffs = val
+
+    @property 
+    def calib_fun(self):
+        """Mathematical function used for retrieval of calibration curve
+        
+        Note
+        ----
+        The function can be defined on class initiation and may be updated 
+        using the setter method. If not explicitely specified, a polynomial is
+        used with order :attr:`polyorder`.
+        """
+        if not callable(self._calib_fun):
+            return get_poly_model(self.polyorder, self.poly_through_origin)
+        return self._calib_fun
+    
+    @calib_fun.setter
+    def calib_fun(self, val):
+        if not callable(val):
+            raise ValueError("Need a callable object (e.g. lambda function)")
+        args = getargspec(val).args
+        print("Setting optimisation function in CalibData class. "
+              "Argspec: %s" %args)
+        self._calib_fun = val
+        
     @property
     def start(self):
         """Start time of calibration data (datetime)"""
@@ -151,17 +245,11 @@ class CalibData(object):
                  "for the new settings")
             
     @property
-    def poly(self):
+    def apply_calibration(self, val):
         """Calibration polynomial"""
         if not isinstance(self._poly, poly1d):
             self.fit_calib_polynomial()
         return self._poly
-    
-    @poly.setter
-    def poly(self, value):
-        if not isinstance(value, poly1d):
-            raise ValueError("Need numpy poly1d object...")
-        self._poly=value
     
     @property
     def cov(self):
@@ -268,7 +356,7 @@ class CalibData(object):
             return False
         return True
         
-    def fit_calib_polynomial(self, polyorder=None, weighted=True, 
+    def fit_calib_data(self, polyorder=None, weighted=True, 
                              weights_how="abs",
                              through_origin=False,
                              plot=False):
@@ -306,11 +394,9 @@ class CalibData(object):
             self.polyorder = polyorder
         except:
             pass
-# =============================================================================
-#         if polyorder is None:
-#             polyorder = self.polyorder
-#     
-# =============================================================================
+        # is used in method calib_fun
+        self.poly_through_origin = through_origin
+        
         if sum(isnan(self.tau_vec)) + sum(isnan(self.cd_vec)) > 0:
             raise ValueError("Encountered nans in data")
         
@@ -320,10 +406,10 @@ class CalibData(object):
         if weighted:
             if not len(self.cd_vec) == len(self.cd_vec_err):
                 warn("Could not perform weighted calibration fit: "
-                     "Length mismatch between DOAS data vector"
-                     " and corresponding error vector")
+                     "Length mismatch between CD data vector "
+                     "and corresponding error vector")
             elif sum(self.cd_vec_err) == 0:
-                warn("Could not performed weighted calibration fit: "
+                warn("Could not perform weighted calibration fit: "
                      "Values of DOAS fit errors are 0. Do you have pydoas "
                      "installed?")
             else:
@@ -339,13 +425,13 @@ class CalibData(object):
         tau_vals = self.tau_vec
         cds = self.cd_vec / 10**exp
         
-        fun = get_poly_model(self.polyorder, through_origin)
+        fun = self.calib_fun
         
         coeffs, cov = curve_fit(fun, tau_vals.astype(float64), 
                                 cds.astype(float64), 
                                 sigma=yerr.astype(float64),
                                 absolute_sigma=yerr_abs)
-        if through_origin:
+        if self.poly_through_origin and self._calib_fun:
             coeffs = append(coeffs, 0.0)
 # =============================================================================
 #         if through_origin:
@@ -388,7 +474,7 @@ class CalibData(object):
         arrays.header["calib_id"] = self.calib_id
         return arrays
         
-    def save_as_fits(self, save_dir=None, save_name=None):
+    def to_fits(self, save_dir=None, save_name=None):
         """Save calibration data as FITS file
         
         Parameters
