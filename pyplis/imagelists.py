@@ -16,7 +16,15 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 """
-Image list objects of pyplis library   
+Image list objects (e.g. :class:`BaseImgList`, :class:`ImgList`, 
+:class:`DarkImgList`, :class:`CellImgList`) contain a list of image file paths 
+and are central for the data analysis. Images are loaded as :class:`Img` 
+objects and are loaded and processed itertatively. T
+ypically one list contains all images of a certain type (e.g. onband, offband, 
+see :class:`Dataset` object). :class:`ImgList` objects (inherited 
+from :class:`BaseImgList`) contain powerful preprocessing modes (e.g. load 
+images as dark corrected and calibrated images, compute optical flow between 
+current and next image). 
 """
 from numpy import asarray, zeros, argmin, arange, ndarray, float32, isnan,\
     logical_or, uint8, exp, ones
@@ -33,13 +41,14 @@ from collections import OrderedDict as od
 
 from traceback import format_exc
 
-from .image import Img
+from .glob import DEFAULT_ROI
+from .image import Img, model_dark_image
 from .inout import load_img_dummy
 from .exceptions import ImgMetaError
 from .setupclasses import Camera
 from .geometry import MeasGeometry
-from .processing import ImgStack, PixelMeanTimeSeries, LineOnImage,\
-    model_dark_image
+from .processing import ImgStack, PixelMeanTimeSeries
+from .utils import LineOnImage
 #from .optimisation import PolySurfaceFit                                                    
 from .plumebackground import PlumeBackgroundModel
 from .plumespeed import OptflowFarneback, LocalPlumeProperties
@@ -97,7 +106,7 @@ class BaseImgList(object):
         self.set_camera(camera)
         
         self._update_cam_geodata = False
-        self.edit_active = True
+        self._edit_active = True
         
         #the following dictionary contains settings for image preparation
         #applied on image load
@@ -107,7 +116,7 @@ class BaseImgList(object):
                          "pyrlevel"     :   0, #int, gauss pyramide level
                          "8bit"         :   0} #to 8bit 
         
-        self._roi_abs = [0, 0, 9999, 9999] #in original img resolution
+        self._roi_abs = DEFAULT_ROI #in original img resolution
         self._auto_reload = True
         
         self._list_modes = {} #init for :class:`ImgList` object
@@ -167,6 +176,23 @@ class BaseImgList(object):
         """Current image"""
         return self.current_img()         
       
+    @property
+    def edit_active(self):
+        """Defines whether images are edited on image load or not
+        
+        If False, images will be loaded as raw, i.e. without any editing or 
+        further calculations (e.g. determination of optical flow, or updates of
+        linked image lists). Images will be reloaded.
+        """
+        return self._edit_active
+    
+    @edit_active.setter
+    def edit_active(self, value):
+        if value == self._edit_active:
+            return
+        self._edit_active=value
+        self.load()
+        
     @property
     def skip_files(self):
         """Integer specifying the image iter step in the file list
@@ -546,9 +572,6 @@ class BaseImgList(object):
             self._load_edit["this"].update(img.edit_log)
             self.loaded_images["this"] = img
             if img.vign_mask is not None:
-                print("Raw image at index %d contains vignetting mask, that "
-                      "will be set as current vignetting mask in ImgList %s"
-                      %(self.index, self.list_id))
                 self.vign_mask = img.vign_mask
             
             if self.update_cam_geodata:
@@ -619,23 +642,6 @@ class BaseImgList(object):
         if idx == None:
             idx = self.index
         self.files.pop(idx)
-        
-    def activate_edit(self, val=True):
-        """Activate / deactivate image edit mode
-        
-        If inactive, images will be loaded raw without any editing or 
-        further calculations (e.g. determination of optical flow, or updates of
-        linked image lists). Images will be reloaded.
-        
-        Parameters
-        ----------
-        val : bool
-            new mode
-        """
-        if val == self.edit_active:
-            return
-        self.edit_active = val
-        self.load()
         
     def has_files(self):
         """Returns boolean whether or not images are available in list"""
@@ -745,7 +751,7 @@ class BaseImgList(object):
     def reset_img_prep(self):
         """Init image pre-edit settings"""
         self.img_prep = dict.fromkeys(self.img_prep, 0)
-        self._roi_abs = [0, 0, 9999, 9999]
+        self._roi_abs = DEFAULT_ROI
         if self.nof > 0:
             self.load()
     
@@ -912,7 +918,7 @@ class BaseImgList(object):
         
         
         """
-        self.activate_edit()
+        self.edit_active=True
         if stop_idx is None:
             stop_idx = self.nof
             
@@ -1091,7 +1097,7 @@ class BaseImgList(object):
             means.append(mean)
         return means
         
-    def get_mean_value(self, roi=[0, 0, 9999, 9999], apply_img_prep=True):
+    def get_mean_value(self, roi=DEFAULT_ROI, apply_img_prep=True):
         """Determine pixel mean value time series in ROI
         
         Determines the mean pixel value (and standard deviation) for all images 
@@ -1115,7 +1121,7 @@ class BaseImgList(object):
         if not self.data_available:
             raise IndexError("No images available in ImgList object")
         #settings = deepcopy(self.img_prep)
-        self.activate_edit(apply_img_prep)
+        self.edit_active=apply_img_prep
         cfn = self.cfn
         num = self.nof
         vals, stds, texps, acq_times = [],[],[],[]
@@ -1221,7 +1227,7 @@ class BaseImgList(object):
                 "preparation will be performed")
             return
         img = self.loaded_images[key]
-        img.pyr_down(self.img_prep["pyrlevel"])
+        img.to_pyrlevel(self.img_prep["pyrlevel"])
         if self.img_prep["crop"]:
             img.crop(self.roi_abs)
         img.add_gaussian_blurring(self.img_prep["blurring"])
@@ -1302,7 +1308,7 @@ class BaseImgList(object):
     """
     Plotting etc
     """
-    def plot_mean_value(self, roi=[0, 0, 9999, 9999], yerr=False, ax=None):
+    def plot_mean_value(self, roi=DEFAULT_ROI, yerr=False, ax=None):
         """Plot mean value of image time series
         
         Parameters
@@ -1523,7 +1529,19 @@ class BaseImgList(object):
                 pass
 
 class DarkImgList(BaseImgList):
-    """A :class:`BaseImgList`object only extended by read_gain value"""
+    """A :class:`BaseImgList`object only extended by read_gain value
+    
+    This class is meant for storage of dark and offset images. 
+    
+    Note
+    ----
+    It is recommended to perform the dark and offset correction using 
+    non-edited raw dark offset images. Therefore, the default edit state 
+    of these list (:attr:`edit_active`) is set to False. This means, if 
+    you have such a list and want to add blurring, cropping, etc., you 
+    first have to activate the image edit on image load via the 
+    :attr:`edit_active`.
+    """
     def __init__(self, files=[], list_id=None, list_type=None, read_gain=0,
                  camera=None, init=True):
         
@@ -1532,8 +1550,10 @@ class DarkImgList(BaseImgList):
         self.read_gain = read_gain
         if init:
             self.add_files(files, load=False)
+        self._edit_active=False
         if self.data_available:
             self.load()
+            
  
 class AutoDilcorrSettings(object):
     """This class stores settings for automatic dilution correction in ImgLists
@@ -2799,9 +2819,6 @@ class ImgList(BaseImgList):
         self._load_edit["this"].update(self._load_edit["next"])
         
         if this_img.vign_mask is not None:
-            print("Raw image at index %d contains vignetting mask, that "
-                  "will be set as current vignetting mask in ImgList %s"
-                  %(self.index, self.list_id))
             self.vign_mask = this_img.vign_mask
         
         if self.update_cam_geodata:
@@ -3353,7 +3370,7 @@ class ImgList(BaseImgList):
         img = self.loaded_images[key]
         bg = None
         if self.darkcorr_mode:
-            dark = self.get_dark_image(key)
+            dark = self.get_dark_image(key).to_pyrlevel(img.pyrlevel)
             img.subtract_dark_image(dark)
         bg_model = self.bg_model
         if self.dilcorr_mode:
@@ -3382,6 +3399,9 @@ class ImgList(BaseImgList):
                 raise AttributeError("Linked off-band list has dilution "
                                      "correction mode activated. Please "
                                      "deactivate.")
+            elif off_list.this.is_tau:
+                raise AttributeError("Linked off-band list is in tau mode. "
+                                     "Please deactivate...")
             #off_list.dilcorr_mode = self.dilcorr_mode
             if bg is None:
                 bg = self.bg_img.to_pyrlevel(img.pyrlevel)

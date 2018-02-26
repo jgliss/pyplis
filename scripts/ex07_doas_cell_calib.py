@@ -28,8 +28,8 @@ from example script 5. The results from the DOAS calibration (see prev. example)
 where stored as a FITS file (including FOV information) and the results are 
 imported here.
 """
+# Check script version
 from SETTINGS import check_version
-# Raises Exception if conflict occurs
 check_version()
 
 import pyplis
@@ -112,7 +112,7 @@ if __name__ == "__main__":
     ### Load DOAS calbration data and FOV information (see example 6)
     doascalib = pyplis.doascalib.DoasCalibData()
     doascalib.load_from_fits(file_path=CALIB_FILE)
-    doascalib.fit_calib_polynomial()
+    doascalib.fit_calib_data()
     
     ### Get DOAS FOV parameters in absolute coordinates
     fov_x, fov_y = doascalib.fov.pixel_position_center(abs_coords=True)
@@ -122,10 +122,10 @@ if __name__ == "__main__":
     cellcalib = perform_auto_cell_calib().calib_data["aa"]
     
     ### Define lines on image for plume profiles
-    pcs1 = pyplis.processing.LineOnImage(620, 700, 940, 280,
-                                         line_id="center")
-    pcs2 = pyplis.processing.LineOnImage(40, 40, 40, 600,
-                                         line_id="edge")
+    pcs1 = pyplis.LineOnImage(620, 700, 940, 280,
+                              line_id="center")
+    pcs2 = pyplis.LineOnImage(40, 40, 40, 600,
+                              line_id="edge")
 
     ### Plot DOAS calibration polynomial
     ax0 = doascalib.plot(add_label_str="DOAS")

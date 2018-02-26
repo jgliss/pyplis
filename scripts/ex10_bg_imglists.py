@@ -18,8 +18,8 @@
 """
 Pyplis example script no. 10 - Create background image dataset
 """
+# Check script version
 from SETTINGS import check_version
-# Raises Exception if conflict occurs
 check_version()
 
 import pyplis

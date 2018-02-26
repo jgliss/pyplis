@@ -32,8 +32,9 @@ definitions  contains information about the camera specs a the
 image base directory (note that in this example, start / stop acq. time stamps
 are ignored, i.e. all images available in the specified directory are imported)
 """
-# Import from SETTINGS.py
+# Imports from SETTINGS.py
 from SETTINGS import check_version, IMG_DIR, OPTPARSE
+# Check script version
 check_version()
 
 import pyplis

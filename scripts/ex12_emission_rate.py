@@ -36,8 +36,8 @@ PCS lines in the EmissionRateAnalysis class using ``add_pcs_line``.
 The results for each velocity mode and for each PCS line are stored within 
 EmissionRateResults classes.
 """
+# Check script version
 from SETTINGS import check_version
-# Raises Exception if conflict occurs
 check_version()
 
 from os.path import join, exists
@@ -229,7 +229,7 @@ if __name__ == "__main__":
     ### Load DOAS calbration data and FOV information (see example 6)
     doascalib = pyplis.doascalib.DoasCalibData()
     doascalib.load_from_fits(file_path=CALIB_FILE)
-    doascalib.fit_calib_polynomial()
+    doascalib.fit_calib_data()
     
     #Load AA corr mask and set in image list(is normalised to DOAS FOV see ex7)
     aa_corr_mask = pyplis.Img(CORR_MASK_FILE)

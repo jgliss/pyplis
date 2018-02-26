@@ -26,13 +26,14 @@ from collections import OrderedDict as od
 from warnings import warn
 from pandas import Series, DataFrame
 
-from .processing import LineOnImage
+from .utils import LineOnImage
 from .image import Img
 from .optimisation import dilution_corr_fit
 from .model_functions import dilutioncorr_model
 from .geometry import MeasGeometry
-from .helpers import check_roi
+from .helpers import check_roi, isnum
 from .imagelists import ImgList
+from .exceptions import ImgModifiedError
 LABEL_SIZE=rcParams["font.size"]+ 2
 
 class DilutionCorr(object):
@@ -83,10 +84,14 @@ class DilutionCorr(object):
                          "min_slope_angle" :   5.0,
                          "topo_res_m"      :   5.0}
         
-        self._masks = od()
-        self._dists = od()
+        self._masks_lines = od()
+        self._dists_lines = od()
+        # additional retrieval points that were added manually using
+        # method add_retrieval_point
+        self._add_points = []
         self._skip_pix = od()
         self._geopoints = od()
+        self._geopoints["add_points"] = []
         
         for line in lines:
             self.lines[line.line_id] = line
@@ -104,6 +109,54 @@ class DilutionCorr(object):
             if self.settings.has_key(k):
                 self.settings[k] = v
                 
+    def add_retrieval_line(self, line):
+        """Add one topography retrieval line"""
+        if not isinstance(line, LineOnImage):
+            raise TypeError("Need LineOnImage object")
+        if line.line_id in self.line_ids:
+            raise KeyError("A line with ID %s is already assigned to Dilution "
+                           "correction engine" %line.line_id)
+        self.lines[line.line_id] = line
+        
+    def add_retrieval_point(self, pos_x_abs, pos_y_abs, dist=None):
+        """Add a distinct pixel with known distance to image
+        
+        Parameters
+        ----------
+        pos_x_abs : int
+            x-pixel position of point in image in absolute coordinate (i.e.
+            pyramid level 0 and not cropped)
+        pos_y_abs : int
+            y-pixel position of point in image in absolute coordinate (i.e.
+            pyramid level 0 and not cropped)
+        dist : :obj:`float`, optional
+            distance to feature in image in m. If None (default), the distance
+            will be estimated 
+        """
+        if not isnum(dist):
+            print("Input distance for point unspecified, trying automatic "
+                  "access")
+            (dist, 
+             derr, 
+             p) = self.meas_geometry.get_topo_distance_pix(pos_x_abs,
+                                                           pos_y_abs)
+            self._geopoints["add_points"].append(p)
+            dist *= 1000.0
+        self._add_points.append((pos_x_abs, pos_y_abs, dist))
+            
+    def det_topo_dists_all_lines(self, **settings):
+        """Estimate distances to topo distances to all assigned lines
+        
+        Parameters
+        ----------
+        **settings
+            keyword args passed to update search settings (:attr:`settings`) 
+            and passed to 
+            :func:`get_topo_distances_line` in :class:`MeasGeometry`
+        """           
+        for lid, line in self.lines.iteritems():
+            self.det_topo_dists_line(lid, **settings)
+              
     def det_topo_dists_line(self, line_id, **settings):
         """Estimate distances to pixels on current lines
 
@@ -116,24 +169,26 @@ class DilutionCorr(object):
         line_id : str
             ID of line
         **settings :
-            additional key word args used to update search settings
+            additional key word args used to update search settings (passed to 
+            :func:`get_topo_distances_line` in :class:`MeasGeometry`)
             
         Returns
         -------
         array
             retrieved distances
             
-        """     
+        """
         if not line_id in self.lines.keys():
             raise KeyError("No line with ID %s available" %line_id)
+        print("Searching topo distances for pixels on line %s" %line_id)
         self.update_settings(**settings)
         
-        l = self.lines[line_id].to_list() #line coords as list
-        res = self.meas_geometry.get_distances_to_topo_line(l, **self.settings)
+        l = self.lines[line_id] 
+        res = self.meas_geometry.get_topo_distances_line(l, **self.settings)
         dists = res["dists"] * 1000. #convert to m
         self._geopoints[line_id] = res["geo_points"]
-        self._dists[line_id] = dists
-        self._masks[line_id] = res["ok"]
+        self._dists_lines[line_id] = dists
+        self._masks_lines[line_id] = res["ok"]
         self._skip_pix[line_id] = self.settings["skip_pix"]
         return dists
             
@@ -141,7 +196,7 @@ class DilutionCorr(object):
         """Get radiances for dilution fit along terrain lines
         
         The data is only extracted along specified input lines. The terrain 
-        distance retrieval :func:`det_topo_dists_line` must have been performed 
+        distance retrieval :func:`det_topo_dists_lines_line` must have been performed 
         for that.
         
         Parameters
@@ -158,21 +213,26 @@ class DilutionCorr(object):
         if not isinstance(img, Img) or not img.edit_log["vigncorr"]:
             raise ValueError("Invalid input, need Img class and Img needs to "
                 "be corrected for vignetting")
+        if img.is_cropped or img.is_resized:
+            raise ImgModifiedError("Image must not be cropped or rescaled")
         if len(line_ids) == 0:
             line_ids = self.line_ids
             
         dists, rads = [], []
         for line_id in line_ids:
-            if self._dists.has_key(line_id):
+            if self._dists_lines.has_key(line_id):
                 skip = int(self._skip_pix[line_id])
                 l = self.lines[line_id]
-                mask = self._masks[line_id]
-                dists.extend(self._dists[line_id][mask])
+                mask = self._masks_lines[line_id]
+                dists.extend(self._dists_lines[line_id][mask])
                 rads.extend(l.get_line_profile(img)[::skip][mask])
             else:
                 warn("Distances to line %s not available, please apply "
                     "distance retrieval first using class method "
                     "det_topo_dists_line")
+        for x, y, dist in self._add_points:
+            dists.append(dist)
+            rads.append(img.img[y,x])
         return asarray(dists), asarray(rads)
     
     def apply_dilution_fit(self, img, rad_ambient, i0_guess=None,
@@ -445,11 +505,14 @@ class DilutionCorr(object):
         if len(line_ids) == 0:
             line_ids = self.line_ids
         for line_id in self.line_ids:
-            if self._dists.has_key(line_id):
+            if self._dists_lines.has_key(line_id):
                 line = self.lines[line_id]
-                mask = self._masks[line_id]
+                mask = self._masks_lines[line_id]
                 pts = self._geopoints[line_id][mask]
                 map3d.add_geo_points_3d(pts, color=line.color, **kwargs)
+        for pt in self._geopoints["add_points"]:
+            map3d.draw_geo_point_3d(pt, color="r")
+        
         if axis_off:
             map3d.ax.set_axis_off()
         return map3d
@@ -515,7 +578,7 @@ def get_topo_dists_lines(lines, geom, img=None, skip_pix=5, topo_res_m=5.0,
     pts, dists, mask = [], [], []
     for line in lines:
         l = line.to_list() #line coords as list
-        res = geom.get_distances_to_topo_line(l, skip_pix, topo_res_m, 
+        res = geom.get_topo_distances_line(l, skip_pix, topo_res_m, 
                                               min_slope_angle)
         pts.extend(res["geo_points"])
         dists.extend(res["dists"])

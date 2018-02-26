@@ -309,7 +309,7 @@ def same_roi(roi1, roi2):
         return False
     return True
 
-def roi2rect(roi, inverse = False):
+def roi2rect(roi, inverse=False):
     """Converts ROI to rectangle coordinates or vice versa
     
     :param list roi: list containing ROI corner coords ``[x0 , y0, x1, y1]``
@@ -327,7 +327,7 @@ def roi2rect(roi, inverse = False):
     
 def map_coordinates_sub_img(pos_x_abs, pos_y_abs, roi_abs=[0,0,9999,9999],
                             pyrlevel=0, inverse=False):
-    """Maps original input coordinates onto sub image
+    """Maps absolute pixel coordinate to cropped and / or downscaled image
     
     :param int pos_x_abs: x coordinate in absolute image coords (can also be
         an array of coordinates)

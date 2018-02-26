@@ -21,14 +21,14 @@ Pyplis example script no. 3 - Plume background analysis
 This example script introduces features related to plume background modelling
 and tau image calculations.    
 """
+# Check script version
+from SETTINGS import check_version
+check_version()
+
 import numpy as np
 from os.path import join
 import pyplis
 from matplotlib.pyplot import show, subplots, close
-
-from SETTINGS import check_version
-# Raises Exception if conflict occurs
-check_version()
 
 ### IMPORT GLOBAL SETTINGS
 from SETTINGS import SAVEFIGS, SAVE_DIR, FORMAT, DPI, IMG_DIR, OPTPARSE
@@ -103,10 +103,10 @@ def load_and_prepare_images():
     dark, offset = pyplis.Img(DARK_FILE), pyplis.Img(OFFSET_FILE)
     
     # Model dark image for tExp of plume image
-    dark_plume = pyplis.processing.model_dark_image(plume.meta["texp"], 
-                                                    dark, offset)
+    dark_plume = pyplis.image.model_dark_image(plume.meta["texp"], 
+                                               dark, offset)
     # Model dark image for tExp of background image
-    dark_bg = pyplis.processing.model_dark_image(bg.meta["texp"], 
+    dark_bg = pyplis.image.model_dark_image(bg.meta["texp"], 
                                                  dark, offset)
     
     plume.subtract_dark_image(dark_plume)
@@ -167,12 +167,12 @@ if __name__=="__main__":
     bg_model = init_background_model()
     
     ### Define exemplary plume cross section line
-    pcs_line = pyplis.processing.LineOnImage(x0=530,
-                                             y0=730, 
-                                             x1=890,
-                                             y1=300,
-                                             line_id="example PCS",
-                                             color="lime")
+    pcs_line = pyplis.LineOnImage(x0=530,
+                                  y0=730, 
+                                  x1=890,
+                                  y1=300,
+                                  line_id="example PCS",
+                                  color="lime")
     
     plume, plume_vigncorr, bg = load_and_prepare_images()
 

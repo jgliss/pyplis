@@ -18,1382 +18,32 @@
 """
 This Pyplis module contains the following processing classes and methods:
 
-    1. :class:`PixelMeanTimeSeries`: storage and post analysis of time\
+    1. :class:`ImgStack`: Object for storage of 3D image data
+    #. :class:`PixelMeanTimeSeries`: storage and post analysis of time\
     series of average pixel intensities
-    #. :class:`LineOnImage`: data access along a line on a 2D discrete\
-    grid using interpolation
-    #. :class:`ProfileTimeSeriesImg`: expanded :class:`Img` object, where\
-    y axis corresponds to 1D profile data (e.g. line profile from an\
-    image) and x corresponds to the time axis.
-    #. :class:`ImgStack`: Object for storage of 3D image data
-    #. :func:`model_dark_image`: method to model a dark image from a long\
-    and short exposure dark
-        
 """
-from numpy import vstack, ogrid, empty, ones, asarray, ndim, round, hypot,\
-    linspace, sum, dstack, float32, zeros, poly1d, polyfit, argmin, where,\
-    logical_and, rollaxis, complex, angle, array, ndarray, cos, sin,\
-    arctan, dot, int32, pi, isnan, nan, delete, mean, hstack
+from numpy import (vstack, ogrid, empty, ones, asarray, sum, dstack, float32, 
+                   zeros, poly1d, polyfit, argmin, where, logical_and, rollaxis,   
+                   delete, hstack)
     
-from numpy.linalg import norm
-from scipy.ndimage import map_coordinates 
 from scipy.ndimage.filters import gaussian_filter1d, median_filter
 from warnings import warn
-from json import loads, dumps
+
 from copy import deepcopy
 from datetime import datetime, timedelta
-from matplotlib.pyplot import subplot, subplots, tight_layout, draw
+from matplotlib.pyplot import subplots
 from matplotlib.dates import date2num, DateFormatter
-from matplotlib.patches import Polygon, Rectangle
 
 from pandas import Series, concat, DatetimeIndex
-from cv2 import cvtColor, COLOR_BGR2GRAY, pyrDown, pyrUp, fillPoly
-from os import remove
+from cv2 import pyrDown, pyrUp
 from os.path import join, exists, dirname, basename, isdir, abspath
 from astropy.io import fits
     
 from .image import Img
 from .setupclasses import Camera
-from .exceptions import ImgMetaError, ImgModifiedError
-from .helpers import map_coordinates_sub_img, same_roi, map_roi, to_datetime,\
-    roi2rect
-
-class PixelMeanTimeSeries(Series):
-    """A ``pandas.Series`` object with extended functionality representing time
-    series data of pixel mean values in a certain image region
-    
-    .. note::    
-    
-        This object is only used to store results of a mean series analysis
-        in a certain ROI, it does not include any algorithms for actually 
-        calculating the series
-    """
-    std = None
-    texps = None
-    img_prep = {}
-    roi_abs = None
-    poly_model = None
-    
-    def __init__(self, data, start_acq, std=None, texps=None, roi_abs=None, 
-                 img_prep={}, **kwargs):
-        """
-        :param ndarray data: data array 
-            (is passed into pandas Series init -> ``self.values``)
-        :param ndarray start_acq: array containing acquisition time stamps 
-            (is passed into pandas Series init -> ``self.index``)
-        :param ndarray std: array containing standard deviations
-        :param ndarray texps: array containing exposure times
-        :param list roi_abs: image area from which data was extracted, list of 
-            shape: ``[x0, y0, x1, y1]``
-        :param dict img_prep: dictionary containing information about image
-            preparation settings (e.g. blurring, etc..) or other 
-            important information which may need to be stored
-        :param **kwargs: additional keyword parameters which are passed to 
-            the initiation of the :class:`pandas.Series` object
-        
-        """
-        super(PixelMeanTimeSeries, self).__init__(data, start_acq, **kwargs)
-        try:
-            if len(texps) == len(data):
-                self.texps = texps
-        except:
-            self.texps = zeros(len(data), dtype = float32)
-        try:
-            if len(std) == len(data):
-                self.std = std
-        except:
-            self.std = zeros(len(data), dtype = float32)
-            
-        self.img_prep = img_prep
-        self.roi_abs = roi_abs
-        
-        for key, val in kwargs.iteritems():
-            self[key] = val
-        
-    def get_data_normalised(self, texp=None):
-        """Normalise the mean value to a given exposure time
-        
-        :param float texp (None): the exposure time to which all deviating times
-            will be normalised. If None, the values will be normalised to the 
-            largest available exposure time
-       :return: A new :class:`PixelMeanTimeSeries`instance with normalised data
-        """
-        try:
-            if texp is None:
-                texp = self.texps.max()
-            facs = texp / self.texps
-            ts = self.texps * facs
-            
-            return PixelMeanTimeSeries(self.values*facs, self.index, self.std, 
-                                       ts, self.roi_abs, self.img_prep)
-            
-        except Exception as e:
-            print ("Failed to normalise data bases on exposure times:\n%s\n\n"
-                        %repr(e))
-                      
-    
-    def fit_polynomial(self, order=2):
-        """Fit polynomial to data series
-        
-        :param int order: order of polynomial
-        :returns:
-            - poly1d, the fitted polynomial
-        """
-        s = self.dropna()
-        num = len(s)
-        if num == 1:
-            raise ValueError("Could not fit polynomial to PixelMeanTimeSeries"
-                " object: only one data point available")
-        elif num == 2:
-            warn("PixelMeanTimeSeries object only contains 2 data points, "
-                "setting polyfit order to one (default is 2)")
-            order = 1
-        x = [date2num(idx) for idx in s.index] 
-        y = s.values
-        p = poly1d(polyfit(x, y, deg = order))
-        self.poly_model = p
-        return p
-    
-    def includes_timestamp(self, time_stamp, ext_border_secs=0.0):
-        """Checks if input time stamp is included in this dataset
-        
-        :param datetime time_stamp: the time stamp to be checked
-        :param float ext_border_secs: extend start / stop range (default 0 s)
-        :return:
-            - bool, True / False (timestamp is within interval)
-        """
-        i = self.start - timedelta(ext_border_secs / 86400.0)
-        f = self.stop + timedelta(ext_border_secs / 86400.0)
-        if i <= to_datetime(time_stamp) <= f:
-            return True
-        return False
-        
-    def get_poly_vals(self, time_stamps, ext_border_secs=0.0):
-        """Get value of polynomial at input time stamp
-        
-        :param datetime time_stamp: poly input value
-        """
-        if not isinstance(self.poly_model, poly1d):
-            raise AttributeError("No polynomial available, please call"
-                "function fit_polynomial first")
-        if isinstance(time_stamps, datetime):
-            time_stamps = [time_stamps,]
-        if not any([isinstance(time_stamps, x) for x in [list, DatetimeIndex]]):
-            raise ValueError("Invalid input for time stamps, need list")
-        if not all([self.includes_timestamp(x, ext_border_secs)\
-                                                    for x in time_stamps]):
-            raise IndexError("At least one of the time stamps is not included "
-                "in this series: %s - %s" %(self.start, self.stop))
-        values = []
-        for time_stamp in time_stamps:
-            values.append(self.poly_model(date2num(time_stamp)))
-            
-        return asarray(values)
-        
-    def estimate_noise_amplitude(self, sigma_gauss=1, median_size=3, plot=0):
-        """Estimate the amplitude of the noise in the data 
-        
-        Steps:
-            
-            1. Determines high frequency variations by applying binomial
-                filter (sigma = 3) to data and subtract this from data,
-                resulting in a residual
-            2. Median filtering of residual signal to get rid of narrow peaks
-                (i.e. where the original data shows abrupt changes)
-            3. subtract both signals and determine std
-        
-        ..note::
-        
-            Beta version: no guarantee it works for all cases
-            
-        """
-        #make bool array of indices considered (initally all)
-        y0 = median_filter(self.values, 3)
-        y1 = gaussian_filter1d(y0, sigma_gauss)
-        res0 = y0 - y1
-        res1 = median_filter(res0, median_size)
-        diff = res1 - res0
-        if plot:
-            fig, ax = subplots(2,1)
-            ax[0].plot(y0, "-c",label="y0")
-            ax[0].plot(y1, "--xr",label="y1: Smoothed y0")
-            ax[0].legend(loc='best', fancybox=True, framealpha=0.5, fontsize=10)
-            ax[1].plot(res0, "--c",label="res0: y0 - y1")
-            ax[1].plot(res1, "--r",label="res1: Median(res0)")
-            ax[1].plot(diff, "--b",label="diff: res1 - res0")
-            ax[1].legend(loc='best', fancybox=True, framealpha=0.5, fontsize=10)
-        return diff.std()
-    
-    def plot(self, include_tit=True, date_fmt=None, **kwargs):
-        """Plot time series
-        
-        Parameters
-        ----------
-        include_tit : bool
-            Include a title
-        date_fmt : str
-            Date / time formatting string for x labels, passed to 
-            :class:`DateFormatter` instance (optional)
-        **kwargs
-            Additional keyword arguments passed to pandas Series plot method
-            
-        Returns
-        -------
-        axes
-            matplotlib axes instance
-        
-        """
-        try:
-            self.index = self.index.to_pydatetime()
-        except:
-            pass
-        try:
-            if not "style" in kwargs:
-                kwargs["style"] = "--x"  
-        
-            ax = super(PixelMeanTimeSeries, self).plot(**kwargs)
-            try:
-                if date_fmt is not None:
-                    ax.xaxis.set_major_formatter(DateFormatter(date_fmt))
-            except:
-                pass
-            if include_tit:
-                ax.set_title("Mean value (%s), roi_abs: %s" 
-                                %(self.name, self.roi_abs))
-            ax.grid()
-            
-            return ax
-        except Exception as e:
-            print repr(e)
-            fig, ax = subplots(1,1)
-            ax.text(.1,.1, "Plot of PixelMeanTimeSeries failed...")
-            fig.canvas.draw()
-            return ax
-            
-    @property
-    def start(self):
-        return self.index[0]
-    
-    @property
-    def stop(self):
-        return self.index[-1]
-
-    def __setitem__(self, key, value):
-        """Update class item"""
-        print "%s : %s" %(key, value)
-        if self.__dict__.has_key(key):
-            print "Writing..."
-            self.__dict__[key]=value
-            
-    def __call__(self, normalised = False):
-        """Returns the current data arrays (mean, std)"""
-        if normalised:
-            return self.get_data_normalised()
-        return self.get_data()
-        
-class LineOnImage(object):
-    """Class representing a line on an image
-    
-    Main purpose is data extraction along this line on a discrete image grid.
-    This is done using spline interpolation.
-    
-    Parameters
-    ----------    
-    x0 : int
-        start x coordinate
-    y0 : int
-        start y coordinate
-    x1 : int
-        stop x coordinate
-    y1 : int 
-        stop y coordinate
-    normal_orientation : str
-        orientation of normal vector, choose from left or right (left means in 
-        negative x direction for a vertical line)
-    roi_abs_def : list
-        ROI specifying image sub coordinate system in which the line
-        coordinates are defined (is used to convert to other image shape 
-        settings)
-    pyrlevel_def : int
-        pyramid level of image for which start /stop coordinates are defined
-    line_id : str
-        string for identification (optional)
-        
-    Note
-    ----
-    The input coordinates correspond to relative image coordinates 
-    with respect to the input ROI (``roi_def``) and pyramid level
-    (``pyrlevel_def``)
-        
-            
-    """
-    def __init__(self, x0=0, y0=0, x1=1, y1=1,  normal_orientation="right",
-                 roi_abs_def=[0, 0, 9999, 9999], pyrlevel_def=0, line_id = "",
-                 color="lime", linestyle="-"):
-                     
-        self.line_id = line_id # string ID of line
-        self.color = color
-        self.linestyle = linestyle
-        if x0 > x1:
-            x0, y0, x1, y1 = x1, y1, x0, y0
-        elif x0 == x1 and y0 > y1:
-            y0, y1 = y1, y0
-        self.x0 = x0 #start x coordinate
-        self.y0 = y0 #start y coordinate
-        self.x1 = x1 #stop x coordinate
-        self.y1 = y1 #stop y coordinate
-        
-        self._roi_abs_def = roi_abs_def
-        self._pyrlevel_def = pyrlevel_def
-        self._rect_roi_rot = None
-        self._line_roi_abs = [0, 0, 9999, 9999]
-        self._last_rot_roi_mask = None
-        
-        self.profile_coords = None
-        
-        self._dir_idx = {"left"   :   0,
-                         "right"  :   1}
-                        
-        self.normal_vecs = [None, None]
-        
-        self._velo_glob = nan
-        self._velo_glob_err = nan
-        self._plume_props = None
-                         
-        self.check_coordinates()
-        self.normal_orientation = normal_orientation
-                                       
-        self.prepare_coords()
-            
-    @property
-    def start(self):
-        """x, y coordinates of start point (``[x0, y0]``)"""
-        return [self.x0, self.y0]
-
-    @start.setter
-    def start(self, val):
-        try:
-            if len(val) == 2:
-                self.x0 = val[0]
-                self.y0 = val[1]
-        except:
-            warn("Start coordinates could not be set")
-
-    @property
-    def stop(self):
-        """x, y coordinates of stop point (``[x1, y1]``)"""
-        return [self.x1, self.y1]
-
-    @stop.setter
-    def stop(self, val):
-        try:
-            if len(val) == 2:
-                self.x1 = val[0]
-                self.y1 = val[1]
-        except:
-            warn("Stop coordinates could not be set")
-
-    @property
-    def center_pix(self):
-        """Returns coordinate of center pixel"""
-        dx, dy = self._delx_dely()
-        xm = self.x0 + dx / 2.
-        ym = self.y0 + dy / 2.
-        return xm, ym
-        
-    
-    @property
-    def normal_orientation(self):
-        """Get / set value for orientation of normal vector"""
-        return self._normal_orientation
-        
-    @normal_orientation.setter
-    def normal_orientation(self, val):
-        if not val in ["left", "right"]:
-            raise ValueError("Invalid input for attribute orientation, please"
-                " choose from left or right")
-        dx, dy = self._delx_dely()
-        if dx*dy < 0:
-            self._dir_idx["left"] =1
-            self._dir_idx["right"] = 0
-        self._normal_orientation = val
-    
-    @property
-    def line_frame(self):
-        """ROI framing the line (in line coordinate system)"""
-        return map_roi(self._line_roi_abs, self.pyrlevel_def)
-    
-    @property
-    def line_frame_abs(self):
-        """ROI framing the line (in absolute coordinate system)"""
-        return self._line_roi_abs
-        
-    @property
-    def roi_def(self):
-        """ROI in which line is defined (at current ``pyrlevel``)"""
-        return map_roi(self.roi_abs_def, pyrlevel_rel=self.pyrlevel_def)
-        
-    @property
-    def roi_abs_def(self):
-        """Current ROI (in absolute detector coordinates)"""
-        return self._roi_abs_def
-    
-    @roi_abs_def.setter
-    def roi_abs_def(self):
-        raise AttributeError("This attribute is not supposed to be changed, "
-            "please use method convert() to create a new LineOnImage object "
-            "corresponding to other image shape settings")
-    
-    # Redundancy (after renaming attribute in v0.10)        
-    @property
-    def pyrlevel(self):
-        """Pyramid level at which line coords are defined"""
-        warn("This method was renamed in version 0.10. Please use pyrlevel_def")
-        return self._pyrlevel_def
-        
-    @pyrlevel.setter
-    def pyrlevel(self):
-        raise AttributeError("This attribute is not supposed to be changed, "
-            "please use method convert() to create a new LineOnImage object "
-            "corresponding to other image shape settings")
-    
-    @property
-    def roi_abs(self):
-        """Current ROI (in absolute detector coordinates)"""
-        warn("This method was renamed in version 0.10. Please use roi_abs_def")
-        return self._roi_abs_def
-    
-    @roi_abs.setter
-    def roi_abs(self):
-        raise AttributeError("This attribute is not supposed to be changed, "
-            "please use method convert() to create a new LineOnImage object "
-            "corresponding to other image shape settings")
-    
-    @property
-    def pyrlevel_def(self):
-        """Pyramid level at which line coords are defined"""
-        return self._pyrlevel_def
-        
-    @pyrlevel_def.setter
-    def pyrlevel_def(self):
-        """Raises AttributeError"""
-        raise AttributeError("This attribute is not supposed to be changed, "
-            "please use method convert() to create a new LineOnImage object "
-            "corresponding to other image shape settings")
-            
-    @property
-    def coords(self):
-        """Return coordinates as ROI list"""
-        return [self.x0, self.y0, self.x1, self.y1]
-    
-    @property
-    def rect_roi_rot(self):
-        """Rectangle specifying coordinates of ROI aligned with line normal"""
-        try:
-            if not self._rect_roi_rot.shape == (5,2):
-                raise Exception
-        except:
-            print("Rectangle for rotated ROI was not set and is not being "
-                "set to default depth of +/- 30 pix around line. Use "
-                "method set_rect_roi_rot to change the rectangle")
-            self.set_rect_roi_rot()
-        return self._rect_roi_rot
-    
-    @property
-    def velo_glob(self):
-        """Global velocity in m/s, assigned to this line
-        
-        Raises
-        ------
-        AttributeError
-            if current value is not of type float
-        """
-        if not isinstance(self._velo_glob, float) or isnan(self._velo_glob):
-            raise AttributeError("Global velocity not assigned to line")
-        return self._velo_glob
-        
-    @velo_glob.setter
-    def velo_glob(self, val):
-        try:
-            val = float(val)
-            if isnan(val):
-                raise Exception
-        except:
-            raise ValueError("Invalid input, need float or int...")
-        if val < 0:
-            raise ValueError("Velocity must be larger than 0")
-        elif val > 40:
-            warn("Large value warning: input velocity exceeds 40 m/s")
-        self._velo_glob = val
-        if self._velo_glob_err is None or isnan(self._velo_glob_err):
-            warn("Global velocity error not assigned, assuming 50% of "
-                 "velocity")
-            self.velo_glob_err = val * 0.50
-    
-    @property
-    def velo_glob_err(self):
-        """Error of global velocity in m/s, assigned to this line
-        
-        Raises
-        ------
-        AttributeError
-            if current value is not of type float
-        """
-        if not isinstance(self._velo_glob_err, float) or\
-                                        isnan(self._velo_glob_err):
-            raise AttributeError("Global velocity error not assigned to line")
-        return self._velo_glob_err
-        
-    @velo_glob_err.setter
-    def velo_glob_err(self, val):
-        try:
-            val = float(val)
-            if isnan(val):
-                raise Exception
-        except:
-            raise ValueError("Invalid input, need float or int...")
-        self._velo_glob_err = val
-        
-    @property
-    def plume_props(self):
-        """:class:`LocalPlumeProperties` object assigned to this list"""
-        from pyplis import LocalPlumeProperties
-        if not isinstance(self._plume_props, LocalPlumeProperties):
-            raise AttributeError("Local plume properties not assigned to line")
-        return self._plume_props
-        
-    @plume_props.setter
-    def plume_props(self, val):
-        from pyplis import LocalPlumeProperties
-        if not isinstance(val, LocalPlumeProperties):
-            raise ValueError("Invalid input, need class LocalPlumeProperties")
-        self._plume_props = val
-        
-    def dist_other(self, other):
-        """Determines the distance to another line
-        
-        
-        Note
-        ----
-        
-            1. The offset is applied in relative coordinates, i.e. it does not
-            consider the pyramide level or ROI.
-            
-            #. The two lines need to be parallel
-        
-        Parameters
-        ----------
-        other : LineOnImage
-            the line to which the distance is retrieved
-        
-        Returns
-        -------
-        float
-            retrieved distance in pixel coordinates
-            
-        Raises
-        ------
-        ValueError
-            if the two lines are not parallel
-        """
-        dx0, dy0 = other.x0 - self.x0, other.y0 - self.y0
-        dx1, dy1 = other.x1 - self.x1, other.y1 - self.y1
-        if dx1 != dx0 or dy1 != dy0:
-            warn("Lines are not parallel...")
-        return mean([norm([dx0, dy0]), norm([dx1, dy1])])
-        
-    def offset(self, pixel_num=20, line_id=None):
-        """Returns a new line shifted within normal direction
-        
-        Note
-        ----
+from .helpers import to_datetime
+from .glob import DEFAULT_ROI
                 
-            1. The offset is applied in relative coordinates, i.e. it does not
-                consider the pyramide level or ROI
-            
-            2. The determined required displacement (dx, dy) is converted into
-                integers                
-                
-        Parameters
-        ----------
-        pixel_num : int
-            shift length in pixels
-        line_id : str
-            string ID of new line, if None (default) it is set automatically
-        
-        Returns
-        -------
-        LineOnImage
-            shifted line        
-            
-        """
-        if line_id is None:
-            line_id = self.line_id + "_shifted_%dpix" %pixel_num
-        dx, dy = self.normal_vector * pixel_num
-        x0, x1 = self.x0 + int(dx), self.x1 + int(dx)
-        y0, y1 = self.y0 + int(dy), self.y1 + int(dy)
-        return LineOnImage(x0, y0, x1, y1,
-                           normal_orientation=self.normal_orientation,
-                           line_id=line_id,
-                           color=self.color,
-                           linestyle=self.linestyle,
-                           pyrlevel_def=self.pyrlevel_def)
-        
-        
-    def convert(self, to_pyrlevel=0, to_roi_abs=[0, 0, 9999, 9999]):
-        """Convert to other image preparation settings"""
-        if to_pyrlevel == self.pyrlevel_def and same_roi(self.roi_abs_def, 
-                                                         to_roi_abs):
-            print("Same shape settings, returning current line object""")
-            return self
-        # first convert to absolute coordinates
-        ((x0, x1), 
-         (y0, y1)) = map_coordinates_sub_img([self.x0, self.x1],
-                                             [self.y0, self.y1],
-                                             roi_abs=self._roi_abs_def,
-                                             pyrlevel=self._pyrlevel_def,
-                                             inverse=True)
-        # now convert from absolute into specified coords
-        (x0, x1), (y0, y1) = map_coordinates_sub_img([x0, x1], [y0, y1],
-                                                     roi_abs=to_roi_abs,
-                                                     pyrlevel=to_pyrlevel,
-                                                     inverse=False)
-        
-        new_line = LineOnImage(x0, y0, x1, y1, roi_abs_def=to_roi_abs, 
-                               pyrlevel_def=to_pyrlevel, 
-                               normal_orientation=self.normal_orientation,
-                               line_id=self.line_id,
-                               color=self.color, linestyle=self.linestyle)
-        try:
-            new_line.velo_glob = self.velo_glob
-        except:
-            pass
-        try:
-            new_line.velo_glob_err = self.velo_glob_err
-        except:
-            pass
-        try:
-            new_line.plume_props = self.plume_props
-        except:
-            pass
-                
-        return new_line
-        
-    def check_coordinates(self):
-        """Check line coordinates
-        
-        Checks if coordinates are in the right order and exchanges start / stop
-        points if not
-        
-        Raises
-        ------
-        ValueError
-            if any of the current coordinates is smaller than zero
-        """
-        if any([x < 0 for x in self.coords]):
-            raise ValueError("Invalid value encountered, all coordinates of "
-                "line must exceed zero, current coords: %s" %self.coords)
-        if self.start[0] > self.stop[0]:
-            print ("x coordinate of start point is larger than of stop point: "
-                    "start and stop will be exchanged")
-            self.start, self.stop = self.stop, self.start
-     
-    def in_image(self, img_array):
-        """Check if this line is within the coordinates of an image array
-        
-        Parameters        
-        ----------
-        img_array : array
-            image data
-            
-        Returns
-        -------
-        bool
-            True if point is in image, False if not
-        """
-        if not all(self.point_in_image(p, img_array)\
-                                    for p in [self.start, self.stop]):
-            return False
-        return True
-        
-    def point_in_image(self, x, y, img_array):
-        """Check if a given coordinate is within image 
-        
-        Parameters
-        ----------
-        x : int
-            x coordinate of point
-        y : int
-            y coordinate of point
-        img_array : array
-            image data
-        
-        Returns
-        -------
-        bool
-            True if point is in image, False if not
-        
-        """
-        h, w = img_array.shape[:2]
-        if not 0 < x < w:
-            print "x coordinate out of image"
-            return False
-        if not 0 < y < h:
-            print "y coordinate out of image"
-            return False
-        return True
-    
-    def get_roi_abs_coords(self, img_array, add_left=5, add_right=5,
-                           add_bottom=5, add_top=5):
-        """Get a rectangular ROI covering this line 
-        
-        Parameters
-        ----------
-        add_left : int
-            expand range to left of line (in pix)
-        add_right : int
-            expand range to right of line (in pix)
-        add_bottom : int
-            expand range to bottom of line (in pix)
-        add_top : int
-            expand range to top of line (in pix)
-        
-        Returns
-        -------
-        list
-            ROI around this line
-        
-        """
-        
-        x0, x1 = self.start[0] - add_left, self.stop[0] + add_right
-        #y start must not be smaller than y stop
-        y_arr = [self.start[1], self.stop[1]]
-        y_min, y_max = min(y_arr), max(y_arr)
-        y0, y1 = y_min - add_top, y_max + add_bottom
-        roi = self.check_roi_borders([x0, y0, x1, y1], img_array)
-        roi_abs = map_roi(roi, pyrlevel_rel=-self.pyrlevel_def)
-        self._line_roi_abs= roi_abs
-        return roi_abs
-    
-    def _roi_from_rot_rect(self):
-        """Set current ROI from current rotated rectangle coords"""
-        r = self._rect_roi_rot
-        xc = asarray([x[0] for x in r])
-        xc[xc < 0] = 0
-        yc = asarray([x[1] for x in r])
-        yc[yc < 0] = 0
-        roi = [xc.min(), yc.min(), xc.max(), yc.max()]
-        self._line_roi_abs = map_roi(roi, pyrlevel_rel=-self.pyrlevel_def)
-        return roi
-    
-    def set_rect_roi_rot(self, depth=None):
-        """Get rectangle for rotated ROI based on current tilting
-        
-        Note
-        ----
-        This function also changes the current ``roi_abs`` attribute
-        
-        Parameters
-        ----------
-        depth : int
-            depth of rotated ROI (in normal direction of line) in pixels
-            
-        Returns
-        -------
-        list 
-            rectangle coordinates
-        """
-        dx, dy = self._delx_dely()
-        if depth is None:
-            depth  = norm((dx, dy)) * 0.10
-                
-        n = self.normal_vecs[1]
-        dx0, dy0 = n * depth / 2.0
-        
-#==============================================================================
-#     
-#         if sign(dx0) == sign(dy0):
-#             dx0 = -dx0
-#             dy0 = -dy0
-#==============================================================================
-        x0 = self.x0 + int(dx0)    
-        y0 = self.y0 + int(dy0)
-        offs = array([x0, y0])
-        
-        w = self.length()
-        r = array([(0, 0), (w, 0), (w, depth), (0, depth), (0, 0)])
-
-        dx, dy = self._delx_dely()
-        try:
-            theta = arctan(dy / dx)
-        except ZeroDivisionError:
-            theta = pi / 2
-        #rotation matrix (account for neg. y direction)
-        m_rot = array([[cos(theta), sin(theta)],
-                        [-sin(theta), cos(theta)]])
-        r = dot(r, m_rot) + offs
-        self._rect_roi_rot = r
-        self._roi_from_rot_rect()
-        return r
-        
-#==============================================================================
-#     def set_rect_roi_rot_v0(self, depth=None):
-#         """Get rectangle for rotated ROI based on current tilting
-#         
-#         Note
-#         ----
-#         This function also changes the current ``roi_abs`` attribute
-#         
-#         Parameters
-#         ----------
-#         depth : int
-#             depth of rotated ROI (in normal direction of line) in pixels
-#             
-#         Returns
-#         -------
-#         list 
-#             rectangle coordinates
-#         """
-#         if depth is None:
-#             depth  = self.length() * 0.10
-#         dx0, dy0 = self.normal_vector * depth / 2.0
-#     
-#         if sign(dx0) == sign(dy0):
-#             dx0 = -dx0
-#             dy0 = -dy0
-#         x0 = self.x0 + int(dx0)    
-#         y0 = self.y0 + int(dy0)
-#         offs = array([x0, y0])
-#         
-#         w = self.length()
-#         r = array([(0, 0), (w, 0), (w, depth), (0, depth), (0, 0)])
-# 
-#         dx, dy = self._delx_dely()
-#         try:
-#             theta = arctan(dy / dx)
-#         except ZeroDivisionError:
-#             theta = pi / 2
-#         #rotation matrix (account for neg. y direction)
-#         m_rot = array([[cos(theta), sin(theta)],
-#                         [-sin(theta), cos(theta)]])
-#         r = dot(r, m_rot) + offs
-#         self._rect_roi_rot = r
-#         self._roi_from_rot_rect()
-#         return r
-#==============================================================================
-    
-    
-    def get_rotated_roi_mask(self, shape):
-        """Returns pixel access mask for rotated ROI
-        
-        Parameters
-        ----------
-        shape : tuple
-            shape of image for which the mask is supposed to be used
-            
-        Returns
-        -------
-        array
-            bool array that can be used to access pixels within the ROI
-        """
-        try:
-            if not self._last_rot_roi_mask.shape == shape:
-                raise Exception
-            mask = self._last_rot_roi_mask
-        except:
-            mask = zeros(shape)
-            rect = self.rect_roi_rot
-            poly = array([rect], dtype=int32)
-            fillPoly(mask, poly, 1)
-            mask = mask.astype(bool)
-        self._last_rot_roi_mask = mask
-        return mask
-    
-    def check_roi_borders(self, roi, img_array):
-        """ Check if all points of ROI are within image borders
-        
-        Parameters
-        ----------
-        roi : list 
-            ROI rectangle ``[x0,y0,x1,y1]``
-        img_array : array
-            exemplary image data for which the ROI is checked
-            
-        Returns
-        -------
-        list        
-            roi within image coordinates (unchanged, if input is ok, else image 
-            borders)
-        """
-        x0, y0 = roi[0], roi[1]
-        x1, y1 = roi[2], roi[3]
-        h, w = img_array.shape
-        if not x0 >= 0:
-            x0 = 1
-        if not x1 < w:
-            x1 = w - 2
-        if not y0 >= 0:
-            y0 = 1
-        if not y1 < h:
-            y1 = h - 2
-        return [x0, y0, x1, y1]
-        
-    def prepare_coords(self):
-        """Prepare the analysis mesh
-        
-        Note
-        ----
-        
-        The number of analysis points on this object correponds to the physical 
-        length of this line in pixel coordinates. 
-        """
-        length = self.length()
-        x0, y0 = self.start     
-        x1, y1 = self.stop
-
-        x = linspace(x0, x1, length)
-        y = linspace(y0, y1, length)
-        self.profile_coords = vstack((y, x))
-        self.det_normal_vecs()
-        self.set_rect_roi_rot()
-        
-    def length(self):
-        """Determine the length in pixel coordinates"""
-        return int(round(hypot(*self._delx_dely())))
-        
-    def get_line_profile(self, array):
-        """Retrieve the line profile along pixels in input array
-         
-        Parameters
-        ----------
-        array : array
-            2D data array (e.g. image data). Color images are converted into
-            gray scale using :func:`cv2.cvtColor`.
-        
-        Returns
-        -------
-        array
-            profile
-            
-        """
-        try:
-            array = array.img #if input is Img object
-        except:
-            pass
-        if ndim(array) != 2:
-            if ndim(array) != 3:
-                print ("Error retrieving line profile, invalid dimension of "  
-                        "input array: %s" %(ndim(array)))
-                return
-            if array.shape[2] != 3:
-                print ("Error retrieving line profile, invalid dimension of "
-                         "input array: %s" %(ndim(array)))
-                return
-            "Input in BGR, conversion into gray image"
-            array = cvtColor(array, COLOR_BGR2GRAY)
-
-        # Extract the values along the line, using interpolation
-        zi = map_coordinates(array, self.profile_coords)
-        return zi
-        
-    """Plotting / visualisation etc...
-    """
-    def plot_line_on_grid(self, img_arr=None, ax=None, include_normal=False,
-                          include_roi_rot=False, include_roi=False, 
-                          annotate_normal=False, **kwargs):
-        """Draw this line on the image
-        
-        Parameters
-        ----------
-        
-        img_arr : ndarray 
-            if specified, the array is plotted using :func:`imshow` and onto 
-            that axes, the line is drawn
-        ax : 
-            matplotlib axes object. Is created if unspecified. Leave 
-            :param:`img_arr` empty if you want the line to be drawn onto an
-            already existing image (plotted in ax)
-        include_normal : bool
-            if True, the line normal vector is drawn
-        include_roi_rot : bool
-            if True, a line-orientation specific ROI is drawn 
-        include_roi : bool
-            if True, an ROI is drawn which spans the i,j range of the image
-            covered by the line
-        annotate_normal : bool
-            if True, the normal vector is annotated (only if include_normal is
-            set True)
-        **kwargs : 
-            additional keyword arguments for plotting of line (please use 
-            following keys: marker for marker style, mec for marker 
-            edge color, c for line color and ls for line style)
-            
-        Returns
-        -------
-        Axes
-            matplotlib axes instance
-            
-        """
-        new_ax = False
-        keys = kwargs.keys()
-        if not "mec" in keys:
-            kwargs["mec"] = "none"
-        if not "color" in keys:
-            kwargs["color"] = self.color
-        if not "ls" in keys:
-            kwargs["ls"] = self.linestyle
-        if not "marker" in keys:
-            kwargs["marker"] = "o"
-        if not "label" in keys:
-            kwargs["label"] = self.line_id
-        if ax is None:
-            new_ax = True
-            ax = subplot(111)
-        else:
-            xlim = ax.get_xlim()
-            ylim = ax.get_ylim()
-        c = kwargs["color"]
-        if img_arr is not None:
-            ax.imshow(img_arr, cmap = "gray")
-        p = ax.plot([self.start[0],self.stop[0]], [self.start[1],
-                     self.stop[1]], **kwargs)
-        if img_arr is not None:
-            ax.set_xlim([0,img_arr.shape[1]])
-            ax.set_ylim([img_arr.shape[0],0])
-        if include_normal:
-            mag = self.norm * 0.06 #3 % of length of line
-            n = self.normal_vector * mag
-            xm, ym = self.center_pix
-            epx, epy = n[0], n[1]
-            c = p[0].get_color()
-            
-            ax.arrow(xm, ym, epx, epy, head_width=mag/2, head_length=mag,
-                     fc=c, ec=c)
-            if annotate_normal:
-                ax.text(xm + epx*2, ym + epy*3, r'$\hat{n}$', 
-                        color=c,
-                        fontweight='bold',
-                        fontsize=18)
-                
-        if include_roi:
-            x0, y0, w, h = roi2rect(self.roi)
-            ax.add_patch(Rectangle((x0, y0), w, h, fc="none", ec=c))
-        if include_roi_rot:
-            self.plot_rotated_roi(color=c, ax=ax)
-        #axis('image')
-        if new_ax:
-            ax.set_title("Line " + str(self.line_id))
-        else:
-            ax.set_xlim(xlim)
-            ax.set_ylim(ylim)
-        draw()
-        return ax
-    
-    def plot_rotated_roi(self, color=None, ax=None):
-        """Plot current rotated ROI into axes
-        
-        Parameters
-        ----------
-        color
-            optional, color information. If None (default) then the current 
-            line color is used
-        ax : :obj:`Axes`, optional
-            matplotlib axes object, if None, a figure with one subplot will
-            be created
-        
-        Returns
-        -------
-        Axes
-            axes instance
-        """     
-        if ax is None:
-            ax = subplot(111)
-        if color is None:
-            color = self.color
-        r = self.rect_roi_rot
-        p = Polygon(r, fc=color, alpha=0.2)
-        ax.add_patch(p)
-        return ax
-        
-    def plot_line_profile(self, img_arr, ax=None):
-        """Plots the line profile"""
-        if ax is None:
-            ax=subplot(111)
-        p = self.get_line_profile(img_arr)
-        ax.set_xlim([0,self.length()])
-        ax.grid()
-        ax.plot(p, label=self.line_id)
-        ax.set_title("Profile")
-        return ax
-    
-    def plot(self, img_arr):
-        """Creates two subplots showing line on image and corresponding profile
-        
-        Parameters
-        ----------
-        img_arr : array
-            the image data
-        
-        Returns
-        -------
-        Figure
-            figure containing the supblots
-            
-        """
-        fig, axes = subplots(1,2)
-        self.plot_line_on_grid(img_arr,axes[0])
-        self.plot_line_profile(img_arr,axes[1])
-        tight_layout()
-        return fig
-        
-    def _delx_dely(self):
-        """Length of x and y range covered by line"""
-        return float(self.x1) - float(self.x0), float(self.y1) - float(self.y0)
-    
-    @property
-    def norm(self):
-        """Return length of line in pixels"""
-        dx, dy = self._delx_dely()
-        return norm([dx, dy])
-    
-    def det_normal_vecs(self):
-        """Get both normal vectors"""
-        dx, dy = self._delx_dely()
-        v1, v2 = array([-dy, dx]), array([dy, -dx])
-        self.normal_vecs = [v1 / norm(v1), v2 / norm(v2)]
-        return self.normal_vecs
-            
-    @property
-    def normal_vector(self):
-        """Get normal vector corresponding to current orientation setting"""
-        return self.normal_vecs[self._dir_idx[self.normal_orientation]]
-        
-    @property
-    def complex_normal(self):
-        """Return current normal vector as complex number"""
-        dx, dy = self.normal_vector
-        return complex(-dy, dx)
-    
-    @property
-    def normal_theta(self):
-        """Returns orientation of normal vector in degrees
-        
-        The angles correspond to:
-        
-            1. 0    =>  to the top (neg. y direction)
-            2. 90   =>  to the right (pos. x direction)
-            3. 180  =>  to the bottom (pos. y direction)
-            4. 270  =>  to the left (neg. x direction)
-        """
-        return angle(self.complex_normal, True)%360
-        
-    def to_list(self):
-        """Returns line coordinates as 4-list"""
-        return [self.x0, self.y0, self.x1, self.y1]
-        
-    def to_dict(self):
-        """Writes relevant parameters to dictionary"""
-        return {"class"                 :   "LineOnImage",
-                "line_id"               :   self.line_id,
-                "color"                 :   self.color,
-                "linestyle"             :   self.linestyle,
-                "x0"                    :   self.x0,
-                "y0"                    :   self.y0,
-                "x1"                    :   self.x1, 
-                "y1"                    :   self.y1,
-                "_normal_orientation"   :   self._normal_orientation,
-                "_pyrlevel_def"         :   self._pyrlevel_def, 
-                "_roi_abs_def"          :   self._roi_abs_def}
-    
-    def from_dict(self, settings_dict):
-        """Load line parameters from dictionary
-        
-        Parameters
-        ----------
-        settings_dict : dict
-            dictionary containing line parameters (cf. :func:`to_dict`)
-        """
-        for k, v in settings_dict.iteritems():
-            if self.__dict__.has_key(k):
-                self.__dict__[k] = v
-        
-        self.check_coordinates()
-        self.prepare_coords()
-    
-    @property
-    def orientation_info(self):
-        """Returns string about orientation of line and normal"""
-        dx, dy = self._delx_dely()
-        s = "delx, dely = %s, %s\n" %(dx, dy)
-        s += "normal orientation: %s\n" %self.normal_orientation
-        s += "normal vector: %s\n" %self.normal_vector
-        s += "Theta normal: %s\n" %self.normal_theta
-        return s
-        
-    """Magic methods
-    """
-    def __str__(self):
-        """String representation"""
-        s = ("Line %s: [%d, %d, %d, %d], @pyrlevel %d, @ROI: %s" 
-             %(self.line_id, self.x0, self.y0, self.x1, self.y1, 
-               self.pyrlevel_def, self.roi_abs_def))
-        return s
-
-class ProfileTimeSeriesImg(Img):
-    """Image representing time series of line profiles
-    
-    The y axis of the profile image corresponds to the actual profiles 
-    (retrieved from the individual images) and the x axis corresponds to the 
-    image time axis (i.e. the individual frames). Time stamps (mapping of 
-    x indices) can also be stored in this object.
-    
-    Example usage is, for instance to represent ICA time series retrieved
-    along a profile (e.g. using :class:`LineOnImage`) for plume speed cross 
-    correlation
-    """
-    def __init__(self, img_data=None, time_stamps=asarray([]), img_id="",
-                 dtype=float32, profile_info_dict={}, **meta_info):
-        self.img_id = img_id
-        self.time_stamps = asarray(time_stamps)
-        self.profile_info = {}
-        if isinstance(profile_info_dict, dict):
-            self.profile_info = profile_info_dict
-        #Initiate object as Img object
-        super(ProfileTimeSeriesImg, self).__init__(input=img_data,
-                                                   dtype=dtype, **meta_info)
-                                                
-    @property
-    def img(self):
-        """Get / set image data"""
-        return self._img
-    
-    @img.setter
-    def img(self, val):
-        """Setter for image data"""
-        if not isinstance(val, ndarray) or val.ndim != 2:
-            raise ValueError("Could not set image data, need 2 dimensional"
-                " numpy array as input")
-        self._img = val
-        num = val.shape[1]
-        if not len(self.time_stamps) == num:
-            self.time_stamps = asarray([datetime(1900,1,1)] * num)
-        
-    def _format_check(self):
-        """Checks if current data is of right format"""
-        if not all([isinstance(x, ndarray) for x in [self._img,\
-                                                self.time_stamps]]):
-            raise TypeError("self.img and self.time_stamps must be numpy "
-                "arrays")
-        if not len(self.time_stamps) == self.shape[1]:
-            raise ValueError("Mismatch in array lengths")
-
-    @property
-    def start(self):
-        """Returns first datetime from ``self.time_stamps``"""
-        try:
-            return self.time_stamps[0]
-        except:
-            print "no time information available, return 1/1/1900"
-            return datetime(1900,1,1)
-    
-    @property
-    def stop(self):
-        """Returns first datetime from ``self.time_stamps``"""
-        try:
-            return self.time_stamps[-1]
-        except:
-            print "no time information available, return 1/1/1900"
-            return datetime(1900,1,1)
-              
-    def save_as_fits(self, save_dir=None, save_name=None):
-        """Save stack as FITS file"""
-        self._format_check()
-        save_dir = abspath(save_dir) #returns abspath of current wkdir if None
-        if not isdir(save_dir): #save_dir is a file path
-            save_name = basename(save_dir)
-            save_dir = dirname(save_dir)
-        if save_name is None:
-            save_name = "pyplis_profile_tseries_id_%s_%s_%s_%s.fts"\
-                %(self.img_id, self.start.strftime("%Y%m%d"),\
-                self.start.strftime("%H%M"), self.stop.strftime("%H%M"))
-        else:
-            save_name = save_name.split(".")[0] + ".fts"
-    
-        hdu = fits.PrimaryHDU()
-        time_strings = [x.strftime("%Y%m%d%H%M%S%f") for x in self.time_stamps]
-        col1 = fits.Column(name = "time_stamps", format = "25A", array =\
-            time_strings)
-    
-        cols = fits.ColDefs([col1])
-        arrays = fits.BinTableHDU.from_columns(cols)
-        
-        hdu.data = self._img
-        hdu.header.update(self.edit_log)
-        hdu.header["img_id"] = self.img_id
-        for key, val in self.profile_info.iteritems():
-            if key == "_roi_abs_def":
-                try:
-                    hdu.header["_roi_abs_def"] = dumps(val)
-                except:
-                    warn("Failed to write roi_abs_def")
-            else:
-                hdu.header[key] = val
-    
-        hdu.header.append()
-        hdulist = fits.HDUList([hdu, arrays])
-        path = join(save_dir, save_name)
-        if exists(path):
-            try:
-                print "Image already exists at %s and will be overwritten" %path
-                remove(path)
-            except:
-                warn("Failed to delete existing file...")
-        try:
-            hdulist.writeto(path)
-        except:
-            warn("Failed to save FITS File (check previous warnings)")
-    
-    def _profile_dict_keys(self, profile_type = "LineOnImage"):
-        """Returns profile dictionary keys for input profile type"""
-        d = {"LineOnImage"  :   LineOnImage().to_dict().keys()}
-        return d[profile_type]
-        
-    def load_fits(self, file_path, profile_type="LineOnImage"):
-        """Load stack object (fits)
-        
-        :param str file_path: file path of fits image
-        """
-        
-        if not exists(file_path):
-            raise IOError("Img could not be loaded, path %s does not "
-                          "exist" %file_path)
-        hdu = fits.open(file_path)
-        self.img = asarray(hdu[0].data)
-        prep = Img().edit_log
-        try:
-            profile_keys = self._profile_dict_keys(profile_type)
-        except:
-            profile_keys = []
-            print "Failed to load profile info dictionary"
-        
-        for key, val in hdu[0].header.iteritems():
-            k = key.lower()
-            if k in prep.keys():
-                self.edit_log[k] = val
-            elif k in profile_keys:
-                if k == "_roi_abs_def":
-                    self.profile_info[k] = loads(val)
-                else:
-                    self.profile_info[k] = val
-        self.img_id = hdu[0].header["img_id"]
-        
-        try:
-            self.time_stamps = asarray([datetime.strptime(x, "%Y%m%d%H%M%S%f")\
-                for x in hdu[1].data["time_stamps"]])
-        except:
-            print "Failed to import time stamps"
-        self._format_check()
-        
 class ImgStack(object):
     """Image stack object 
     
@@ -1459,7 +109,7 @@ class ImgStack(object):
             img_prep = {"pyrlevel"  :   0}
         self.img_prep = img_prep 
         
-        self.roi_abs = [0, 0, 9999, 9999]
+        self.roi_abs = DEFAULT_ROI
         
         self._cam = Camera()
         
@@ -2266,7 +916,8 @@ class ImgStack(object):
                         newbyteorder()
         self._format_check()
         
-    def save_as_fits(self, save_dir=None, save_name=None):
+    def save_as_fits(self, save_dir=None, save_name=None,
+                     overwrite_existing=True):
         """Save stack as FITS file"""
         self._format_check()
         save_dir = abspath(save_dir) #returns abspath of current wkdir if None
@@ -2303,14 +954,11 @@ class ImgStack(object):
         hdulist = fits.HDUList([hdu, arrays, roi_abs])
         path = join(save_dir, save_name)
         if exists(path):
-            try:
-                print ("Stack already exists at %s and will be overwritten" 
-                       %path)
-                remove(path)
-            except:
-                warn("Failed to delete existing file...")
+            print("Stack already exists at %s and will be overwritten" 
+                  %path)
+        
         try:
-            hdulist.writeto(path)
+            hdulist.writeto(path, clobber=overwrite_existing)
         except:
             warn("Failed to save stack to FITS File "
                  "(check previous warnings)")
@@ -2333,46 +981,239 @@ class ImgStack(object):
             new.stack = self.stack - other
             new.stack_id = "%s - %s" %(self.stack_id, other)
         return new
-        
-def model_dark_image(texp, dark, offset):
-    """Model a dark image for input image based on dark and offset images
+
+class PixelMeanTimeSeries(Series):
+    """A ``pandas.Series`` object with extended functionality representing time
+    series data of pixel mean values in a certain image region
     
-    Determine a modified dark image (D_mod) from the current dark and 
-    offset images. The dark image is determined based on the image 
-    exposure time of the image object to be corrected (t_exp,I). 
-    D_mod represents dark and offset signal for this image object and 
-    is then subtracted from the image data.
-
-    Formula for modified dark image:
-
-    .. math::
-
-        D_{mod} = O + \\frac{(D - O)*t_{exp,I}}{(t_{exp, D}-t_{exp, O})} 
-        
-    :param Img img: the image for which dark and offset is modelled
-    :param Img dark: dark image object (dark with long(est) exposure time)
-    :param Img offset: offset image (dark with short(est) exposure time)
-    :returns: - :class:`Img`, modelled dark image 
- 
+    .. note::    
+    
+        This object is only used to store results of a mean series analysis
+        in a certain ROI, it does not include any algorithms for actually 
+        calculating the series
     """
-    if not all([x.meta["texp"] > 0.0 for x in [dark, offset]]):
-        raise ImgMetaError("Could not model dark image, invalid value for "
-            "exposure time encountered for at least one of the input images")
-    if any([x.modified for x in [dark, offset]]):
-        warn("Images used for modelling dark image are modified")
-# =============================================================================
-#         
-#     if any([x.modified for x in [dark, offset]]):
-#         raise ImgModifiedError("Could not model dark image at least one of the "
-#             "input dark / offset images was already modified")
-#     if img.modified:
-#         img = Img(img.meta["path"], import_method=img.import_method)
-#             
-# =============================================================================
-    dark_img = (offset.img + (dark.img - offset.img) * texp/
-                             (dark.meta["texp"] - offset.meta["texp"]))
+    std = None
+    texps = None
+    img_prep = {}
+    roi_abs = None
+    poly_model = None
     
-    return Img(dark_img, texp=texp)
+    def __init__(self, data, start_acq, std=None, texps=None, roi_abs=None, 
+                 img_prep={}, **kwargs):
+        """
+        :param ndarray data: data array 
+            (is passed into pandas Series init -> ``self.values``)
+        :param ndarray start_acq: array containing acquisition time stamps 
+            (is passed into pandas Series init -> ``self.index``)
+        :param ndarray std: array containing standard deviations
+        :param ndarray texps: array containing exposure times
+        :param list roi_abs: image area from which data was extracted, list of 
+            shape: ``[x0, y0, x1, y1]``
+        :param dict img_prep: dictionary containing information about image
+            preparation settings (e.g. blurring, etc..) or other 
+            important information which may need to be stored
+        :param **kwargs: additional keyword parameters which are passed to 
+            the initiation of the :class:`pandas.Series` object
+        
+        """
+        super(PixelMeanTimeSeries, self).__init__(data, start_acq, **kwargs)
+        try:
+            if len(texps) == len(data):
+                self.texps = texps
+        except:
+            self.texps = zeros(len(data), dtype = float32)
+        try:
+            if len(std) == len(data):
+                self.std = std
+        except:
+            self.std = zeros(len(data), dtype = float32)
+            
+        self.img_prep = img_prep
+        self.roi_abs = roi_abs
+        
+        for key, val in kwargs.iteritems():
+            self[key] = val
+    
+    @property
+    def start(self):
+        return self.index[0]
+    
+    @property
+    def stop(self):
+        return self.index[-1]
+    
+    def get_data_normalised(self, texp=None):
+        """Normalise the mean value to a given exposure time
+        
+        :param float texp (None): the exposure time to which all deviating times
+            will be normalised. If None, the values will be normalised to the 
+            largest available exposure time
+       :return: A new :class:`PixelMeanTimeSeries`instance with normalised data
+        """
+        try:
+            if texp is None:
+                texp = self.texps.max()
+            facs = texp / self.texps
+            ts = self.texps * facs
+            
+            return PixelMeanTimeSeries(self.values*facs, self.index, self.std, 
+                                       ts, self.roi_abs, self.img_prep)
+            
+        except Exception as e:
+            print ("Failed to normalise data bases on exposure times:\n%s\n\n"
+                        %repr(e))
+                      
+    
+    def fit_polynomial(self, order=2):
+        """Fit polynomial to data series
+        
+        :param int order: order of polynomial
+        :returns:
+            - poly1d, the fitted polynomial
+        """
+        s = self.dropna()
+        num = len(s)
+        if num == 1:
+            raise ValueError("Could not fit polynomial to PixelMeanTimeSeries"
+                " object: only one data point available")
+        elif num == 2:
+            warn("PixelMeanTimeSeries object only contains 2 data points, "
+                "setting polyfit order to one (default is 2)")
+            order = 1
+        x = [date2num(idx) for idx in s.index] 
+        y = s.values
+        p = poly1d(polyfit(x, y, deg = order))
+        self.poly_model = p
+        return p
+    
+    def includes_timestamp(self, time_stamp, ext_border_secs=0.0):
+        """Checks if input time stamp is included in this dataset
+        
+        :param datetime time_stamp: the time stamp to be checked
+        :param float ext_border_secs: extend start / stop range (default 0 s)
+        :return:
+            - bool, True / False (timestamp is within interval)
+        """
+        i = self.start - timedelta(ext_border_secs / 86400.0)
+        f = self.stop + timedelta(ext_border_secs / 86400.0)
+        if i <= to_datetime(time_stamp) <= f:
+            return True
+        return False
+        
+    def get_poly_vals(self, time_stamps, ext_border_secs=0.0):
+        """Get value of polynomial at input time stamp
+        
+        :param datetime time_stamp: poly input value
+        """
+        if not isinstance(self.poly_model, poly1d):
+            raise AttributeError("No polynomial available, please call"
+                "function fit_polynomial first")
+        if isinstance(time_stamps, datetime):
+            time_stamps = [time_stamps,]
+        if not any([isinstance(time_stamps, x) for x in [list, DatetimeIndex]]):
+            raise ValueError("Invalid input for time stamps, need list")
+        if not all([self.includes_timestamp(x, ext_border_secs)\
+                                                    for x in time_stamps]):
+            raise IndexError("At least one of the time stamps is not included "
+                "in this series: %s - %s" %(self.start, self.stop))
+        values = []
+        for time_stamp in time_stamps:
+            values.append(self.poly_model(date2num(time_stamp)))
+            
+        return asarray(values)
+        
+    def estimate_noise_amplitude(self, sigma_gauss=1, median_size=3, plot=0):
+        """Estimate the amplitude of the noise in the data 
+        
+        Steps:
+            
+            1. Determines high frequency variations by applying binomial
+                filter (sigma = 3) to data and subtract this from data,
+                resulting in a residual
+            2. Median filtering of residual signal to get rid of narrow peaks
+                (i.e. where the original data shows abrupt changes)
+            3. subtract both signals and determine std
+        
+        ..note::
+        
+            Beta version: no guarantee it works for all cases
+            
+        """
+        #make bool array of indices considered (initally all)
+        y0 = median_filter(self.values, 3)
+        y1 = gaussian_filter1d(y0, sigma_gauss)
+        res0 = y0 - y1
+        res1 = median_filter(res0, median_size)
+        diff = res1 - res0
+        if plot:
+            fig, ax = subplots(2,1)
+            ax[0].plot(y0, "-c",label="y0")
+            ax[0].plot(y1, "--xr",label="y1: Smoothed y0")
+            ax[0].legend(loc='best', fancybox=True, framealpha=0.5, fontsize=10)
+            ax[1].plot(res0, "--c",label="res0: y0 - y1")
+            ax[1].plot(res1, "--r",label="res1: Median(res0)")
+            ax[1].plot(diff, "--b",label="diff: res1 - res0")
+            ax[1].legend(loc='best', fancybox=True, framealpha=0.5, fontsize=10)
+        return diff.std()
+    
+    def plot(self, include_tit=True, date_fmt=None, **kwargs):
+        """Plot time series
+        
+        Parameters
+        ----------
+        include_tit : bool
+            Include a title
+        date_fmt : str
+            Date / time formatting string for x labels, passed to 
+            :class:`DateFormatter` instance (optional)
+        **kwargs
+            Additional keyword arguments passed to pandas Series plot method
+            
+        Returns
+        -------
+        axes
+            matplotlib axes instance
+        
+        """
+        try:
+            self.index = self.index.to_pydatetime()
+        except:
+            pass
+        try:
+            if not "style" in kwargs:
+                kwargs["style"] = "--x"  
+        
+            ax = super(PixelMeanTimeSeries, self).plot(**kwargs)
+            try:
+                if date_fmt is not None:
+                    ax.xaxis.set_major_formatter(DateFormatter(date_fmt))
+            except:
+                pass
+            if include_tit:
+                ax.set_title("Mean value (%s), roi_abs: %s" 
+                                %(self.name, self.roi_abs))
+            ax.grid()
+            
+            return ax
+        except Exception as e:
+            print repr(e)
+            fig, ax = subplots(1,1)
+            ax.text(.1,.1, "Plot of PixelMeanTimeSeries failed...")
+            fig.canvas.draw()
+            return ax
+        
+    def __setitem__(self, key, value):
+        """Update class item"""
+        print "%s : %s" %(key, value)
+        if self.__dict__.has_key(key):
+            print "Writing..."
+            self.__dict__[key]=value
+            
+    def __call__(self, normalised = False):
+        """Returns the current data arrays (mean, std)"""
+        if normalised:
+            return self.get_data_normalised()
+        return self.get_data()
 #==============================================================================
 # import matplotlib.animation as animation
 # 

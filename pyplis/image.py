@@ -15,13 +15,28 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
+
+"""Module containing classes representing image data and corresponding
+processing features. The image base class :class:`Img` is a powerful object for 
+image data, containing I/O routines for many data formats, processing classes 
+and keeping track on changes applied to the images. 
+The actual image data is stored as numpy array in the :attr:`img` of an 
+instance of the :class:`Img` object.
+
+The :class:`ProfileTimeSeriesImg` class is used to store and process time 
+series of pixel profiles (e.g. along a :class:`LineOnImage`). These are, for 
+instance used when performing a plume velocity cross-correlation analysis 
+(where the optimal lag between a time-series of two plume intersection lines is 
+searched, for details see :class:`pyplis.plumespeed.VeloCrossCorrEngine`).
+"""
 from __future__ import division
 from astropy.io import fits
 from matplotlib import gridspec
 import matplotlib.cm as cmaps
 from matplotlib.pyplot import imread, figure, tight_layout
-from numpy import ndarray, argmax, histogram, uint, nan, linspace,\
-    isnan, uint8, float32, finfo, ones, invert, log, ogrid
+from numpy import (ndarray, argmax, histogram, uint, nan, linspace, isnan, 
+                   uint8, float32, finfo, ones, invert, log, ogrid, asarray)
+from json import loads, dumps
 from os.path import abspath, splitext, basename, exists, join, isdir, dirname
 from os import remove
 from warnings import warn
@@ -32,9 +47,11 @@ from scipy.ndimage.filters import gaussian_filter, median_filter
 from collections import OrderedDict as od
 from copy import deepcopy
 
-from .helpers import shifted_color_map, bytescale, map_roi, check_roi
+from .glob import DEFAULT_ROI
+from .helpers import bytescale, map_roi, check_roi
 from .exceptions import ImgMetaError
 from .optimisation import PolySurfaceFit
+from .utils import LineOnImage
 
 class Img(object):
     """ Image base class
@@ -136,7 +153,7 @@ class Img(object):
                               ("others"     ,   False),
                               ])# boolean 
         
-        self._roi_abs = [0, 0, 9999, 9999] #will be set on image load
+        self._roi_abs = DEFAULT_ROI #will be set on image load
         
         self._header_raw = {}
         self.meta = od([("start_acq"     ,   datetime(1900, 1, 1)),#datetime(1900, 1, 1)),
@@ -179,10 +196,12 @@ class Img(object):
     
         if input is not None:                              
             self.load_input(input)
-        try:
-            self.set_roi_whole_image()
-        except:
-            pass
+# =============================================================================
+#         try:
+#             self.set_roi_whole_image()
+#         except:
+#             pass
+# =============================================================================
     
     @property
     def img(self):
@@ -296,7 +315,17 @@ class Img(object):
     def is_vigncorr(self):
         """Bool specifying whether or not image is vignetting corrected"""
         return bool(self.edit_log["vigncorr"])
-      
+    
+    @property
+    def is_cropped(self):
+        """Boolean specifying whether image is cropped"""
+        return bool(self.edit_log["crop"])
+    
+    @property
+    def is_resized(self):
+        """Boolean specifying whether image pyramid level unequals 0"""
+        return False if self.pyrlevel == 0 else True
+    
     @property
     def modified(self):
         """Check if this image was already modified"""
@@ -449,7 +478,7 @@ class Img(object):
 #             
 # =============================================================================
        
-    def crop(self, roi_abs=[0, 0, 9999, 9999], new_img=False):
+    def crop(self, roi_abs=DEFAULT_ROI, new_img=False):
         """Cut subimage specified by rectangular ROI
         
         :param list roi_abs: region of interest (i.e. ``[x0, y0, x1, y1]``)
@@ -1307,4 +1336,203 @@ class Img(object):
             except:
                 raise TypeError("Could not divide image with value %s" 
                                                                 %type(val))
+
+def model_dark_image(texp, dark, offset):
+    """Model a dark image for input image based on dark and offset images
+    
+    Determine a modified dark image (D_mod) from the current dark and 
+    offset images. The dark image is determined based on the image 
+    exposure time of the image object to be corrected (t_exp,I). 
+    D_mod represents dark and offset signal for this image object and 
+    is then subtracted from the image data.
+
+    Formula for modified dark image:
+
+    .. math::
+
+        D_{mod} = O + \\frac{(D - O)*t_{exp,I}}{(t_{exp, D}-t_{exp, O})} 
+        
+    :param Img img: the image for which dark and offset is modelled
+    :param Img dark: dark image object (dark with long(est) exposure time)
+    :param Img offset: offset image (dark with short(est) exposure time)
+    :returns: - :class:`Img`, modelled dark image 
+ 
+    """
+    if not all([x.meta["texp"] > 0.0 for x in [dark, offset]]):
+        raise ImgMetaError("Could not model dark image, invalid value for "
+            "exposure time encountered for at least one of the input images")
+    if any([x.modified for x in [dark, offset]]):
+        warn("Images used for modelling dark image are modified")
+
+    dark_img = (offset.img + (dark.img - offset.img) * texp/
+                             (dark.meta["texp"] - offset.meta["texp"]))
+
+    return Img(dark_img, texp=texp, pyrlevel=offset.pyrlevel)
+                
+class ProfileTimeSeriesImg(Img):
+    """Image representing time series of line profiles
+    
+    The y axis of the profile image corresponds to the actual profiles 
+    (retrieved from the individual images) and the x axis corresponds to the 
+    image time axis (i.e. the individual frames). Time stamps (mapping of 
+    x indices) can also be stored in this object.
+    
+    Example usage is, for instance to represent ICA time series retrieved
+    along a profile (e.g. using :class:`LineOnImage`) for plume speed cross 
+    correlation
+    """
+    def __init__(self, img_data=None, time_stamps=asarray([]), img_id="",
+                 dtype=float32, profile_info_dict={}, **meta_info):
+        self.img_id = img_id
+        self.time_stamps = asarray(time_stamps)
+        self.profile_info = {}
+        if isinstance(profile_info_dict, dict):
+            self.profile_info = profile_info_dict
+        #Initiate object as Img object
+        super(ProfileTimeSeriesImg, self).__init__(input=img_data,
+                                                   dtype=dtype, **meta_info)
+                                                
+    @property
+    def img(self):
+        """Get / set image data"""
+        return self._img
+    
+    @img.setter
+    def img(self, val):
+        """Setter for image data"""
+        if not isinstance(val, ndarray) or val.ndim != 2:
+            raise ValueError("Could not set image data, need 2 dimensional"
+                " numpy array as input")
+        self._img = val
+        num = val.shape[1]
+        if not len(self.time_stamps) == num:
+            self.time_stamps = asarray([datetime(1900,1,1)] * num)
+        
+    def _format_check(self):
+        """Checks if current data is of right format"""
+        if not all([isinstance(x, ndarray) for x in [self._img,\
+                                                self.time_stamps]]):
+            raise TypeError("self.img and self.time_stamps must be numpy "
+                "arrays")
+        if not len(self.time_stamps) == self.shape[1]:
+            raise ValueError("Mismatch in array lengths")
+
+    @property
+    def start(self):
+        """Returns first datetime from ``self.time_stamps``"""
+        try:
+            return self.time_stamps[0]
+        except:
+            print "no time information available, return 1/1/1900"
+            return datetime(1900,1,1)
+    
+    @property
+    def stop(self):
+        """Returns first datetime from ``self.time_stamps``"""
+        try:
+            return self.time_stamps[-1]
+        except:
+            print "no time information available, return 1/1/1900"
+            return datetime(1900,1,1)
+              
+    def save_as_fits(self, save_dir=None, save_name=None,
+                     overwrite_existing=True):
+        """Save stack as FITS file
+        
+        Parameters
+        ----------
+        save_dir : str
+            directory where image is stored (can also be full file path, then
+            parameter ``save_name`` is not considered)
+        save_name : str
+            name of file
+        overwrite_existing : bool
+            if True, an existing file with the same name will be overwritten
+        """
+        self._format_check()
+        save_dir = abspath(save_dir) #returns abspath of current wkdir if None
+        if not isdir(save_dir): #save_dir is a file path
+            save_name = basename(save_dir)
+            save_dir = dirname(save_dir)
+        if save_name is None:
+            save_name = "pyplis_profile_tseries_id_%s_%s_%s_%s.fts"\
+                %(self.img_id, self.start.strftime("%Y%m%d"),\
+                self.start.strftime("%H%M"), self.stop.strftime("%H%M"))
+        else:
+            save_name = save_name.split(".")[0] + ".fts"
+    
+        hdu = fits.PrimaryHDU()
+        time_strings = [x.strftime("%Y%m%d%H%M%S%f") for x in self.time_stamps]
+        col1 = fits.Column(name = "time_stamps", format = "25A", array =\
+            time_strings)
+    
+        cols = fits.ColDefs([col1])
+        arrays = fits.BinTableHDU.from_columns(cols)
+        
+        hdu.data = self._img
+        hdu.header.update(self.edit_log)
+        hdu.header["img_id"] = self.img_id
+        for key, val in self.profile_info.iteritems():
+            if key == "_roi_abs_def":
+                try:
+                    hdu.header["_roi_abs_def"] = dumps(val)
+                except:
+                    warn("Failed to write roi_abs_def")
+            else:
+                hdu.header[key] = val
+    
+        hdu.header.append()
+        hdulist = fits.HDUList([hdu, arrays])
+        path = join(save_dir, save_name)
+        if exists(path):
+            try:
+                print "Image already exists at %s and will be overwritten" %path
+                remove(path)
+            except:
+                warn("Failed to delete existing file...")
+        try:
+            hdulist.writeto(path, clobber=overwrite_existing)
+        except:
+            warn("Failed to save FITS File (check previous warnings)")
+    
+    def _profile_dict_keys(self, profile_type="LineOnImage"):
+        """Returns profile dictionary keys for input profile type"""
+        d = {"LineOnImage"  :   LineOnImage().to_dict().keys()}
+        return d[profile_type]
+        
+    def load_fits(self, file_path, profile_type="LineOnImage"):
+        """Load stack object (fits)
+        
+        :param str file_path: file path of fits image
+        """
+        
+        if not exists(file_path):
+            raise IOError("Img could not be loaded, path %s does not "
+                          "exist" %file_path)
+        hdu = fits.open(file_path)
+        self.img = asarray(hdu[0].data)
+        prep = Img().edit_log
+        try:
+            profile_keys = self._profile_dict_keys(profile_type)
+        except:
+            profile_keys = []
+            print "Failed to load profile info dictionary"
+        
+        for key, val in hdu[0].header.iteritems():
+            k = key.lower()
+            if k in prep.keys():
+                self.edit_log[k] = val
+            elif k in profile_keys:
+                if k == "_roi_abs_def":
+                    self.profile_info[k] = loads(val)
+                else:
+                    self.profile_info[k] = val
+        self.img_id = hdu[0].header["img_id"]
+        
+        try:
+            self.time_stamps = asarray([datetime.strptime(x, "%Y%m%d%H%M%S%f")\
+                for x in hdu[1].data["time_stamps"]])
+        except:
+            print "Failed to import time stamps"
+        self._format_check()
             

@@ -22,7 +22,6 @@ parameters for the emission-rate analysis.
 The most important ones are:
 
     1. :class:`Source`: emission source specifications
-    #. :class:`FilterSetup`: collection of interference filters used
     #. :class:`Camera`: camera specifications
     #. :class:`MeasSetup`: full measurement setup  
 """

@@ -28,10 +28,11 @@ encrypted in the image file name. The latter can be performed automatically in
 pyplis using file name conventions (which can be specified globally, see next 
 script).
 """
-# imports from SETTINGS.py
-from SETTINGS import check_version, OPTPARSE, SAVE_DIR
-
+# Check script version
+from SETTINGS import check_version
 check_version()
+# imports from SETTINGS.py
+from SETTINGS import OPTPARSE, SAVE_DIR
 
 from os.path import join, basename
 from datetime import datetime

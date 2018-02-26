@@ -40,8 +40,8 @@ stack (3D numpy array) is too large for the RAM. In this case, try
 increasing script option PYRLEVEL_ROUGH_SEARCH.
     
 """
+# Check script version
 from SETTINGS import check_version
-# Raises Exception if conflict occurs
 check_version()
 
 import pyplis
@@ -203,12 +203,12 @@ if __name__ == "__main__":
     ax0 = calib_pears.fov.plot()
     ax1 = calib_ifr.fov.plot()
         
-    calib_pears.fit_calib_polynomial()
+    calib_pears.fit_calib_data()
 
     fig, ax2 = subplots(1,1)
     calib_pears.plot(add_label_str="Pearson", color="b", ax=ax2)
     
-    calib_ifr.fit_calib_polynomial()
+    calib_ifr.fit_calib_data()
     
     calib_ifr.plot(add_label_str="IFR", color="g", ax=ax2)
     ax2.set_title("Calibration curves Pearson vs. IFR method")
@@ -244,8 +244,8 @@ if __name__ == "__main__":
     
     #you can also change the order of the calibration polynomial and 
     #force it to go through the origin
-    calib_pears.fit_calib_polynomial(polyorder=2,through_origin=True)
-    calib_pears.plot_poly(add_label_str="Pearson (WRONG,\n"
+    calib_pears.fit_calib_data(polyorder=2,through_origin=True)
+    calib_pears.plot_calib_fun(add_label_str="Pearson (WRONG,\n"
                                         "2nd order, through origin)", 
                          color="r", ax=ax2)
     ax2.legend(loc=4, fancybox=True, framealpha=0.7, fontsize=11)

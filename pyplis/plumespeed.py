@@ -45,8 +45,9 @@ from cv2 import calcOpticalFlowFarneback, OPTFLOW_FARNEBACK_GAUSSIAN,\
 from .helpers import bytescale, check_roi, map_roi, roi2rect, set_ax_lim_roi,\
     nth_moment, rotate_xtick_labels
 from .optimisation import MultiGaussFit
-from .processing import LineOnImage, ProfileTimeSeriesImg, ImgStack
-from .image import Img
+from .processing import ImgStack
+from .utils import LineOnImage
+from .image import Img, ProfileTimeSeriesImg
 from .geometry import MeasGeometry
 #LABEL_SIZE=rcParams["font.size"]+ 2
 
@@ -1648,7 +1649,7 @@ class LocalPlumeProperties(object):
             #print ("Updating attr. %s in LocalPlumeProperties, new val: %s"
             #    %(key, val))
             self.__dict__[key] = val
-        
+       
 class FarnebackSettings(object):
     """Settings for optical flow Farneback calculations and visualisation
     

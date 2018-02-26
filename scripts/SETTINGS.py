@@ -29,10 +29,10 @@ rcParams.update({'figure.autolayout': True})
 rcParams.update({'font.size': 13})
 
 # if True, some of the actual results of the scripts are verified
-TESTMODE = False
+TESTMODE = True
 
 # the pyplis version for which these scripts
-SCRIPTS_VERSION = "1.0"
+SCRIPTS_VERSION = "1.2"
 
 SAVEFIGS = 1 # save plots from this script in SAVE_DIR
 DPI = 150 #pixel resolution for saving

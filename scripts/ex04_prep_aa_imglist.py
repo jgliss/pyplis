@@ -20,8 +20,8 @@ Pyplis example script no. 4 - Prepare AA image list (from onband list)
 
 Script showing how to work in AA mode using ImgList object
 """
+# Check script version
 from SETTINGS import check_version
-# Raises Exception if conflict occurs
 check_version()
 
 import pyplis

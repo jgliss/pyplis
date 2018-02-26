@@ -45,28 +45,26 @@ try:
 except:
     GEONUMAVAILABLE = 0
 
-from inout import download_test_data, find_test_data
+from setupclasses import MeasSetup, Camera, Source
 from geometry import MeasGeometry
-from utils import Filter, DarkOffsetInfo
-from image import Img
-import custom_image_import
+from utils import Filter, DarkOffsetInfo, LineOnImage
+from image import Img, ProfileTimeSeriesImg
 from dataset import Dataset
-from imagelists import ImgList, CellImgList
+from imagelists import ImgList, CellImgList, DarkImgList
 from plumebackground import PlumeBackgroundModel
 from cellcalib import CellCalibData, CellCalibEngine
+from calib_base import CalibData
 from doascalib import DoasCalibData, DoasFOV, DoasFOVEngine
-from plumespeed import find_signal_correlation, OptflowFarneback,\
-    FarnebackSettings, LocalPlumeProperties
-from processing import LineOnImage, ImgStack, ProfileTimeSeriesImg,\
-    PixelMeanTimeSeries
+from plumespeed import (find_signal_correlation, OptflowFarneback,
+                        FarnebackSettings, LocalPlumeProperties,
+                        VeloCrossCorrEngine)
+from processing import ImgStack, PixelMeanTimeSeries
 from dilutioncorr import DilutionCorr
-from fluxcalc import EmissionRateAnalysis, EmissionRates,\
-    EmissionRateSettings
+from fluxcalc import (EmissionRateAnalysis, EmissionRates,
+                      EmissionRateSettings)
 from optimisation import PolySurfaceFit, MultiGaussFit
-
-from setupclasses import MeasSetup, Camera, Source
-
-
+import custom_image_import
+from inout import download_test_data, find_test_data
 #==============================================================================
 # import model_functions 
 # import helpers

@@ -55,6 +55,7 @@ The Dataset object created here is used in script  ex04_prep_aa_imglist.py which
 how to create an image list displaying AA images.
 """
 from SETTINGS import check_version, IMG_DIR, OPTPARSE
+# Check script version
 check_version()
 
 import pyplis as pyplis

@@ -36,9 +36,9 @@ except:
 
 MOL_MASS_SO2 = 64.0638 #g/mol
 
+from .utils import LineOnImage
 from .imagelists import ImgList
 from .plumespeed import LocalPlumeProperties  
-from .processing import LineOnImage  
 from .helpers import check_roi, exponent, roi2rect, map_roi
 
 LABEL_SIZE=rcParams["font.size"]+ 2
@@ -358,7 +358,7 @@ class EmissionRates(object):
         
         self.pix_dist_mean = None
         self.pix_dist_mean_err = None
-        self.cd_err_rel = None
+        self.cd_err = None
         
         self.color = color
     
@@ -414,9 +414,9 @@ class EmissionRates(object):
         
         date, i, f = self.get_date_time_strings()
         s = ("pcs_id=%s\ndate=%s\nstart=%s\nstop=%s\nvelo_mode=%s\n"
-             "pix_dist_mean=%s m\npix_dist_mean_err=%s m\ncd_err_rel=%s cm-2"
+             "pix_dist_mean=%s m\npix_dist_mean_err=%s m\ncd_err=%s cm-2"
              %(self.pcs_id, date, i, f, self.velo_mode, self.pix_dist_mean, 
-               self.pix_dist_mean_err, self.cd_err_rel))
+               self.pix_dist_mean_err, self.cd_err))
         return s
     
     @property
@@ -742,9 +742,9 @@ class EmissionRates(object):
         except:
             warn("Could not access meta info pix_dist_mean in flux results")
         try:
-            new.cd_err_rel =  nanmean([self.cd_err_rel, other.cd_err_rel])
+            new.cd_err =  nanmean([self.cd_err, other.cd_err])
         except:
-            warn("Could not access meta cd_err_rel in flux results")
+            warn("Could not access meta cd_err in flux results")
         return new
 
     def __sub__(self, other):
@@ -784,9 +784,9 @@ class EmissionRates(object):
         except:
             warn("Could not access meta info pix_dist_mean in flux results")
         try:
-            new.cd_err_rel =  nanmean([self.cd_err_rel, other.cd_err_rel])
+            new.cd_err =  nanmean([self.cd_err, other.cd_err])
         except:
-            warn("Could not access meta cd_err_rel in flux results")
+            warn("Could not access meta cd_err in flux results")
 
         return new
         
@@ -829,9 +829,9 @@ class EmissionRates(object):
         except:
             warn("Could not access meta info pix_dist_mean in flux results")
         try:
-            new.cd_err_rel =  nanmean([self.cd_err_rel, other.cd_err_rel])
+            new.cd_err =  nanmean([self.cd_err, other.cd_err])
         except:
-            warn("Could not access meta cd_err_rel in flux results")
+            warn("Could not access meta cd_err in flux results")
         
         return new
         
@@ -1200,13 +1200,13 @@ class EmissionRateAnalysis(object):
                 line.plume_props = LocalPlumeProperties(roi_id=key)
                                                  
         
-    def _write_meta(self, dists, dist_errs, cd_err_rel):
+    def _write_meta(self, dists, dist_errs, cd_err):
         """Write meta info in result classes"""
         for line_id, mode_dict in self.results.iteritems():
             for mode, resultclass in mode_dict.iteritems():
                 resultclass.pix_dist_mean = mean(dists[line_id])
                 resultclass.pix_dist_mean_err = dist_errs[line_id]
-                resultclass.cd_err_rel = cd_err_rel
+                resultclass.cd_err = cd_err
         
     def calc_emission_rate(self, **kwargs):
         """Old name of :func:`run_retrieval`"""
@@ -1261,12 +1261,9 @@ class EmissionRateAnalysis(object):
         results = self.init_results()
         dists, dist_errs = self.get_pix_dist_info_all_lines()
         lst.goto_img(start_index)
-        try:
-            cd_err_rel = lst.calib_data.slope_err / lst.calib_data.slope
-        except:
-            cd_err_rel = None
+        cd_err=lst.calib_data.err()
             
-        self._write_meta(dists, dist_errs, cd_err_rel)
+        self._write_meta(dists, dist_errs, cd_err)
         
         # init parameters for main loop
         mmol = s.mmol    
@@ -1313,7 +1310,6 @@ class EmissionRateAnalysis(object):
                     cds = pcs.get_line_profile(img)
                     cond = cds > min_cd
                     cds = cds[cond]
-                    cds_err = cds * cd_err_rel
                     distarr = dists[pcs_id][cond]
                     disterr = dist_errs[pcs_id]
                     
@@ -1323,7 +1319,7 @@ class EmissionRateAnalysis(object):
                         except:
                             vglob, vglob_err = self.velo_glob, self.velo_glob_err
                         phi, phi_err = det_emission_rate(cds, vglob, distarr,
-                                                         cds_err, vglob_err, 
+                                                         cd_err, vglob_err, 
                                                          disterr, mmol)
                         if isnan(phi):
                             print cds
@@ -1351,7 +1347,7 @@ class EmissionRateAnalysis(object):
                         veff_err = veff_avg * self.settings.optflow_err_rel_veff
                         
                         phi, phi_err = det_emission_rate(cds, veff_arr,
-                                                         distarr, cds_err, 
+                                                         distarr, cd_err, 
                                                          veff_err, disterr, 
                                                          mmol)
                         res["flow_raw"]._start_acq.append(t)                                
@@ -1394,7 +1390,7 @@ class EmissionRateAnalysis(object):
                                                     sigma_tol=fl_sigma_tol)
                         #print "HISTO VEFF: %.2f m/s" %v
                         phi, phi_err = det_emission_rate(cds, v, distarr, 
-                                                         cds_err, verr, disterr, 
+                                                         cd_err, verr, disterr, 
                                                          mmol)
                                                          
                         res["flow_histo"]._start_acq.append(t)                                
@@ -1491,7 +1487,7 @@ class EmissionRateAnalysis(object):
                         veff_err_arr[indices] = verr
                         
                         phi, phi_err = det_emission_rate(cds, veff_arr,
-                                                         distarr, cds_err, 
+                                                         distarr, cd_err, 
                                                          veff_err_arr, 
                                                          disterr, mmol)
                         veff_err_avg = veff_err_arr.mean()

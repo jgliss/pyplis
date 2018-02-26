@@ -33,6 +33,7 @@ https://pyplis.readthedocs.io/en/latest/tutorials.html#data-import-specifying-
 custom-camera-information
 """
 from SETTINGS import check_version, OPTPARSE
+# Check script version
 check_version()
 
 from os.path import basename

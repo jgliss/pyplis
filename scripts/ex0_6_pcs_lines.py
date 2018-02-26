@@ -26,9 +26,10 @@ algorithm) have to be multiplied with the normal vector of such a line (using
 the dot product).
 """
 from SETTINGS import check_version, SAVEFIGS, SAVE_DIR, FORMAT, DPI, OPTPARSE
+# Check script version
 check_version()
 
-from pyplis.processing import LineOnImage
+from pyplis import LineOnImage
 from os.path import join, basename
 from matplotlib.pyplot import show, subplots, close
 from matplotlib.cm import get_cmap

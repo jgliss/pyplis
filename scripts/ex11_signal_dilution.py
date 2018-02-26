@@ -31,13 +31,13 @@ The two example images are then corrected for dilution and the results are
 plotted (as comparison of the retrieved emission rate along an exemplary 
 plume cross section)
 """
+# Check script version
 from SETTINGS import check_version
-# Raises Exception if conflict occurs
 check_version()
 
 import pyplis as pyplis
 from geonum.base import GeoPoint
-from matplotlib.pyplot import show, close, subplots, Rectangle
+from matplotlib.pyplot import show, close, subplots, Rectangle, plot
 from datetime import datetime
 from os.path import join, exists
 
@@ -56,20 +56,17 @@ AA_THRESH = 0.03
 
 # exemplary plume cross section line for emission rate retrieval (is also used
 # for full analysis in ex12)
-PCS_LINE = pyplis.processing.LineOnImage(x0=530,y0=586,x1=910,y1=200,
-                                          line_id="pcs")
+PCS_LINE = pyplis.LineOnImage(x0=530,y0=586,x1=910,y1=200, line_id="pcs")
 # Retrieval lines for dilution correction (along these lines, topographic
 # distances and image radiances are determined for fitting the atmospheric
 # extinction coefficients)
-TOPO_LINE1 = pyplis.processing.LineOnImage(1100, 650, 1000, 900,
-                                            line_id="flank far",
-                                            color="lime",
-                                            linestyle="-")
+TOPO_LINE1 = pyplis.LineOnImage(1100, 650, 1000, 900, line_id="flank far",
+                                color="lime",
+                                linestyle="-")
                                       
-TOPO_LINE2 = pyplis.processing.LineOnImage(1000, 990, 1100, 990,
-                                            line_id="flank close",
-                                            color="#ff33e3",
-                                            linestyle="-")
+TOPO_LINE2 = pyplis.LineOnImage(1000, 990, 1100, 990, line_id="flank close",
+                                color="#ff33e3",
+                                linestyle="-")
 
 # all lines in this array are used for the analysis
 USE_LINES = [TOPO_LINE1, TOPO_LINE2]
@@ -194,13 +191,15 @@ def prepare_lists(dataset):
     
     return onlist, offlist
     
-def plot_lines_into_image(img):
+def plot_retrieval_points_into_image(img):
     """Helper method plotting terrain distance retrieval lines into an image"""
     ax = img.show(zlabel=r"$S_{SO2}$ [cm$^{-2}$]")
     ax.set_title("Retrieval lines")
     for line in USE_LINES:
         line.plot_line_on_grid(ax=ax, marker="", color=line.color,
                                lw=2, ls=line.linestyle) 
+    for x, y, dist in dil._add_points:
+        plot(x, y, " or")
     return ax
 
     
@@ -224,6 +223,13 @@ if __name__ == "__main__":
         
     # Create dilution correction class
     dil = DilutionCorr(USE_LINES, geom, skip_pix=SKIP_PIX_LINES)
+    
+    # you can also manually add  a single pixel position in the image that is 
+    # used to retrieve topographic distances (this function allows you also to
+    # set the distance to the feature manually, since sometimes the SRTM data-
+    # set is incomplete or has too low resolution)
+    dil.add_retrieval_point(700, 930)
+    dil.add_retrieval_point(730, 607)
     
     # Determine distances to the two lines defined above (every 6th pixel)
     for line_id in dil.line_ids:
@@ -318,8 +324,7 @@ if __name__ == "__main__":
                                                        velo=PLUME_VELO,
                                                        pix_dists=
                                                        pix_dists_line,
-                                                       cds_err=
-                                                       calib.slope_err,
+                                                       cds_err=calib.err(),
                                                        pix_dists_err=
                                                        pix_dist_err)
     
@@ -340,12 +345,12 @@ if __name__ == "__main__":
                                                          pix_dists=
                                                          pix_dists_line,
                                                          cds_err=
-                                                         calib.slope_err,
+                                                         calib.err(),
                                                          pix_dists_err=
                                                          pix_dist_err)    
     
     ### IMPORTANT STUFF FINISHED (below follow some plots)
-    ax2 = plot_lines_into_image(so2_img_corr)
+    ax2 = plot_retrieval_points_into_image(so2_img_corr)
     pcs_line.plot_line_on_grid(ax=ax2, ls="-", color="g")
     ax2.legend(loc="best", framealpha=0.5, fancybox=True, fontsize=20)   
     ax2.set_title("Dilution corrected AA image", fontsize = 12)

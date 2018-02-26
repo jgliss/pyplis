@@ -29,7 +29,7 @@ from scipy.ndimage.filters import gaussian_filter
 from warnings import warn
 
 from .image import Img
-from .processing import LineOnImage
+from .utils import LineOnImage
 from .optimisation import PolySurfaceFit
 from .helpers import shifted_color_map, _roi_coordinates
 from .plumespeed import find_movement

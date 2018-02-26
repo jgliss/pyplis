@@ -30,6 +30,7 @@ from copy import deepcopy
 
 from .image import Img
 from .helpers import check_roi, isnum
+from .glob import DEFAULT_ROI
 try:
     from geonum import GeoSetup, GeoPoint, GeoVector3D, TopoData
     from geonum.topodata import TopoAccessError
@@ -535,9 +536,6 @@ class MeasGeometry(object):
                     self._cam[key] = val
                 except:
                     pass
-            else:
-                warn("Key %s is not a valid camera attribute in MeasGeometry "
-                     "and will be ignored" %key)
         if update_geosetup:
             self.update_geosetup()
             
@@ -572,9 +570,6 @@ class MeasGeometry(object):
                     self._source[key] = val
                 except:
                     pass
-            else:
-                warn("Key %s is not a valid source attribute in MeasGeometry "
-                     "and will be ignored" %key)
         if update_geosetup:
             self.update_geosetup()
             
@@ -609,9 +604,6 @@ class MeasGeometry(object):
                     self._wind[key] = val
                 except:
                     pass
-            else:
-                warn("Key %s is not a valid wind attribute in MeasGeometry "
-                     "and will be ignored" %key)
         if update_geosetup:
             self.update_geosetup()
     
@@ -801,9 +793,27 @@ class MeasGeometry(object):
     def get_viewing_directions_line(self, line):
         """Determine viewing direction coords for a line in an image
         
-        :param list line: start / stop pixel coordinates of line, i.e.
-            ``[x0, y0, x1, y1]``
+        Parameters
+        ----------
+        line : LineOnImage
+            line on image object 
+        
+        Returns
+        -------
+        tuple
+            4-element tuple containing
+            
+            - 1-d array containing azimuth angles of pixels on line
+            - 1-d array containing elevation angles of pixels on line
+            - 1-d array containing corresponding x-pixel coordinates
+            - 1-d array containing corresponding y-pixel coordinates
         """
+        if not line.roi_abs_def == DEFAULT_ROI or line.pyrlevel_def > 0:
+            warn("Input line is not in absolute detector coordinates "
+                       "and will be converted to uncropped image coords at "
+                       "pyrlevel 0")
+            line = line.convert(to_pyrlevel=0, to_roi_abs=DEFAULT_ROI)
+        line = line.to_list()
         f = self._cam["focal_length"]
         
         x0, y0, x1, y1 = line[0], line[1], line[2], line[3]
@@ -821,8 +831,72 @@ class MeasGeometry(object):
         azims = rad2deg(arctan(dx / f)) + self._cam["azim"]
         elevs = -rad2deg(arctan(dy / f)) + self._cam["elev"]
         return (azims, elevs, x, y)
+       
+    def get_topo_distance_pix(self, pos_x_abs, pos_y_abs, topo_res_m=5.,
+                              min_slope_angle=5.):
+        """Retrieve distance to topography for a certain image pixel
+        
+        The computation of the distance is 
+        being done by retriving a elevation profile in the azimuthal viewing
+        direction of tge pixel (i.e. pixel column) and then using this profile
+        and the corresponding camera elevation (pixel row) to find the first
+        intersection of the viewing direction (line) with the topography
+        
+        Parameters
+        ----------
+        pos_x_abs : int
+            x-pixel position of point in image in absolute coordinate (i.e.
+            pyramid level 0 and not cropped)
+        pos_y_abs : int
+            y-pixel position of point in image in absolute coordinate (i.e.
+            pyramid level 0 and not cropped)
+        topo_res_m : float 
+            desired resolution of topographic data (is interpolated)
+        float min_slope_angle : float 
+            mininum required slope (steepness) of topography at pixel position
+            (raises ValueError if topograpy is too flat)
+        
+        Returns
+        -------
+        tuple
+            3-element tuple, containing
             
-    def get_distances_to_topo_line(self, line, skip_pix=30, topo_res_m=5.,
+            - estimated distance to topography in m based on intersection of\
+                pixel viewing direction with topographic data
+            - corresponding uncertainty in m
+            - :class:`GeoPoint` corresponding to intersection position
+        """
+        try:
+            print(self.cam)
+        except:
+            raise AttributeError("Failed to retrieve distance to topo: geo "
+                                 "location of camera is not available")
+        if not isinstance(self.geo_setup.topo_data, TopoData):
+            try:
+                self.geo_setup.load_topo_data()
+            except:
+                raise ValueError("Failed to retrieve distance to topography")
+        azim = self.all_azimuths_camfov()[pos_x_abs]
+        elev = self.all_elevs_camfov()[pos_y_abs]
+        max_dist = self.geo_setup.vectors["source2cam"].magnitude * 1.10
+        ep = self.get_elevation_profile(azim=azim, 
+                                        dist_hor=max_dist, 
+                                        topo_res_m=topo_res_m)
+        (d, 
+         d_err, 
+         geo_point ,_, _) = ep.get_first_intersection(elev, 
+                                               view_above_topo_m=
+                                               self._cam["altitude_offs"])
+        if d is None:
+            raise ValueError("Distance to topography could not be retrieved")
+        elif min_slope_angle > 0:
+            slope = ep.slope_angle(d)
+            if slope <  min_slope_angle:
+                raise ValueError("Topography at input point too flat")
+        
+        return (d, d_err, geo_point)
+    
+    def get_topo_distances_line(self, line, skip_pix=30, topo_res_m=5.,
                                    min_slope_angle=5.):
         """Retrieve distances to topography for a line on an image
         
@@ -855,8 +929,11 @@ class MeasGeometry(object):
                 return False
         azims, elevs, i_pos, j_pos = self.get_viewing_directions_line(line)
         cond = ~isnan(azims)
-        azims, elevs, i_pos, j_pos = azims[cond], elevs[cond], i_pos[cond],\
-                                                                    j_pos[cond]
+        #only consider points that are not nan
+        (azims, 
+         elevs, 
+         i_pos, 
+         j_pos) = azims[cond], elevs[cond], i_pos[cond], j_pos[cond]
         if not len(azims) > 0:
             print ("Failed to retrieve distance to topo for line %s in "
                     "MeasGeometry: viewing directions (azim, elev) could not "
@@ -880,7 +957,7 @@ class MeasGeometry(object):
                                             dist_hor=max_dist, 
                                             topo_res_m=topo_res_m)
 
-            d, d_err, p , l, _ =\
+            d, d_err, p , _, _ =\
                 ep.get_first_intersection(elevs[k], 
                                           view_above_topo_m=
                                           self._cam["altitude_offs"])

@@ -31,34 +31,91 @@ polys_through_origin = {1 : lambda x, a0: a0*x,
                         2 : lambda x, a0, a1: a0*x**2 + a1*x,
                         3 : lambda x, a0, a1, a2: a0*x**3 + a1*x**2 + a2*x}
 
-calibfun_kern_2015 = lambda x, a0, a1 : a0 * exp(x*a1) - 1
-calibfun_kern_2015_withoffs = lambda x, a0, a1, a2 : a0*(exp(x*a1) - 1) + a2
+cfun_kern2015 = lambda x, a0, a1 : a0 * exp(x*a1) - 1
+cfun_kern2015_offs = lambda x, a0, a1, a2 : a0*(exp(x*a1) - 1) + a2
 
-def get_poly_model(order=1, through_origin=False):
-    """Helper method that returns a polynomial model function
+class CalibFuns(object):
+    """Class containing functions for fit of calibration curve"""
+    def __init__(self):
+        self.polys = {0 : polys,
+                      1 : polys_through_origin}
+        
+        self.custom_funs = {"kern2015" : cfun_kern2015,
+                            "kern2015_offs" : cfun_kern2015_offs}
+        
+        self._custom_funs_info = {"kern2015" : ("see Eq. 6 in Kern et al., 2015"
+                                               "https://doi.org/10.1016/j."
+                                               "jvolgeores.2014.12.004"),
+                                 "kern2015_offs" : ("Like previous, including an "
+                                                 "offset term")}
+           
+    def available_poly_orders(self, through_origin=False):
+        """Returns the available polynomial orders
+        
+        Parameter
+        ---------
+        through_origin : bool
+            polys without offset
+        
+        Returns
+        -------
+        list
+            list containing available polyorders
+        """
+        return self.polys[through_origin].keys()
     
-    Parameters
-    ----------
-    order : int
-        order of polynomial model (choose from 1-3)
-    through_origin : bool
-        if True, then the corresponding polynomial model function is returned
-        that goes through the origin
+    def print_poly_info(self):
+        """Prints information about available polynomials""" 
+        print("Available polyorders (with offset): %s"
+              "Available polyorders (without offset): %s"
+              %(self.polys[0].keys(), self.polys[1].keys()))
     
-    Returns
-    -------
-    lambda
-        polynomial model function
-    """
-    if through_origin:
-        if not polys_through_origin.has_key(order):
-            raise ValueError("Polynomial model not available for input order "
-                             "%.1f" %order)
-        return polys_through_origin[order]
-    if not polys.has_key(order):
-        raise ValueError("Polynomial model not available for input order "
-                             "%.1f" %order)
-    return polys[order]
+    def print_custom_funs_info(self):    
+        """Prints information about available curtom calib functions""" 
+        print("Available polyorders (with offset): %s"
+              "Available polyorders (without offset): %s"
+              %(self.polys[0].keys(), self.polys[1].keys()))
+        for k, v in self._custom_funs_info.iteritems():
+            print("%s : %s" %(k,v))
+
+    def get_custom_fun(self, key="kern2015"):
+        """Returns an available custom calibration function
+        
+        Parameters
+        ----------
+        key : str
+            access key of custom function (call :func:`print_custom_funs_info`
+            for info about available functions)
+            
+        Returns
+        -------
+            the function object
+        """    
+        if not key in self.custom_funs.keys():
+            raise KeyError("No custom calibration function with key %s "
+                           "available" %key)
+        return self.custom_funs[key]
+    
+    def get_poly(self, order=1, through_origin=False):
+        """Get a polynomial of certain order
+        
+        Parameters
+        ----------
+        order : int
+            order of polynomial (choose from 1-3)    
+        through_origin : bool
+            if True, the polynomial will have no offset term
+        
+        Return
+        ------
+        function
+            the polynomial function object (callable)
+        """
+        if not order in self.polys[through_origin].keys():
+            raise ValueError("Polynomial of order %s is not supported "
+                             "available orders are %s" 
+                             %(order, self.polys[through_origin].keys()))
+        return self.polys[through_origin][order]
 
 def dilutioncorr_model(dist, rad_ambient, i0, ext):
     """Model function for light dilution correction

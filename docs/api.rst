@@ -20,8 +20,8 @@ Data Set object
    :members:
    :undoc-members:
    
-Measurement geometry
-====================
+Geometrical calculations
+========================
 
 .. automodule:: pyplis.geometry
    :members:
@@ -29,7 +29,7 @@ Measurement geometry
 
 Image base module
 =================
-
+ 
 .. automodule:: pyplis.image
    :members:
    :undoc-members:
@@ -41,13 +41,6 @@ Image list objects
    :members:
    :undoc-members:
    
-Processing module
-=================
-
-.. automodule:: pyplis.processing
-   :members:
-   :undoc-members:
-
 Plume background analysis
 =========================
 
@@ -61,6 +54,13 @@ Plume velocity analysis
 .. automodule:: pyplis.plumespeed
    :members:
    :undoc-members:   
+
+Camera calibration base class
+=============================
+
+.. automodule:: pyplis.calib_base
+   :members:
+   :undoc-members:
 
 Cell calibration
 ================
@@ -93,6 +93,13 @@ Signal dilution correction
 Low level utils
 ===============
 .. automodule:: pyplis.utils
+   :members:
+   :undoc-members:
+
+Further processing classes
+==========================
+
+.. automodule:: pyplis.processing
    :members:
    :undoc-members:
    

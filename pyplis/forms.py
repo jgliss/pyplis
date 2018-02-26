@@ -17,6 +17,7 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 from collections import OrderedDict as od
 
+
 class FormCollectionBase(object):
     """Abtract base class representing collection of geometrical forms
     

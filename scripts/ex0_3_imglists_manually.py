@@ -38,6 +38,7 @@ cropping, size reduction).
 """
 from SETTINGS import check_version, IMG_DIR, SAVEFIGS, SAVE_DIR, FORMAT, DPI,\
     OPTPARSE
+# Check script version
 check_version()
 
 import pyplis

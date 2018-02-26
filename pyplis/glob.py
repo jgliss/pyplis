@@ -27,3 +27,4 @@ CALIB_ID_STRINGS = {"on" : "On",
                     "off":  "Off",
                     "aa" :  "AA"}
 
+DEFAULT_ROI = [0, 0, 9999, 9999]

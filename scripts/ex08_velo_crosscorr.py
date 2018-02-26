@@ -18,8 +18,8 @@
 """
 Pyplis example script no. 8 - Plume velocity retrieval using cross correlation
 """
+# Check script version
 from SETTINGS import check_version
-# Raises Exception if conflict occurs
 check_version()
 
 from matplotlib.pyplot import close, show, subplots

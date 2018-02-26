@@ -18,11 +18,12 @@
 """
 Pyplis example script no. 9 - Optical flow Plume velocity retrieval 
 """
+# Check script version
 from SETTINGS import check_version
-# Raises Exception if conflict occurs
 check_version()
 
-from matplotlib.pyplot import close, show, subplots, figure, xticks, yticks, sca, rcParams
+from matplotlib.pyplot import (close, show, subplots, figure, xticks, yticks, 
+                               sca, rcParams)
 rcParams["font.size"] =16
 
 from os.path import join
