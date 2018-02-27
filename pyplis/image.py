@@ -29,7 +29,7 @@ instance used when performing a plume velocity cross-correlation analysis
 (where the optimal lag between a time-series of two plume intersection lines is 
 searched, for details see :class:`pyplis.plumespeed.VeloCrossCorrEngine`).
 """
-from __future__ import division
+#from __future__ import division
 from astropy.io import fits
 from matplotlib import gridspec
 import matplotlib.cm as cmaps
@@ -44,6 +44,7 @@ from datetime import datetime
 from decimal import Decimal
 from cv2 import pyrDown, pyrUp, addWeighted, dilate, erode
 from scipy.ndimage.filters import gaussian_filter, median_filter
+from scipy.ndimage.interpolation import shift
 from collections import OrderedDict as od
 from copy import deepcopy
 
@@ -196,12 +197,10 @@ class Img(object):
     
         if input is not None:                              
             self.load_input(input)
-# =============================================================================
-#         try:
-#             self.set_roi_whole_image()
-#         except:
-#             pass
-# =============================================================================
+        try:
+            self.set_roi_whole_image()
+        except:
+            pass
     
     @property
     def img(self):
@@ -1199,6 +1198,20 @@ class Img(object):
         self.show_histogram(ax2)
         tight_layout()
         return ax
+    
+    def apply_registration_shift(self, dx_abs=0.0, dy_abs=0.0):
+        """Applies constant image registration shift to this object
+        
+        Parameters
+        ----------
+        dx_abs : float
+            shift in x-direction
+        dy_abs : float
+            shift in y-direction
+        """
+        dx_rel, dy_rel = dx_abs / 2**self.pyrlevel, dy_abs / 2**self.pyrlevel
+        print("Shifting", dx_rel, dy_rel)
+        self.img = shift(self.img, shift=(dy_rel, dx_rel))
             
     def show_histogram(self, ax=None):
         """Plot histogram of current image

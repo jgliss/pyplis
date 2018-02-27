@@ -61,9 +61,15 @@ class DoasCalibData(CalibData):
     time_stamps : ndarray
         array with datetime objects containing time stamps 
         (e.g. start acquisition) of calibration data
+    calib_fun : function
+        optimisation function used for fitting of calibration data
+    calib_coeffs : ;obj:`list`, optional
+        optimisation parameters for calibration curve. 
     senscorr_mask : :obj:`ndarray`or :obj:`Img`, optional
         sensitivity correction mask that was normalised relative to the 
-        pixel position where the DOAS instrument is pointing
+        pixel position where the calibration data was retrieved (i.e. 
+        position of DOAS FOV in case of DOAS calibration data, or image pixel 
+        position, where cell calibration data was retrieved)
     calib_id : str
         calibration ID (e.g. "aa", "tau_on", "tau_off")
     camera : Camera
@@ -75,16 +81,17 @@ class DoasCalibData(CalibData):
         the camera images
         
     """
-    def __init__(self, tau_vec=[], cd_vec=[], cd_vec_err=[], 
-                 time_stamps=[], senscorr_mask=None, calib_id="", 
-                 camera=None, polyorder=1, fov=None):
+    def __init__(self, tau_vec=[], cd_vec=[], cd_vec_err=[], time_stamps=[], 
+                 calib_fun=None, calib_coeffs=[], senscorr_mask=None, 
+                 polyorder=1, calib_id="", camera=None, fov=None):
         super(DoasCalibData, self).__init__(tau_vec, cd_vec, cd_vec_err, 
-                 time_stamps, senscorr_mask, calib_id, camera, polyorder)
-        
+                 time_stamps, calib_fun, calib_coeffs, senscorr_mask, 
+                 polyorder, calib_id, camera)
+        self.type="doas"
         if not isinstance(fov, DoasFOV):
             fov = DoasFOV(camera)
         self.fov = fov
-    
+        
     def save_as_fits(self, save_dir=None, save_name=None,
                      overwrite_existing=True):
         """Save calibration data as FITS file

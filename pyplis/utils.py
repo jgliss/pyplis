@@ -1075,6 +1075,8 @@ class CameraBaseInfo(object):
         
         self.dark_info = []
         
+        self.reg_shift_off = [0.0, 0.0]
+        
         self.focal_length = None #in m
         self.pix_height = None # in m
         self.pix_width = None # in m
@@ -1245,7 +1247,8 @@ class CameraBaseInfo(object):
                    ("pixnum_x"        ,     int),
                    ("pixnum_y"        ,     int),
                    ("default_filters" ,     list),                   
-                   ("dark_info"       ,     list)])
+                   ("dark_info"       ,     list),
+                   ("reg_shift_off"   ,     list)])
     
     @property
     def _info_dict(self):

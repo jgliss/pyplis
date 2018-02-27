@@ -49,6 +49,7 @@ from .processing import ImgStack
 from .utils import LineOnImage
 from .image import Img, ProfileTimeSeriesImg
 from .geometry import MeasGeometry
+from .glob import DEFAULT_ROI
 #LABEL_SIZE=rcParams["font.size"]+ 2
 
 def get_veff(normal_vec, dir_mu, dir_sigma, len_mu, len_sigma, 
@@ -113,8 +114,152 @@ def get_veff(normal_vec, dir_mu, dir_sigma, len_mu, len_sigma,
     verr = diff.std()
     #print "Retrieved eff. velocity v = %.2f +/- %.2f" %(veff, verr)
     return (veff, verr)
-    
+  
 def find_signal_correlation(first_data_vec, next_data_vec, 
+                            time_stamps=None, reg_grid_tres=None, 
+                            freq_unit="S", itp_method="linear",
+                            max_shift_percent=20,
+                            sigma_smooth=1, plot=False,
+                            **kwargs):
+    """Determines cross correlation from two ICA time series
+    
+    Parameters
+    ----------
+    first_data_vec : array
+        first data vector (i.e. left or before ``next_data_vec``)
+    next_data_vec : array
+        second data vector (i.e. behind ``first_data_vec``)
+    time_stamps : array 
+        array containing time stamps of the two data vectors. If default 
+        (None), then the two vectors are assumed to be sampled on a regular 
+        grid and the returned lag corresponds to the index shift with highest 
+        correlation. If ``len(time_stamps) == len(first_data_vec)`` and if 
+        entries are datetime objects, then the two input time series are 
+        resampled and interpolated onto a regular grid, for resampling and 
+        interpolation settings, see following 3 parameters.
+    reg_grid_tres : int
+        sampling resolution of resampled time series
+        data in units specified by input parameter ``freq_unit``. If None, 
+        then the resolution is determined automatically based on the mean time
+        resolution of the data
+    freq_unit : str
+        pandas frequency unit (use S for seconds, L for ms)
+    itp_method : str
+        interpolation method, choose from ``["linear", "quadratic", "cubic"]``
+    max_shift_percent : float
+        percentage maximum shift applied to index of :arg:`first_data_vec` 
+        to find pearson correlation with :arg:`next_data_vec`.
+    sigma_smooth : int
+        specify width of gaussian blurring kernel applied to data before 
+        correlation analysis (default=1)
+    plot : bool
+        if True, result is plotted
+        
+    Returns
+    -------
+    tuple
+        5-element tuple containing
+        
+        - *float*: lag (in units of s or the index, see input specs)
+        - *array*: retrieved correlation coefficients for all shifts 
+        - *Series*: analysis signal 1. data vector 
+        - *Series*: analysis signal 2. data vector 
+        - *Series*: analysis signal 2. data vector shifted using ``lag`    
+    """
+    if not all([isinstance(x, ndarray) for x in\
+                    [first_data_vec, next_data_vec]]):
+        raise IOError("Need numpy arrays as input")
+    if not len(first_data_vec) == len(next_data_vec):
+        raise IOError("Mismatch in lengths of input data vectors")
+    lag_fac = 1 #factor to convert retrieved lag from indices to seconds  
+    if time_stamps is not None and len(time_stamps) == len(first_data_vec)\
+                    and all([isinstance(x, datetime) for x in time_stamps]):
+        print "Input is time series data"
+        if not itp_method in ["linear", "quadratic", "cubic"]:
+            warn("Invalid interpolation method %s: setting default (linear)" 
+                 %itp_method)
+            itp_method = "linear"
+            
+        if reg_grid_tres is None:
+            delts = asarray([delt.total_seconds() for delt in\
+                            (time_stamps[1:] - time_stamps[:-1])])
+             #time resolution for re gridded data
+            reg_grid_tres = (ceil(delts.mean()) - 1) / 4.0
+            if reg_grid_tres < 1: #mean delt is smaller than 4s
+                freq_unit = "L" #L decodes to milliseconds
+                reg_grid_tres = int(reg_grid_tres * 1000)
+            else:
+                freq_unit = "S"
+        print reg_grid_tres, freq_unit
+        delt_str = "%d%s" %(reg_grid_tres, freq_unit)
+        print "Delta t string for resampling: %s" %delt_str
+        
+        s1 = Series(first_data_vec, time_stamps)
+        s2 = Series(next_data_vec, time_stamps)
+        # this try except block was inserted due to bug when using code in 
+        # exception statement with pandas > 0.19, it worked, though with 
+        # pandas v0.16
+        try:
+            s1 = s1.resample(delt_str).agg(mean).interpolate(itp_method).dropna()
+            s2 = s2.resample(delt_str).agg(mean).interpolate(itp_method).dropna()
+        except:
+            s1 = s1.resample(delt_str).interpolate(itp_method).dropna()
+            s2 = s2.resample(delt_str).interpolate(itp_method).dropna()
+        lag_fac = (s1.index[1] - s1.index[0]).total_seconds()
+    else:
+        s1 = Series(first_data_vec)
+        s2 = Series(next_data_vec)
+
+    s1_vec = gaussian_filter(s1, sigma_smooth) 
+    s2_vec = gaussian_filter(s2, sigma_smooth) 
+        
+    coeffs = []
+    max_coeff = -100
+    max_coeff_signal = None
+    max_shift = int(len(s1_vec) * max_shift_percent / 100.0)
+    print "Signal correlation analysis running..."
+    for k in range(max_shift):
+        print("Current shift=%d" %k)
+        shift_s1 = roll(s1_vec, k)[k:]
+        r = pearsonr(shift_s1, s2_vec[k:])
+        coeffs.append(r[0])
+        if coeffs[-1] > max_coeff:
+            max_coeff = coeffs[-1]
+            max_coeff_signal = Series(shift_s1, s1.index[k:])
+    coeffs = asarray(coeffs)
+    s1_ana = Series(s1_vec, s1.index)
+    s2_ana = Series(s2_vec, s2.index)
+        
+    ax = None
+    if plot:
+        fig, ax = subplots(1, 3, figsize = (18,6))
+        
+        s1.plot(ax = ax[0], label="First line")
+        s2.plot(ax = ax[0], label="Second line")
+        ax[0].set_title("Original time series")
+        ax[0].legend(loc='best', fancybox=True, framealpha=0.5) 
+        ax[0].grid()
+        
+        max_coeff_signal.plot(ax = ax[1], label =\
+                        "Data vector 1. line (best shift)")
+        s2_ana.plot(ax = ax[1], label = "Data vector 2. line")
+        
+                        
+        ax[1].set_title("Signal match")
+        ax[1].legend(loc='best', fancybox=True, framealpha=0.5) 
+        ax[1].grid()
+        
+        x = arange(0, len(coeffs), 1) * lag_fac
+        ax[2].plot(x, coeffs, "-r")
+        ax[2].set_xlabel(r"$\Delta$t [s]")
+        ax[2].grid()
+        #ax[1].set_xlabel("Shift")
+        ax[2].set_ylabel("Correlation coeff")
+        ax[2].set_title("Correlation signal")
+    lag = argmax(coeffs) * lag_fac
+    return lag, coeffs, s1_ana, s2_ana, max_coeff_signal, ax
+
+def find_signal_correlation_old(first_data_vec, next_data_vec, 
                             time_stamps=None, reg_grid_tres=None, 
                             freq_unit="S", itp_method="linear", 
                             cut_border_idx=0, sigma_smooth=1, plot=False,
@@ -594,7 +739,7 @@ class VeloCrossCorrEngine(object):
         if stop_idx is None:
             stop_idx = lst.nof
             
-        num = stop_idx - start_idx
+        num = self.imglist._iter_num(start_idx, stop_idx)
         if not num > 20:
             raise ValueError("Please set start / stop indices such that "
                              "at least 20 images are used for cross "
@@ -856,7 +1001,7 @@ class VeloCrossCorrEngine(object):
         res = self.results
         lag = self.correlation_lag
         s_pcs = res["ica_tseries_pcs"]
-        index = s_pcs.index.to_pydatetime()
+        #index = s_pcs.index.to_pydatetime()
         s_offs = res["ica_tseries_offset"]
         s_shift = res["ica_tseries_shift"]
     
@@ -866,7 +1011,7 @@ class VeloCrossCorrEngine(object):
         # plot shifted time series along pcs 1 and apply light fill
         s_shift.plot(ax=ax, style="-", color=self.pcs.color, 
                      label="%s (lag: %.1f s)" %(self.pcs.line_id, lag))
-        ax.fill_between(index, s_shift.values, 
+        ax.fill_between(s_shift.index, s_shift.values, 
                          color=self.pcs.color, alpha=0.05)
         
         s_offs.plot(ax=ax, style="-", color=self.pcs_offset.color, 
@@ -2200,7 +2345,7 @@ class OptflowFarneback(object):
     def update_contrast_range(self):
         """Update contrast range using min/max vals of current images in ROI"""
         img = self.images_input["this"]
-        if self.settings.roi_rad_abs == [0, 0, 9999, 9999]:
+        if self.settings.roi_rad_abs == DEFAULT_ROI:
             self.settings.roi_rad_abs = self.settings.roi_abs
         roi = map_roi(self.settings.roi_rad_abs, img.edit_log["pyrlevel"])
         sub = img.img[roi[1]:roi[3], roi[0]:roi[2]]

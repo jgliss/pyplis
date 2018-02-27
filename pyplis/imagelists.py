@@ -26,8 +26,9 @@ from :class:`BaseImgList`) contain powerful preprocessing modes (e.g. load
 images as dark corrected and calibrated images, compute optical flow between 
 current and next image). 
 """
-from numpy import asarray, zeros, argmin, arange, ndarray, float32, isnan,\
-    logical_or, uint8, exp, ones
+#from __future__ import division
+from numpy import (asarray, zeros, argmin, arange, ndarray, float32, isnan,
+                   logical_or, uint8, exp, ones)
 from datetime import timedelta, datetime, date
 
 from pandas import Series, DataFrame
@@ -129,7 +130,7 @@ class BaseImgList(object):
                            "next" : {}}
 
         self.index = 0
-        self._skip_files = 1
+        self._skip_files = 0 #if 0, no files are skipped
         self.next_index = 0
         self.prev_index = 0
         
@@ -204,6 +205,8 @@ class BaseImgList(object):
     
     @skip_files.setter
     def skip_files(self, val):
+        if not val >= 0:
+            raise ValueError("Value must be 0 or positive")
         self._skip_files = int(val)
         self.iter_indices(self.index)
         self.load()
@@ -485,12 +488,59 @@ class BaseImgList(object):
         ts = self.get_img_meta_all_filenames()[0]
         return ts
     
-    @property
-    def acq_times(self):
-        """Wrapper (old name) for attribute start_acq"""
-        warn("Old name of attribute start_acq: still works, but annoys you "
-            "with this warning")
-        return self.start_acq
+    def timestamp_to_index(self, val=datetime(1900,1,1)):
+        """Convert a datetime to the list index
+        
+        Returns the list index that is closest in time to the input time 
+        stamp.
+    
+        Parameters
+        ----------
+        val : datetime
+            time stamp
+            
+        Raises
+        ------
+        AttributeError
+            if time stamps of images in list cannot be accessed from their 
+            file names
+        
+        Returns
+        -------
+        int
+            corresponding list index
+        """
+        times = self.start_acq
+        if not len(times) == self.nof:
+            raise AttributeError("Failed to access all acq. time stamps could "
+                                 "not be accessed")
+        return argmin(abs(val - times))
+    
+    def index_to_timestamp(self, val=0):
+        """Get timestamp of input list index
+        
+        Parameters
+        ----------
+        val : index
+            time stamp
+            
+        Raises
+        ------
+        AttributeError
+            if time stamps of images in list cannot be accessed from their 
+            file names
+        
+        Returns
+        -------
+        int
+            corresponding list index
+        """
+        times = self.start_acq
+        if not len(times) == self.nof:
+            raise AttributeError("Acq. time stamps could not be accessed")
+        if not 0 <= val <= self.last_index:
+            raise IndexError("List index out of range")
+        return times[val]
     
     def add_files(self, files, load=True):
         """Add images to this list
@@ -546,8 +596,8 @@ class BaseImgList(object):
         """
         try:
             self.index = to_index%self.nof
-            self.next_index = (self.index + self.skip_files)%self.nof
-            self.prev_index = (self.index - self.skip_files)%self.nof
+            self.next_index = (self.index + self.skip_files+1)%self.nof
+            self.prev_index = (self.index - self.skip_files-1)%self.nof
             
         except:
             self.index, self.prev_index, self.next_index = 0, 0, 0
@@ -809,7 +859,7 @@ class BaseImgList(object):
         except:
             pass
         return times, texps
-
+                
     def assign_indices_linked_list(self, lst):
         """Create a look up table for fast indexing between image lists
         
@@ -863,6 +913,27 @@ class BaseImgList(object):
                     return False
         return True
     
+    def _iter_num(self, start_idx, stop_idx):
+        """Returns the number of iterations for a loop
+        
+        The number of iterations is based on the current attribute
+        ``skip_files``.
+        
+        Parameters
+        ----------
+        start_idx : int
+            start index of loop
+        stop_idx : int 
+            stop index of loop
+            
+        Returns
+        -------
+        int
+            number of required iterations
+        """
+        # the int(x) function rounds down, so no floor(x) needed
+        return int((stop_idx - start_idx) / (self.skip_files+1.0))
+    
     def make_stack(self, stack_id=None, pyrlevel=None, roi_abs=None,
                    start_idx=0, stop_idx=None, ref_check_roi_abs=None,
                    ref_check_min_val=None, ref_check_max_val=None,
@@ -871,13 +942,13 @@ class BaseImgList(object):
         
         The stacking is performed using the current image preparation
         settings (blurring, dark correction etc). Only stack ROI and pyrlevel
-        can be set explicitely.
+        can be set explicitely. 
         
         Note
         ----
         In case of ``MemoryError`` try stacking less images (specifying 
         start / stop index) or reduce the size setting a different Gauss
-        pyramid level
+        pyramid level.
         
         Parameters
         ----------
@@ -887,11 +958,16 @@ class BaseImgList(object):
             Gauss pyramid level of stack
         roi_abs : list
             build stack of images cropped in ROI
-        start_idx : int
-            index of first considered image, defaults to 0
-        stop_idx : :obj:`int`, optional
+        start_idx : :obj:`int` or :obj:`datetime`
+            index or timestamp of first considered image. Note that the 
+            timestamp option only works if acq. times can be accessed from 
+            filenames for all files in the list (using method 
+            :func:`timestamp_to_index`)
+        stop_idx : :obj:`int` or :obj:`datetime`, optional
             index of last considered image (if None, the last image in this 
-            list is used), defaults to last index
+            list is used). Note that the timestamp option only works if acq. 
+            times can be accessed from filenames for all files in the list 
+            (using method :func:`timestamp_to_index`)
         ref_check_roi_abs : :obj:`list`, optional
             rectangular area specifying a reference area which can be specified
             in combination with the following 2 parameters in order to include
@@ -914,15 +990,17 @@ class BaseImgList(object):
         Returns
         -------
         ImgStack
-            result stack
-        
-        
+            image stack containing stacked images 
         """
         self.edit_active=True
-        if stop_idx is None:
+        if isinstance(start_idx, datetime):
+            start_idx = self.timestamp_to_index(start_idx)
+        if isinstance(stop_idx, datetime):
+            stop_idx = self.timestamp_to_index(stop_idx)
+        if stop_idx is None or stop_idx > self.nof:
             stop_idx = self.nof
-            
-        num = stop_idx - start_idx
+        
+        num = self._iter_num(start_idx, stop_idx)
         #remember last image shape settings
         _roi = deepcopy(self._roi_abs)
         _pyrlevel = deepcopy(self.pyrlevel)
@@ -944,8 +1022,8 @@ class BaseImgList(object):
         if stack_id in ["raw", "tau"]:
             stack_id = "%s_%s" %(self.list_id, stack_id)
             
-        #create a new settings object for stack preparation
         self.goto_img(start_idx)
+        
         self.auto_reload = True
         h, w = self.current_img().shape
         stack = ImgStack(h, w, num, dtype, stack_id, camera=self.camera,
@@ -970,7 +1048,6 @@ class BaseImgList(object):
                 print ("Building img-stack from list %s, progress: (%s | %s)" 
                        %(lid, k, num-1))
             img = self.loaded_images["this"]
-            #print im.meta["start_acq"]
             append = True
             if ref_check:
                 sub_val = img.crop(roi_abs=ref_check_roi_abs, new_img=1).mean()
@@ -981,7 +1058,8 @@ class BaseImgList(object):
             if append:
                 stack.add_img(img.img, img.meta["start_acq"], 
                                  img.meta["texp"])
-            self.goto_next()  
+            self.goto_next() 
+            k+=1
         stack.start_acq = asarray(stack.start_acq)
         stack.texps = asarray(stack.texps)
         stack.roi_abs = self._roi_abs
@@ -999,15 +1077,21 @@ class BaseImgList(object):
         return stack
     
     def get_mean_img(self, start_idx=0, stop_idx=None):
-        """Determines average image from list images
+        """Determines an average image from a number of list images
         
         Parameters
         ----------
-        start_idx : int
-            index of first considered image
-        stop_idx : int
+        start_idx : :obj:`int` or :obj:`datetime`
+            index or timestamp of first considered image. Note that the 
+            timestamp option only works if acq. times can be accessed from 
+            filenames for all files in the list (using method 
+            :func:`timestamp_to_index`)
+        stop_idx : :obj:`int` or :obj:`datetime`, optional
             index of last considered image (if None, the last image in this 
-            list is used)
+            list is used). Note that the 
+            timestamp option only works if acq. times can be accessed from 
+            filenames for all files in the list (using method 
+            :func:`timestamp_to_index`)
             
         Returns
         -------
@@ -1015,16 +1099,21 @@ class BaseImgList(object):
             average image 
         """
         cfn = self.index
-        self.goto_img(start_idx)
+        if isinstance(start_idx, datetime):
+            start_idx = self.timestamp_to_index(start_idx)
+        if isinstance(stop_idx, datetime):
+            stop_idx = self.timestamp_to_index(stop_idx)
         if stop_idx is None or stop_idx > self.nof:
-            print "Setting stop_idx to last list index"
             stop_idx = self.nof
+            
+        self.goto_img(start_idx)
+        num = self._iter_num(start_idx, stop_idx)
         img = Img(zeros(self.current_img().shape))
         img.edit_log = self.current_img().edit_log
         img.meta["start_acq"] = self.current_time()
         added = 0
         texps = []
-        for k in range(start_idx, stop_idx):
+        for k in range(num):
             try:
                 cim = self.current_img()
                 img.img += cim.img
@@ -1043,11 +1132,22 @@ class BaseImgList(object):
         self.goto_img(cfn)
         return img
     
-    def get_mean_tseries_rects(self, *rois):
+    def get_mean_tseries_rects(self, start_idx, stop_idx, *rois):
         """Similar to :func:`get_mean_value` but for multiple rects
         
         Parameters
         ----------
+        start_idx : :obj:`int` or :obj:`datetime`
+            index or timestamp of first considered image. Note that the 
+            timestamp option only works if acq. times can be accessed from 
+            filenames for all files in the list (using method 
+            :func:`timestamp_to_index`)
+        stop_idx : :obj:`int` or :obj:`datetime`
+            index of last considered image (if None, the last image in this 
+            list is used). Note that the 
+            timestamp option only works if acq. times can be accessed from 
+            filenames for all files in the list (using method 
+            :func:`timestamp_to_index`)
         *rois
             non keyword args specifying rectangles for data access
         
@@ -1061,12 +1161,21 @@ class BaseImgList(object):
             raise IndexError("No images available in ImgList object")
         dat = []
         num_rois = len(rois)
+        if num_rois == 0:
+            raise ValueError("No ROIs provided...")
         for roi in rois:
             dat.append([[],[],[],[]])
         cfn = self.cfn
-        num = self.nof
+        if isinstance(start_idx, datetime):
+            start_idx = self.timestamp_to_index(start_idx)
+        if isinstance(stop_idx, datetime):
+            stop_idx = self.timestamp_to_index(stop_idx)
+        if stop_idx is None or stop_idx > self.nof:
+            stop_idx = self.nof
+            
+        self.goto_img(start_idx)
+        num = self._iter_num(start_idx, stop_idx)
         
-        self.goto_img(0)
         lid = self.list_id
         pnum = int(10**exponent(num) / 4.0)
         for k in range(num):
@@ -1097,7 +1206,8 @@ class BaseImgList(object):
             means.append(mean)
         return means
         
-    def get_mean_value(self, roi=DEFAULT_ROI, apply_img_prep=True):
+    def get_mean_value(self, start_idx=0, stop_idx=None, roi=DEFAULT_ROI, 
+                       apply_img_prep=True):
         """Determine pixel mean value time series in ROI
         
         Determines the mean pixel value (and standard deviation) for all images 
@@ -1106,6 +1216,17 @@ class BaseImgList(object):
         
         Parameters
         ----------
+        start_idx : :obj:`int` or :obj:`datetime`
+            index or timestamp of first considered image. Note that the 
+            timestamp option only works if acq. times can be accessed from 
+            filenames for all files in the list (using method 
+            :func:`timestamp_to_index`)
+        stop_idx : :obj:`int` or :obj:`datetime`
+            index of last considered image (if None, the last image in this 
+            list is used). Note that the 
+            timestamp option only works if acq. times can be accessed from 
+            filenames for all files in the list (using method 
+            :func:`timestamp_to_index`)
         roi : list
             rectangular region of interest ``[x0, y0, x1, y1]``, 
             defaults to [0, 0, 9999, 9999] (i.e. whole image)
@@ -1120,12 +1241,19 @@ class BaseImgList(object):
         """
         if not self.data_available:
             raise IndexError("No images available in ImgList object")
-        #settings = deepcopy(self.img_prep)
+        if isinstance(start_idx, datetime):
+            start_idx = self.timestamp_to_index(start_idx)
+        if isinstance(stop_idx, datetime):
+            stop_idx = self.timestamp_to_index(stop_idx)
+        if stop_idx is None or stop_idx > self.nof:
+            stop_idx = self.nof
+        
         self.edit_active=apply_img_prep
+        self.goto_img(start_idx)
+        num = self._iter_num(start_idx, stop_idx)
+        
         cfn = self.cfn
-        num = self.nof
         vals, stds, texps, acq_times = [],[],[],[]
-        self.goto_img(0)
         lid=self.list_id
         pnum = int(10**exponent(num) / 4.0)
         for k in range(num):
@@ -1227,6 +1355,7 @@ class BaseImgList(object):
                 "preparation will be performed")
             return
         img = self.loaded_images[key]
+        
         img.to_pyrlevel(self.img_prep["pyrlevel"])
         if self.img_prep["crop"]:
             img.crop(self.roi_abs)
@@ -1850,7 +1979,7 @@ class ImgList(BaseImgList):
     @ext_coeffs.setter
     def ext_coeffs(self, val):
         if isinstance(val, float):
-            val = Series(val, [self.acq_times[0]])
+            val = Series(val, [self.start_acq[0]])
         if not isinstance(val, Series):
             raise ValueError("Need pandas Series object")
         self._ext_coeffs = val
@@ -2841,7 +2970,47 @@ class ImgList(BaseImgList):
     """PROCESSING AND ANALYSIS METHODS""" 
     def optflow_histo_analysis(self, lines=[], start_idx=0, stop_idx=None, 
                                intensity_thresh=0, **optflow_settings):
+        """Performs optical flow histogram analysis for list images
+        
+        The analysis is performed for all list images within the specified
+        index (or time) range and for an arbitraty number of PCS lines.
+        
+        Parameters
+        ----------
+        lines : list
+            list containing :class:`LineOnImage` instances
+        start_idx : :obj:`int` or :obj:`datetime`
+            index or timestamp of first considered image. Note that the 
+            timestamp option only works if acq. times can be accessed from 
+            filenames for all files in the list (using method 
+            :func:`timestamp_to_index`)
+        stop_idx : :obj:`int` or :obj:`datetime`, optional
+            index of last considered image (if None, the last image in this 
+            list is used). Note that the timestamp option only works if acq. 
+            times can be accessed from filenames for all files in the list 
+            (using method :func:`timestamp_to_index`)
+        intensity_thresh : float
+            additional intensity threshold that may, e.g. be used to identify 
+            plume pixels (e.g. if list is in ``tau_mode``). 
+        **optflow_settings
+            additional keyword args passed to :class:`OptflowFarneback`
+            
+        Returns
+        -------
+        list
+            list containing the computed time series of optical flow 
+            histogram parameters (:class:`LocalPlumeProperties` instances) for
+            each of the provided input :class:`LineOnImage` objects.
+        """
         cfn_tmp = self.cfn
+        if isinstance(start_idx, datetime):
+            start_idx = self.timestamp_to_index(start_idx)
+        if isinstance(stop_idx, datetime):
+            stop_idx = self.timestamp_to_index(stop_idx)
+        if stop_idx is None or stop_idx > self.nof:
+            stop_idx = self.nof
+    
+        num = self._iter_num(start_idx, stop_idx)
         flm = self.optflow_mode
         self.goto_img(start_idx)
         self.optflow.settings.update(**optflow_settings)
@@ -2854,12 +3023,9 @@ class ImgList(BaseImgList):
         if len(props) == 0:
             lines=[None]
             props.append(LocalPlumeProperties("thresh_%.1f" %intensity_thresh))
-
-        if stop_idx is None:
-            stop_idx = self.nof - 1
             
         self.optflow_mode = True
-        for k in range(start_idx, stop_idx):
+        for k in range(num):
             plume_mask = self.get_thresh_mask(intensity_thresh)
             for i in range(len(props)):
                 props[i].get_and_append_from_farneback(self.optflow, 
@@ -3253,7 +3419,7 @@ class ImgList(BaseImgList):
     
         self.goto_img(0)
         saved_off = []
-        num = self.nof
+        num = self._iter_num(0, self.nof)
         if add_off_list:
             off = self.get_off_list()
             off.bg_model.update(**self.bg_model.settings_dict())
@@ -3372,6 +3538,10 @@ class ImgList(BaseImgList):
         if self.darkcorr_mode:
             dark = self.get_dark_image(key).to_pyrlevel(img.pyrlevel)
             img.subtract_dark_image(dark)
+        shift = self.camera.reg_shift_off
+        if self.list_id=="off" and not all([x==0 for x in shift]):
+            print("BLAAAAA: Image shift")
+            img.apply_registration_shift(dx_abs=shift[0], dy_abs=shift[1])
         bg_model = self.bg_model
         if self.dilcorr_mode:
             s = self.dilcorr_settings
@@ -3460,205 +3630,6 @@ class ImgList(BaseImgList):
             bg_on = self.bg_list.this.to_pyrlevel(on.pyrlevel)
             bg_off = off_list.bg_list.this.to_pyrlevel(off.pyrlevel)
         return self.bg_model.get_aa_image(on, off, bg_on, bg_off)
-    
-    """
-    SORTED OUT METHODS
-    """
-    def correct_dilution_old(self, img, tau_thresh=0.05, plume_pix_mask=None,
-                         plume_dists=None, ext_coeff=None):
-        """Correct current image for signal dilution
-        
-        Requires measurement geometry (:attr:`meas_geometry`) and extinction
-        coefficients (:attr:`ext_coeffs`) to be available in this list.
-        Further, the list needs to be prepared such that :attr:`tau_mode` can
-        be activated since the correction requires an accurate estimation of
-        the current plume background. The latter can be retrieved from
-        :attr:`bg_model` (:class:`PlumeBackgroundModel`) after 
-        :func:`get_tau_image` was called therein.
-        
-        Parameters
-        ----------
-        tau_thresh : :obj:`float`, optional
-            tau threshold applied to determine plume pixel mask (retrieved 
-            using :attr:`tau_mode`, not :attr:`aa_mode`)
-        plume_pix_mask : :obj:`float`, optional
-            mask specifying plume pixels. If valid, it will be passed through 
-            and no threshold mask will retrieved (see :param:`tau_thresh`)
-        plume_dists : :obj:`array`, :obj:`Img`, :obj:`float`
-            plume distance(s) in m. If input is numpy array or :class:`Img` 
-            then, it must have the same shape as the current image
-        ext_coeff : :obj:`float`, optional
-            atmospheric extinction coefficient. If unspecified, try access 
-            via :attr:`ext_coeff` which returns the current extinction 
-            coefficient and raises :obj:`AttributeError` in case, no coeffs are
-            assigned to this list
-            
-        Returns
-        -------
-        tuple
-            3-element tuple containing input for dilution correction
-            
-            - :obj:`Img`, vignetting and dilution corrected image
-            - :obj:`Img`, corresponding plume background
-            - :obj:`array`, mask specifying plume pixels
-
-        """
-        from .dilutioncorr import correct_img        
-        (img, 
-         ext_coeff, 
-         bg, 
-         plume_dists, 
-         plume_pix_mask) = self.prep_data_dilutioncorr(tau_thresh,
-                                                       plume_pix_mask, 
-                                                       plume_dists, 
-                                                       ext_coeff)
-                                                       
-                                                       
-        corr = correct_img(img, ext_coeff, bg, plume_dists, plume_pix_mask)
-                                  
-        bad_pix = corr.img <= 0
-        corr.img[bad_pix] = self.current_img().img[bad_pix]
-            
-        return (corr, bg, plume_pix_mask)
-    
-    def correct_dilution_all_old(self, tau_thresh=0.05, ext_on=None, 
-                                 ext_off=None,
-                                 add_off_list=True, save_dir=None, 
-                             save_masks=False, save_bg_imgs=False, 
-                             save_tau_prev=False, vmin_tau_prev=None, 
-                             vmax_tau_prev=None, **kwargs):
-        """Correct all images for signal dilution
-        
-        Correct and save all images in this list for the signal dilution 
-        effect. See :func:`correct_dilution` and :func:`prep_data_dilutioncorr` 
-        for details about requirements and additional input options.
-        
-        Note
-        ----
-        The vignetting and dilution corrected images are stored with all 
-        additional image preparation settings applied (e.g. dark correction, 
-        blurring)
-        
-        Parameters        
-        ----------
-        tau_thresh : :obj:`float`, optional
-            tau threshold applied to determine plume pixel mask (retrieved 
-            using :attr:`tau_mode`, not :attr:`aa_mode`)
-        ext_on : :obj:`float`, optional
-            atmospheric extinction coefficient at on-band wavelength, if None
-            (default), try access via :attr:`ext_coeff`
-        ext_off : :obj:`float`, optional
-            atmospheric extinction coefficient at off-band wavelength. Only 
-            relevant if input param ``add_off_list`` is True. If None (default)
-            and ``add_off_list=True`` try access via :attr:`ext_coeff` in off
-            band list.
-        add_off_list : bool
-            if True, also the images in a linked off-band image list 
-            (using :func:`get_off_list`) are corrected as well. For the 
-            correction of the off-band images, the current plume pixel mask 
-            of this list is used.
-        save_dir : :obj:`str`, optional
-            base directory for saving the corrected images. If None (default),
-            then a new directory ``dilcorr`` is created at the storage location 
-            of the first image in this list
-        save_masks : bool
-            if True,  a folder *plume_pix_masks* is created within 
-            :param:`save_dir` in which all plume pixel masks are stored as
-            FITS
-        save_bg_imgs : bool 
-            if True, a folder *bg_imgs* is created which is used to store 
-            modelled plume background images for each image in this list. This 
-            folder can be used on re-import of the data in order to save 
-            background modelling time using background modelling mode 99.
-        save_tau_prev : bool
-            if True, png previews of dilution corrected tau images are saved
-        vmin_tau_prev : :obj:`float`, optional
-            lower tau value for tau image preview plots
-        vmax_tau_prev : :obj:`float`, optional
-            upper tau value for tau image preview plots
-        **kwargs 
-            additional keyword args for dilution correction functions
-            :func:`correct_dilution` and :func:`prep_data_dilutioncorr`
-        """
-        ioff()
-        if save_dir is None or not exists(save_dir):
-            save_dir = abspath(join(dirname(self.files[0]), ".."))
-        save_dir = join(save_dir, "dilutioncorr")
-        
-        if not exists(save_dir):
-            mkdir(save_dir)
-        if save_masks:
-            mask_dir = join(save_dir, "plume_pix_masks")
-            if not exists(mask_dir):
-                mkdir(mask_dir)
-        if save_bg_imgs:
-            bg_dir = join(save_dir, "bg_imgs")
-            if not exists(bg_dir):
-                mkdir(bg_dir)
-        if save_tau_prev:
-            tau_dir = join(save_dir, "tau_prev")
-            if not exists(tau_dir):
-                mkdir(tau_dir)
-        # initiate settings
-        self.goto_img(0)
-        try:
-            (img, 
-             ext_coeff, 
-             bg, 
-             plume_dists, 
-             plume_pix_mask) = self.prep_data_dilutioncorr(tau_thresh,
-                                                           ext_coeff=ext_on)
-            if add_off_list:
-                off = self.get_off_list()
-                (img_off, 
-                 ext_coeff_off, 
-                 bg_off, 
-                 plume_dists, 
-                 plume_pix_mask) = off.prep_data_dilutioncorr(plume_pix_mask=
-                                                              plume_pix_mask,
-                                                              plume_dists=
-                                                              plume_dists,
-                                                              ext_coeff=ext_off)
-        except:
-            raise Exception("Failed to initiate dilution correction with "
-                "error:\n%s" %format_exc())
-        saved_off = []
-        num = self.nof
-        for k in range(num):
-            (corr, 
-             bg, 
-             plume_pix_mask) = self.correct_dilution(tau_thresh=tau_thresh,
-                                                     plume_dists=plume_dists,
-                                                     ext_coeff=ext_on)
-            corr.save_as_fits(save_dir)
-            fname = corr.meta["file_name"]
-            if save_masks:
-                Img(plume_pix_mask, dtype=uint8, 
-                    file_name=fname).save_as_fits(mask_dir)
-            if save_bg_imgs:
-                bg.save_as_fits(bg_dir, fname)
-            if save_tau_prev:
-                tau = corr.to_tau(bg)
-                fig = self.bg_model.plot_tau_result(tau, 
-                                                    tau_min=vmin_tau_prev,
-                                                    tau_max=vmax_tau_prev)
-                name = fname.split(".")[0] + ".png"
-                fig.savefig(join(tau_dir, name))
-                close("all")
-                del fig
-            if add_off_list:
-                if not off.current_img().meta["file_name"] in saved_off:
-                    # use on band plume pixel mask
-                    (corr_off, 
-                     bg_off, 
-                     _) = off.correct_dilution(plume_pix_mask=plume_pix_mask,
-                                               plume_dists=plume_dists)
-                    saved_off.append(corr_off.save_as_fits(save_dir))
-                    if save_bg_imgs:
-                        bg_off.save_as_fits(bg_dir, corr_off.meta["file_name"])    
-            
-            self.goto_next()
-        ion()
 
 class CellImgList(ImgList):
     """Image list object for cell images

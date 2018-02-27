@@ -787,3 +787,5 @@ class CalibData(object):
         :return: corresponding column density
         """
         return self.calibrate(value)
+    
+    

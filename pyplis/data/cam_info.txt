@@ -1,9 +1,9 @@
 This file contains information about pyplis default cameras
 -----------------------------------------------------------
 
-In this text file, new default camera types can be specified, this mainly includes information about how to extract information from the image file names (e.g. acq. time, which filter was used, exposure time, etc.) and which information can be extracted. Further it includes additional default information about the camera specifications, such as the pixel pitch, the detector size (pixel number) or the focal length of the lens used, which filters are used and in which way dark (and potentially offset) images are recorded.
+In this text file, new default camera types can be specified, this mainly includes information about how to extract information from the image file names (e.g. acq. time, which filter was used, exposure time, etc.) and which information can be extracted. Further additional default information about the camera can be specified, such as the pixel pitch (pixel to pixel distance), the detector dimensions (number of pixels, aspect ratio) or the focal length of the lens used, which filters are used and in which way dark (and potentially offset) images are recorded.
 
-The individual parameters that can be set are explained on the example of the first default camera listed below (HD-Custom camera). 
+The individual parameters that can be set are explained based on the example of the first default camera listed below (HD-Custom camera). 
 
 When creating a new camera type please use lower case filter names. Parameters which include the substring "pos" (e.g. time_info_pos, meas_type_pos, filter_id_pos) refer to positions of specific information in the image filenames (after they are splitted using "delim"), for instance "time_info_pos"==1 means, that a datetime string can be found at pos (!) 2 in the filename after splitting. PLEASE leave these "pos" fields empty if the specific information is not available in your filename. If you wish to use automatic separation of images by type ("on", "off", "dark", "offset") and image selection (and sorting) by acquisition time, then the the fields "meas_type_pos", "filter_id_pos" and "time_info_pos" need to be filled.
 
@@ -110,6 +110,10 @@ dark_info:cell1_off_dark,dark,B01,D
 dark_info:cell2_off_dark,dark,B02,D
 dark_info:cell3_off_dark,dark,B03,D
 dark_info:cell4_off_dark,dark,B04,D
+
+# Options for how to import images in Dataset class. Please see attributes
+# of BaseSetup class in setupclasses.py source file of pyplis
+io_opts:USE_ALL_FILES=0, SEPARATE_FILTERS=1, USE_ALL_FILE_TYPES=0,INCLUDE_SUB_DIRS=1, ON_OFF_SAME_FILE=0, LINK_OFF_TO_ON=1
 ENDCAM
 
 NEWCAM
@@ -219,6 +223,10 @@ pix_width:4.65e-6
 pixnum_x:1392
 pixnum_y:1040
 
+# default image registration shift between off and onband image: x, y in
+# pixel coordinates
+reg_shift_off: -2,-2 
+
 # Filters (row-wise, format): 
 # filter:<ID>,<type>,<type acronym>,<meas_type acronym>,<center_wavelength>
 filter:on,on,on,on,313
@@ -231,5 +239,5 @@ image_import_method:load_usgs_multifits
 
 # Options for how to import images in Dataset class. Please see attributes
 # of BaseSetup class in setupclasses.py source file of pyplis
-io_opts:USE_ALL_FILES=0, SEPARATE_FILTERS=1, USE_ALL_FILE_TYPES=0,INCLUDE_SUB_DIRS=1, ON_OFF_SAME_FILE=1, LINK_OFF_TO_ON=1
+io_opts:USE_ALL_FILES=0, SEPARATE_FILTERS=1, USE_ALL_FILE_TYPES=0,INCLUDE_SUB_DIRS=1, ON_OFF_SAME_FILE=1, LINK_OFF_TO_ON=1, REG_SHIFT_OFF=1
 ENDCAM

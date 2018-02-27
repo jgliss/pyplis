@@ -155,6 +155,18 @@ if __name__ == "__main__":
     step_lengths = on_list.integration_step_length
     on_list.integration_step_length = 1.8 #m
     
+    img_shift = img.duplicate()
+    
+    #images can be shifted using the scipy.ndimage.interpolation.shift method
+    #this may be required for image registration in dual camera systems.
+    #Whether this is supposed to be done automatically can be specified using 
+    #the REG_SHIFT_OFF option in a MeasSetup class. It may also be specified
+    #directly for your camera in the custom camera definition file cam_info.txt
+    #using io_opts:REG_SHIFT_OFF=1 (see e.g. defintion of camera with ID 
+    # "usgs"). Also, a default registration offset can be defined here using 
+    # 
+    img_shift.apply_registration_shift(-100, -10)
+    img_shift.show(tit="Shifted")
     #Set pixel intensities below 2000 to 0 (method of Img class)
     img.set_val_below_thresh(val=0, threshold=2000)
     #show modified image

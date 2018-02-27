@@ -273,7 +273,10 @@ def get_camera_info(cam_id):
                             if len(keys) == len(vals):
                                 for i in range(len(keys)):
                                     io_opts[keys[i]]=bool(vals[i])
-                        
+                        elif k == "reg_shift_off":
+                            l = [float(x.strip()) for x in 
+                                 spl[1].split("#")[0].split(',')]
+                            dat["reg_shift_off"] = l
                         else:
                             data_str = spl[1].split("#")[0].strip()
                             if any([data_str == x for x in ["''", '""']]):

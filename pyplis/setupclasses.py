@@ -842,7 +842,8 @@ class BaseSetup(object):
                            ("USE_ALL_FILE_TYPES"    ,   False),
                            ("INCLUDE_SUB_DIRS"      ,   False),
                            ("ON_OFF_SAME_FILE"      ,   False),
-                           ("LINK_OFF_TO_ON"        ,   True)])
+                           ("LINK_OFF_TO_ON"        ,   True),
+                           ("REG_SHIFT_OFF"         ,   False)])
                            
         self.check_timestamps()
         print self.LINK_OFF_TO_ON
@@ -978,6 +979,23 @@ class BaseSetup(object):
         if not value in [0, 1]:
             raise ValueError("need boolean")
         self.options["LINK_OFF_TO_ON"] = value
+    
+    @property
+    def REG_SHIFT_OFF(self):
+        """File import option (boolean)
+        
+        If True, the images in an offband image list that is linked to an 
+        onband image list (cf. :attr:`LINK_OFF_TO_ON`) are shifted using the 
+        registration offset specified in the  ``reg_shift_off2on`` attribute
+        of the :class:`Camera` instance.
+        """
+        return self.options["REG_SHIFT_OFF"]
+    
+    @REG_SHIFT_OFF.setter
+    def REG_SHIFT_OFF(self, value):
+        if not value in [0, 1]:
+            raise ValueError("need boolean")
+        self.options["REG_SHIFT_OFF"] = value
         
     def check_timestamps(self):
         """Check if timestamps are valid and set to current time if not"""
