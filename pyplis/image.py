@@ -29,7 +29,7 @@ instance used when performing a plume velocity cross-correlation analysis
 (where the optimal lag between a time-series of two plume intersection lines is 
 searched, for details see :class:`pyplis.plumespeed.VeloCrossCorrEngine`).
 """
-#from __future__ import division
+from __future__ import division
 from astropy.io import fits
 from matplotlib import gridspec
 import matplotlib.cm as cmaps
@@ -151,6 +151,7 @@ class Img(object):
                               ("gascalib"   ,   False), # image is gas CD image
                               ("is_bin"     ,   False),
                               ("is_inv"     ,   False),
+                              ("shifted"    ,   False),
                               ("others"     ,   False),
                               ])# boolean 
         
@@ -182,19 +183,18 @@ class Img(object):
                         ("ser_no"        ,   ""),
                         ("wvlngth"       ,   nan)])
                       
-        try:
+        if import_method is not None:
             data, meta_info = import_method(input, meta_info) 
+            #overwrite input with numpy data array
             input = data
-            #meta_info.update(add_meta)
-        except:
-            pass
-          
+        
         for k, v in meta_info.iteritems():
-            if self.meta.has_key(k) and isinstance(v, type(self.meta[k])):
+            k=k.lower()
+            if self.meta.has_key(k):# and isinstance(v, type(self.meta[k])):
                 self.meta[k] = v
             elif self.edit_log.has_key(k):
                 self.edit_log[k] = v
-    
+        
         if input is not None:                              
             self.load_input(input)
         try:
@@ -316,6 +316,11 @@ class Img(object):
         return bool(self.edit_log["vigncorr"])
     
     @property
+    def is_dilcorr(self):
+        """Boolean specifying whether this image is corrected for signal dilution"""
+        return self.edit_log["dilcorr"]
+    
+    @property
     def is_cropped(self):
         """Boolean specifying whether image is cropped"""
         return bool(self.edit_log["crop"])
@@ -324,6 +329,14 @@ class Img(object):
     def is_resized(self):
         """Boolean specifying whether image pyramid level unequals 0"""
         return False if self.pyrlevel == 0 else True
+    
+    @property
+    def is_shifted(self):
+        """Boolean specifying whether image was shifted
+        
+        This may be e.g. the case for stereo imaging
+        """
+        return self.edit_log["shifted"]
     
     @property
     def modified(self):
@@ -557,12 +570,12 @@ class Img(object):
         :param bool reverse: if False, the inverse correction is applied (img
             needs to be corrected)
         """
+        if new_state == self.edit_log["vigncorr"]:
+            return self
         try:
             mask = mask.img
         except:
             pass
-        if new_state == self.edit_log["vigncorr"]:
-            return self
         try:
             if self.edit_log["vigncorr"]: #then, new_state is 0, i.e. want uncorrected image
                 self.img = self.img * mask
@@ -667,7 +680,32 @@ class Img(object):
             self.img = invert(self.img)
         self.edit_log["is_inv"] = not self.edit_log["is_inv"]
         return self
-            
+      
+    def convolve_with_mask(self, mask):
+        """Convolves this image data with input mask and return value
+        
+        Note
+        ----
+        This is not an image convolution with a kernel that is applied to 
+        each image pixel (e.g. blurring, etc.). The input mask is supposed 
+        to be of the same shape as this image
+        
+        Parameters
+        ----------
+        mask : ndarray
+            2D array of same dimension (height, width) as this image
+        
+        Returns
+        -------
+        float
+             corresponding value after normalisation and convolution
+        """
+        mask = mask.astype(float)
+        mask_norm = mask / mask.sum()
+        # convolve with image stack
+        #stack_data_conv = transpose(self.stac, (2,0,1)) * fov_fitted_norm
+        return (self.img * mask_norm).sum()
+    
     def dilate(self, kernel=ones((9,9), dtype=uint8)):
         """Apply morphological transformation Dilation to image
         
@@ -813,11 +851,12 @@ class Img(object):
     def to_pyrlevel(self, final_state=0):
         """Down / upscale image to a given pyramid level"""
         steps = final_state - self.edit_log["pyrlevel"]
-        if steps > 0:
+        if steps == 0:
+            return self
+        elif steps > 0:
             return self.pyr_down(steps)
-        elif steps < 0:
+        else:
             return self.pyr_up(-steps)
-        return self
      
     def pyr_down(self, steps=0):
         """Reduce the image size using gaussian pyramide 
@@ -1029,12 +1068,8 @@ class Img(object):
         head = hdu[0].header 
         self._header_raw = head
         self.img = hdu[0].data.astype(self.dtype)
-        hdu.close()
-        try:
-            if head["CAMTYPE"] == 'EC2':
-                self.import_ec2_header(head)
-        except:
-            pass
+        
+        # import valid meta information from header of first HDU
         editkeys = self.edit_log.keys()
         metakeys = self.meta.keys()
         for key, val in head.iteritems():
@@ -1057,7 +1092,8 @@ class Img(object):
             print "Fits file includes vignetting mask"
         except:
             pass
-    
+        hdu.close()
+        
     def _prep_meta_dict_fits(self):
         """Prepares current meta-information for storage in FITS header"""
         d = od()
@@ -1107,6 +1143,7 @@ class Img(object):
         hdu.header.update(self.edit_log)
         hdu.header.update(self._header_raw)
         hdu.header.update(self._prep_meta_dict_fits())
+        hdu.header["type"] = "pyplis_default"
         hdu.header.append()
     
         roi_abs = fits.BinTableHDU.from_columns([fits.Column(name = "roi_abs",\
@@ -1121,22 +1158,23 @@ class Img(object):
         hdulist.writeto(path)
         return save_name
         
-    def import_ec2_header(self, ec2header):
-        """Import image meta info for ECII camera type from FITS file header"""
-        gain_info = {"LOW"  :   0,
-                     "HIGH" :   1}
-                     
-         
-        self.meta["texp"] = float(ec2header['EXP'])*10**-6        #unit s
-        self.meta["bit_depth"] = 12
-        self.meta["device_id"] = 'ECII'        
-        self.meta["file_type"] = 'fts'
-        self.meta["start_acq"] = datetime.strptime(ec2header['STIME'],\
-                                                    '%Y-%m-%d %H:%M:%S.%f')
-        self.meta["stop_acq"] = datetime.strptime(ec2header['ETIME'],\
-                                                    '%Y-%m-%d %H:%M:%S.%f')
-        self.meta["read_gain"] = gain_info[ec2header['GAIN']]
-        self.meta["pix_width"] = self.meta["pix_height"] = 4.65e-6 #m
+# =============================================================================
+#     def import_ec2_header(self, ec2header):
+#         """Import image meta info for ECII camera type from FITS file header"""
+#         gain_info = {"LOW"  :   0,"HIGH" :   1}
+#                      
+#          
+#         self.meta["texp"] = float(ec2header['EXP'])*10**-6        #unit s
+#         self.meta["bit_depth"] = 12
+#         self.meta["device_id"] = 'ECII'        
+#         self.meta["file_type"] = 'fts'
+#         self.meta["start_acq"] = datetime.strptime(ec2header['STIME'],\
+#                                                     '%Y-%m-%d %H:%M:%S.%f')
+#         self.meta["stop_acq"] = datetime.strptime(ec2header['ETIME'],\
+#                                                     '%Y-%m-%d %H:%M:%S.%f')
+#         self.meta["read_gain"] = gain_info[ec2header['GAIN']]
+#         self.meta["pix_width"] = self.meta["pix_height"] = 4.65e-6 #m
+# =============================================================================
     
     """PLOTTING AND VISUALSATION FUNCTIONS"""  
     def get_cmap(self, vmin=None, vmax=None, **kwargs):
@@ -1199,8 +1237,8 @@ class Img(object):
         tight_layout()
         return ax
     
-    def apply_registration_shift(self, dx_abs=0.0, dy_abs=0.0):
-        """Applies constant image registration shift to this object
+    def shift(self, dx_abs=0.0, dy_abs=0.0):
+        """Applies constant image shift to this object
         
         Parameters
         ----------
@@ -1210,9 +1248,9 @@ class Img(object):
             shift in y-direction
         """
         dx_rel, dy_rel = dx_abs / 2**self.pyrlevel, dy_abs / 2**self.pyrlevel
-        print("Shifting", dx_rel, dy_rel)
-        self.img = shift(self.img, shift=(dy_rel, dx_rel))
-            
+        self.img = shift(self.img, shift=(dy_rel, dx_rel), cval=1)
+        self.edit_log["shifted"] = True
+        
     def show_histogram(self, ax=None):
         """Plot histogram of current image
         
@@ -1331,8 +1369,8 @@ class Img(object):
                 raise TypeError("Could not multilply image with value %s" 
                                                                 %type(val))
 
-    def __div__(self, val):
-        """Divide another image object
+    def __truediv__(self, val):
+        """Divide another image object (float division)
         
         :param Img img_obj: object to be multiplied
         :return: new image object
@@ -1349,6 +1387,8 @@ class Img(object):
             except:
                 raise TypeError("Could not divide image with value %s" 
                                                                 %type(val))
+    def __div__(self, val):
+        return self.__truediv__(val)
 
 def model_dark_image(texp, dark, offset):
     """Model a dark image for input image based on dark and offset images

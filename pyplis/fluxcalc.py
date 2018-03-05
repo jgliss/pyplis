@@ -43,6 +43,12 @@ from .helpers import check_roi, exponent, roi2rect, map_roi
 
 LABEL_SIZE=rcParams["font.size"]+ 2
 
+class ImageOutputSettings(object):
+    """Class  for specifying default output for emission rate analyses"""
+    def __init__(self, out_dir=None, overlay_optflow=True, img_vmin=None, 
+                 img_vmax=None):
+        raise NotImplementedError
+        
 class EmissionRateSettings(object):
     """Class for management of settings for emission rate retrievals
     

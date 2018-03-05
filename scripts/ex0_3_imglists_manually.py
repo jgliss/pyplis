@@ -58,13 +58,18 @@ if __name__ == "__main__":
     ### Get all images in the image path which are FITS files (actually all)
     all_paths = [join(IMG_DIR, f) for f in listdir(IMG_DIR) if\
                             isfile(join(IMG_DIR, f)) and f.endswith("fts")]
-                            
+    
+    # Let pyplis know that this is the ECII camera standard, so that it is 
+    # able to import meta information from the FITS header
+    cam = pyplis.Camera("ecII") # loads default info for ECII camera
+                        
     ### Now put them all into an image list 
                             
     # Note that the files are not separated by filter type, or dark and offset, 
     # etc. so the list simply contains all images of type fts which were found
     # in IMG_DIR
-    list_all_imgs = pyplis.imagelists.ImgList(all_paths, list_id="all")
+    list_all_imgs = pyplis.imagelists.ImgList(all_paths, list_id="all",
+                                              camera=cam)
     
     # Split the list by on band file type (which is identified by acronym
     # "F01" at 4th position in file name after splitting using delimiter "_")
@@ -93,8 +98,10 @@ if __name__ == "__main__":
     on_list.link_imglist(off_list)
     
     ### Load dark and offset images and set them in the on-band image list
-    dark_img = pyplis.image.Img(DARK_FILE)
-    offset_img = pyplis.image.Img(OFFSET_FILE)
+    dark_img = pyplis.image.Img(DARK_FILE, 
+                                import_method=cam.image_import_method)
+    offset_img = pyplis.image.Img(OFFSET_FILE,
+                                  import_method=cam.image_import_method)
     
     on_list.add_master_dark_image(dark_img)
     on_list.add_master_offset_image(offset_img)

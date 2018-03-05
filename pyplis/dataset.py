@@ -39,7 +39,7 @@ from collections import OrderedDict as od
 
 from .imagelists import ImgList, DarkImgList
 from .helpers import shifted_color_map
-from .setupclasses import MeasSetup
+from .setupclasses import MeasSetup, Source, Camera
 from .exceptions import ImgMetaError
 
 class Dataset(object):
@@ -275,6 +275,14 @@ class Dataset(object):
             print("Updating base_dir variable in self.setup with input "
                   "directory: %s" %input)
             self.change_img_base_dir(input)
+        elif isinstance(input, Source):
+            self.setup.source = input
+        elif isinstance(input, Camera):
+            self.setup.camera = input
+        elif isinstance(input, datetime):
+            print("Input is datetime and will be set as start time for data "
+                  "import")
+            self.setup.start=input
         else:
             raise TypeError("Invalid input: %s.\n Require MeasSetup or "
                             "valid directory containing images" 
@@ -403,6 +411,8 @@ class Dataset(object):
                   "in default on and offband list. Please note that no "
                   "further file separation is applied (e.g. separation of dark "
                   "images)")
+            # the function add_files ads the file paths to the list and loads
+            # the current and next images (at index 0 and 1)
             self.img_lists[self.filters.default_key_on].add_files(paths)
             self.img_lists[self.filters.default_key_off].add_files(paths)
         else:

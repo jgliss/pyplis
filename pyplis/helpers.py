@@ -24,9 +24,9 @@ import matplotlib.colors as colors
 from datetime import datetime, time, date, timedelta
 from warnings import warn
 from matplotlib.pyplot import draw
-from numpy import mod, linspace, hstack, vectorize, uint8, cast, asarray, log2,\
-    unravel_index, nanargmax, meshgrid, int, floor, log10, isnan, argmin, sum,\
-    zeros, float32
+from numpy import (mod, linspace, hstack, vectorize, uint8, cast, asarray, 
+                   log2, unravel_index, nanargmax, meshgrid, int, floor, log10, 
+                   isnan, argmin, sum, zeros, float32, ogrid)
 from scipy.ndimage.filters import gaussian_filter
 from cv2 import pyrUp
 
@@ -202,14 +202,43 @@ def mesh_from_img(img_arr):
     yvec = linspace(0, ny - 1, ny)
     return meshgrid(xvec, yvec)
     
-def get_img_maximum(img_arr, gaussian_blur = 4):
+def make_circular_mask(h, w, cx, cy, radius, inner=True):
+    """Create a circular access mask for accessing certain pixels in an image
+    
+    Parameters
+    ----------
+    h : int
+        height of mask 
+    w : int
+        width of mask
+    cx : int
+        x-coordinate of center pixel of disk
+    cy : int
+        y-coordinate of center pixel of disk
+    radius : int
+        radius of disk
+    inner : bool
+        if True, all pixels within the disk are True, all outside are False, 
+        vice versa if False
+    
+    Returns
+    -------
+    ndarray
+        the pixel access mask
+    """
+    y, x = ogrid[:h, :w]
+    if inner:
+        return (x - cx)**2 + (y - cy)**2 < radius**2
+    (x - cx)**2 + (y - cy)**2 > radius**2
+    
+def get_img_maximum(img_arr, add_blur=0):
     """Get coordinates of maximum in image
     
     :param array img_arr: numpy array with image data data
     :param int gaussian_blur: apply gaussian filter before max search
     
     """
-    img_arr = gaussian_filter(img_arr, gaussian_blur)
+    img_arr = gaussian_filter(img_arr, add_blur)
     return unravel_index(nanargmax(img_arr), img_arr.shape)   
 
 def sub_img_to_detector_coords(img_arr, shape_orig, pyrlevel,

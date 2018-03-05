@@ -195,14 +195,14 @@ if __name__ == "__main__":
     # reload or create the AA image stack based on current script settings
     stack, aa_list = get_stack()
     
-    s = pyplis.doascalib.DoasFOVEngine(stack, doas_time_series, maxrad=10)
+    s = pyplis.doascalib.DoasFOVEngine(stack, doas_time_series)
     calib_pears = s.perform_fov_search(method="pearson")
-    calib_ifr= s.perform_fov_search(method="ifr", ifrlbda=2e-3)
+    calib_ifr= s.perform_fov_search(method="ifr", ifrlbda=4e-3)
     
     #plot the FOV search results
     ax0 = calib_pears.fov.plot()
     ax1 = calib_ifr.fov.plot()
-        
+    
     calib_pears.fit_calib_data()
 
     fig, ax2 = subplots(1,1)
@@ -233,10 +233,7 @@ if __name__ == "__main__":
         calib_pears_fine = s_fine.calib_data
         calib_pears_fine.plot()
         calib_pears_fine.fov.plot()
-    try:
-        remove(join(SAVE_DIR, "ex06_doascalib_aa.fts"))
-    except:
-        pass
+    
     calib_pears.save_as_fits(save_dir=SAVE_DIR, 
                              save_name="ex06_doascalib_aa.fts")
     calib_ifr.save_as_fits(save_dir=SAVE_DIR,

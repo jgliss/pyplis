@@ -233,7 +233,8 @@ if __name__ == "__main__":
     
     #Load AA corr mask and set in image list(is normalised to DOAS FOV see ex7)
     aa_corr_mask = pyplis.Img(CORR_MASK_FILE)
-    aa_list.aa_corr_mask = aa_corr_mask
+    
+    aa_list.senscorr_mask = aa_corr_mask
     
     #set DOAS calibration data in image list
     aa_list.calib_data = doascalib

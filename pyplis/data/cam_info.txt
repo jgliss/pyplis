@@ -147,6 +147,8 @@ dark_info:offset0,offset,D0L,D0L,0
 dark_info:dark0,dark,D1L,D1L,0
 dark_info:offset1,offset,D0H,D0H,1
 dark_info:dark1,dark,D1H,D1H,1
+
+image_import_method:load_ecII_fits
 ENDCAM
 
 NEWCAM
@@ -206,7 +208,6 @@ ENDCAM
 NEWCAM
 cam_ids:usgs
 cam_id:usgs
-image_import_method:
 delim:_
 time_info_pos:1
 time_info_str:%Y-%m-%d_%H-%M-%S.%f
@@ -225,7 +226,7 @@ pixnum_y:1040
 
 # default image registration shift between off and onband image: x, y in
 # pixel coordinates
-reg_shift_off: -2,-2 
+reg_shift_off: 8, -7
 
 # Filters (row-wise, format): 
 # filter:<ID>,<type>,<type acronym>,<meas_type acronym>,<center_wavelength>

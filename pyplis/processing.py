@@ -41,7 +41,7 @@ from astropy.io import fits
     
 from .image import Img
 from .setupclasses import Camera
-from .helpers import to_datetime
+from .helpers import to_datetime, make_circular_mask
 from .glob import DEFAULT_ROI
                 
 class ImgStack(object):
@@ -317,9 +317,7 @@ class ImgStack(object):
         """
         #cx, cy = self.img_prep.map_coordinates(pos_x_abs, pos_y_abs)
         h, w = self.stack.shape[1:]
-        y, x = ogrid[:h, :w]
-        m = (x - cx)**2 + (y - cy)**2 < radius**2
-        return m
+        return make_circular_mask(h,  w, cx, cy, radius) 
         
     def set_stack_data(self, stack, start_acq=None, texps=None):
         """Sets the current data based on input
@@ -512,7 +510,7 @@ class ImgStack(object):
         stack_new = self.stack[img_idxs]
         texps_new = asarray(self.texps[img_idxs])
         start_acq_new = asarray(self.start_acq[img_idxs])
-        stack_obj_new = ImgStack(stack_id=self.stack_id + "_merged_nearest",
+        stack_obj_new = ImgStack(stack_id=self.stack_id,
                                  img_prep=self.img_prep, stack=stack_new,
                                  start_acq=start_acq_new, texps=texps_new)
         stack_obj_new.roi_abs = self.roi_abs
@@ -574,7 +572,7 @@ class ImgStack(object):
                 new_stack[:, i, j] = df[0].values
         
         stack_obj = ImgStack(new_num, h, w, 
-                             stack_id=self.stack_id+"_interpolated", 
+                             stack_id=self.stack_id, 
                              img_prep=self.img_prep)
         stack_obj.roi_abs = self.roi_abs
         #print new_stack.shape, new_acq_times.shape, new_texps.shape
@@ -657,7 +655,7 @@ class ImgStack(object):
                 bad_indices.append(k)
         new_stack = rollaxis(new_stack, 2)
         stack_obj = ImgStack(len(new_texps), h, w, 
-                             stack_id=self.stack_id+"_avg", 
+                             stack_id=self.stack_id, 
                              img_prep=self.img_prep)
         stack_obj.roi_abs = self.roi_abs
         stack_obj.set_stack_data(new_stack, asarray(new_acq_times), 
@@ -849,6 +847,8 @@ class ImgStack(object):
             return self.pyr_down(steps)
         elif steps < 0:
             return self.pyr_up(-steps)
+        else:
+            return self
     
     def duplicate(self):
         """Returns deepcopy of this object"""
@@ -982,6 +982,52 @@ class ImgStack(object):
             new.stack_id = "%s - %s" %(self.stack_id, other)
         return new
 
+def find_registration_shift_optflow(on_img, off_img, 
+                                    roi_abs=DEFAULT_ROI, **flow_settings):
+    """Search average shift between two images using optical flow
+    
+    Computes optical flow between two input images and determines the 
+    registration shift based on peaks in two histograms of the orientation 
+    angle distribution and vector magnitued distribution of the retrieved 
+    flow field. The histogram analysis may be reduced to a certain ROI in the 
+    images.
+    
+    The default settings used here correspond to the settings suggested by
+    Peters et al., Use of motion estimation algorithms for improved flux measurements
+    using SO2 cameras, JVGR, 2015.
+    
+    Parameters
+    ----------
+    on_img : Img
+        onband image containing (preferably fixed) objects in the scene that
+        can be tracked
+    off_img : Img
+        corresponding offband image (ideally recorded at the same time)
+    roi_abs : list
+        if specified, the optical flow histogram parameters are retrieved from
+        the flow field within this ROI (else, the whole image is used)
+    **flow_settings
+        additional keyword args specifying the optical flow computation and 
+        post analysis settings (see 
+        :class:`pyplis.plumespeed.FarnebackSettings` for details)
+        
+    Returns
+    -------
+    tuple
+        2-element tuple containing
+        
+        - float: shift in x-direction
+        - float: shift in y-direction
+    """
+    if not on_img.shape == off_img.shape:
+        raise ValueError("Shape mismatch between input images")
+    if on_img.pyrlevel != 0:
+        warn("Input images are at pyramid level %d and registration shift "
+             "will be computed for this pyramid level")
+    from pyplis import OptflowFarneback
+    flow = OptflowFarneback(on_img, off_img, **flow_settings)
+    raise NotImplementedError("Under development")
+        
 class PixelMeanTimeSeries(Series):
     """A ``pandas.Series`` object with extended functionality representing time
     series data of pixel mean values in a certain image region

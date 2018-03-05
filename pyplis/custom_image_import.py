@@ -44,7 +44,7 @@ Valid keys for import of image meta information:
 """
 from __future__ import division
 from matplotlib.pyplot import imread
-from numpy import swapaxes, flipud, asarray, rot90
+from numpy import swapaxes, flipud, asarray, rot90, float32
 from warnings import warn
 from astropy.io import fits
 from cv2 import resize
@@ -58,6 +58,26 @@ try:
     from PIL.Image import open as open_pil
 except:
     pass
+
+def load_ecII_fits(file_path, meta={}, **kwargs):
+    """Load NILU ECII camera FITS file and import meta information"""
+    hdu = fits.open(file_path)
+    ec2header = hdu[0].header 
+    img = hdu[0].data.astype(float32)
+    hdu.close()
+    gain_info = {"LOW"  :   0,"HIGH" :   1}
+    meta["texp"] = float(ec2header['EXP'])*10**-6        #unit s
+    meta["bit_depth"] = 12
+    meta["device_id"] = 'ECII'        
+    meta["file_type"] = 'fts'
+    meta["start_acq"] = datetime.strptime(ec2header['STIME'],\
+                                                    '%Y-%m-%d %H:%M:%S.%f')
+    meta["stop_acq"] = datetime.strptime(ec2header['ETIME'],\
+                                                    '%Y-%m-%d %H:%M:%S.%f')
+    meta["read_gain"] = gain_info[ec2header['GAIN']]
+    meta["pix_width"] = meta["pix_height"] = 4.65e-6 #m
+    meta.update(ec2header)                
+    return (img, meta)
 
 def load_hd_custom(file_path, meta={}, **kwargs):
     """Load image from HD custom camera

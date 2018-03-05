@@ -85,8 +85,8 @@ def prepare_aa_image_list(bg_corr_mode=6):
     off_list.bg_model.xgrad_line_rownum = 25
     
     #set background modelling mode
-    lst.bg_model.CORR_MODE = bg_corr_mode
-    off_list.bg_model.CORR_MODE = bg_corr_mode
+    lst.bg_model.mode = bg_corr_mode
+    off_list.bg_model.mode = bg_corr_mode
     
     lst.aa_mode = True # activate AA mode 
     

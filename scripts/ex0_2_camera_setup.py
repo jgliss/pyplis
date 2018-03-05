@@ -153,6 +153,8 @@ def create_ecII_cam_new_filters():
     
     cam._init_access_substring_info()
     
+    # Set the custom image import method
+    cam.image_import_method = pyplis.custom_image_import.load_ecII_fits
     # That's it... 
     return cam
 
@@ -190,7 +192,7 @@ if __name__ == "__main__":
                             'file_type': 'fts',
                             'filter_id_pos': 4,
                             'focal_length': '',
-                            'image_import_method': None,
+                            'image_import_method': pyplis.custom_image_import.load_ecII_fits,
                             'main_filter_id': 'on',
                             'meas_type_pos': 4,
                             'pix_height': 4.65e-06,
@@ -218,6 +220,7 @@ if __name__ == "__main__":
         arr_vals = cam.geom_data.items()
         for k in cam_dict_nominal:
             arr_vals.append((k, cam.__dict__[k]))
+        
         
         assert_array_equal(arr_nominal, arr_vals)   
         

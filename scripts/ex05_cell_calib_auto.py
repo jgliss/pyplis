@@ -38,6 +38,9 @@ from matplotlib.pyplot import show, close
 ### IMPORT GLOBAL SETTINGS
 from SETTINGS import SAVEFIGS, SAVE_DIR, FORMAT, DPI, IMG_DIR, OPTPARSE
 
+# File path for storing cell AA calibration data including sensitivity 
+# correction mask
+AA_CALIB_FILE = join(SAVE_DIR, "ex05_cellcalib_aa.fts")
 ### SCRIPT FUNCTION DEFINITIONS
 def perform_auto_cell_calib():
     ### Calibration time stamps
@@ -55,11 +58,11 @@ def perform_auto_cell_calib():
     
     # The camera filter setup is different from the ECII default setup and is
     # therefore defined explicitely
-    filters= [pyplis.utils.Filter(type = "on", acronym = "F01"),
-              pyplis.utils.Filter(type = "off", acronym = "F02")]
+    filters= [pyplis.utils.Filter(type="on", acronym="F01"),
+              pyplis.utils.Filter(type="off", acronym="F02")]
     
     ### create camera setup, this includes the filename convention for image separation
-    cam = pyplis.setupclasses.Camera(cam_id = cam_id, filter_list = filters)
+    cam = pyplis.setupclasses.Camera(cam_id=cam_id, filter_list=filters)
     
     ### Create CellCalibSetup class for initiation of CellCalib object
     setup = pyplis.setupclasses.MeasSetup(IMG_DIR, start, stop,
@@ -85,12 +88,7 @@ def perform_auto_cell_calib():
     # detected intensity dips, the + 1 is the corresponding background list and
     # times 2 for on / off)
     c.find_and_assign_cells_all_filter_lists()
-    # prepares CellCalibData object for tau on band (at pyramid level 2)
-    c.prepare_tau_calib("on", pyrlevel=2)
-    # prepares CellCalibData object for tau off band (at pyramid level 2)
-    c.prepare_tau_calib("off", pyrlevel=2)
-    # from the previous 2, prepare CellCalibData object for tau_aa
-    c.prepare_aa_calib()
+    
     return c
 
 ### SCRIPT MAIN FUNCTION
@@ -98,13 +96,21 @@ if __name__ == "__main__":
     close("all")
     start = time()
     c = perform_auto_cell_calib()
+    
+    # prepare CellCalibData objects for on, off and aa images.
+    # These can be accessed via c.calib_data[key] where key is "on", "off", "aa"
+    c.prepare_calib_data(pos_x_abs=None, #change if you want it for a specific pix
+                         pos_y_abs=None, #change if you want it for a specific pix
+                         radius_abs=1, #radius of retrieval disk
+                         on_id="on", #ImgList ID of onband filter
+                         off_id="off") #ImgList ID of offband filter 
     stop = time()
     ### Plot search result of on
     ax0 = c.plot_cell_search_result("on", include_tit=False)
     ax1 = c.plot_cell_search_result("off", include_tit=False)
     # Plot all calibration curves for center pixel and in a radial 
     # neighbourhood of 20 pixels
-    ax2 = c.plot_all_calib_curves(pos_x_abs=672, pos_y_abs=512, radius_abs=20)
+    ax2 = c.plot_all_calib_curves()
     ax2.set_xlim([0, 0.7])
     ax2.set_ylim([0, 2.25e18])
     ### IMPORTANT STUFF FINISHED    
@@ -123,13 +129,11 @@ if __name__ == "__main__":
     # You can explicitely access the individual CellCalibData objects
     aa_calib = c.calib_data["aa"]
     
-    aa_calib.fit_calib_polynomial(100, 100, 15)
-    # print some useful attributes of the calibration
-    print ("Properties of AA cell calibration object:\n"
-           "Polynomial: %s\n"
-           "Slope / err: %.3e / %.3e"
-           %(aa_calib.poly, aa_calib.slope, aa_calib.slope_err))
+    aa_calib.fit_calib_data()
+    c.plot_calib_curve("on")    
+    mask=c.get_sensitivity_corr_mask("aa")
     
+    aa_calib.save_as_fits(AA_CALIB_FILE)
     print "Time elapsed for preparing calibration data: %.4f s" %(stop-start)
     
     ### IMPORTANT STUFF FINISHED (Below follow tests and display options)
@@ -144,6 +148,10 @@ if __name__ == "__main__":
     if int(options.test):
         import numpy.testing as npt
         from os.path import basename
+        calib_reload = pyplis.CellCalibData()
+        calib_reload.load_from_fits(AA_CALIB_FILE)
+        calib_reload.fit_calib_data(polyorder=2,
+                                    through_origin=True)
         # test some basic features of calibraiton dataset (e.g. different 
         # ImgList classes for on and off and the different cells)
         npt.assert_array_equal([c.cell_search_performed,
@@ -153,27 +161,31 @@ if __name__ == "__main__":
                                 c.cell_lists["off"]["a37"].nof,
                                 c.cell_lists["off"]["a53"].nof,
                                 c.cell_lists["off"]["a57"].nof,
-                                len(c.calib_data)],
-                               [1, 2, 3, 3, 2, 3, 3, 3])
+                                calib_reload.calib_id,
+                                calib_reload.pos_x_abs,
+                                calib_reload.pos_y_abs],
+                               [True, 2, 3, 3, 2, 3, 3, "aa", 672, 512])
         d = c._cell_info_auto_search
-        npt.assert_allclose(actual=[d["a37"][0], d["a53"][0], d["a57"][0]],
-                            desired=[8.59e+17, 4.15e+17, 1.924e+18],
+        
+        vals_approx = [d["a37"][0], d["a53"][0], d["a57"][0],
+                       aa_calib.calib_fun(0, *aa_calib.calib_coeffs),
+                       calib_reload.calib_fun(0, *calib_reload.calib_coeffs)]
+        npt.assert_allclose(actual=vals_approx,
+                            desired=[8.59e+17, 4.15e+17, 1.924e+18,
+                                     -1.831293279299808e+16,
+                                     0],
                             rtol=1e-7)
         
         # explicitely check calibration data for on, off and aa (plotted in 
         # this script)
-        npt.assert_allclose(actual=[c.calib_data["on"].slope,
-                                    c.calib_data["on"].y_offset,
-                                    c.calib_data["off"].slope,
-                                    c.calib_data["off"].y_offset,
-                                    c.calib_data["aa"].slope,
-                                    c.calib_data["aa"].y_offset],
-                            desired=[4.47610825e+18,
-                                     -7.07573914e+17,
-                                     -1.07385079e+20,
-                                     1.56863758e+19,
-                                     3.99171795e+18,
-                                     -9.99425564e16],
+        npt.assert_allclose(actual=[c.calib_data["on"].calib_coeffs.mean(),
+                                    c.calib_data["off"].calib_coeffs.mean(),
+                                    aa_calib.calib_coeffs.mean(),
+                                    calib_reload.calib_coeffs.mean()],
+                            desired=[1.892680238811623e+18,
+                                     -3.7425322859372904e+19,
+                                     2.1536537183058327e+18,
+                                     2.1197685617834278e+18],
                             rtol=1e-7)
         print("All tests passed in script: %s" %basename(__file__)) 
     try:

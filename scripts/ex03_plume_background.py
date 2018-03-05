@@ -97,10 +97,12 @@ def load_and_prepare_images():
         - Img, plume image vignetting corrected
         - Img, sky radiance image
         
-    """    
+    """   
+    #get custom load method for ECII
+    fun = pyplis.custom_image_import.load_ecII_fits
     ### Load the image objects and peform dark correction
-    plume, bg = pyplis.Img(PLUME_FILE), pyplis.Img(BG_FILE)
-    dark, offset = pyplis.Img(DARK_FILE), pyplis.Img(OFFSET_FILE)
+    plume, bg = pyplis.Img(PLUME_FILE, fun), pyplis.Img(BG_FILE, fun)
+    dark, offset = pyplis.Img(DARK_FILE, fun), pyplis.Img(OFFSET_FILE, fun)
     
     # Model dark image for tExp of plume image
     dark_plume = pyplis.image.model_dark_image(plume.meta["texp"], 

@@ -46,6 +46,7 @@ from .image import Img
 from .inout import get_camera_info
 from .setupclasses import Camera
 from .calib_base import CalibData
+from .helpers import make_circular_mask
     
 class DoasCalibData(CalibData):
     """Class containing DOAS calibration data
@@ -124,6 +125,7 @@ class DoasCalibData(CalibData):
         hdu = super(DoasCalibData, self).load_from_fits(file_path)
         
         self.fov.import_from_hdulist(hdu, first_idx=2)
+        hdu.close()
     
     def plot_data_tseries_overlay(self, date_fmt=None, ax=None):
         """Plot overlay of tau and DOAS time series"""
@@ -527,8 +529,7 @@ class DoasFOVEngine(object):
                           "blur"                :   4,
                           "mergeopt"            :   "average"}
         
-        
-        self.DATA_MERGED = False
+        self.data_merged = False
         self.img_stack = img_stack
         self.doas_series = doas_series
         
@@ -552,7 +553,9 @@ class DoasFOVEngine(object):
     
     @maxrad.setter
     def maxrad(self, val):
-        self._settings["maxrad"] = val
+        print("Updating seeting for maximum radius of FOV, new value: %s"
+              %val)
+        self._settings["maxrad"] = int(val)
         
     @property
     def ifrlbda(self):
@@ -612,7 +615,9 @@ class DoasFOVEngine(object):
         """Sigma of gaussian blurring filter applied to correlation image
         
         The filter is applied to the correlation image before finding the 
-        position of the maximum, defaults to 4.
+        position of the maximum correlation. This is only relevant for 
+        method IFR, since this method parameterises the FOV by fitting a 
+        2D Gaussian to the correlation image. Defaults to 4.
         """
         return self._settings["blur"]
     
@@ -684,7 +689,7 @@ class DoasFOVEngine(object):
             
             1. Call :func:`merge_data`: Time merging of stack and DOAS 
             vector. This step is skipped if data was already merged within 
-            this engine, i.e. if ``self.DATA_MERGED == True``
+            this engine, i.e. if ``self.data_merged == True``
                 
             #. Call :func:`det_correlation_image`: Determination of 
             correlation image using ``self.method`` ('ifr' or 'pearson')
@@ -767,13 +772,25 @@ class DoasFOVEngine(object):
         :param str merge_type: choose between ``average, interpolation, 
         nearest``
         
-        .. note::
+        Note
+        ----
             
-            Current data (i.e. ``self.img_stack`` and ``self.doas_series``)
-            will be overwritten if merging succeeds
+        Current data (i.e. ``self.img_stack`` and ``self.doas_series``)
+        will be overwritten if merging succeeds.
+        
+        Parameters
+        ----------
+        merge_type : :obj:`str`, optional, 
+            one of the available merge types, see :attr:`mergeopt` for 
+            valid options
             
+        Raises
+        ------
+        RuntimeError
+            if merging of data fails
+        
         """
-        if self.DATA_MERGED:
+        if self.data_merged:
             print ("Data merging unncessary, img stack and DOAS vector are "
                    "already merged in time")
             return
@@ -786,10 +803,9 @@ class DoasFOVEngine(object):
             self.img_stack = new_stack
             self.doas_series = new_doas_series
             self._settings["mergeopt"] = merge_type
-            self.DATA_MERGED = True
-            return True
-        print "Data merging failed..."
-        return False
+            self.data_merged = True
+            return 
+        raise RuntimeError("Temporal merging of image and DOAS data failed...")
     
     def det_correlation_image(self, search_type="pearson", **kwargs):
         """Determines correlation image
@@ -816,13 +832,19 @@ class DoasFOVEngine(object):
                              "pearson or ifr" %search_type)
         corr_img = Img(corr_img, pyrlevel=
                        self.img_stack.img_prep["pyrlevel"])
+        corr_img.add_gaussian_blurring(self._settings["blur"])
         #corr_img.pyr_up(self.img_stack.img_prep["pyrlevel"])
         self.calib_data.fov.corr_img = corr_img
         self.calib_data.fov.img_prep = self.img_stack.img_prep
         self.calib_data.fov.roi_abs = self.img_stack.roi_abs
         self.calib_data.fov.start_search = self.img_stack.start
         self.calib_data.fov.stop_search = self.img_stack.stop
-        self.calib_data.calib_id = self.img_stack.stack_id
+        try:
+            if self.img_stack.img_prep["is_aa"]:
+                cid = "AA"
+        except:
+            cid = self.img_stack.stack_id
+        self.calib_data.calib_id = cid
         
         return corr_img
         
@@ -878,6 +900,7 @@ class DoasFOVEngine(object):
         #lsmr_image = lsmr_image / abs(lsmr_image).max()
         self._settings["method"] = "ifr"
         self._settings["ifrlbda"] = ifrlbda
+        
         return lsmr_image, lsmr_offset
     
     def get_fov_shape(self, **settings):
@@ -899,11 +922,11 @@ class DoasFOVEngine(object):
         if not isinstance(self.calib_data.fov.corr_img, Img):
             raise Exception("Could not access correlation image")
         if self.method == "pearson":
-            cy, cx = get_img_maximum(self.calib_data.fov.corr_img.img,
-                                     gaussian_blur=self._settings["blur"])
+            cy, cx = get_img_maximum(self.calib_data.fov.corr_img.img)
             print "Start radius search in stack around x/y: %s/%s" %(cx, cy)
             radius, corr_curve, tau_vec, cd_vec, fov_mask =\
                                     self.fov_radius_search(cx, cy)
+                                    
             if not radius > 0:
                 raise ValueError("Pearson FOV search failed")
     
@@ -925,8 +948,9 @@ class DoasFOVEngine(object):
         elif self.method == "ifr":
             #the fit is performed in absolute dectector coordinates
             #corr_img_abs = Img(self.fov.corr_img.img).pyr_up(pyrlevel).img
-            popt, pcov, fov_mask = self.fov_gauss_fit(
-                            self.calib_data.fov.corr_img.img, **self._settings)
+            popt, pcov, fov_mask = self._fov_gauss_fit(
+                            self.calib_data.fov.corr_img, 
+                            **self._settings)
             tau_vec = self.convolve_stack_fov(fov_mask)
             
             self.calib_data.fov.result_ifr["popt"] = popt
@@ -960,16 +984,20 @@ class DoasFOVEngine(object):
         if not len(cd_vec) == stack.shape[0]:
             raise ValueError("Mismatch in lengths of input arrays")
         h, w =  stack.shape[1:]
+        pyrlevel = stack.pyrlevel
         #find maximum radius (around CFOV pos) which still fits into the image
         #shape of the stack used to find the best radius
         max_rad = min([cx, cy, w - cx, h - cy])
-        if self._settings["maxrad"] < max_rad:
-            max_rad = self._settings["maxrad"]
+        crad = int(self.maxrad * 2**(-pyrlevel))
+        if crad < max_rad:
+            max_rad_search = crad
         else:
-            self._settings["maxrad"] = max_rad
+            max_rad_search = max_rad
+            self.maxrad = int(max_rad * 2**(pyrlevel))
         #radius array
-        radii = arange(1, max_rad + 1, 1)
-        print "Maximum radius: " + str(max_rad - 1)
+        radii = arange(1, max_rad_search + 1, 1)
+        print("Maximum radius at pyramid level %d: %s"
+              %(pyrlevel, max_rad_search))
         #some variable initialisations
         coeffs, coeffs_err = [], []
         max_corr = 0
@@ -998,13 +1026,13 @@ class DoasFOVEngine(object):
         
     # define IFR model function (Super-Gaussian)    
         
-    def fov_gauss_fit(self, corr_img, g2dasym=True, g2dsuper=True,
+    def _fov_gauss_fit(self, corr_img, g2dasym=True, g2dsuper=True,
                       g2dcrop=True, g2dtilt=False, blur=4, **kwargs):
         """Apply 2D gauss fit to correlation image
         
         Parameters
         ----------
-        corr_img : arrax
+        corr_img : Img
             correlation image
         g2dasym : bool
             allow for assymetric shape (sigmax != sigmay), True
@@ -1027,11 +1055,17 @@ class DoasFOVEngine(object):
             - 2d array (pcov): estimated covariance of popt
             - 2d array: correlation image
         """
-        xgrid, ygrid = mesh_from_img(corr_img)
+        img = corr_img.img
+        h, w = img.shape
+        xgrid, ygrid = mesh_from_img(img)
+
         # apply maximum of filtered image to initialise 2D gaussian fit
-        (cy, cx) = get_img_maximum(corr_img, blur)
+        (cy, cx) = get_img_maximum(img)
+        maxrad = self.maxrad * 2**(-corr_img.pyrlevel)
+        mask = make_circular_mask(h, w, cx, cy, maxrad).astype(float)
+        img = img * mask
         # constrain fit, if requested
-        (popt, pcov, fov_mask) = gauss_fit_2d(corr_img, cx, cy, g2dasym,
+        (popt, pcov, fov_mask) = gauss_fit_2d(img, cx, cy, g2dasym,
                                               g2d_super_gauss=g2dsuper, 
                                               g2d_crop=g2dcrop,
                                               g2d_tilt=g2dtilt, **kwargs)
@@ -1051,8 +1085,7 @@ class DoasFOVEngine(object):
         #stack_data_conv = transpose(self.stac, (2,0,1)) * fov_fitted_norm
         stack_data_conv = self.img_stack.stack * fov_mask_norm
         return stack_data_conv.sum((1,2))
-        
-            
+    
 ### OLD STUFF
         
 # =============================================================================

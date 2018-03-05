@@ -778,6 +778,9 @@ class LineOnImage(object):
 
         # Extract the values along the line, using interpolation
         zi = map_coordinates(array, self.profile_coords)
+        if sum(isnan(zi)) != 0:
+            warn("Retrieved NaN for one or more pixels along line on input "
+                 "array")
         return zi
         
     """Plotting / visualisation etc...

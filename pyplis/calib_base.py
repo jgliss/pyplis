@@ -34,14 +34,13 @@ from warnings import warn
 
 from matplotlib.pyplot import subplots
 
-from .glob import SPECIES_ID, CALIB_ID_STRINGS
+from .glob import SPECIES_ID
 from .processing import ImgStack
 from .helpers import exponent, isnum
         
 from .model_functions import CalibFuns
 from .image import Img
 from .setupclasses import Camera
-
 
 class CalibData(object):
     """Base class representing calibration data and optimisation parameters
@@ -105,7 +104,7 @@ class CalibData(object):
             cd_vec_err = zeros(len(cd_vec))
             
         self.cd_vec_err = asarray(cd_vec_err).astype(float64)
-        
+    
         try:
             num = len(tau_vec)
             if not len(time_stamps) == num:
@@ -122,6 +121,7 @@ class CalibData(object):
             camera = Camera()
         self.camera = camera
         
+        self._senscorr_mask = None
         if senscorr_mask is None:
             try:
                 senscorr_mask = ones((self.camera.pixnum_y,
@@ -133,17 +133,17 @@ class CalibData(object):
                      "shape=(10, 10)")
                 senscorr_mask = ones((10, 10))
                 
-        self.senscorr_mask = senscorr_mask
+        self._senscorr_mask = Img(senscorr_mask)
         
         self.fit_weighted = True
         # irrelevant if custom fit function is provided
         self.poly_through_origin = False
         
         self._calib_fun = None
-        self.fit_residual = None
         self._calib_coeffs = None
         self._cov = None
         
+        self.residual = None
         self._polyorder = None
 
         try:
@@ -160,6 +160,17 @@ class CalibData(object):
         """Returns number of optimisation args of a function"""
         return len(getargspec(fun).args) - 1
     
+    @property
+    def senscorr_mask(self):
+        """Current sensitivity correction mask (:class:`Img` instance)"""
+        return self._senscorr_mask
+    
+    @senscorr_mask.setter
+    def senscorr_mask(self, val):
+        if not isinstance(val, Img):
+            raise TypeError("Need Img object...")
+        self._senscorr_mask = val
+        
     @property
     def calib_coeffs(self):
         """List containing calibration coefficients for :attr:`calib_fun`"""
@@ -251,50 +262,10 @@ class CalibData(object):
         raise IOError("Covariance matrix of calibration data cannot "
                       "be set manually, please call function "
                       "fit_calib_data")
-        
-    @property
-    def calib_id_str(self):
-        """String for calibration ID"""
-        idx=0
-        try:
-            if self.calib_id.split("_")[1].lower() == "aa":
-                idx=1
-            try:
-                return CALIB_ID_STRINGS[self.calib_id.split("_")[idx]]
-            except:
-                return self.calib_id.split("_")[idx]
-        except:
-            return ""
-# =============================================================================
-#     @property
-#     def slope(self):
-#         """Slope of current calib curve"""
-#         if self.polyorder > 1:
-#             warn("Order of calibration polynomial > 1: use value of slope with "
-#                  "care (i.e. also check curvature coefficients of polynomial")
-#              
-#         return self.coeffs[-2]
-#         
-#     @property
-#     def slope_err(self):
-#         """Slope error of current calib curve"""
-#         if self.polyorder > 1:
-#             warn("Order of calibration polynomial > 1: use slope error with "
-#                  "care")
-#         return sqrt(self.cov[-2][-2])
-# =============================================================================
-    
     @property
     def y_offset(self):
         """Y-axis offset of calib curve"""
         return self.calib_fun(0, *self.calib_coeffs)
-    
-# =============================================================================
-#     @property
-#     def y_offset_err(self):
-#         """Error of y axis offset of calib curve"""
-#         return sqrt(self.cov[-1][-1])
-# =============================================================================
         
     @property
     def cd_tseries(self):
@@ -334,16 +305,6 @@ class CalibData(object):
             cdmin = 0
         add = (cdmax - cdmin) * 0.05
         return (cdmin - add, cdmax + add)
-
-# =============================================================================
-#     @property
-#     def _poly_str(self):
-#         """Return custom string representation of polynomial"""
-#         exp = exponent(self.poly.coeffs[0])
-#         p = poly1d(round(self.poly / 10**(exp - 2))/10**2)
-#         s = "(%s)E%+d" %(p, exp)
-#         return s.replace("x", r"$\tau$")
-# =============================================================================
         
     def has_calib_data(self):
         """Checks if calibration data is available"""
@@ -503,25 +464,7 @@ class CalibData(object):
         
         self.residual = (self.calib_fun(self.tau_vec, *self.calib_coeffs) 
                         - self.cd_vec)
-        self.residual_std = self.residual.std()
-# =============================================================================
-#         if through_origin:
-#             num = len(tau_vals)
-#             tau_vals = concatenate([tau_vals, zeros(num)])
-#             cds = concatenate([cds, zeros(num)])
-#             ws = concatenate([ws, ones(num)])
-#         
-# =============================================================================
-# =============================================================================
-#         coeffs, cov = polyfit(tau_vals, cds, 
-#                               polyorder, w=ws, cov=True)
-# =============================================================================
-        #self.polyorder = polyorder
-        #return (fun, coeffs, cov, tau_vals, cds, yerr, yerr_abs)
-# =============================================================================
-#         self.poly = poly1d(coeffs * 10**exp)
-#         self._cov = cov * 10**(2*exp)
-# =============================================================================
+ 
         if plot:
             self.plot()
         return self.calib_coeffs
@@ -538,7 +481,12 @@ class CalibData(object):
         prim_hdu = fits.PrimaryHDU()
         prim_hdu.header["type"] = self.type
         prim_hdu.header["calib_id"] = self.calib_id
-        prim_hdu.data = self.senscorr_mask
+        prim_hdu.header.update(self.senscorr_mask.edit_log)
+        try:
+            mask = self.senscorr_mask.img
+        except:
+            mask = self.senscorr_mask
+        prim_hdu.data = mask
         
         if not len(self.cd_vec) == len(self.tau_vec):
             raise ValueError("Could not save calibration data, mismatch in "
@@ -630,9 +578,17 @@ class CalibData(object):
             raise IOError("CalibData could not be loaded, "
                           "path does not exist")
         hdu = fits.open(file_path)
-        self.senscorr_mask = hdu[0].data
+        self.senscorr_mask = Img(hdu[0].data)
         self.calib_id = hdu[0].header["calib_id"]
         self.type = hdu[0].header["type"]
+        
+        for key, val in hdu[0].header.iteritems():
+            k = key.lower()
+            if self.senscorr_mask.edit_log.has_key(k):
+                self.senscorr_mask.edit_log[k] = val
+        if self.senscorr_mask.is_cropped:
+            warn("Imported sensitivity correction mask is flagged as cropped "
+                 "and might not work on uncropped images")
         ctable=hdu[1]
         try:
             times = ctable.data["time_stamps"].byteswap().newbyteorder()
@@ -652,6 +608,9 @@ class CalibData(object):
             self.cd_vec_err = ctable.data["cd_vec_err"].byteswap().newbyteorder()
         except:
             warn("Failed to import CD uncertainty vector from FITS")
+        if self.type == "base":
+            hdu.close()
+            hdu=None
         return hdu
         
         
@@ -675,7 +634,6 @@ class CalibData(object):
         x = linspace(taumin, taumax, 100)
         
         cds = self.cd_vec
-        cds_calib = self.calib_fun(x, *self.calib_coeffs)
                 
         ax.plot(self.tau_vec, cds, ls="", marker=".",
                 label="Data %s" %add_label_str, **kwargs)
@@ -685,15 +643,15 @@ class CalibData(object):
         except:
             warn("No CD errors available")
         try:
+            cds_calib = self.calib_fun(x, *self.calib_coeffs)
             ax.plot(x, cds_calib, ls="-", marker="",
                     label="Fit result", **kwargs)
-                    
         except TypeError:
             print "Calibration poly probably not fitted"
         
-        ax.set_title("Calibration data, ID: %s" %self.calib_id_str)
+        ax.set_title("Calibration data, ID: %s" %self.calib_id)
         ax.set_ylabel(r"$S_{%s}$ [cm$^{-2}$]" %SPECIES_ID)
-        ax.set_xlabel(r"$\tau_{%s}$" %self.calib_id_str)
+        ax.set_xlabel(r"$\tau_{%s}$" %self.calib_id)
         ax.grid()
         ax.legend(loc='best', fancybox=True, framealpha=0.7)
         return ax
@@ -719,7 +677,10 @@ class CalibData(object):
         
         taumin, taumax = self.tau_range
         x = linspace(taumin, taumax, 100)
-    
+        if self.calib_coeffs is None:
+            warn("Calibration function not yet fitted, applying default fit"
+                 "(1. order polynomial)")
+            self.fit_calib_data()
         cds_poly = self.calib_fun(x, *self.calib_coeffs)
         if shift_yoffset:
             try:
@@ -740,7 +701,13 @@ class CalibData(object):
     
     def err(self):
         """Returns standard deviation of fit residual"""
-        return self.residual_std
+        if self.residual is None:
+            raise ValueError("Fit residual is not available, please call "
+                             "fit_calib_data first")
+        elif len(self.residual) < 10:
+            warn("Standard deviation of residual is computed from less than "
+                 "10 calibraiton points")
+        return self.residual.std()
      
     def calibrate(self, value):
         """Apply calibration to input

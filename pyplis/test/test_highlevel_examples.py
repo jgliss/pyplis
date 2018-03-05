@@ -46,22 +46,23 @@ PLUME_FILE_NEXT = join(IMG_DIR,
 BG_FILE_ON = join(IMG_DIR, 'EC2_1106307_1R02_2015091607022602_F01_Etna.fts')
 BG_FILE_OFF = join(IMG_DIR, 'EC2_1106307_1R02_2015091607022216_F02_Etna.fts')
 
+FUN = pyplis.custom_image_import.load_ecII_fits
      
 @pytest.fixture
 def plume_img(scope="module"):
-    return pyplis.Img(PLUME_FILE).pyr_up(1)
+    return pyplis.Img(PLUME_FILE, FUN).pyr_up(1)
 
 @pytest.fixture
 def plume_img_next(scope="module"):
-    return pyplis.Img(PLUME_FILE_NEXT).pyr_up(1)
+    return pyplis.Img(PLUME_FILE_NEXT, FUN).pyr_up(1)
 
 @pytest.fixture
 def bg_img_on(scope="module"):
-    return pyplis.Img(BG_FILE_ON).to_pyrlevel(0)
+    return pyplis.Img(BG_FILE_ON, FUN).to_pyrlevel(0)
 
 @pytest.fixture
 def bg_img_off(scope="module"):
-    return pyplis.Img(BG_FILE_OFF).to_pyrlevel(0)
+    return pyplis.Img(BG_FILE_OFF, FUN).to_pyrlevel(0)
 
 @pytest.fixture
 def setup(scope="module"):
@@ -230,8 +231,8 @@ def test_dataset():
     ds = plume_dataset()
     keys = ds.img_lists_with_data.keys()
     vals_exact = [ds.img_lists["on"].nof + ds.img_lists["off"].nof,
-                sum(ds.current_image("on").shape),
-                keys[0], keys[1], ds.cam_id]
+                  sum(ds.current_image("on").shape),
+                  keys[0], keys[1], ds.cam_id]
     
     nominal_exact = [178, 2368, "on", "off", "ecII"]
     
@@ -305,6 +306,7 @@ def test_optflow():
             res["_dir_sigma"], res["_len_mu_norm"], 
             res["_len_sigma_norm"], res["_del_t"], 
             res["_significance"]]
+    print vals
     npt.assert_allclose(vals, nominal, rtol=1e-7)
     return flow
     

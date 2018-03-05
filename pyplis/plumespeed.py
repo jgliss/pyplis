@@ -2349,7 +2349,7 @@ class OptflowFarneback(object):
             self.settings.roi_rad_abs = self.settings.roi_abs
         roi = map_roi(self.settings.roi_rad_abs, img.edit_log["pyrlevel"])
         sub = img.img[roi[1]:roi[3], roi[0]:roi[2]]
-        i_min, i_max = max([0, sub.min()]), sub.max()
+        i_min, i_max = sub.min(), sub.max()
         if self.settings._update_i_min:
             self.settings.i_min = i_min
         if self.settings._update_i_max:

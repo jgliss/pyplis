@@ -165,7 +165,7 @@ if __name__ == "__main__":
     #using io_opts:REG_SHIFT_OFF=1 (see e.g. defintion of camera with ID 
     # "usgs"). Also, a default registration offset can be defined here using 
     # 
-    img_shift.apply_registration_shift(-100, -10)
+    img_shift.shift(dx_abs=-30, dy_abs=55)
     img_shift.show(tit="Shifted")
     #Set pixel intensities below 2000 to 0 (method of Img class)
     img.set_val_below_thresh(val=0, threshold=2000)

@@ -184,7 +184,7 @@ def prepare_lists(dataset):
     offlist.bg_img = bg_offlist.current_img()
     
     #prepare plume background modelling setup in both lists
-    onlist.bg_model.CORR_MODE = 6
+    onlist.bg_model.mode = 6
     onlist.bg_model.guess_missing_settings(onlist.current_img())
     onlist.bg_model.xgrad_line_startcol = 10
     offlist.bg_model.update(**onlist.bg_model.settings_dict())
@@ -283,6 +283,7 @@ if __name__ == "__main__":
     
     #determine plume pixel mask from AA image
     onlist.aa_mode = True
+    
     plume_pix_mask = onlist.get_thresh_mask(AA_THRESH)
     plume_pix_mask[840:, :] = 0 #remove tree in lower part of the image
     onlist.aa_mode = False

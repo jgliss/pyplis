@@ -45,10 +45,11 @@ from SETTINGS import SAVEFIGS, SAVE_DIR, FORMAT, DPI, OPTPARSE
 from ex05_cell_calib_auto import perform_auto_cell_calib
 from ex04_prep_aa_imglist import prepare_aa_image_list
 
+CELL_AA_CALIB_FILE = join(SAVE_DIR, "ex05_cellcalib_aa.fts")
 ### RELEVANT DIRECTORIES AND PATHS
 
 #fits file containing DOAS calibration information (from ex6)
-CALIB_FILE = join(SAVE_DIR, "ex06_doascalib_aa.fts")
+DOAS_CALIB_FILE = join(SAVE_DIR, "ex06_doascalib_aa.fts")
                   
 ### SCRIPT FUNCTION DEFINITIONS    
 def draw_doas_fov(fov_x, fov_y, fov_extend, ax):
@@ -58,16 +59,6 @@ def draw_doas_fov(fov_x, fov_y, fov_extend, ax):
     ax.text(fov_x, (fov_y - fov_extend*1.3), "DOAS FOV")
     ax.set_xlim([0, 1343]), ax.set_ylim([1023, 0])
     return ax
-
-def prepare_sensitivity_corr_masks_cells(cellcalib, doasfov):
-    so2_cds = cellcalib.cell_gas_cds
-    masks = {}
-    for cd in so2_cds:
-        mask, _ = cellcalib.get_sensitivity_corr_mask(doas_fov=doasfov,
-                                                      cell_cd=cd,
-                                                      surface_fit_pyrlevel=2)
-        masks[cd] = mask
-    return masks
    
 def plot_pcs_comparison(aa_init, aa_imgs_corr, pcs1, pcs2):
     fig, axes = subplots(1,2, figsize=(18, 6))
@@ -101,7 +92,7 @@ def plot_pcs_comparison(aa_init, aa_imgs_corr, pcs1, pcs2):
 if __name__ == "__main__":
     close("all")
     
-    if not exists(CALIB_FILE):
+    if not exists(DOAS_CALIB_FILE):
         raise IOError("Calibration file could not be found at specified "
             "location:\n %s\nYou might need to run example 6 first")
 
@@ -111,7 +102,7 @@ if __name__ == "__main__":
     
     ### Load DOAS calbration data and FOV information (see example 6)
     doascalib = pyplis.doascalib.DoasCalibData()
-    doascalib.load_from_fits(file_path=CALIB_FILE)
+    doascalib.load_from_fits(file_path=DOAS_CALIB_FILE)
     doascalib.fit_calib_data()
     
     ### Get DOAS FOV parameters in absolute coordinates
@@ -119,7 +110,16 @@ if __name__ == "__main__":
     fov_extend = doascalib.fov.pixel_extend(abs_coords=True)
     
     ### Load cell calibration (see example 5)
-    cellcalib = perform_auto_cell_calib().calib_data["aa"]
+    cellcalib = perform_auto_cell_calib()
+    
+    #get cell calibration
+    cellcalib.prepare_calib_data(pos_x_abs=fov_x, #change if you want it for a specific pix
+                                 pos_y_abs=fov_y, #change if you want it for a specific pix
+                                 radius_abs=fov_extend, #radius of retrieval disk
+                                 on_id="on", #ImgList ID of onband filter
+                                 off_id="off") #ImgList ID of offband filter 
+    
+    cell_aa_calib = cellcalib.calib_data["aa"]
     
     ### Define lines on image for plume profiles
     pcs1 = pyplis.LineOnImage(620, 700, 940, 280,
@@ -129,25 +129,31 @@ if __name__ == "__main__":
 
     ### Plot DOAS calibration polynomial
     ax0 = doascalib.plot(add_label_str="DOAS")
-    ax0 = cellcalib.plot(pos_x_abs=fov_x, pos_y_abs=fov_y,
-                         radius_abs=fov_extend, ax=ax0, c="r")
+    ax0 = cellcalib.calib_data["aa"].plot(ax=ax0, c="r")
     ax0.set_title("")
     ax0.set_xlim([0,0.5])
     
     ### Get current AA image from image list
     aa_init = aa_list.current_img()
     
-    ### Prepare sensitivity correction masks from all 3 cells
-    masks = prepare_sensitivity_corr_masks_cells(cellcalib, doascalib.fov)        
-    aa_imgs_corr = {}    
-    for cd, mask in masks.iteritems():        
-        aa_imgs_corr[cd] = pyplis.Img(aa_init.img / mask)
+    # now determine sensitivity correction masks from the different cells
+    masks = {}
+    aa_imgs_corr = {}   
+    for cd in cell_aa_calib.cd_vec:
+        mask = cellcalib.get_sensitivity_corr_mask("aa",
+                                                   pos_x_abs=fov_x,
+                                                   pos_y_abs=fov_y,
+                                                   radius_abs=fov_extend,
+                                                   cell_cd_closest=cd)
+        masks[cd] = mask
+        aa_imgs_corr[cd] = pyplis.Img(aa_init.img / mask.img)
+    
     
     #get mask corresponding to minimum cell CD
     mask = masks.values()[np.argmin(masks.keys())]
     
     #assing mask to aa_list
-    aa_list.aa_corr_mask = mask
+    aa_list.senscorr_mask = mask
     
     #activate AA sensitivity correction in list
     aa_list.sensitivity_corr_mode = True
@@ -179,8 +185,12 @@ if __name__ == "__main__":
     
     #Save the sensitivity correction mask from the cell with the lowest SO2 CD
     so2min = np.min(masks.keys())
-    mask = pyplis.Img(masks[so2min])
+    mask = masks[so2min]
     mask.save_as_fits(SAVE_DIR, "ex07_aa_corr_mask")
+    
+    # assign mask in doascalib and resave
+    doascalib.senscorr_mask=mask
+    doascalib.save_as_fits(DOAS_CALIB_FILE)
     
     ### IMPORTANT STUFF FINISHED (Below follow tests and display options)
     

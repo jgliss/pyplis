@@ -138,20 +138,25 @@ def gauss_fit_2d(img_arr, cx, cy, g2d_asym=True, g2d_super_gauss=True,
     if g2d_tilt:
         print "g2d_tilt active"
         guess = [amp, cx, cy, 20, 1, 1, 0, 0]
+        
         lb = [-inf, -inf, -inf, -inf, asym_lb, shape_lb, -inf, -inf]
         ub = [ inf,  inf,  inf,  inf, asym_ub, shape_ub,  inf,  inf]
-        if any(lb >= ub):
-            print "Bound-Problem"
+
+        for k in range(len(lb)):
+            diff = ub[k] - lb[k]
+            if isnan(diff) or diff <= 0:
+                raise ValueError("Bound-Problem")
         popt, pcov = curve_fit(supergauss_2d_tilt, (xgrid, ygrid),\
-                    img_arr.ravel(), p0 = guess, bounds = (lb, ub))
+                    img_arr.ravel(), p0=guess, bounds=(lb, ub))
         popt[-1] = remainder(popt[-1], pi * 2)
         if all(guess == popt):
             raise Exception("FOV gauss fit failed, popt == guess")
         result_img = supergauss_2d_tilt((xgrid, ygrid), *popt)
     else:
-        guess = [amp, cx, cy, 20, 1, 1, 0]
+        guess = [amp, cx, cy, 5, 1, 1, 0]
         lb = [-inf, -inf, -inf, -inf, asym_lb, shape_lb, -inf]
         ub = [ inf,  inf,  inf,  inf, asym_ub, shape_ub,  inf]
+        
         popt, pcov = curve_fit(supergauss_2d, (xgrid, ygrid),\
                                img_arr.ravel(), p0=guess, bounds=(lb,ub))
         

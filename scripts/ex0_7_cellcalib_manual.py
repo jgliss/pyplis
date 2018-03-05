@@ -66,7 +66,9 @@ BG_AFTER_OFF    = "EC2_1106307_1R02_2015091607020440_F02_Etna.fts"
 if __name__ == "__main__":
     close("all")
     start = time()
-    cellcalib = pyplis.cellcalib.CellCalibEngine()
+    # define camera for ECII custom image import
+    cam = pyplis.Camera("ecII")
+    cellcalib = pyplis.cellcalib.CellCalibEngine(cam)
     
     # now add all cell images manually, specifying paths, the SO2 column 
     # densities of each cell, and the corresponding cell ID as well as image
@@ -114,15 +116,13 @@ if __name__ == "__main__":
     # 3 tau images (on, off, AA) is then stored within a CellCalibData object
     # which can be accessed using e.g. cellcalib.calib_data["aa"]
     cellcalib.prepare_calib_data(on_id="on", off_id="off", darkcorr=False)
-    stop = time()
+    stop=time()
     
     ax = cellcalib.plot_all_calib_curves()
     ax.set_title("Manual cell calibration\n(NO dark correction performed)")
     
-    #show the second AA cell image (1st index in corresponding stack)
     aa_calib = cellcalib.calib_data["aa"]
-    aa_calib.tau_stack.show_img(1)
-    
+
     print "Time elapsed for preparing calibration data: %.4f s" %(stop-start)
     ### IMPORTANT STUFF FINISHED    
     if SAVEFIGS:
@@ -139,11 +139,10 @@ if __name__ == "__main__":
     if int(options.test):
         import numpy.testing as npt
         
-        slope, offs = aa_calib.poly
-        actual = [aa_calib.tau_stack.sum(),
-                  aa_calib.tau_stack.mean(),
-                  aa_calib.gas_cds.sum(),
-                  aa_calib.tau_std_allpix.sum(),
+        slope, offs = aa_calib.calib_coeffs
+        actual = [cellcalib.tau_stacks["aa"].sum(),
+                  cellcalib.tau_stacks["aa"].mean(),
+                  aa_calib.cd_vec.sum(),
                   slope, 
                   offs]
         
@@ -151,7 +150,6 @@ if __name__ == "__main__":
                             desired=[1007480.4,
                                      0.24401478,
                                      3.1939999e+18,
-                                     0.12343832,
                                      4.77978303e+18,  
                                      -2.72443366e16],
                             rtol=1e-7)

@@ -19,7 +19,7 @@
 """
 Pyplis module for image based correction of the signal dilution effect
 """
-from numpy import asarray, linspace, exp, ones, nan
+from numpy import asarray, linspace, exp, ones, nan, isnan
 from scipy.ndimage.filters import median_filter
 from matplotlib.pyplot import subplots, rcParams
 from collections import OrderedDict as od
@@ -233,7 +233,9 @@ class DilutionCorr(object):
         for x, y, dist in self._add_points:
             dists.append(dist)
             rads.append(img.img[y,x])
-        return asarray(dists), asarray(rads)
+        
+        return (asarray(dists)[~isnan(dists)], 
+                asarray(rads)[~isnan(rads)])
     
     def apply_dilution_fit(self, img, rad_ambient, i0_guess=None,
                            i0_min=0, i0_max=None, ext_guess=1e-4, ext_min=0,
