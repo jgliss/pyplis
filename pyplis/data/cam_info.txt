@@ -55,7 +55,7 @@ meas_type_pos:1
 
 # Specify dark correction option
 # 0: no dark corr, 1: dark + offset, 2: one dark at same exposure time  NOTE: USE CAPITAL LETTERS FOR THIS FLAG) 
-DARK_CORR_OPT:2		
+darkcorr_opt:2		
 
 # Position of exposure time (exp. time must be in s or ms)
 texp_pos:			
@@ -73,6 +73,8 @@ pix_width:13.0e-6
 # Detector size
 pixnum_x:1024
 pixnum_y:1024
+
+reg_shift_off: # e.g. -4, 6 for shift of -4 pixels in x and +6 in y-dir 
 
 # Now sepcify the camera (default) filter setup (one row for each filter)
 # Row format for filter specifications 
@@ -113,7 +115,7 @@ dark_info:cell4_off_dark,dark,B04,D
 
 # Options for how to import images in Dataset class. Please see attributes
 # of BaseSetup class in setupclasses.py source file of pyplis
-io_opts:USE_ALL_FILES=0, SEPARATE_FILTERS=1, USE_ALL_FILE_TYPES=0,INCLUDE_SUB_DIRS=1, ON_OFF_SAME_FILE=0, LINK_OFF_TO_ON=1
+io_opts:USE_ALL_FILES=0, SEPARATE_FILTERS=1, USE_ALL_FILE_TYPES=0,INCLUDE_SUB_DIRS=1, ON_OFF_SAME_FILE=0, LINK_OFF_TO_ON=1, REG_SHIFT_OFF=0
 ENDCAM
 
 NEWCAM
@@ -127,7 +129,7 @@ filter_id_pos:4
 file_type:fts
 main_filter_id:on
 meas_type_pos:4
-DARK_CORR_OPT:1
+darkcorr_opt:1
 texp_pos:
 texp_unit:
 focal_length:
@@ -135,6 +137,7 @@ pix_height:4.65e-6
 pix_width:4.65e-6
 pixnum_x:1344
 pixnum_y:1024
+reg_shift_off: 8, -7
 
 # Filters (row-wise, format): 
 # filter:<ID>,<type>,<type acronym>,<meas_type acronym>,<center_wavelength>
@@ -149,6 +152,9 @@ dark_info:offset1,offset,D0H,D0H,1
 dark_info:dark1,dark,D1H,D1H,1
 
 image_import_method:load_ecII_fits
+#default data import options, see e.g. def. of usgs camera below and 
+#class MeasSetup
+io_opts: 
 ENDCAM
 
 NEWCAM
@@ -165,7 +171,7 @@ filter_id_pos:0
 file_type:tif     
 main_filter_id:on
 meas_type_pos:0
-DARK_CORR_OPT:2   
+darkcorr_opt:2   
 texp_pos:
 texp_unit: 
 focal_length:25.0e-3
@@ -187,7 +193,7 @@ texp_unit:ms
 file_type:tif
 main_filter_id:on
 meas_type_pos:3
-DARK_CORR_OPT:2
+darkcorr_opt:2
 focal_length:35.8e-3
 # Camera read out is 4x4 binned (original size is 2048x2048 pix á 7.4 microns)
 pix_height:29.59e-6
@@ -215,7 +221,7 @@ filter_id_pos:
 file_type:fits
 main_filter_id:on
 meas_type_pos:
-DARK_CORR_OPT:
+darkcorr_opt:
 texp_pos:
 texp_unit:
 focal_length:12.5e-3
@@ -241,4 +247,34 @@ image_import_method:load_usgs_multifits
 # Options for how to import images in Dataset class. Please see attributes
 # of BaseSetup class in setupclasses.py source file of pyplis
 io_opts:USE_ALL_FILES=0, SEPARATE_FILTERS=1, USE_ALL_FILE_TYPES=0,INCLUDE_SUB_DIRS=1, ON_OFF_SAME_FILE=1, LINK_OFF_TO_ON=1, REG_SHIFT_OFF=1
+ENDCAM
+
+
+NEWCAM
+cam_ids:ecII_new_test
+cam_id:ecII_new_test
+delim:_
+time_info_pos:3
+time_info_str:%Y%m%d%H%M%S%f
+filter_id_pos:4
+texp_pos:
+texp_unit:
+file_type:fts
+main_filter_id:on
+meas_type_pos:4
+darkcorr_opt:1
+focal_length:
+pix_height:4.65e-06
+pix_width:4.65e-06
+pixnum_x:1344
+pixnum_y:1024
+filter:on,on,F01,F01,310
+filter:off,off,F02,F02,330
+dark_info:offset0,offset,D0L,D0L,0
+dark_info:offset1,offset,D0H,D0H,1
+dark_info:dark0,dark,D1L,D1L,0
+dark_info:dark1,dark,D1H,D1H,1
+reg_shift_off:0.00,0.00
+io_opts:LINK_OFF_TO_ON=1,USE_ALL_FILES=0,INCLUDE_SUB_DIRS=1,SEPARATE_FILTERS=1
+image_import_method:load_ecII_fits
 ENDCAM

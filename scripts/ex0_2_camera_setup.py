@@ -44,7 +44,7 @@ import pyplis
 
 # Save the new camera as default in database (cam_info.txt file that can be
 # found in the "data" directory of the installation.
-SAVE_TO_DATABASE = False
+SAVE_TO_DATABASE = True
 
 ### SCRIPT FUNCTION DEFINITIONS
 def create_ecII_cam_new_filters():
@@ -98,7 +98,7 @@ def create_ecII_cam_new_filters():
     
     # camera ID (needs to be unique, i.e. not included in data base, call
     # pyplis.inout.get_all_valid_cam_ids() to check existing IDs)
-    cam.cam_id = "ecII_new"
+    cam.cam_id = "ecII_new_test"
 
     # image file type
     cam.file_type = "fts"
@@ -126,7 +126,7 @@ def create_ecII_cam_new_filters():
     # info see function model_dark_image in processing.py module
     # 2: subtraction of a dark image recorded at same exposure time than the 
     # actual image
-    cam.DARK_CORR_OPT = 1
+    cam.darkcorr_opt = 1
     
     # If the file name also includes the exposure time, this can be specified 
     # here:
@@ -153,6 +153,11 @@ def create_ecII_cam_new_filters():
     
     cam._init_access_substring_info()
     
+    cam.io_opts = dict(USE_ALL_FILES = False,
+                        SEPARATE_FILTERS = True,
+                        INCLUDE_SUB_DIRS = True,
+                        LINK_OFF_TO_ON = True)
+    
     # Set the custom image import method
     cam.image_import_method = pyplis.custom_image_import.load_ecII_fits
     # That's it... 
@@ -165,11 +170,13 @@ if __name__ == "__main__":
     
     print cam
     
-    if SAVE_TO_DATABASE:
+    try:
         # you can add the cam to the database (raises error if ID 
         # conflict occurs, e.g. if the camera was already added to the database)
         cam.save_as_default()
-    
+    except KeyError:
+        print("Camera already exists in database")
+    cam_reload = pyplis.Camera("ecII_brandnew")
     ### IMPORTANT STUFF FINISHED - everything below is of minor importance 
     # for educational purposes
     
@@ -179,7 +186,8 @@ if __name__ == "__main__":
     # the command line when executing the script using the option --test 1
     if int(options.test):
         # quick and dirty test
-        cam_dict_nominal = {'DARK_CORR_OPT': 1,
+      
+        cam_dict_nominal = {'darkcorr_opt': 1,
                             '_fid_subnum_max': 1,
                             '_fname_access_flags': {'filter_id': False,
                                                     'meas_type': False,
@@ -187,7 +195,7 @@ if __name__ == "__main__":
                                                     'texp': False},
                             '_mtype_subnum_max': 1,
                             '_time_info_subnum': 1,
-                            'cam_id': 'ecII_new',
+                            'cam_id': 'ecII_new_test',
                             'delim': '_',
                             'file_type': 'fts',
                             'filter_id_pos': 4,
@@ -213,7 +221,8 @@ if __name__ == "__main__":
                                          ('azim_err', None),
                                          ('elev', None),
                                          ('elev_err', None),
-                                         ('alt_offset', 0)])
+                                         ('alt_offset', 0.0)])
+    
         arr_nominal = geom_data_nominal.items()
         arr_nominal.extend(cam_dict_nominal.items())
         

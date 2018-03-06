@@ -14,7 +14,7 @@ def test_load_ecII():
     cam = scl.Camera("ecII")
     info_is = [cam.cam_id, cam.delim, cam.time_info_pos, cam.time_info_str,
                cam.filter_id_pos, cam.texp_pos, cam.file_type, 
-               cam.main_filter_id, cam.meas_type_pos, cam.DARK_CORR_OPT,
+               cam.main_filter_id, cam.meas_type_pos, cam.darkcorr_opt,
                cam.focal_length, cam.pix_height, cam.pix_width, 
                cam.pixnum_x, cam.pixnum_y]
     info = ["ecII", "_", 3, '%Y%m%d%H%M%S%f', 4, None, "fts", "on", 4,

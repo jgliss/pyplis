@@ -18,7 +18,7 @@
 """
 Module containing all sorts of I/O-routines (e.g. test data access)
 """
-from os.path import join, basename, exists, isfile, abspath
+from os.path import join, basename, exists, isfile, abspath, expanduser
 from os import listdir, remove, walk
 from re import split
 
@@ -35,6 +35,11 @@ from urllib import urlretrieve
 from urllib2 import urlopen
 from tempfile import mktemp, gettempdir
 from shutil import copy2
+
+def data_search_dirs():
+    """Get basic search directories for package data files"""
+    from pyplis import __dir__
+    return (expanduser(join('~', 'my_pyplis')), join(__dir__, "data"))
 
 def zip_example_scripts(repo_base):
     from pyplis import __version__ as v
@@ -127,17 +132,23 @@ def download_test_data(save_path=None):
     -progress-bar-in-python
     
     """
-    from pyplis import _LIBDIR, URL_TESTDATA
+    from pyplis import URL_TESTDATA
     url = URL_TESTDATA
     
+    dirs = data_search_dirs()
+    where = dirs[0]
+    fp = join(where, "_paths.txt")
+    if not exists(fp):
+        where = dirs[1]
+        fp = join(where, "_paths.txt")
     if save_path is None or not exists(save_path):
-        save_path = join(_LIBDIR, "data")
-        print "save path unspecified"
+        save_path = join(where, "data")
+        print("Save path unspecified")
     else:
-        with open(join(_LIBDIR, "data", "_paths.txt"), "a") as f:
+        with open(fp, "a") as f:
             f.write("\n" + save_path  + "\n")
-            print ("Adding new path for test data location in "
-                    "file _paths.txt: %s" %save_path)
+            print("Adding new path for test data location in "
+                  "file _paths.txt: %s" %save_path)
             f.close()
         
     print "installing test data at %s" %save_path
@@ -177,20 +188,23 @@ def load_img_dummy():
 
 def find_test_data():
     """Searches location of test data folder"""
-    from pyplis import _LIBDIR
-    data_path = join(_LIBDIR, "data")
+    dirs = data_search_dirs()
     folder_name = "pyplis_etna_testdata"
-    if folder_name in listdir(data_path):
-        print "Found test data at default location: %s" %data_path
-        return join(data_path, folder_name)
-    with open(join(data_path, "_paths.txt"), "r") as f:
-        lines = f.readlines()
-        for line in lines:
-            p = line.split("\n")[0]
-            if exists(p) and folder_name in listdir(p):
-                print "Found test data at default location: %s" %p
-                f.close()
-                return join(p, folder_name)
+    for data_path in dirs:
+        if folder_name in listdir(data_path):
+            print "Found test data at location: %s" %data_path
+            return join(data_path, folder_name)
+        try:
+            with open(join(data_path, "_paths.txt"), "r") as f:
+                lines = f.readlines()
+                for line in lines:
+                    p = line.split("\n")[0]
+                    if exists(p) and folder_name in listdir(p):
+                        print "Found test data at default location: %s" %p
+                        f.close()
+                        return join(p, folder_name)
+        except:
+            pass
     raise IOError("pyplis test data could not be found, please download"
         "testdata first, using method pyplis.inout.download_test_data or"
         "specify the local path where the test data is stored using"
@@ -198,29 +212,33 @@ def find_test_data():
 
 def all_test_data_paths():
     """Return list of all search paths for test data"""
-    from pyplis import _LIBDIR
-    data_path = join(_LIBDIR, "data")
-    paths = [data_path]
-    with open(join(data_path, "_paths.txt"), "r") as f:
-        lines = f.readlines()
-        for line in lines:
-            p = line.split("\n")[0].lower()
-            if exists(p):
-                paths.append(p)
+    dirs = data_search_dirs()
+    paths = []
+    [paths.append(x) for x in dirs]
+    for data_path in dirs:
+        with open(join(data_path, "_paths.txt"), "r") as f:
+            lines = f.readlines()
+            for line in lines:
+                p = line.split("\n")[0].lower()
+                if exists(p):
+                    paths.append(p)
     return paths
     
 def set_test_data_path(save_path):
     """Set local path where test data is stored"""
-    from pyplis import _LIBDIR
     if save_path.lower() in all_test_data_paths():
         print "Path is already in search tree"
         return
+    dirs = data_search_dirs()
+    fp = join(dirs[0], "_paths.txt")
+    if not exists(fp):
+        fp = join(dirs[1], "_paths.txt")
     save_path = abspath(save_path)
     try:
         if not exists(save_path):
             raise IOError("Could not set test data path: specified location "
                 "does not exist: %s" %save_path)
-        with open(join(_LIBDIR, "data", "_paths.txt"), "a") as f:
+        with open(fp, "a") as f:
             f.write("\n" + save_path  + "\n")
             print ("Adding new path for test data location in "
                     "file _paths.txt: %s" %save_path)
@@ -232,18 +250,12 @@ def set_test_data_path(save_path):
     except:
         raise
         
-        
-def get_camera_info(cam_id):
-    """Try access camera information from file "cam_info.txt" (package data)
-    
-    :param str cam_id: string ID of camera (e.g. "ecII")
-    
-    """
+def _load_cam_info(cam_id, filepath):
+    """Low level function that loads camera info from a specific cam_info file"""
     dat = od()
     if cam_id is None:
         return dat
-    from pyplis import _LIBDIR
-    with open(join(_LIBDIR, "data", "cam_info.txt")) as f:
+    with open(filepath) as f:
         filters = []
         darkinfo = []
         io_opts = {}
@@ -262,21 +274,27 @@ def get_camera_info(cam_id):
                         spl = line.split(":")
                         k = spl[0].strip()
                         if k == "dark_info":
-                            l = [x.strip() for x in spl[1].split("#")[0].split(',')]
+                            l = [x.strip() for x in spl[1].split("#")[0].\
+                                 split(',')]
                             darkinfo.append(l)
                         elif k == "filter":
-                            l = [x.strip() for x in spl[1].split("#")[0].split(',')]
+                            l = [x.strip() for x in spl[1].split("#")[0].\
+                                 split(',')]
                             filters.append(l)
                         elif k == "io_opts":                            
-                            l = [x.strip() for x in split("=|,", spl[1].split("#")[0])]
+                            l = [x.strip() for x in split("=|,", spl[1].\
+                                 split("#")[0])]
                             keys, vals = l[::2], l[1::2]
                             if len(keys) == len(vals):
                                 for i in range(len(keys)):
                                     io_opts[keys[i]]=bool(int(vals[i]))
                         elif k == "reg_shift_off":
-                            l = [float(x.strip()) for x in 
-                                 spl[1].split("#")[0].split(',')]
-                            dat["reg_shift_off"] = l
+                            try:
+                                l = [float(x.strip()) for x in 
+                                     spl[1].split("#")[0].split(',')]
+                                dat["reg_shift_off"] = l
+                            except:
+                                pass
                         else:
                             data_str = spl[1].split("#")[0].strip()
                             if any([data_str == x for x in ["''", '""']]):
@@ -288,7 +306,20 @@ def get_camera_info(cam_id):
                         found = 1  
                         dat["cam_ids"]=l
     raise IOError("Camera info for cam_id %s could not be found" %cam_id)
-
+    
+def get_camera_info(cam_id):
+    """Try access camera information from file "cam_info.txt" (package data)
+    
+    :param str cam_id: string ID of camera (e.g. "ecII")
+    
+    """
+    
+    dirs = data_search_dirs()
+    try:
+        return _load_cam_info(cam_id, join(dirs[0], "cam_info.txt"))
+    except:
+        return _load_cam_info(cam_id, join(dirs[1], "cam_info.txt"))
+        
 def save_new_default_camera(info_dict):
     """Saves new default camera to data file *cam_info.txt*
     
@@ -296,10 +327,13 @@ def save_new_default_camera(info_dict):
     
     Only valid keys will be added to the
     """
-    from pyplis import _LIBDIR
-    cam_file = join(_LIBDIR, "data", "cam_info.txt")
+    dirs = data_search_dirs()
+    cam_file = join(dirs[0], "cam_info.txt")
+    if not exists(cam_file):
+        cam_file = join(dirs[1], "cam_info.txt")
     keys = get_camera_info("ecII").keys()
-    print info_dict["cam_id"]
+    for key in keys:
+        print "%s (in input: %s)" %(key, info_dict.has_key(key))
     if not info_dict.has_key("cam_id"):
         raise KeyError("Missing specification of cam_id")
     try:
@@ -307,14 +341,12 @@ def save_new_default_camera(info_dict):
     except:
         info_dict["cam_ids"] = [info_dict["cam_id"]]    
         cam_ids = [info_dict["cam_id"]]    
-        
     if not all([x in info_dict.keys() for x in keys]):
         raise KeyError("Input dictionary does not include all required keys "
-                        "for creating a new default camera type")
+                        "for creating a new default camera type, required "
+                        "keys are %s" %keys)
     ids = get_all_valid_cam_ids()  
     if any([x in ids for x in info_dict["cam_ids"]]):
-        print ids
-        print info_dict["cam_ids"]
         raise KeyError("Cam ID conflict: one of the provided IDs already "
                         "exists in database...")
                         
@@ -326,7 +358,6 @@ def save_new_default_camera(info_dict):
         info_file.write("\n")
         for k, v in info_dict.iteritems():
             if k in keys:
-                print "Writing to file:\t%s: %s" %(k,v)   
                 if k == "default_filters":
                     for finfo in v:
                         info_file.write("filter:")
@@ -339,6 +370,14 @@ def save_new_default_camera(info_dict):
                         finfo = [str(x) for x in finfo]
                         info_file.write(",".join(finfo))
                         info_file.write("\n")
+                elif k == "io_opts":
+                    s = "io_opts:"
+                    for opt, val in v.iteritems():
+                        s += "%s=%d," %(opt, val)
+                    s=s[:-1] + "\n"
+                    info_file.write(s)
+                elif k == "reg_shift_off":
+                    info_file.write("%s:%.2f,%.2f\n" %(k,v[0],v[1]))
                 elif k == "cam_ids":
                     pass
                 else:
@@ -350,54 +389,39 @@ def save_new_default_camera(info_dict):
     copy2(cam_file_temp, cam_file)
     remove(cam_file_temp)
     
-    print ("Successfully added new default camera %s to database" 
-            %info_dict["cam_id"])
+    print("Successfully added new default camera %s to database at %s" 
+            %(info_dict["cam_id"], cam_file))
 
 def save_default_source(info_dict):
     """Adds a new default source to file source_info.txt"""
+    
     if not all(k in info_dict for k in ("name","lon","lat","altitude")):
         raise ValueError("Cannot save source information, require at least "
                          "name, lon, lat and altitude")
+    
+    dirs = data_search_dirs()
+    path = join(dirs[0], "my_sources.txt")
+    if not exists(path):
+        path = join(dirs[1], "my_sources.txt")
     if info_dict["name"] in get_source_ids():
         raise NameError("A source with name %s already exists in database"
                         %info_dict["name"])
-    from pyplis import _LIBDIR
-    source_file = join(_LIBDIR, "data", "my_sources.txt")
-    raise NotImplementedError("We are working on that...")                   
-    source_file_temp = create_temporary_copy(source_file)
+    
+    source_file_temp = create_temporary_copy(path)
     with open(source_file_temp, "a") as info_file:
-        info_file.write("\n")
-        cam_ids = [str(x) for x in cam_ids]
-        info_file.write(",".join(cam_ids))
-        info_file.write("\n")
+        info_file.write("\n\nsource_ids:%s\n" %info_dict["name"])
         for k, v in info_dict.iteritems():
-            if k in keys:
-                print "Writing to file:\t%s: %s" %(k,v)   
-                if k == "default_filters":
-                    for finfo in v:
-                        info_file.write("filter:")
-                        finfo = [str(x) for x in finfo]
-                        info_file.write(",".join(finfo))
-                        info_file.write("\n")
-                elif k == "dark_info":
-                    for finfo in v:
-                        info_file.write("dark_info:")
-                        finfo = [str(x) for x in finfo]
-                        info_file.write(",".join(finfo))
-                        info_file.write("\n")
-                elif k == "cam_ids":
-                    pass
-                else:
-                    info_file.write("%s:%s\n" %(k,v))
-        info_file.write("ENDCAM")
+            info_file.write("%s:%s\n" %(k,v))
+        info_file.write("END")
     info_file.close()
     #Writing ended without errors: replace data base file "cam_info.txt" with 
     #the temporary file and delete the temporary file
-    copy2(cam_file_temp, cam_file)
-    remove(cam_file_temp)
+    copy2(source_file_temp, path)
+    remove(source_file_temp)
     
-    print ("Successfully added new default camera %s to database" 
-            %info_dict["cam_id"])
+    print("Successfully added new default source %s to database file at %s" 
+          %(info_dict["name"], path))
+    
 def get_all_valid_cam_ids():
     """Load all valid camera string ids
     
@@ -417,13 +441,20 @@ def get_cam_ids():
     
     Reads info from file cam_info.txt which is part of package data
     """
-    from pyplis import _LIBDIR
+    dirs = data_search_dirs()
     ids = []
-    with open(join(_LIBDIR, "data", "cam_info.txt")) as f:        
-        for line in f: 
-            spl = line.split(":")
-            if spl[0].strip().lower() == "cam_id":
-                ids.append(spl[1].split("#")[0].strip())
+    for path in dirs:
+        try:
+            with open(join(path, "cam_info.txt")) as f:        
+                for line in f: 
+                    spl = line.split(":")
+                    if spl[0].strip().lower() == "cam_id":
+                        sid = spl[1].split("#")[0].strip()
+                        if not sid in ids:
+                            ids.append(sid)
+        except IOError:
+            pass
+        
     return ids
     
 def get_source_ids():
@@ -431,13 +462,19 @@ def get_source_ids():
     
     Reads info from file my_sources.txt which is part of package data
     """
-    from pyplis import _LIBDIR
+    dirs = data_search_dirs()
     ids = []
-    with open(join(_LIBDIR, "data", "my_sources.txt")) as f:        
-        for line in f: 
-            spl = line.split(":")
-            if spl[0].strip().lower() == "name":
-                ids.append(spl[1].split("#")[0].strip())
+    for path in dirs:
+        try:
+            with open(join(path, "my_sources.txt")) as f:        
+                for line in f: 
+                    spl = line.split(":")
+                    if spl[0].strip().lower() == "name":
+                        sid = spl[1].split("#")[0].strip()
+                        if not sid in ids:
+                            ids.append(sid)
+        except IOError:
+            pass
     return ids
     
 def get_source_info(source_id, try_online=True):

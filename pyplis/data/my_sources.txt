@@ -11,3 +11,15 @@ lon:14.997124
 lat:37.751850
 altitude:3329.0
 END
+
+source_ids:Stromboli
+lon:15.213
+lat:38.789
+altitude:926.0
+name:Stromboli
+status:Historical
+country:Italy
+region:Italy
+type:Stratovolcano
+last_eruption:D1
+END

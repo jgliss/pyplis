@@ -36,7 +36,7 @@ from warnings import warn
 from .forms import LineCollection, RectCollection  
 from .helpers import isnum, to_datetime
 from .exceptions import MetaAccessError
-from .inout import get_source_info
+from .inout import get_source_info, save_default_source
 from .utils import Filter, CameraBaseInfo
 from .geometry import MeasGeometry
 
@@ -87,9 +87,9 @@ class Source(object):
         if isinstance(name, str):
             info = self.get_info(name, try_online=False)
             if bool(info):
-                info_dict = info
+                info_dict.update(info)
                 
-        self.load_source_info(info_dict)
+        self._import_from_dict(info_dict)
         for k, v in kwargs.iteritems():
             self[k] = v
         
@@ -142,8 +142,26 @@ class Source(object):
         d["name"] = self.name
         d.update(self.suppl_info)
         return d
+     
+    def load_source_info(self, name=None, try_online=True):
+        """Try to load source info from external database
         
-    def load_source_info(self, info_dict):
+        Try to find source info in pyplis database file my_sources.txt and
+        if it cannot be found there, try online, if applicable.
+        
+        Parameters
+        ----------
+        name : str
+            if provided, a volcano with the corresponding name is searched. If
+            not provided, the current name is used
+        try_online : bool
+            if True, online search is attempted in case information cannot be 
+            found in my_sources.txt
+        """
+        info = self.get_info(name, try_online)
+        self._import_from_dict(info)
+        
+    def _import_from_dict(self, info_dict):
         """Try access default information of source
         
         Parameters
@@ -175,7 +193,11 @@ class Source(object):
         
         return self.info_available
     
-    def get_info(self, name, try_online=True):
+    def save_to_database(self):
+        """Saves this camera to default data base"""
+        save_default_source(self.to_dict())
+        
+    def get_info(self, name=None, try_online=True):
         """Load info dict from database 
         
         This method also includes the option of searching the online 
@@ -194,6 +216,8 @@ class Source(object):
             Dictionary containing source information
         
         """
+        if name is None:
+            name = self.name
         res = get_source_info(name, try_online)
         num = len(res)
         if num == 0:
@@ -206,12 +230,11 @@ class Source(object):
             print res.keys()
             while not ok:
                 try:
-                    inp=input("\nEnter, key:\n")
+                    inp = input("\nEnter, key:\n")
                     return res[inp]
                 except:
                     print res.keys()
                     print "Retry..."
-        return res
 
     def _all_params(self):
         """Return list of all relevant source attributes"""
@@ -1128,7 +1151,7 @@ class MeasSetup(BaseSetup):
                                           self.auto_topo_access)  
         # If specified in custom camera, update the file I/O options 
         # defined in :class:`BaseSetup`
-        self.options.update(self.camera._io_opts)
+        self.options.update(self.camera.io_opts)
         
     @property
     def source(self):

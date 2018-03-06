@@ -29,7 +29,7 @@ rcParams.update({'figure.autolayout': True})
 rcParams.update({'font.size': 13})
 
 # if True, some of the actual results of the scripts are verified
-TESTMODE = 0
+TESTMODE = 1
 
 # the pyplis version for which these scripts
 SCRIPTS_VERSION = "1.2"

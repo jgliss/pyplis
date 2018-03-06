@@ -1062,7 +1062,7 @@ class CameraBaseInfo(object):
         self.texp_pos = None
         self.texp_unit = "ms"
         
-        self._io_opts = {}
+        self.io_opts = {}
         
         self.image_import_method = None
         
@@ -1071,10 +1071,10 @@ class CameraBaseInfo(object):
         self._mtype_subnum_max = 1
         
         
-        #:the next flag (self.DARK_CORR_OPT) is set for image lists created using this fileconvention
+        #:the next flag (self.darkcorr_opt) is set for image lists created using this fileconvention
         #:and is supposed to define the way dark image correction is performed.
         #:for definition of the modes, see in :class:`BaseImgList` documentation)
-        self.DARK_CORR_OPT = 0
+        self.darkcorr_opt = 0
         
         self.dark_info = []
         
@@ -1243,7 +1243,7 @@ class CameraBaseInfo(object):
                    ("file_type"       ,     str),
                    ("main_filter_id"  ,     str),
                    ("meas_type_pos"   ,     int),
-                   ("DARK_CORR_OPT"   ,     int),
+                   ("darkcorr_opt"   ,     int),
                    ("focal_length"    ,     float),
                    ("pix_height"      ,     float),
                    ("pix_width"       ,     float),
@@ -1251,7 +1251,8 @@ class CameraBaseInfo(object):
                    ("pixnum_y"        ,     int),
                    ("default_filters" ,     list),                   
                    ("dark_info"       ,     list),
-                   ("reg_shift_off"   ,     list)])
+                   ("reg_shift_off"   ,     list),
+                   ("io_opts"         ,     dict)])
     
     @property
     def _info_dict(self):
@@ -1277,7 +1278,7 @@ class CameraBaseInfo(object):
                                            "in filename after splitting using "
                                            "delim. Only applies to certain "
                                            "cameras(e.g. HD cam)")),
-                   ("DARK_CORR_OPT"  ,   "Camera dark correction mode"),
+                   ("darkcorr_opt"  ,   "Camera dark correction mode"),
                    ("focal_length"    ,   "Camera focal length in m"),
                    ("pix_height"      ,   "Detector pixel height in m"),
                    ("pix_width"       ,   "Detector pixel width in m"),
@@ -1351,7 +1352,7 @@ class CameraBaseInfo(object):
         
         self.default_filters = filters
         self.dark_info = dark_info
-        self._io_opts = info_dict["io_opts"]
+        self.io_opts = info_dict["io_opts"]
         self.update_file_access_flags()
             
         return missed, err
@@ -1363,7 +1364,7 @@ class CameraBaseInfo(object):
         :param str cam_id: id of camera (e.g. "ecII")
         """
         self.load_info_dict(get_camera_info(cam_id))
-
+        
     """
     Helpers, supplemental stuff...
     """ 
@@ -1441,10 +1442,8 @@ class CameraBaseInfo(object):
         """Saves this camera to default data base"""
         cam_ids = [self.cam_id]
         cam_ids.extend(add_cam_ids)
-        print cam_ids
         d = od([("cam_ids"    ,   cam_ids)])
         d.update(self.to_dict())
-        print d.keys()
         save_new_default_camera(d)
         
     def _all_params(self):

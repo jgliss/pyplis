@@ -18,7 +18,7 @@
 
 from setuptools import setup, find_packages
 from codecs import open
-from os.path import join, abspath, dirname
+from os.path import join, abspath, dirname, expanduser
 
 here = abspath(dirname(__file__))
 
@@ -29,8 +29,9 @@ with open("VERSION.rst") as f:
     version = f.readline()
     f.close()
     
-with open(join("pyplis","data", "_paths.txt"), 'w'): pass
-    
+#with open(join("pyplis","data", "_paths.txt"), 'w'): pass
+
+usr_dir = join(expanduser('~'), "my_pyplis")
 setup(
     name        =   'pyplis',
     version     =   version,
@@ -72,6 +73,9 @@ setup(
                                      'data/testdata_minimal/doas_results/*.dat',
                                      'data/testdata_minimal/images/*.fts'],
                     },
+    data_files = [(usr_dir, ['pyplis/data/_paths.txt',
+                             'pyplis/data/cam_info.txt',
+                             'pyplis/data/my_sources.txt'])],
 
     install_requires    =   [],
     dependency_links    =   [],   
