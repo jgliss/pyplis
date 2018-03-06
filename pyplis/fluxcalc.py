@@ -47,7 +47,9 @@ class ImageOutput(object):
     """Class  for specifying default output for emission rate analyses"""
     def __init__(self, out_dir=None, overlay_optflow=True, img_vmin=None, 
                  img_vmax=None):
-        raise NotImplementedError
+        self.fig = None
+        
+        raise NotImplementedError("Site under construction")
         
 class EmissionRateSettings(object):
     """Class for management of settings for emission rate retrievals
@@ -1264,6 +1266,7 @@ class EmissionRateAnalysis(object):
         if stop_index is None:
             stop_index = lst.nof - 1 
         
+        num = lst._iter_num()
         flow = self.imglist_optflow.optflow
         s = self.settings
         results = self.init_results()
@@ -1288,9 +1291,9 @@ class EmissionRateAnalysis(object):
         min_cd = s.min_cd
         gauss_fit = s.velo_dir_multigauss
         lines = self.pcs_lines
-        pnum = int(10**exponent(stop_index - start_index)/4.0)
+        pnum = int(10**exponent(num)/4.0)
         imin, imax = s.ref_check_lower_lim, s.ref_check_upper_lim
-        for k in range(start_index, stop_index):
+        for k in range(num):
             img = lst.current_img()
             t = lst.current_time()
             ts.append(t)
@@ -1521,7 +1524,7 @@ class EmissionRateAnalysis(object):
                 warn("Skipped image no. %d" %k)
             try:
                 if k % pnum == 0:            
-                    print "Progress: %d (%d)" %(k, stop_index)
+                    print "Progress: %d (%d)" %(k, num)
             except:
                 pass
             lst.goto_next()  

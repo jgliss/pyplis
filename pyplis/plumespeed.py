@@ -722,8 +722,9 @@ class VeloCrossCorrEngine(object):
             both PCS lines
         """
         from pyplis.imagelists import BaseImgList
-        lst = self.imglist
         
+        lst = self.imglist
+        cfn_temp = lst.cfn
         pcs1 = self.pcs.convert(to_pyrlevel=lst.pyrlevel, 
                                 to_roi_abs=lst.roi_abs)
         pcs2 = self.pcs_offset.convert(to_pyrlevel=lst.pyrlevel,
@@ -797,8 +798,9 @@ class VeloCrossCorrEngine(object):
         # of this script in case they exist and option RELOAD = 0)
         self.profile_images["pcs"] = prof_pic1
         self.profile_images["pcs_offset"] = prof_pic2
+        lst.goto_img(cfn_temp)
         
-        return prof_pic1, prof_pic2
+        return (prof_pic1, prof_pic2)
     
     def run(self, **settings):
         """Applies correlation algorithm to ICA time series of both lines

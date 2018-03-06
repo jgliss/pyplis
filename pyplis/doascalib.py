@@ -842,6 +842,8 @@ class DoasFOVEngine(object):
         try:
             if self.img_stack.img_prep["is_aa"]:
                 cid = "AA"
+            else:
+                raise Exception
         except:
             cid = self.img_stack.stack_id
         self.calib_data.calib_id = cid

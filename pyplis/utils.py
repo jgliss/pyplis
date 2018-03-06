@@ -19,7 +19,7 @@
 
 from numpy import (vstack, asarray, ndim, round, hypot, linspace, sum, zeros,
                    complex, angle, array, cos, sin, arctan, dot, int32, pi, 
-                   isnan, nan, mean)
+                   isnan, nan, mean, ndarray)
     
 from numpy.linalg import norm
 from scipy.ndimage import map_coordinates 
@@ -481,7 +481,7 @@ class LineOnImage(object):
             print ("x coordinate of start point is larger than of stop point: "
                     "start and stop will be exchanged")
             self.start, self.stop = self.stop, self.start
-     
+    
     def in_image(self, img_array):
         """Check if this line is within the coordinates of an image array
         
@@ -559,6 +559,35 @@ class LineOnImage(object):
         self._line_roi_abs= roi_abs
         return roi_abs
     
+    def integrate_profile(self, input_img, pix_step_length=None):
+        """Integrate the line profile on input image
+        
+        Parameters
+        ----------
+        input_img : Img
+            input image data for 
+        """
+        try:
+            # in case input is an Img
+            input_img = input_img.img
+        except:
+            pass
+        vals = self.get_line_profile(input_img)
+        if pix_step_length is None:
+            warn("No information about integration step lengths provided "
+                 "Integration is performed in units of pixels")
+            return sum(vals)
+        try:
+            pix_step_length = pix_step_length.img
+        except:
+            pass
+        if isinstance(pix_step_length, ndarray):
+            if not pix_step_length.shape == input_img.shape:
+                raise ValueError("Shape mismatch between input image and "
+                                 "pixel")
+            pix_step_length = self.get_line_profile(pix_step_length)
+        return sum(vals * pix_step_length)
+        
     def _roi_from_rot_rect(self):
         """Set current ROI from current rotated rectangle coords"""
         r = self._rect_roi_rot

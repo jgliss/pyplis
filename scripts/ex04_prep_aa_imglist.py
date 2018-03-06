@@ -29,7 +29,7 @@ from matplotlib.pyplot import close
 from os.path import join
 
 ### IMPORT GLOBAL SETTINGS
-from SETTINGS import SAVEFIGS, SAVE_DIR, FORMAT, DPI, IMG_DIR, OPTPARSE
+from SETTINGS import SAVEFIGS, SAVE_DIR, FORMAT, DPI, IMG_DIR, OPTPARSE, PCS1
 
 ### IMPORTS FROM OTHER EXAMPLE SCRIPTS
 from ex01_analysis_setup import create_dataset
@@ -125,6 +125,16 @@ if __name__ == "__main__":
     ax1 = aa_list.bg_model.plot_sky_reference_areas(aa_list.current_img())
     fig = aa_list.bg_model.plot_tau_result(aa_list.current_img())
 
+    #import plume cross section and computed integrated optical density
+    # for current image
+    img = aa_list.this
+    ax2 = img.show(vmin=-0.1, vmax=0.3)
+    pcs = PCS1.convert(to_pyrlevel=0)
+    pcs.plot_line_on_grid(ax=ax2)
+    pix_steps = aa_list.meas_geometry.\
+                    compute_all_integration_step_lengths()[0]
+    integrated_aa = pcs.integrate_profile(img, pix_steps)
+    
     ### IMPORTANT STUFF FINISHED
     if SAVEFIGS:
         ax.figure.savefig(join(SAVE_DIR, "ex04_out_1.%s" %FORMAT), 

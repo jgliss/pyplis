@@ -991,6 +991,7 @@ class BaseImgList(object):
             image stack containing stacked images 
         """
         self.edit_active=True
+        cfn = self.cfn
         if isinstance(start_idx, datetime):
             start_idx = self.timestamp_to_index(start_idx)
         if isinstance(stop_idx, datetime):
@@ -1066,6 +1067,7 @@ class BaseImgList(object):
         self.pyrlevel = _pyrlevel
         self.crop = _crop
         self.roi_abs = _roi
+        self.goto_img(cfn)
         self.auto_reload = True
         if not sum(stack._access_mask) > 0:
             raise ValueError("Failed to build stack, stack is empty...")
@@ -2594,10 +2596,12 @@ class ImgList(BaseImgList):
                 raise AttributeError("No linked list with ID %s found in image"
                     " list %s" %(self.list_id, lst))
             self._bg_list_id = lst
+            self.det_vign_mask_from_bg_img()
         elif isinstance(lst, ImgList):
             lid = "bg_" + self.list_id
             self.link_imglist(lst, list_id=lid)
             self._bg_list_id = lid
+            self.det_vign_mask_from_bg_img()
         else:
             raise ValueError("Invalid input for assignment of background image"
                 " list. Please provide either a string of one of the image "
