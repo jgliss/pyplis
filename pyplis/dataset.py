@@ -451,6 +451,10 @@ class Dataset(object):
                     link_imglist(off_list)
             except:
                 pass
+        if self.setup.REG_SHIFT_OFF:
+            for lst in self.img_lists_with_data.values():
+                if lst.list_type == "off":
+                    lst.shift_mode = True
         [warn(x) for x in warnings]
         return True
     

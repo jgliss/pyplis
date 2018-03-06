@@ -1248,7 +1248,7 @@ class Img(object):
             shift in y-direction
         """
         dx_rel, dy_rel = dx_abs / 2**self.pyrlevel, dy_abs / 2**self.pyrlevel
-        self.img = shift(self.img, shift=(dy_rel, dx_rel), cval=1)
+        self.img = shift(self.img, shift=(dy_rel, dx_rel), cval=.01)
         self.edit_log["shifted"] = True
         
     def show_histogram(self, ax=None):

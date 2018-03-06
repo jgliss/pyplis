@@ -1739,7 +1739,8 @@ class ImgList(BaseImgList):
                                  "tau"       :  False, #load as OD images
                                  "aa"        :  False, #load as AA images
                                  "senscorr"  :  False, #correct for cross-detector sensitivity variations
-                                 "gascalib"  :  False})#load as calibrated SO2 images
+                                 "gascalib"  :  False,
+                                 "shift"     :  False})#load as calibrated SO2 images
                                  
         self._ext_coeffs = None
         
@@ -1888,6 +1889,19 @@ class ImgList(BaseImgList):
         """
         self.activate_tau_mode(value)
      
+    @property
+    def shift_mode(self):
+        """Current list regsistration shift mode"""
+        return self._list_modes["shift"]
+        
+    @shift_mode.setter
+    def shift_mode(self, value):
+        """Change current list registration shift mode
+        
+        Wrapper for :func:`activate_shift_mode`        
+        """
+        self.activate_shift_mode(value)
+        
     @property
     def aa_mode(self):
         """Returns current list AA mode"""
@@ -2140,6 +2154,35 @@ class ImgList(BaseImgList):
         self._list_modes["vigncorr"] = value
         self.load()
     
+    def activate_shift_mode(self, value=True):
+        """Activate / deactivate image shift on load
+        
+        The shift that is set in the assigned Camera class is used
+        
+        Parameters
+        -----------
+        value : bool
+            new mode
+        """
+        if value is self.shift_mode:
+            return
+        if value:
+            if not self.list_type == "off":
+                raise TypeError("Automatic shift can only be activated in "
+                                "offband lists")
+            if all([x==0 for x in self.camera.reg_shift_off]):
+                raise ValueError("Camera %s has no image registration "
+                                 "shift defined" %self.camera.cam_id )
+            dx, dy = self.camera.reg_shift_off
+            img = self._this_raw_fromfile()
+            if img.pyrlevel != 0:
+                raise AttributeError("Loaded raw images have non-zero "
+                                     "pyramid level, cannot apply shift")
+            img.shift(dx, dy)
+        self._list_modes["shift"] = value
+        self._check_shift_others()
+        self.load()
+        
     def activate_tau_mode(self, value=True):
         """Activate tau mode
         
@@ -2496,8 +2539,40 @@ class ImgList(BaseImgList):
             try:
                 self.vign_mask #raises AttributeError if not available
             except AttributeError:
-                self.det_vign_mask_from_bg_img()    
-    
+                self.det_vign_mask_from_bg_img() 
+        self._check_shift_others()
+        
+    def _check_shift_others(self):
+        """Checks if background and vignetting mask are shifted according to 
+        current list mode"""
+        if self.shift_mode:
+            dx, dy = self.camera.reg_shift_off
+            try:
+                if not self.bg_img.is_shifted:
+                    self.bg_img.shift(dx, dy)
+            except:
+                print("No BG img available")
+            try:
+                if not self.vign_mask.is_shifted:
+                    self.vign_mask.shift(dx, dy)
+            except:
+                print("No vignetting mask available")
+        else:
+            try:
+                if self.bg_img.is_shifted:
+                    raise ImgMetaError("Current BG image is shifted...")
+            except ImgMetaError as e:
+                raise e
+            except:
+                pass
+            try:
+                if self.vign_mask.is_shifted:
+                    raise ImgMetaError("Current vignetting mask is shifted...")
+            except ImgMetaError as e:
+                raise e
+            except:
+                pass
+            
     def set_bg_list(self, lst):
         """Assign background image list to this list
         
@@ -3505,6 +3580,11 @@ class ImgList(BaseImgList):
         if self.darkcorr_mode:
             dark = self.get_dark_image(key).to_pyrlevel(img.pyrlevel)
             img.subtract_dark_image(dark)
+        if self.shift_mode:
+            if img.pyrlevel != 0:
+                raise AttributeError("Shift cannot be applied for images that "
+                                     "are not on pyramid level 0 on load")
+            img.shift(*self.camera.reg_shift_off)
         # things are more complicated if dilution correction mode is active, 
         # since this requires the retrieval of a plume pixel mask, the 
         # retrieval of the actual pixel dependent plume background and a 

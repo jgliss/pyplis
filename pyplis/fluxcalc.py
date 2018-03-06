@@ -43,7 +43,7 @@ from .helpers import check_roi, exponent, roi2rect, map_roi
 
 LABEL_SIZE=rcParams["font.size"]+ 2
 
-class ImageOutputSettings(object):
+class ImageOutput(object):
     """Class  for specifying default output for emission rate analyses"""
     def __init__(self, out_dir=None, overlay_optflow=True, img_vmin=None, 
                  img_vmax=None):
@@ -882,7 +882,10 @@ class EmissionRateRatio(EmissionRates):
         ax.set_ylabel("")
         return ax
         
-            
+
+class EmissionRateDisplay(object):
+    pass   
+        
 class EmissionRateAnalysis(object):
     """Class to perform emission rate analysis
     
@@ -905,7 +908,6 @@ class EmissionRateAnalysis(object):
         the list (e.g. dark correction, blurring or choosing the pyramid level) 
         and should therefore be set before. A warning is given, in case dark 
         correction is not activated.
-    
     pcs_lines : list
         python list containing :class:`LineOnImage` objects supposed to be used 
         for retrieval of emission rates (can also be a :class:`LineOnImage` 
