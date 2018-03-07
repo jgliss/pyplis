@@ -125,7 +125,8 @@ class EmissionRateSettings(object):
         self.senscorr = True #apply AA sensitivity correction
         self.dilcorr = False
         self.live_calib = False
-        self.min_cd = -1e30 #minimum required column density for retrieval [cm-2]
+        self.min_cd = 0 #minimum required column density for retrieval [cm-2]
+        self.min_cd_flow = nan
         self.mmol = MOL_MASS_SO2
         
         try:
@@ -885,9 +886,6 @@ class EmissionRateRatio(EmissionRates):
         return ax
         
 
-class EmissionRateDisplay(object):
-    pass   
-        
 class EmissionRateAnalysis(object):
     """Class to perform emission rate analysis
     
@@ -1289,6 +1287,7 @@ class EmissionRateAnalysis(object):
         roi_bg_abs = self.settings.bg_roi_abs
         velo_modes = s.velo_modes
         min_cd = s.min_cd
+        min_cd_flow = min_cd if isnan(s.min_cd_flow) else s.min_cd_flow
         gauss_fit = s.velo_dir_multigauss
         lines = self.pcs_lines
         pnum = int(10**exponent(num)/4.0)
@@ -1382,7 +1381,7 @@ class EmissionRateAnalysis(object):
                             idx = k
                         else:                            
                             # get mask specifying plume pixels
-                            mask = lst.get_thresh_mask(min_cd)
+                            mask = lst.get_thresh_mask(min_cd_flow)
                             props.\
                             get_and_append_from_farneback(flow,
                                                           line=pcs,
@@ -1417,7 +1416,7 @@ class EmissionRateAnalysis(object):
                                 idx = k
                             else:                            
                                 # get mask specifying plume pixels
-                                mask = lst.get_thresh_mask(min_cd)        
+                                mask = lst.get_thresh_mask(min_cd_flow)        
                                 props.\
                                 get_and_append_from_farneback(flow,
                                                               line=pcs,
