@@ -63,7 +63,7 @@ DILCORR = True
 
 # You can specify here if you only want a certain number of images analysed
 START_INDEX = 0
-STOP_INDEX = None
+STOP_INDEX = None#20
 
 
 ### SCRIPT OPTONS  

@@ -606,7 +606,8 @@ def get_topo_dists_lines(lines, geom, img=None, skip_pix=5, topo_res_m=5.0,
 
 def perform_dilution_correction(plume_img, ext, plume_bg_img, plume_dist_img,
                                 plume_pix_mask):
-    dists = plume_pix_mask.astype(float) * plume_dist_img 
+    
+    dists = plume_pix_mask * plume_dist_img 
     return ((plume_img - plume_bg_img *
             (1 - exp(-ext * dists))) / exp(-ext * dists))
                                                 

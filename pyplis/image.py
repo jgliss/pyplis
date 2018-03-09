@@ -1325,56 +1325,46 @@ class Img(object):
         :param Img img_obj: object to be added
         :return: new image object
         """
+        if isinstance(val, Img):
+            val = val.img
         try:
-            im = self.duplicate()
-            im.img = self.img + val.img
-            return im
+            img = Img(self.img + val, **self.meta)
+            img.edit_log.update(self.edit_log)
+            return img
         except:
-            try:
-                im = self.duplicate()
-                im.img = self.img + val
-                return im
-            except:
-                raise TypeError("Could not add value %s to image" %type(val))
-        
-            
+            raise TypeError("Could not add input %s to image" %type(val))
+             
     def __sub__(self, val):
         """Subtract another image object
         
         :param Img img_obj: object to be subtracted
         :return: new image object
         """
+        if isinstance(val, Img):
+            val = val.img
         try:
-            im = self.duplicate()
-            im.img = self.img - val.img
-            return im
+            img = Img(self.img - val, **self.meta)
+            img.edit_log.update(self.edit_log)
+            return img
         except:
-            try:
-                im = self.duplicate()
-                im.img = self.img - val
-                return im
-            except:
-                raise TypeError("Could not subtract value %s from image" 
-                                                                %type(val))
+            raise TypeError("Could not subtract input %s from image" 
+                            %type(val))
     
     def __mul__(self, val):
         """Multiply another image object
         
         :param Img img_obj: object to be multiplied
         :return: new image object
-        """
+        """        
+        if isinstance(val, Img):
+            val = val.img
         try:
-            im = self.duplicate()
-            im.img = self.img * val.img
-            return im
+            img = Img(self.img * val, **self.meta)
+            img.edit_log.update(self.edit_log)
+            return img
         except:
-            try:
-                im = self.duplicate()
-                im.img = self.img * val
-                return im
-            except:
-                raise TypeError("Could not multilply image with value %s" 
-                                                                %type(val))
+            raise TypeError("Could not multiply value %s to image" 
+                                                            %type(val))
 
     def __truediv__(self, val):
         """Divide another image object (float division)
@@ -1382,18 +1372,15 @@ class Img(object):
         :param Img img_obj: object to be multiplied
         :return: new image object
         """
+        if isinstance(val, Img):
+            val = val.img
         try:
-            im = self.duplicate()
-            im.img = self.img / val.img
-            return im
+            img = Img(self.img / val, **self.meta)
+            img.edit_log.update(self.edit_log)
+            return img
         except:
-            try:
-                im = self.duplicate()
-                im.img = self.img / val
-                return im
-            except:
-                raise TypeError("Could not divide image with value %s" 
-                                                                %type(val))
+            raise TypeError("Could not divide image by input %s" %type(val))
+            
     def __div__(self, val):
         return self.__truediv__(val)
 
