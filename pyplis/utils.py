@@ -774,7 +774,7 @@ class LineOnImage(object):
         """Determine the length in pixel coordinates"""
         return int(round(hypot(*self._delx_dely())))
         
-    def get_line_profile(self, array):
+    def get_line_profile(self, array, order=1, **kwargs):
         """Retrieve the line profile along pixels in input array
          
         Parameters
@@ -782,7 +782,13 @@ class LineOnImage(object):
         array : array
             2D data array (e.g. image data). Color images are converted into
             gray scale using :func:`cv2.cvtColor`.
-        
+        order : int
+            order of spline interpolation used to retrieve the values along
+            input coordinates (passed to :func:`map_coordinates`)
+        **kwargs
+            additional keword args passed to interpolation method
+            :func:`map_coordinates`
+            
         Returns
         -------
         array
@@ -806,7 +812,7 @@ class LineOnImage(object):
             array = cvtColor(array, COLOR_BGR2GRAY)
 
         # Extract the values along the line, using interpolation
-        zi = map_coordinates(array, self.profile_coords)
+        zi = map_coordinates(array, self.profile_coords, order=order, **kwargs)
         if sum(isnan(zi)) != 0:
             warn("Retrieved NaN for one or more pixels along line on input "
                  "array")

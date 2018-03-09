@@ -43,13 +43,28 @@ from .helpers import check_roi, exponent, roi2rect, map_roi
 
 LABEL_SIZE=rcParams["font.size"]+ 2
 
-class ImageOutput(object):
+class OutputERA(object):
     """Class  for specifying default output for emission rate analyses"""
     def __init__(self, out_dir=None, overlay_optflow=True, img_vmin=None, 
                  img_vmax=None):
-        self.fig = None
-        
         raise NotImplementedError("Site under construction")
+        self.save_figs = False
+        self.save_video = False
+        
+        self.out_dir = None
+        
+        # Visualisation options
+        self.add_veff_histo = False
+        self.add_flux = False
+        self.overlay_optflow = True
+        
+    def init_output(self):
+        """Based on settings, create all relevant objects
+        """
+        pass
+    def init_axes(self):
+        """Init figure based on current settings"""
+        pass
         
 class EmissionRateSettings(object):
     """Class for management of settings for emission rate retrievals
@@ -125,7 +140,7 @@ class EmissionRateSettings(object):
         self.senscorr = True #apply AA sensitivity correction
         self.dilcorr = False
         self.live_calib = False
-        self.min_cd = 0 #minimum required column density for retrieval [cm-2]
+        self.min_cd = -1e30 #minimum required column density for retrieval [cm-2]
         self.min_cd_flow = nan
         self.mmol = MOL_MASS_SO2
         
@@ -1077,7 +1092,6 @@ class EmissionRateAnalysis(object):
         
     def check_and_init_list(self):
         """Checks if image list is ready and includes all relevant info"""
-        
         lst = self.imglist
         # activate calibration mode: images are calibrated using DOAS 
         # calibration polynomial. The fitted curve is shifted to y axis 
@@ -1113,7 +1127,7 @@ class EmissionRateAnalysis(object):
                 self.settings.senscorr=False
         if self.settings.dilcorr:
             lst.dilcorr_mode = True
-        
+            
     def get_pix_dist_info_all_lines(self):
         """Retrieve pixel distances and uncertainty for all pcs lines
         
@@ -1264,7 +1278,7 @@ class EmissionRateAnalysis(object):
         if stop_index is None:
             stop_index = lst.nof - 1 
         
-        num = lst._iter_num()
+        num = lst._iter_num(start_index, stop_index)
         flow = self.imglist_optflow.optflow
         s = self.settings
         results = self.init_results()

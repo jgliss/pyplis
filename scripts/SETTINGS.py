@@ -65,6 +65,7 @@ LINES = [PCS1, PCS2]
 OPTPARSE = OptionParser(usage='')
 OPTPARSE.add_option('--show', dest="show", default=SCREENPRINT)
 OPTPARSE.add_option('--test', dest="test", default=TESTMODE)
+OPTPARSE.add_option('--clear', dest="clear", default=False)
 
 def check_version():
     v_code = [int(x) for x in __version__.split(".")[:2]]

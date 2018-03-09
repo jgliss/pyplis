@@ -135,3 +135,6 @@ scripts/more_scripts/DEV*
 
 # Plots, data, etc from develoment scripts
 scripts/scripts_out/DEV*
+
+# Results from profiling runs
+scripts/_profiler_results

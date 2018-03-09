@@ -63,7 +63,7 @@ def load_ecII_fits(file_path, meta={}, **kwargs):
     """Load NILU ECII camera FITS file and import meta information"""
     hdu = fits.open(file_path)
     ec2header = hdu[0].header 
-    img = hdu[0].data.astype(float32)
+    img = hdu[0].data
     hdu.close()
     gain_info = {"LOW"  :   0,"HIGH" :   1}
     meta["texp"] = float(ec2header['EXP'])*10**-6        #unit s

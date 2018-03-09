@@ -59,10 +59,15 @@ def prepare_aa_image_list(bg_corr_mode=6):
     
     ### Get on and off lists and activate dark correction
     lst = dataset.get_list("on")
-    lst.activate_darkcorr() #same as lst.darkcorr_mode = 1
-    
     off_list = dataset.get_list("off")
-    off_list.activate_darkcorr()
+    
+    # Deactivate automatic reload in list while changing some list 
+    # attributes
+    lst.auto_reload = False
+    off_list.auto_reload = False
+    
+    lst.darkcorr_mode = True
+    off_list.darkcorr_mode = True
 
     # Prepare on and offband background images
     bg_on = pyplis.Img(path_bg_on)
@@ -90,6 +95,9 @@ def prepare_aa_image_list(bg_corr_mode=6):
     
     lst.aa_mode = True # activate AA mode 
     
+    off_list.auto_reload = True
+    lst.auto_reload = True
+    print("INITIATED AA LIST")
     lst.meas_geometry = geom
     return lst
     

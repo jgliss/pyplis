@@ -388,9 +388,11 @@ class BaseImgList(object):
     
     @pyrlevel.setter
     def pyrlevel(self, value):
-        self.img_prep["pyrlevel"] = int(value)
-        self.load()
-    
+        print("Updating pyrlevel and reloading")
+        if value != self.pyrlevel:
+            self.img_prep["pyrlevel"] = int(value)
+            self.load()
+        
     @property
     def gaussian_blurring(self):
         """Current blurring level
@@ -550,6 +552,8 @@ class BaseImgList(object):
         self.files.extend(files)
         self.init_filelist(at_index=self.index)
         if load and self.data_available:
+            print("Added %d files list %s, load %s" %(len(files), 
+                                                    self.list_id, load))
             self.load()
         
     def init_filelist(self, at_index=0):
@@ -911,27 +915,6 @@ class BaseImgList(object):
                     return False
         return True
     
-    def _iter_num(self, start_idx, stop_idx):
-        """Returns the number of iterations for a loop
-        
-        The number of iterations is based on the current attribute
-        ``skip_files``.
-        
-        Parameters
-        ----------
-        start_idx : int
-            start index of loop
-        stop_idx : int 
-            stop index of loop
-            
-        Returns
-        -------
-        int
-            number of required iterations
-        """
-        # the int(x) function rounds down, so no floor(x) needed
-        return int((stop_idx - start_idx) / (self.skip_files+1.0))
-    
     def make_stack(self, stack_id=None, pyrlevel=None, roi_abs=None,
                    start_idx=0, stop_idx=None, ref_check_roi_abs=None,
                    ref_check_min_val=None, ref_check_max_val=None,
@@ -1285,23 +1268,6 @@ class BaseImgList(object):
             %self.list_id)
         for key, val in d.iteritems():
             print "%s: %s" %(key, val)
-        
-    def _make_header(self):
-        """Make header for current image (based on image meta information)"""
-        try:
-            im = self.current_img()
-            if not isinstance(im, Img):
-                raise Exception("Current image not accessible in ImgList...")
-
-            s = ("%s (Img %s of %s), read_gain %s, texp %.2f s"
-                %(self.current_time().strftime('%d/%m/%Y %H:%M:%S'),\
-                        self.index + 1, self.nof, im.meta["read_gain"],\
-                                                        im.meta["texp"]))
-            return s
-            
-        except Exception as e:
-            print repr(e)
-            return "Creating img header failed...(Do you see the img Dummy??)"
             
     """
     Functions related to image editing and edit management
@@ -1313,25 +1279,6 @@ class BaseImgList(object):
         """
         self.img_prep["blurring"] += sigma
         self.load()
-        
-    def _apply_edit(self, key):
-        """Applies the current image edit settings to image
-        
-        :param str key: image id (e.g. this)            
-        """
-        if not self.edit_active:
-            print ("Edit not active in img_list " + self.list_id + ": no image "
-                "preparation will be performed")
-            return
-        img = self.loaded_images[key]
-        img.to_pyrlevel(self.img_prep["pyrlevel"])
-        if self.img_prep["crop"]:
-            img.crop(self.roi_abs)
-        img.add_gaussian_blurring(self.img_prep["blurring"])
-        img.apply_median_filter(self.img_prep["median"])
-        if self.img_prep["8bit"]:
-            img._to_8bit_int(new_im=False)
-        self.loaded_images[key] = img
         
     def cam_id(self):
         """Get the current camera ID (if camera is available)"""
@@ -1373,6 +1320,7 @@ class BaseImgList(object):
         """
         img = self.loaded_images[key]
         if not isinstance(img, Img):
+            print("CALLING LOAD IN CURRENT_IMG %s, list %s" %(key, self.list_id))
             self.load()
             img = self.loaded_images[key]
         return img
@@ -1430,45 +1378,6 @@ class BaseImgList(object):
         mean = self.get_mean_value()
         ax = mean.plot(yerr=yerr, ax=ax)
         return ax
-    
-    def _this_raw_fromfile(self):
-        """Reloads and returns current image
-        
-        This method is used for test purposes and does not change the list
-        state. See for instance :func:`activate_dilution_corr` in 
-        :class:`ImgList`
-        
-        Returns
-        -------
-        Img
-            the current image loaded and unmodified from file    
-        """
-        return self._load_image(self.index)
-    
-    def _load_image(self, list_index):
-        """This method loads the actual image data for a given index
-        
-        Parameters
-        ----------
-        list_index : int
-            Index of image in file list ``self.files``
-            
-        Returns
-        -------
-        Img 
-            the loaded image data (unmodified)
-        """
-        file_path = self.files[list_index]
-        try:
-            meta = self.get_img_meta_from_filename(file_path)
-        except:
-            warn("Failed to retrieve image meta information from file path %s"
-                 %file_path)
-            meta = {}
-        meta["filter_id"] = self.list_id
-        return Img(file_path, 
-                   import_method=self.camera.image_import_method,                            
-                   **meta)
         
     def plot_tseries_vert_profile(self, pos_x, start_y=0, stop_y=None,
                                   step_size=0.1, blur=4):
@@ -1551,6 +1460,85 @@ class BaseImgList(object):
     """
     Private methods
     """
+    def _this_raw_fromfile(self):
+        """Reloads and returns current image
+        
+        This method is used for test purposes and does not change the list
+        state. See for instance :func:`activate_dilution_corr` in 
+        :class:`ImgList`
+        
+        Returns
+        -------
+        Img
+            the current image loaded and unmodified from file    
+        """
+        return self._load_image(self.index)
+    
+    def _load_image(self, list_index):
+        """This method loads the actual image data for a given index
+        
+        Parameters
+        ----------
+        list_index : int
+            Index of image in file list ``self.files``
+            
+        Returns
+        -------
+        Img 
+            the loaded image data (unmodified)
+        """
+        file_path = self.files[list_index]
+        try:
+            meta = self.get_img_meta_from_filename(file_path)
+        except:
+            warn("Failed to retrieve image meta information from file path %s"
+                 %file_path)
+            meta = {}
+        meta["filter_id"] = self.list_id
+        return Img(file_path, 
+                   import_method=self.camera.image_import_method,                            
+                   **meta)
+        
+    def _apply_edit(self, key):
+        """Applies the current image edit settings to image
+        
+        :param str key: image id (e.g. this)            
+        """
+        if not self.edit_active:
+            print ("Edit not active in img_list " + self.list_id + ": no image "
+                "preparation will be performed")
+            return
+        img = self.loaded_images[key]
+        img.to_pyrlevel(self.img_prep["pyrlevel"])
+        if self.img_prep["crop"]:
+            img.crop(self.roi_abs)
+        img.add_gaussian_blurring(self.img_prep["blurring"])
+        img.apply_median_filter(self.img_prep["median"])
+        if self.img_prep["8bit"]:
+            img._to_8bit_int(new_im=False)
+        self.loaded_images[key] = img
+    
+    def _iter_num(self, start_idx, stop_idx):
+        """Returns the number of iterations for a loop
+        
+        The number of iterations is based on the current attribute
+        ``skip_files``.
+        
+        Parameters
+        ----------
+        start_idx : int
+            start index of loop
+        stop_idx : int 
+            stop index of loop
+            
+        Returns
+        -------
+        int
+            number of required iterations
+        """
+        # the int(x) function rounds down, so no floor(x) needed
+        return int((stop_idx - start_idx) / (self.skip_files+1.0))
+    
     def _first_file(self):
         """get first file path of image list"""
         try:
@@ -1568,7 +1556,24 @@ class BaseImgList(object):
             print "Filelist empty..."
         except:
             raise 
+    
+    def _make_header(self):
+        """Make header for current image (based on image meta information)"""
+        try:
+            im = self.current_img()
+            if not isinstance(im, Img):
+                raise Exception("Current image not accessible in ImgList...")
+
+            s = ("%s (Img %s of %s), read_gain %s, texp %.2f s"
+                %(self.current_time().strftime('%d/%m/%Y %H:%M:%S'),\
+                        self.index + 1, self.nof, im.meta["read_gain"],\
+                                                        im.meta["texp"]))
+            return s
             
+        except Exception as e:
+            print repr(e)
+            return "Creating img header failed..."
+        
     def _get_and_set_geometry_info(self):
         """Compute and write plume and pix-to-pix distances from MeasGeometry"""
         try:
@@ -1762,6 +1767,8 @@ class ImgList(BaseImgList):
         self.dark_lists = od()
         self.offset_lists = od()
         self._dark_corr_opt = self.camera.darkcorr_opt
+        
+        self._last_dark = None
         
         # Dark images will be updated every 10 minutes (i.e. before an image is
         # dark and offset corrected it will be checked if the currently loaded
@@ -2110,7 +2117,7 @@ class ImgList(BaseImgList):
                      %self.list_id)
                 return
             self.get_dark_image()
-            self.update_index_dark_offset_lists()
+            #self.update_index_dark_offset_lists()
                     
         self._list_modes["darkcorr"] = value
         self.load()
@@ -2277,12 +2284,13 @@ class ImgList(BaseImgList):
                   "roi_abs (cropping) = %s (prev: %s)"
                   %(self.list_id, offlist.pyrlevel, self.darkcorr_mode, 
                     offlist.darkcorr_mode, DEFAULT_ROI, offlist.roi_abs))
+            ed = offlist.edit_active
             offlist.edit_active = False
             offlist.bg_model.update(**self.bg_model.settings_dict())
             offlist.pyrlevel = offlist._load_edit["this"]["pyrlevel"]
             offlist.darkcorr_mode = self.darkcorr_mode
             offlist.roi_abs = DEFAULT_ROI
-            offlist.edit_active = True
+            offlist.edit_active = ed
             
             if not isinstance(offlist, BaseImgList):
                 raise Exception("Linked off band list could not be found")
@@ -2357,17 +2365,22 @@ class ImgList(BaseImgList):
             # now make sure that in case and off-band list is assigned, it can
             # also be used to perform a dilution correction (i.e. bg_model 
             # ready)
-            try:
-                off_list = self.get_off_list()
-                off_list.bg_model.update(**self.bg_model.settings_dict())
-                off_img = off_list._this_raw_fromfile().to_pyrlevel(off_list.pyrlevel)
-                mask = mask.to_pyrlevel(off_list.pyrlevel)
-                off_list.correct_dilution(off_img, plume_pix_mask=mask)
-            except Exception as e:
-                warn("Failed to apply dilution correction in linked "
-                     "offband list %s. Traceback:\n%s"
-                     %(self.list_id, format_exc(e)))
-            
+            if self.list_type == "on":
+                lid = "No offlist found..."
+                try:
+                    off_list = self.get_off_list()
+                    lid=off_list.list_id
+                    off_list.bg_model.update(**self.bg_model.settings_dict())
+                    off_img = off_list._this_raw_fromfile().to_pyrlevel(off_list.pyrlevel)
+                    mask = mask.to_pyrlevel(off_list.pyrlevel)
+                    off_list.correct_dilution(off_img, plume_pix_mask=mask)
+                except AttributeError:
+                    pass
+                except Exception as e:
+                    warn("Failed to apply dilution correction in linked "
+                         "offband list %s. Traceback:\n%s"
+                         %(lid, format_exc(e)))
+                
         self._list_modes["dilcorr"] = value
         self.load()
         
@@ -2435,7 +2448,11 @@ class ImgList(BaseImgList):
         texp = self.this.meta["texp"]
         #img = self.current_img(key)
         read_gain = self.this.meta["read_gain"]
-        self.update_index_dark_offset_lists()
+        val = self.update_index_dark_offset_lists()
+        last_dark = self._last_dark
+        if not val and isinstance(last_dark, Img):
+            if last_dark.texp == texp and read_gain == last_dark.meta["read_gain"]:
+                return last_dark
         if self.darkcorr_opt == 1:
             try:
                 dark = self.dark_lists[read_gain]["list"].current_img()
@@ -2471,7 +2488,7 @@ class ImgList(BaseImgList):
                      %(self.list_id, key, self.cfn))
         except:
             pass
-    
+        self._last_dark = dark
         return dark
     
     def get_off_list(self, list_id=None):
@@ -2738,53 +2755,25 @@ class ImgList(BaseImgList):
             offset.meta["start_acq"] = acq_time
         offset.meta["read_gain"] = read_gain
         self.master_offset = offset
-        
-# this method was commented out on 9/1/2018    
-# =============================================================================
-#     def set_bg_img_from_polyfit(self, mask=None, **kwargs):
-#         """Sets background image from results of a poly surface fit
-#         
-#         Parameters
-#         ----------
-#         mask : array
-#             mask specifying sky background pixels, if None (default) then this
-#             mask is determined automatically using :func:`prepare_bg_fit_mask`
-#         **kwargs:
-#             additional keyword arguments for :class:`PolySurfaceFit
-#         Returns
-#         -------
-#         Img
-#             fitted background image
-#         """
-#         if mask is None:
-#             mask = self.prepare_bg_fit_mask(dilation=True)
-#         fit = PolySurfaceFit(self.current_img(), mask, **kwargs)
-#         bg = fit.model
-#         try:
-#             low = self.get_dark_image().mean()
-#         except:
-#             low = finfo(float).eps
-#         print "LOW: %s" %low
-#         bg [bg <= low] = low
-#         self.bg_img = Img(bg)
-# =============================================================================
     
     def set_closest_dark_offset(self):
         """Updates the index of the current dark and offset images 
         
         The index is updated in all existing dark and offset lists. 
         """
+        updated = False
         try:
             num = self.index
             for read_gain, info in self.dark_lists.iteritems():
                 darknum = info["idx"][num]
                 if darknum != info["list"].index:
+                    updated=True
                     print ("Dark image index (read_gain %s) was changed in "
                             "list %s from %s to %s" %(read_gain, self.list_id, 
                                                   info["list"].index, darknum))
                     info["list"].goto_img(darknum)
             
-            if self.darkcorr_opt == 1:
+            if self.darkcorr_opt == 1 and updated:
                 for read_gain, info in self.offset_lists.iteritems():
                     offsnum = info["idx"][num]
                     if offsnum != info["list"].index:
@@ -2795,7 +2784,7 @@ class ImgList(BaseImgList):
         except Exception:
             print ("Failed to update index of dark and offset lists")
             return False
-        return True
+        return updated
         
     """LINKING OF OTHER IMAGE LIST OBJECTS"""       
     def link_imglist(self, other_list, list_id=None):
@@ -2808,7 +2797,7 @@ class ImgList(BaseImgList):
                                              self.list_id))
         if list_id is None:
             list_id = other_list.list_id
-        self.current_img(), other_list.current_img()
+        
         if self.linked_lists.has_key(list_id):
             raise AttributeError("ImgList %s has already linked an ImgList "
                                  "with list_id %s. Please choose a different ID")
@@ -2816,7 +2805,7 @@ class ImgList(BaseImgList):
         self.linked_indices[list_id] = {}
         idx_array = self.assign_indices_linked_list(other_list)
         self.linked_indices[list_id] = idx_array
-        self.change_index_linked_lists()
+        #self.change_index_linked_lists()
         other_list.bg_model.update(**self.bg_model.settings_dict())
         
         self.load()
@@ -3060,10 +3049,10 @@ class ImgList(BaseImgList):
         array
             mask specifying pixels that exceed the threshold
         """
-        mask = self.this.duplicate().to_binary(thresh).img
+        mask = self.this.get_thresh_mask(thresh)
         if this_and_next and not self.cfn == self.nof - 1:
-            mask = logical_or(mask, 
-                              self.loaded_images["next"].duplicate().to_binary(thresh).img)
+            next_mask = self.loaded_images["next"].get_thresh_mask(thresh)
+            mask = logical_or(mask, next_mask).astype(uint8)
         return mask
 
     def det_vign_mask_from_bg_img(self):
@@ -3554,17 +3543,18 @@ class ImgList(BaseImgList):
     def update_index_dark_offset_lists(self):
         """Check and update current dark image (if possible / applicable)"""
         if self.darkcorr_opt == 0:
-            return
+            return False
         t_last = self.time_last_dark_check
-
         ctime = self.current_time()
-
-        if not (t_last - timedelta(minutes = self.update_dark_ival)) < ctime <\
-                        (t_last + timedelta(minutes = self.update_dark_ival)):
+        if not ((t_last-timedelta(minutes=self.update_dark_ival)) 
+                < ctime <
+                (t_last+timedelta(minutes=self.update_dark_ival))):
             if self.set_closest_dark_offset():
                 print ("Updated dark / offset in img_list %s at %s"
                         %(self.list_id, ctime))
                 self.time_last_dark_check = ctime
+                return True
+        return False
 
     """Private methods"""
     def _apply_edit(self, key):

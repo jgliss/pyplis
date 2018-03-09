@@ -38,6 +38,7 @@ from traceback import format_exc
 from collections import OrderedDict as od
 
 from .imagelists import ImgList, DarkImgList
+from .image import Img
 from .helpers import shifted_color_map
 from .setupclasses import MeasSetup, Source, Camera
 from .exceptions import ImgMetaError
@@ -97,6 +98,7 @@ class Dataset(object):
             self.init_image_lists()
         else:
             self.create_lists_default()
+        print("DATASET INITIATED")
     
     @property 
     def camera(self):
@@ -428,21 +430,20 @@ class Dataset(object):
                 [warn(x) for x in warnings]
                 return True
                 
-            not_added = 0
             #: now perform separation by meastype and filter
             for p in paths:
                 try:
                     _, filter_id, meas_type, _, _ = self.camera.\
                                             get_img_meta_from_filename(p)
                     self._lists_intern[meas_type][filter_id].files.append(p)
-                except Exception as e:
-                    print repr(e)
-                    not_added += 1
+                except:
+                    print("File %s could not be added..." %p)
             
             for meas_type, sub_dict in self._lists_intern.iteritems():
                 for filter_id, lst in sub_dict.iteritems():
                     lst.init_filelist()
-            
+            for lst in self.img_lists_with_data.values():
+                lst.load()
             self.assign_dark_offset_lists()
         if self.LINK_OFF_TO_ON:
             try:
@@ -455,6 +456,7 @@ class Dataset(object):
             for lst in self.img_lists_with_data.values():
                 if lst.list_type == "off":
                     lst.shift_mode = True
+        
         [warn(x) for x in warnings]
         return True
     
@@ -742,7 +744,10 @@ class Dataset(object):
                             rm.append(key)
                 for key in rm:
                     del lists[key]
-                
+                # now lists only contains dark and offset lists with data
+                for l in lists.values():
+                    if not isinstance(l.loaded_images["this"], Img):
+                        l.load()
                 if not bool(lists):
                     warn("Failed to assign dark / offset lists to image "
                         "list %s, no dark images could be found" %filter_id)

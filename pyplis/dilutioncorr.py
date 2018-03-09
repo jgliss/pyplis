@@ -19,6 +19,7 @@
 """
 Pyplis module for image based correction of the signal dilution effect
 """
+from __future__ import division
 from numpy import asarray, linspace, exp, ones, nan, isnan
 from scipy.ndimage.filters import median_filter
 from matplotlib.pyplot import subplots, rcParams
@@ -561,12 +562,11 @@ def correct_img(plume_img, ext, plume_bg_img, plume_dists, plume_pix_mask):
     except:
         pass
 
-    dists = plume_pix_mask.astype(float) * plume_dists
-    corr_img = plume_img.duplicate()
-    corr_img.img = ((corr_img.img - plume_bg_img.img *
+    dists = plume_pix_mask * plume_dists
+    plume_img.img = ((plume_img.img - plume_bg_img.img *
                     (1 - exp(-ext * dists))) / exp(-ext * dists))
-    corr_img.edit_log["dilcorr"] = True
-    return corr_img   
+    plume_img.edit_log["dilcorr"] = True
+    return plume_img   
     
 def get_topo_dists_lines(lines, geom, img=None, skip_pix=5, topo_res_m=5.0, 
                          min_slope_angle=5.0, plot=False, line_color="lime"):

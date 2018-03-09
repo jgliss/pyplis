@@ -111,7 +111,7 @@ class Img(object):
     """
     _FITSEXT = [".fits", ".fit", ".fts"]
     
-    def __init__(self, input=None, import_method=None, dtype=float32,
+    def __init__(self, input=None, import_method=None, dtype=None,
                  **meta_info):
         """Class initialisation
         
@@ -210,7 +210,7 @@ class Img(object):
     @img.setter
     def img(self, val):
         """Setter for image data"""
-        self._img = val.astype(self.dtype)
+        self._img = val#.astype(self.dtype)
         
     @property
     def start_acq(self):
@@ -395,7 +395,9 @@ class Img(object):
                 self.load_file(input)
             
             elif isinstance(input, ndarray):
-                self.img = input.astype(self.dtype)
+                if self.dtype is not None:
+                    input = input.astype(self.dtype)
+                self.img = input
             else:
                 raise
         except:
@@ -624,6 +626,10 @@ class Img(object):
         self.img = gaussian_filter(self.img, sigma, **kwargs)
         self.edit_log["blurring"] += sigma   
     
+    def get_thresh_mask(self, threshold):
+        """Apply threshold and get binary mask"""
+        return (self.img > threshold).astype(uint8)
+    
     def to_binary(self, threshold=None, new_img=False):
         """Convert image to binary image using threshold
         
@@ -644,14 +650,12 @@ class Img(object):
         """
         if threshold is None:
             threshold = self.mean()
-        mask = (self.img > threshold).astype(uint8)
+        mask = self.get_thresh_mask(threshold)
         if new_img:
-            return Img(mask, dtype=uint8, is_bin=True)
-        self.img = (self.img > threshold).astype(uint8)
+            return Img(mask, is_bin=True)
+        self.img = mask
         self.edit_log["is_bin"] = True
         return self
-        
-    
         
     def invert(self):
         """Invert image
@@ -1051,7 +1055,10 @@ class Img(object):
         try:
             self.load_fits(file_path)
         except:
-            self.img = imread(file_path).astype(self.dtype)
+            img = imread(file_path)
+            if not self.dtype is None:
+                img = img.astype(self.dtype)
+            self.img = img
         self.meta["path"] = abspath(file_path)
         self.meta["file_name"] = basename(file_path)
         self.meta["file_type"] = ext
@@ -1420,7 +1427,8 @@ def model_dark_image(texp, dark, offset):
     dark_img = (offset.img + (dark.img - offset.img) * texp/
                              (dark.meta["texp"] - offset.meta["texp"]))
 
-    return Img(dark_img, texp=texp, pyrlevel=offset.pyrlevel)
+    return Img(dark_img, texp=texp, pyrlevel=offset.pyrlevel, 
+               read_gain=dark.meta["read_gain"])
                 
 class ProfileTimeSeriesImg(Img):
     """Image representing time series of line profiles

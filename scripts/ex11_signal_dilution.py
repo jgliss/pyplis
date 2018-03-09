@@ -193,7 +193,7 @@ def prepare_lists(dataset):
     
 def plot_retrieval_points_into_image(img):
     """Helper method plotting terrain distance retrieval lines into an image"""
-    ax = img.show(zlabel=r"$S_{SO2}$ [cm$^{-2}$]")
+    ax = img.show(vmin=-5e16, vmax=5e18, zlabel=r"$S_{SO2}$ [cm$^{-2}$]")
     ax.set_title("Retrieval lines")
     for line in USE_LINES:
         line.plot_line_on_grid(ax=ax, marker="", color=line.color,

@@ -18,7 +18,8 @@
 """
 Pyplis module containing features related to plume background analysis
 """
-from numpy import (polyfit, poly1d, linspace, logical_and, log, full, argmin,
+from __future__ import division
+from numpy import (polyfit, poly1d, linspace, logical_and, log, argmin,
                    gradient, nan, ndarray, arange, ones, finfo, asarray)
 from matplotlib.patches import Rectangle
 from matplotlib.pyplot import figure, subplots, setp
@@ -26,6 +27,7 @@ import matplotlib.colors as colors
 from collections import OrderedDict as od
 from scipy.ndimage.filters import gaussian_filter
 from warnings import warn
+from traceback import format_exc
 
 from .image import Img
 from .utils import LineOnImage
@@ -99,8 +101,7 @@ class PlumeBackgroundModel(object):
 
         if isinstance(plume_init, Img):
             self.guess_missing_settings(plume_init)
-            self.surface_fit_mask = ones(plume_init.img.shape, 
-                                         dtype=bool)
+            self._init_bgsurf_mask(plume_init)
             if isinstance(bg_raw, Img):
                 self.mode = 1
             self.last_tau_img = self.get_tau_image(plume_init, bg_raw)           
@@ -140,8 +141,8 @@ class PlumeBackgroundModel(object):
     
     @surface_fit_mask.setter
     def surface_fit_mask(self, val):
-        if not isinstance(val, Img):
-            val = Img(val)
+        if isinstance(val, Img):
+            val = val.img
         self._surface_fit_mask = val
         
     def check_settings(self):
@@ -224,7 +225,7 @@ class PlumeBackgroundModel(object):
         if self.check_settings():
             return
         if self.surface_fit_mask is None:
-            self.surface_fit_mask = full(plume.shape, True, dtype=bool)
+            self.surface_fit_mask = ones(plume.shape)
         h, w = plume.shape
         
         res = find_sky_reference_areas(plume)
@@ -284,7 +285,13 @@ class PlumeBackgroundModel(object):
                                    lower_thresh,
                                    apply_movement_search,
                                    **settings_movement_search)
-        self.surface_fit_mask = Img(mask)
+        self.surface_fit_mask = mask
+        return mask
+    
+    def _init_bgsurf_mask(self, plume):
+        print("Initiating BG surface mask in PlumeBackgroundModel")
+        mask = ones(plume.shape)
+        self.surface_fit_mask = mask
         return mask
     
     def bg_from_poly_surface_fit(self, plume, mask=None, polyorder=2,
@@ -321,11 +328,16 @@ class PlumeBackgroundModel(object):
         """
         if not isinstance(plume, Img):
             raise TypeError("Need instance of pyplis Img class")
-        if mask is not None:
-            if not isinstance(mask, Img):
-                mask = Img(mask)
-        else:
+        if mask is None:
             mask = self.surface_fit_mask
+        if not isinstance(mask, ndarray):
+            try:
+                mask = mask.img
+                if not mask.shape == plume.shape:
+                    raise AttributeError("Shape mismatch between mask and "
+                                         "plume image")
+            except:
+                mask = self._init_bgsurf_mask(plume)
         pyrlevel_rel = pyrlevel - plume.pyrlevel
         if pyrlevel_rel < 0:
             warn("Pyramid level of input image (%d) is larger than desired "
@@ -333,20 +345,9 @@ class PlumeBackgroundModel(object):
                  "the current pyrlevel %d of input image" %(plume.pyrlevel,
                                                             pyrlevel))
             pyrlevel_rel=0
-        #update settings from input keyword args
-        if not mask.shape == plume.shape:
-            try:
-                mask = mask.to_pyrlevel(plume.pyrlevel)
-                if not mask.shape == plume.shape:
-                    #one of the two images may be cropped
-                    raise Exception
-            except:
-                warn("Shape mismatch between mask for poly surface fit "
-                     "and input plume image: considering all image pixels for "
-                     "retrieval") 
-                mask = full(plume.shape, True, dtype=bool)   
+        #update settings from input keyword arg
       
-        fit = PolySurfaceFit(plume.img, mask.img.astype(float), 
+        fit = PolySurfaceFit(plume.img, mask, 
                              polyorder=polyorder,
                              pyrlevel=pyrlevel_rel)
         if not fit.model.shape == plume.shape:
@@ -658,7 +659,7 @@ class PlumeBackgroundModel(object):
             palette = colors.ListedColormap(['white', 'lime'])
             norm = colors.BoundaryNorm([0, .5, 1], palette.N)
     
-            ax[3].imshow(self.surface_fit_mask.img, cmap=palette, norm=norm,
+            ax[3].imshow(self.surface_fit_mask, cmap=palette, norm=norm,
                          alpha=.7)
 
             ax[3].set_xticklabels([])
@@ -1243,4 +1244,4 @@ def find_sky_background(plume_img, next_img=None,
                                      **settings_movement_search)
         mask = mask * no_movement
     
-    return mask.astype(bool)
+    return mask
