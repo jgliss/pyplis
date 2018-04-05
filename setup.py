@@ -32,6 +32,7 @@ with open("VERSION.rst") as f:
 #with open(join("pyplis","data", "_paths.txt"), 'w'): pass
 
 usr_dir = join(expanduser('~'), "my_pyplis")
+
 setup(
     name        =   'pyplis',
     version     =   version,

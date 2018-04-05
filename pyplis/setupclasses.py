@@ -108,7 +108,8 @@ class Source(object):
     @property
     def info_available(self):
         """Checks if main information is available"""
-        return all([x is not None for x in [self.lon, self.lat, self.altitude]])
+        return all([x is not None for x in [self.lon, self.lat, 
+                                            self.altitude]])
     
     @property
     def geo_data(self):
@@ -194,14 +195,19 @@ class Source(object):
         return self.info_available
     
     def save_to_database(self):
-        """Saves this camera to default data base"""
+        """Saves the current information as a new source
+        
+        The information is stored in the *my_sources.txt* file that can be 
+        found in the pyplis installation folder *my_pyplis* 
+        """
         save_default_source(self.to_dict())
         
     def get_info(self, name=None, try_online=True):
-        """Load info dict from database 
+        """Load source info from database 
         
-        This method also includes the option of searching the online 
-        source database
+        Looks if desired source (specified by :param:`name`) can be found in 
+        the *my_sources.txt* file and if not, tries to find information about 
+        the source online (if :param:`try_online` is True)
         
         Parameters
         ----------
@@ -269,7 +275,8 @@ class FilterSetup(object):
     """A collection of :class:`pyplis.utils.Filter` objects
     
     This collection specifies a filter setup for a camera. A typical setup 
-    would be one on and one off band filter.
+    would be one on and one off band filter. An instance of this class is 
+    created automatically as an attribute of :class:`Camera` objects.
     
     Parameters
     ----------
@@ -469,7 +476,9 @@ class Camera(CameraBaseInfo):
     """Base class to specify a camera setup
     
     Class representing a UV camera system including detector specifications, 
-    optics, file naming convention and :class:`FilterSetup`.
+    optics, file naming convention and the bandpass filters that are 
+    equipped with the camera (managed via an instance of the 
+    :class:`FilterSetup` class).
     
     Parameters
     ----------
@@ -505,7 +514,7 @@ class Camera(CameraBaseInfo):
         filters= [pyplis.utils.Filter(type="on", acronym="F01"),
                   pyplis.utils.Filter(type="off", acronym="F02")]
         
-        cam = pyplis.setupclasses.Camera(cam_id=ecII", filter_list=filters,
+        cam = pyplis.setupclasses.Camera(cam_id="ecII", filter_list=filters,
                                           lon=15.11, lat=37.73, elev=18.0,
                                           elev_err=3, azim=270.0,
                                           azim_err=10.0, focal_lengh=25e-3)
@@ -568,9 +577,10 @@ class Camera(CameraBaseInfo):
         Note
         ----
         This is typically the local topography altitude, which can for 
-        instance be accessed using :func:`get_altitude_srtm`. Potential 
-        offsets (e.g. due to tripod or measurement from a house roof), you 
-        can use :attr:`alt_offset`.
+        instance be accessed automatically based on camera position (lat, lon) 
+        using :func:`get_altitude_srtm`. Potential offsets (i.e. elevated 
+        positioning due to tripod or measurement from a house roof) can be 
+        specified using :attr:`alt_offset`.
         """
         return self.geom_data["altitude"]
 
@@ -619,7 +629,12 @@ class Camera(CameraBaseInfo):
         
     @property
     def alt_offset(self):
-        """Height of camera position above topography in m"""
+        """Height of camera position above topography in m
+        
+        This offset can be added in case the camera is positioned above the 
+        ground and is only required if :param:`altitude` corresponds to the 
+        topographic elevation
+        """
         return self.geom_data["alt_offset"]
 
     @alt_offset.setter
@@ -668,6 +683,9 @@ class Camera(CameraBaseInfo):
     def prepare_filter_setup(self, filter_list=None, default_key_on=None,
                              default_key_off=None):
         """Create :class:`FilterSetup` object
+        
+        This method defines the camera filter setup based on an input list of
+        :class:`Filter` instances.
         
         Parameters
         ----------
@@ -773,8 +791,6 @@ class Camera(CameraBaseInfo):
             raise MetaAccessError("Please check availability of focal "
                                   "length, and pixel pitch (pix_height)")
         
-    """Magic methods
-    """
     def __str__(self):
         """String representation of this setup"""
         s = ("%s, serno. %s\n-------------------------\n"
@@ -837,6 +853,8 @@ class BaseSetup(object):
         #. :attr:`USE_ALL_FILE_TYPES`
         #. :attr:`INCLUDE_SUB_DIRS`
         #. :attr:`ON_OFF_SAME_FILE`
+        #. :attr:`LINK_OFF_TO_ON`
+        #. :attr:`REG_SHIFT_OFF`
         
     Parameters
     ----------
@@ -978,7 +996,7 @@ class BaseSetup(object):
         file which can be found in the data directory of the installation.
         
         An example for such a file convention is the SO2 camera from CVO (USGS)
-        in Portland. See e.g. 
+        See e.g. :func:`load_usgs_multifits` in :mod:`custom_image_import`.
         """
         return self.options["ON_OFF_SAME_FILE"]
     
@@ -1009,7 +1027,7 @@ class BaseSetup(object):
         
         If True, the images in an offband image list that is linked to an 
         onband image list (cf. :attr:`LINK_OFF_TO_ON`) are shifted using the 
-        registration offset specified in the  ``reg_shift_off2on`` attribute
+        registration offset specified in the  ``reg_shift_off`` attribute
         of the :class:`Camera` instance.
         """
         return self.options["REG_SHIFT_OFF"]
