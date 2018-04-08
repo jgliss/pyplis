@@ -139,7 +139,10 @@ class BaseImgList(object):
         self.linked_lists = {}
         #: this dict (linked_indices) is filled in :func:`link_imglist` to 
         #: increase the linked reload image performance
-        self.linked_indices = {}
+        self._linked_indices = {}
+        # contains info about the always_reload option of linked image lists
+        # is updated whenever a new list is linked to this one
+        self._always_reload = {}
         
         # update image preparation settings (if applicable)
         for key, val in img_prep_settings.iteritems():
@@ -672,6 +675,7 @@ class BaseImgList(object):
         if not -1 < to_index < self.nof:
             raise IndexError("Invalid index %d. List contains only %d files"
                              %(to_index, self.nof))
+        
         elif to_index == self.index:
             if reload_here:
                 self.load()
@@ -1694,7 +1698,33 @@ class AutoDilcorrSettings(object):
         """String representation"""
         for k, v in self.__dict__.iteritems():
             print "%s: %s" %(k, v)
-
+class _LinkedLists:
+    """Management class for linked image lists
+    
+    Attributes
+    ----------
+    lists : dict
+        dictionary containing linked image lists and their IDs (keys)
+    indices : dict
+        dictionary containing lists that contain mapped indices for fast 
+        access for each linked list (keys are list IDs)
+    always_reload : dict
+        dictionary containing information (bool) for each linked list (keys) 
+        that specifies whether images are supposed to be reloaded whenever the
+        index of the parent list is changed (regardless whether the actual 
+        index in the linked list remains the same or not).
+    """
+    def __init__(self):
+        self.lists = od()
+        self.indices = od()
+        self.always_reload = od()
+        
+    @property
+    def all_list_ids(self):
+        return self.lists.keys()
+    
+    def add(self):
+        raise NotImplementedError
 class ImgList(BaseImgList):
     """Image list object with expanded functionality (cf. :class:`BaseImgList`)
     
@@ -2591,8 +2621,8 @@ class ImgList(BaseImgList):
                 raise e
             except:
                 pass
-            
-    def set_bg_list(self, lst):
+    
+    def set_bg_list(self, lst, always_reload=False):
         """Assign background image list to this list
         
         Assigns and links an image list containing background images to this
@@ -2607,6 +2637,11 @@ class ImgList(BaseImgList):
             image list containing background images. Note that the input can
             also be a string specifying the list_id of an image list that is
             already linked to this list.
+        always_reload : bool
+            if True, the current BG image is always reloaded, whenever the 
+            index in this list is changed (not recommended since it is slow).
+            If False, the state of the background list is only changed, if the
+            actual background image index is altered.
         """
         if isinstance(lst, str):
             if not self.linked_lists.has_key(lst):
@@ -2616,7 +2651,7 @@ class ImgList(BaseImgList):
             self.det_vign_mask_from_bg_img()
         elif isinstance(lst, ImgList):
             lid = "bg_" + self.list_id
-            self.link_imglist(lst, list_id=lid)
+            self.link_imglist(lst, list_id=lid, always_reload=always_reload)
             self._bg_list_id = lid
             self.det_vign_mask_from_bg_img()
         else:
@@ -2786,12 +2821,20 @@ class ImgList(BaseImgList):
             return False
         return updated
         
-    """LINKING OF OTHER IMAGE LIST OBJECTS"""       
-    def link_imglist(self, other_list, list_id=None):
+    """LINKING OF OTHER IMAGE LIST OBJECTS"""   
+    def link_imglist(self, other_list, list_id=None, always_reload=True):
         """Link another image list to this list
         
-        :param other_list: another image list object
-        
+        Parameters
+        ----------
+        other_list : ImgList
+            image list object that is supposed to be linked to this one
+        always_reload : bool
+            if True, the current image in the linked list is always reloaded, 
+            whenever the index in this list is changed. This is useful in case
+            an offband list is linked to an onband list, not so much if a
+            list containing BG images is linked to an oband list (see also
+            :func:`set_bg_list`)
         """
         print("Linking list %s to list %s" %(other_list.list_id, 
                                              self.list_id))
@@ -2802,9 +2845,10 @@ class ImgList(BaseImgList):
             raise AttributeError("ImgList %s has already linked an ImgList "
                                  "with list_id %s. Please choose a different ID")
         self.linked_lists[list_id] = other_list
-        self.linked_indices[list_id] = {}
+        #self._linked_indices[list_id] = {}
+        self._always_reload[list_id] = always_reload
         idx_array = self.assign_indices_linked_list(other_list)
-        self.linked_indices[list_id] = idx_array
+        self._linked_indices[list_id] = idx_array
         #self.change_index_linked_lists()
         other_list.bg_model.update(**self.bg_model.settings_dict())
         
@@ -2819,7 +2863,8 @@ class ImgList(BaseImgList):
             print ("Error: no linked list found with ID " + str(list_id))
             return 0
         del self.linked_lists[list_id]
-        del self.linked_indices[list_id]
+        del self._linked_indices[list_id]
+        del self._always_reload[list_id]
       
     def link_dark_offset_lists(self, *lists):
         """Assign dark and offset image lists to this object
@@ -2900,8 +2945,8 @@ class ImgList(BaseImgList):
     def change_index_linked_lists(self):
         """Update current index in all linked lists based on ``cfn``"""
         for key, lst in self.linked_lists.iteritems():
-            lst.goto_img(self.linked_indices[key][self.index],
-                         reload_here=True)
+            lst.goto_img(self._linked_indices[key][self.index],
+                         reload_here=self._always_reload[key])
 
     def load(self):
         """Try load current and next image"""
@@ -2915,7 +2960,7 @@ class ImgList(BaseImgList):
             self._load_edit["next"].update(next_img.edit_log)
             self._apply_edit("next")
         else:
-            warn("Image list contains only one image. Setting this image both"
+            warn("Image list contains only one image. Setting this image both "
                  "in <this> and <next> attr.")
             self.loaded_images["next"] = self.loaded_images["this"]
             self._load_edit["next"].update(self._load_edit["this"])
@@ -4845,9 +4890,9 @@ class CellImgList(ImgList):
 #             raise AttributeError("ImgList %s has already linked an ImgList "
 #                                  "with list_id %s. Please choose a different ID")
 #         self.linked_lists[list_id] = other_list
-#         self.linked_indices[list_id] = {}
+#         self._linked_indices[list_id] = {}
 #         idx_array = self.assign_indices_linked_list(other_list)
-#         self.linked_indices[list_id] = idx_array
+#         self._linked_indices[list_id] = idx_array
 #         self.change_index_linked_lists()  
 #         self.load()
 # 
@@ -4860,7 +4905,7 @@ class CellImgList(ImgList):
 #             print ("Error: no linked list found with ID " + str(list_id))
 #             return 0
 #         del self.linked_lists[list_id]
-#         del self.linked_indices[list_id]
+#         del self._linked_indices[list_id]
 #       
 #     def link_dark_offset_lists(self, *lists):
 #         """Assign dark and offset image lists to this object
@@ -4941,7 +4986,7 @@ class CellImgList(ImgList):
 #     def change_index_linked_lists(self):
 #         """Update current index in all linked lists based on ``cfn``"""
 #         for key, lst in self.linked_lists.iteritems():
-#             lst.goto_img(self.linked_indices[key][self.index],
+#             lst.goto_img(self._linked_indices[key][self.index],
 #                          reload_here=True)
 # 
 #     def load(self):

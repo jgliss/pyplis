@@ -138,6 +138,7 @@ def load_hd_new(file_path, meta={}, **kwargs):
     return (img, meta)
 
 def load_usgs_multifits(file_path, meta={}):
+    img = None
     if not "filter_id" in meta:
         warn("filter_id (i.e. on or off) in input arg meta not specified."
              "Using default filer_id=on")
@@ -147,6 +148,7 @@ def load_usgs_multifits(file_path, meta={}):
         idx = 2 if meta["filter_id"] == "off" else 1
         hdu = f[idx]
         h = hdu.header
+
         try:
             meta["start_acq"] = matlab_datenum_to_datetime(h["DATETIME"])
             meta["texp"] = h["EXPTIME"] * h["NUMEXP"] / 1000
@@ -166,7 +168,43 @@ def load_usgs_multifits(file_path, meta={}):
                  "primary HDU of FITS file...")
         img = hdu.data
         f.close()
-    except:
-        warn("Failed to import image data using custom method")
+    except Exception as e:
+        raise IOError("Failed to import image data using custom method\n"
+                      "Error message: %s" %repr(e))
     return (img, meta)
     
+def load_usgs_multifits_uncompr(file_path, meta={}):
+    img = None
+    if not "filter_id" in meta:
+        warn("filter_id (i.e. on or off) in input arg meta not specified."
+             "Using default filer_id=on")
+        meta["filter_id"] = "on"
+    try:
+        f = fits.open(file_path)
+        idx = 1 if meta["filter_id"] == "off" else 0
+        hdu = f[idx]
+        h = hdu.header
+
+        try:
+            meta["start_acq"] = matlab_datenum_to_datetime(h["DATETIME"])
+            meta["texp"] = h["EXPTIME"] * h["NUMEXP"] / 1000
+            meta["bit_depth"] = h["BITDEPTH"]
+        except:
+            warn("Failed to import image specific meta information from image "
+                 "HDU")
+        h = f[0].header
+        try:
+            meta["lon"] = h["LON"]
+            meta["lat"] = h["LAT"]
+            meta["altitude"] = h["ALT"]
+            meta["elev"] = h["ELEVANGL"]
+            meta["azim"] = h["AZMTANGL"]
+        except:
+            warn("Failed to import camera specific meta information from "
+                 "primary HDU of FITS file...")
+        img = hdu.data
+        f.close()
+    except Exception as e:
+        raise IOError("Failed to import image data using custom method\n"
+                      "Error message: %s" %repr(e))
+    return (img, meta)
