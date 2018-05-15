@@ -139,5 +139,6 @@ scripts/scripts_out/DEV*
 # Results from profiling runs
 scripts/_profiler_results
 
-# .idea folder
+# some folders
 .idea
+.pytest_cache
