@@ -135,8 +135,7 @@ class ImgStack(object):
         width : int
             width of images to be stacked
         num : int
-            number of images to be stacked (can be zero, then, whenever an 
-            image is added to stack, the method :func:`append_img` is used)
+            number of images to be stacked
         """
         try:
             self.stack = empty((int(img_num), int(height), int(width))).\
