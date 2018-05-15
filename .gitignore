@@ -138,3 +138,6 @@ scripts/scripts_out/DEV*
 
 # Results from profiling runs
 scripts/_profiler_results
+
+# .idea folder
+.idea
