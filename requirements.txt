@@ -1,0 +1,9 @@
+numpy
+matplotlib
+scipy
+opencv-python
+astropy
+geonum
+pandas
+pydoas
+utils
