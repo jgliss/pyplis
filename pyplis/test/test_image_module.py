@@ -2,7 +2,7 @@
 """
 Pyplis test module for image.py base module of Pyplis
 
-Author: Jonas Gliß
+Author: Jonas Gliss
 Email: jonasgliss@gmail.com
 License: GPLv3+
 """

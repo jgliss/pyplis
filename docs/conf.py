@@ -14,18 +14,17 @@
 
 import sys
 import os
-import shlex
 import matplotlib
 
 # This was inserted based on this blog: https://github.com/spinus/sphinxcontrib-images/issues/41, after the following build error occured: Could not import extension sphinxcontrib.images (exception: cannot import name make_admonition), apparently due to a compatibility error between an updated version of sphinx (1.6) and the extension sphinxcontrib.images
-from docutils.parsers.rst.directives.admonitions import BaseAdmonition
-from sphinx.util import compat
-compat.make_admonition = BaseAdmonition
+#from docutils.parsers.rst.directives.admonitions import BaseAdmonition
+#from sphinx.util import compat
+#compat.make_admonition = BaseAdmonition
 
 matplotlib.use('agg')
 
 with open(os.path.join("..", "VERSION.rst")) as f:
-    __version__ = f.readline()
+    __version__ = ".".join(f.readline().strip().split(".")[:3]) 
     f.close()
 
 try:
@@ -67,16 +66,16 @@ extensions = [
     'sphinx.ext.intersphinx',
     'sphinx.ext.todo',
     'sphinx.ext.coverage',
-    'sphinx.ext.pngmath',
+    'sphinx.ext.imgmath',
+    #'sphinx.ext.pngmath',
     'sphinx.ext.ifconfig',
     'sphinx.ext.viewcode',
-    'sphinx.ext.graphviz',
-    'sphinx.ext.inheritance_diagram',
-    'sphinxcontrib.bibtex',
-    'sphinxcontrib.images',
+    #'sphinxcontrib.bibtex',
+    #'sphinxcontrib.images',
     'sphinxcontrib.napoleon',
     #'sphinxcontrib.exceltable'
 ]
+
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -93,7 +92,7 @@ source_suffix = '.rst'
 master_doc = 'index'
 
 # General information about the project.
-project = u'pyplis'
+project = u'Pyplis'
 copyright = u'2016, Jonas Gliss'
 author = u'Jonas Gliss'
 

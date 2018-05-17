@@ -277,10 +277,10 @@ if __name__=="__main__":
         #test all tau-modelling results
         actual = [tau0.mean(), tau1.mean(), tau2.mean(), tau3.mean()]
         npt.assert_allclose(actual=actual,
-                            desired=[0.11395559,
-                                     0.25279653,
-                                     0.13842881,
-                                     0.13944146],
+                            desired=[0.11395558008662043, 
+                                     0.25279653, 
+                                     0.13842879832119934, 
+                                     0.13943940574220634],
                             rtol=1e-7)
         print("All tests passed in script: %s" %basename(__file__)) 
     try:

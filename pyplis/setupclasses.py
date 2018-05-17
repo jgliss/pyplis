@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 # Pyplis is a Python library for the analysis of UV SO2 camera data
-# Copyright (C) 2017 Jonas Gliß (jonasgliss@gmail.com)
+# Copyright (C) 2017 Jonas Gliss (jonasgliss@gmail.com)
 #
 # This program is free software: you can redistribute it and/or
 # modify it under the terms of the GNU General Public License a
@@ -205,7 +205,7 @@ class Source(object):
     def get_info(self, name=None, try_online=True):
         """Load source info from database 
         
-        Looks if desired source (specified by :param:`name`) can be found in 
+        Looks if desired source (specified by argument `name`) can be found in 
         the *my_sources.txt* file and if not, tries to find information about 
         the source online (if :param:`try_online` is True)
         

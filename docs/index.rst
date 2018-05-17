@@ -16,10 +16,8 @@ Official website of *Pyplis*, a Python software containing algorithms and analys
 A paper introducing the software is published in the Journal *Geosciences* (MDPI). If you find *Pyplis* useful for your analysis, we highly appreciate if you acknowlegde our work by citing the `paper <http://www.mdpi.com/2076-3263/7/4/134>`__.
 
 .. figure:: ./_graphics/preview_paper.png
-    :scale: 80%
+    :width: 80%
     :align: center
-    :alt: alternate text
-    :figclass: align-center
     
     Screenshot of the *Pyplis* `paper <http://www.mdpi.com/2076-3263/7/4/134>`__. Please acknowledge our work by citing the paper. 
 
@@ -29,10 +27,9 @@ The software can be downloded from the `Github page <https://github.com/jgliss/p
   
 from the command line.
 
-.. thumbnail::  _graphics/prev_etna_emissions.png
-  :width: 600px
+.. figure::  _graphics/prev_etna_emissions.png
+  :width: 80%
   :align: center
-  :title:
 
   Calibrated SO2 column density image showing 2 plume cross section lines and the position of the FOV of a co-located DOAS instrument.
  

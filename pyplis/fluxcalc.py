@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 # Pyplis is a Python library for the analysis of UV SO2 camera data
-# Copyright (C) 2017 Jonas Gliß (jonasgliss@gmail.com)
+# Copyright (C) 2017 Jonas Gliss (jonasgliss@gmail.com)
 #
 # This program is free software: you can redistribute it and/or
 # modify it under the terms of the GNU General Public License a
@@ -1284,7 +1284,11 @@ class EmissionRateAnalysis(object):
         results = self.init_results()
         dists, dist_errs = self.get_pix_dist_info_all_lines()
         lst.goto_img(start_index)
-        cd_err=lst.calib_data.err()
+        try:
+            cd_err = lst.calib_data.err()
+        except ValueError as e:
+            warn("Calibration error could not be accessed: {}".format(repr(e)))
+            cd_err = None
             
         self._write_meta(dists, dist_errs, cd_err)
         

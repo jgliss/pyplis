@@ -167,25 +167,30 @@ if __name__ == "__main__":
                                [True, 2, 3, 3, 2, 3, 3, "aa", 672, 512])
         d = c._cell_info_auto_search
         
-        vals_approx = [d["a37"][0], d["a53"][0], d["a57"][0],
+        vals_approx = [d["a37"][0], 
+                       d["a53"][0], 
+                       d["a57"][0],
                        aa_calib.calib_fun(0, *aa_calib.calib_coeffs),
                        calib_reload.calib_fun(0, *calib_reload.calib_coeffs)]
         npt.assert_allclose(actual=vals_approx,
-                            desired=[8.59e+17, 4.15e+17, 1.924e+18,
-                                     -1.831293279299808e+16,
-                                     0],
+                            desired=[8.59e+17, 
+                                     4.15e+17, 
+                                     1.924e+18, 
+                                     -1.8313164653590516e+16, 
+                                     0.0],
                             rtol=1e-7)
         
         # explicitely check calibration data for on, off and aa (plotted in 
         # this script)
-        npt.assert_allclose(actual=[c.calib_data["on"].calib_coeffs.mean(),
-                                    c.calib_data["off"].calib_coeffs.mean(),
-                                    aa_calib.calib_coeffs.mean(),
-                                    calib_reload.calib_coeffs.mean()],
-                            desired=[1.892680238811623e+18,
-                                     -3.7425322859372904e+19,
-                                     2.1536537183058327e+18,
-                                     2.1197685617834278e+18],
+        actual = [c.calib_data["on"].calib_coeffs.mean(),
+                  c.calib_data["off"].calib_coeffs.mean(),
+                  aa_calib.calib_coeffs.mean(),
+                  calib_reload.calib_coeffs.mean()]
+        npt.assert_allclose(actual=actual,
+                            desired=[1.8926803829028974e+18,
+                                     -3.742539080945949e+19,
+                                     2.153653759747737e+18,
+                                     2.1197681750384312e+18],
                             rtol=1e-7)
         print("All tests passed in script: %s" %basename(__file__)) 
     try:

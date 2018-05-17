@@ -2,7 +2,7 @@
 """
 Test environment for setupclasses.py module
 
-Author: Jonas Gliß
+Author: Jonas Gliss
 Email: jonasgliss@gmail.com
 License: GPLv3+
 """

@@ -177,15 +177,17 @@ if __name__ == "__main__":
         
         actual = [aa_list.meas_geometry.cam_elev,
                   aa_list.meas_geometry.cam_azim,
-                  aa_list.meas_geometry.plume_dist(),
+                  aa_list.meas_geometry.plume_dist()[0,0],
                   aa_list.this.mean(),
                   shape_log, mean_log]
         
         npt.assert_allclose(actual=actual,
-                            desired=[15.477542213,
-                                     279.30130009,
-                                     10731.02432793,
-                                     0.00908144, 1520, 0.014377367],
+                            desired=[15.477542212645357,
+                                     279.30130009369515,
+                                     10731.024327931776,
+                                     0.009083584068527644,
+                                     1520L,
+                                     0.014380159209694215],
                             rtol=1e-7)
         print("All tests passed in script: %s" %basename(__file__)) 
     try:

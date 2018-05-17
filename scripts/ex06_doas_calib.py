@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 # Pyplis is a Python library for the analysis of UV SO2 camera data
-# Copyright (C) 2017 Jonas Gliß (jonasgliss@gmail.com)
+# Copyright (C) 2017 Jonas Gliss (jonasgliss@gmail.com)
 #
 # This program is free software: you can redistribute it and/or
 # modify it under the terms of the GNU General Public License a
@@ -275,7 +275,7 @@ if __name__ == "__main__":
                                 prep["darkcorr"]*prep["is_tau"]*prep["is_aa"], 
                                 num2, h2, w2],
                                [120, 209, 88, 256, 336, 2, 1, 
-                                209, 170, 170])
+                                209, 375, 374])
         
         #check IFR calibration results including FOV
         # ... under development (NOT FINISHED)
@@ -285,17 +285,17 @@ if __name__ == "__main__":
         vals.append(c.fov.sigma_x_abs)
         vals.append(c.fov.sigma_y_abs)
         npt.assert_allclose(actual=vals,
-                            desired=[1.078086e+00,  
-                                     1.593450e+02,  
-                                     1.237911e+02,  
-                                     7.088195e+00,
-                                     1.900310e+00,  
-                                     3.379428e-01, 
-                                     -4.235399e-03,  
-                                     6.373799e+02,
-                                     4.951645e+02,  
-                                     2.835278e+01,  
-                                     1.492008e+01],
+                            desired=[0.4888150908226752,
+                                     159.15051343018973,
+                                     123.2067260668253,
+                                     15.613852204077402,
+                                     1.517309238875842,
+                                     1.0033358331831417,
+                                     -0.00010326574084791028,
+                                     636.6020537207589,
+                                     492.8269042673012,
+                                     62.45540881630961,
+                                     41.16195118048721],
                             rtol=1e-5)
         print("All tests passed in script: %s" %basename(__file__)) 
     try:

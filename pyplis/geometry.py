@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 # Pyplis is a Python library for the analysis of UV SO2 camera data
-# Copyright (C) 2017 Jonas Gliß (jonasgliss@gmail.com)
+# Copyright (C) 2017 Jonas Gliss (jonasgliss@gmail.com)
 #
 # This program is free software: you can redistribute it and/or
 # modify it under the terms of the GNU General Public License a
@@ -1155,9 +1155,9 @@ class MeasGeometry(object):
         :returns:
             - float, retrieved camera elevation
             - float, retrieved camera azimuth
-            - MeasGeometry, initial state of this object, a deepcopy of 
-            this class, before changes where applied (if they were applied, 
-            see also :param:`update`)
+            - MeasGeometry, initial state of this object, a deepcopy of\
+            this class, before changes where applied (if they were applied,\
+            see also `update`)
             
         """
         geom_old = deepcopy(self)

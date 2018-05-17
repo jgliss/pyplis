@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 # Pyplis is a Python library for the analysis of UV SO2 camera data
-# Copyright (C) 2017 Jonas Gliß (jonasgliss@gmail.com)
+# Copyright (C) 2017 Jonas Gliss (jonasgliss@gmail.com)
 #
 # This program is free software: you can redistribute it and/or
 # modify it under the terms of the GNU General Public License a
@@ -147,11 +147,11 @@ if __name__ == "__main__":
                   offs]
         
         npt.assert_allclose(actual=actual,
-                            desired=[1007480.4,
-                                     0.24401478,
-                                     3.1939999e+18,
-                                     4.77978303e+18,  
-                                     -2.72443366e16],
+                            desired=[1007480.56,
+                                     0.24401481,
+                                     3.194000052267778e+18,
+                                     4.779782684462987e+18,
+                                     -2.7244424951657216e+16],
                             rtol=1e-7)
         print("All tests passed in script: %s" %basename(__file__)) 
     try:

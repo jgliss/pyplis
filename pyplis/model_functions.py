@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 # Pyplis is a Python library for the analysis of UV SO2 camera data
-# Copyright (C) 2017 Jonas Gliß (jonasgliss@gmail.com)
+# Copyright (C) 2017 Jonas Gliss (jonasgliss@gmail.com)
 #
 # This program is free software: you can redistribute it and/or
 # modify it under the terms of the GNU General Public License a
@@ -187,10 +187,10 @@ def multi_gaussian_same_offset(x, offset, *params):
     """
     return multi_gaussian_no_offset(x, *params) + offset
         
-def supergauss_2d((x, y), amplitude, xm, ym, sigma, asym, shape, offset):
+def supergauss_2d(position, amplitude, xm, ym, sigma, asym, shape, offset):
     """2D super gaussian without tilt
     
-    :param tuple (x, y): position 
+    :param tuple position: position (x, y) of Gauss 
     :param float amplitude: amplitude of peak
     :param float xm: x position of maximum
     :param float ym: y position of maximum
@@ -199,15 +199,16 @@ def supergauss_2d((x, y), amplitude, xm, ym, sigma, asym, shape, offset):
     :param float shape: super gaussian shape parameter (1 is gaussian)
     :param float offset: base level of gaussian 
     """
+    x, y = position
     u = ((x - xm) / sigma) ** 2 + ((y - ym) * asym / sigma)**2
     g = offset + amplitude * exp(-u**shape)
     return g.ravel()
     
-def supergauss_2d_tilt((x, y), amplitude, xm, ym, sigma, asym, shape, offset,\
-                                                                        theta):
+def supergauss_2d_tilt(position, amplitude, xm, ym, sigma, asym, shape, offset,
+                       theta):
     """2D super gaussian without tilt
     
-    :param tuple (x, y): position
+    :param tuple position: position (x, y) of Gauss 
     :param float amplitude: amplitude of peak
     :param float xm: x position of maximum
     :param float ym: y position of maximum
@@ -218,8 +219,10 @@ def supergauss_2d_tilt((x, y), amplitude, xm, ym, sigma, asym, shape, offset,\
     :param float theta: tilt angle (rad) of super gaussian
     
     """
+    x, y = position
     xprime = (x - xm) * cos(theta) - (y - ym) * sin(theta)
     yprime = (x - xm) * sin(theta) + (y - ym) * cos(theta)
     u = (xprime / sigma)**2 + (yprime * asym / sigma)**2
     g = offset + amplitude * exp(-u**shape)
     return g.ravel()
+

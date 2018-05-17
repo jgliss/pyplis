@@ -1,21 +1,25 @@
-Pyplis is a Python toolbox for the analysis of UV SO2 camera data. The software includes a comprehensive collection of algorithms for the analysis of such data.
+Pyplis is a Python toolbox for the analysis of UV SO2 camera data. The software includes a comprehensive and flexible collection of algorithms for the analysis of such data.
 
 Contact: Jonas Gliss (jonasgliss@gmail.com)
-
-Pyplis paper
-============
-
-The software *Pyplis* and implementation details was published in December 2017 within a special issue on `Volcanic plumes <http://www.mdpi.com/journal/geosciences/special_issues/volcanic_processes>`__ of the Journal *Geosciences* (MDPI). The paper can be downloaded `here <http://www.mdpi.com/2076-3263/7/4/134>`__.
-
-Citation
---------
-If you find *Pyplis* useful for your data analysis, we would highly appreciate if you acknowledge our work by citing the paper. Citing details can be found `here <http://www.mdpi.com/2076-3263/7/4/134>`__.
 
 Note
 ====
 
 The software was renamed from **piscope** to **Pyplis** on 17.02.2017 
 
+Article and citation
+====================
+
+The article 
+
+*Pyplis–A Python Software Toolbox for the Analysis of SO2 Camera Images for Emission Rate Retrievals from Point Sources*, Gliß, J., Stebel, K., Kylling, A., Dinger, A. S., Sihler, H., and Sudbø, A., Geosciences, 2017
+
+introduces *Pyplis* and implementation details. The article provides a comprehensive review of the technique of SO2 cameras with a focus on the required image analysis. The paper was published in December 2017 as part of a special issue on `Volcanic plumes <http://www.mdpi.com/journal/geosciences/special_issues/volcanic_processes>`__ of the Journal *Geosciences* (MDPI). 
+The paper can be downloaded `here <http://www.mdpi.com/2076-3263/7/4/134>`__.
+
+Citation
+--------
+If you find *Pyplis* useful for your data analysis, we would highly appreciate if you acknowledge our work by citing the paper. Citing details can be found `here <http://www.mdpi.com/2076-3263/7/4/134>`__.
 
 Main features
 =============
@@ -30,7 +34,7 @@ Main features
 - Routine for image based correction of the signal dilution effect based on contrast variations of dark terrain features located at different distances in the images.
 - Support of standard image formats including `FITS format <https://de.wikipedia.org/wiki/Flexible_Image_Transport_System>`__.
 - Easy and flexible setup for data import and camera specifications.
-  
+
 Copyright
 =========
   
@@ -42,10 +46,15 @@ This program is distributed in the hope that it will be useful, but WITHOUT ANY 
 
 You should have received a copy of the GNU General Public License along with this program. If not, see `here <http://www.gnu.org/licenses/>`__.
 
+Code documentation and more
+============================
+
+The code documentation of Pyplis and more information is hosted on `Read the Docs <http://pyplis.readthedocs.io/en/latest/index.html>`__. 
+
 Requirements
 ============
 
-Requirements are listed ordered in decreasing likelyhood to run into problems when using pip for installation (on Windows machines you may use the pre-compiled binary wheels on Christoph Gohlke's `webpage <http://www.lfd.uci.edu/~gohlke/pythonlibs/>`_).
+Pyplis requires the following packages:
 
 - numpy >= 1.11.0
 - scipy >= 0.17.0
@@ -59,39 +68,127 @@ Requirements are listed ordered in decreasing likelyhood to run into problems wh
   - pyproj  >= 1.9.5.1
   - basemap >= 1.0.7
     
-- pandas == 0.16.2
+- pandas >= 0.16.2
 - matplotlib >= 1.4.3
 
 **Optional dependencies (to use extra features)**
 
 - pydoas >= 1.0.0
 
-We recommend using `Anaconda <https://www.continuum.io/downloads>`_ as package manager since it includes most of the required dependencies and is updated on a regular basis. Moreover, it is probably the most comfortable way to postinstall and upgrade dependencies such as OpenCV (`see here <http://stackoverflow.com/questions/23119413/how-to-install-python-opencv-through-conda>`__) or the scipy stack.
+Details about the installation of Pyplis and all requirements can be found in the following section. 
+
+We recommend using `Anaconda <https://www.continuum.io/downloads>`_ as package manager since it includes most of the required dependencies and is updated on a regular basis. Moreover, it is probably the most comfortable way to postinstall and upgrade dependencies such as OpenCV (`see here <http://stackoverflow.com/questions/23119413/how-to-install-python-opencv-through-conda>`__) or the scipy stack (for .
 
 Please, if you have problems installing Pyplis, contact us or better, raise an Issue.
 
 Installation
 ============
 
-pyplis can be installed from `PyPi <https://pypi.python.org/pypi/pyplis>`_ using::
+In the following, a step-by-step guide for the installation on *Pyplis* is provided. It is assumed, that no Python 2.7 installation exists. If you already have Python 2.7 installed (with potentially some packages), make sure you install `all requirements <https://github.com/jgliss/pyplis#requirements>`__. 
+If you use `Anaconda <https://www.anaconda.com/>`__ as package manager, you can check your installed packages using::
 
-  pip install pyplis
+  conda list
   
-or from source by downloading and extracting the latest release. After navigating to the source folder (where the setup.py file is located), call::
+Else, you can use ``pip`` to check your package list::
 
-  python setup.py install
+  pip freeze
 
-On Linux::
+
+Install from scratch
+--------------------
+
+If you already have Anaconda2 installed on your machine you can skip point 1., else:
+
+1. Download and install the latest version of `Anaconda2 <https://www.anaconda.com/download/#windows>`__ (Python 2.7)
+
+2. Install basemap
+  ::
   
-  sudo python setup.py install 
+    conda install -c conda-forge basemap  
+
+3. Install opencv version 2
+  ::
+
+    conda install -c menpo opencv 
+
+4. Install `Geonum <https://github.com/jgliss/geonum>`__
+  ::
+
+    pip install geonum
   
-In case the installation fails make sure that all dependencies (see above) are installed correctly. pyplis is currently only supported for Python v2.7.
+5. Install `Pydoas <https://github.com/jgliss/pydoas>`__
+  ::
 
+    pip install pydoas
+  
+6. Install Pyplis. Here, you have two options.
 
-Code documentation
-==================
+  - Option 1: Installation using `PyPi <https://pypi.python.org/pypi/pyplis>`__
+    ::
 
-The code documentation of Pyplis and more information is hosted on `Read the Docs <http://pyplis.readthedocs.io/en/latest/index.html>`__. 
+      pip install Pyplis
+    
+  - Option 2: Installation from source 
+    
+    Download `the latest release <https://github.com/jgliss/pyplis/releases>`__ or the latest (not released) version of the `repository <https://github.com/jgliss/pyplis>`__ (green button "Clone or download") into a local directory of your choice. Unzip, and call
+    ::
+  
+      python setup.py install
+
+.. note::
+  
+  Use Option 2 if you want to run the tests and / or example scripts (since these are not shipped with the PyPi installation that uses a binary wheel of Pyplis).
+  
+After installation, try::
+
+  >>> import pyplis
+  
+from your Python or IPython console.
+    
+Installation remarks and known issues
+-------------------------------------
+
+  - If you work on a Windows machine and run into problems with installation of one of the requirements (e.g. if you already had Python 2.7 installed and want to upgrade dependencies such as numpy or scipy), check out the pre-compiled binary wheels on Christoph Gohlke's `webpage <http://www.lfd.uci.edu/~gohlke/pythonlibs/>`_
+  
+  - Sometimes it is helpful, to reinstall your whole Python environment (or, if you use Anaconda, `create a new one <https://conda.io/docs/user-guide/tasks/manage-environments.html>`__) rather than trying to upgrade all dependencies to the required version
+  
+  - If you find a bug or detect a specific problem with one of the requirements (e.g. due to future releases) please let us know or `raise an issue <https://github.com/jgliss/pyplis/issues>`__.
+
+Testing your installation
+=========================
+
+.. note::
+
+  The following steps can only be done if download and install from source (Option 2, previous point) and do not work if you install via pip.
+  
+Running tests
+-------------
+
+Pyplis contains a (currently incomplete) test suite (located `here <https://github.com/jgliss/pyplis/tree/master/pyplis/test>`__. 
+
+The tests can be run manually from the toplevel directory (where the setup.py file lies) using your *command line* (not Python console) using::
+
+  python -m pytest
+  
+If any test fails, please `raise an issue <https://github.com/jgliss/pyplis/issues>`__.
+
+Running the pyplis Etna example scripts
+---------------------------------------
+
+In order to run the Etna example scripts, you have to download the Etna test dataset (about 2.7 GB). You can download the testdata automatically into a specified folder <desired_location>::
+
+  >>> import pyplis
+  >>> pyplis.inout.download_test_data(<desired_location>)
+  
+If you leave <desired_location> empty, the data will be downloaded into the *my_pyplis* folder, that is automatically created on installation in your user home directory (`more details below <https://github.com/jgliss/pyplis#example-and-test-data>`__).
+
+The scripts can be found in the *scripts* folder of the repo. They include a test mode (can be activated in `SETTINGS.py <https://github.com/jgliss/pyplis/blob/master/scripts/SETTINGS.py>`__ or on script execution via command line  using option --test 1, see below) and can be run automatically from the command line by executing the following two scripts::
+
+  python RUN_INTRO_SCRIPTS.py --test 1
+  
+and::
+
+  python RUN_EXAMPLE_SCRIPTS.py --test 1
 
 Getting started
 ===============
@@ -104,9 +201,9 @@ Example and test data
 The pyplis example data (required to run example scripts) is not part of the installation. It can be downloaded `here <https://folk.nilu.no/~arve/pyplis/pyplis_etna_testdata.zip>`__ or automatically within a Python shell (after installation) using::
 
   import pyplis
-  pyplis.inout.download_test_data(LOCAL_DIR)
+  pyplis.inout.download_test_data(<desired_location>)
   
-which downloads the data to the installation **data** directory if ``LOCAL_DIR`` is unspecified. Else, (and if ``LOCAL_DIR`` is a valid location) it will be downloaded into ``LOCAL_DIR`` which will then be added to the supplementary file **_paths.txt** located in the installation **data** directory. It can then be found by the test data search method::
+which downloads the data into the *my_pyplis* directory if <desired_location> is unspecified. Else, (and if <desired_location> is a valid location) it will be downloaded into <desired_location> which will then be added to the supplementary file **_paths.txt** located in the installation **data** directory. It can then be found by the test data search method::
 
   pyplis.inout.find_test_data()
   
@@ -117,15 +214,9 @@ The latter searches all paths provided in the file **_paths.txt** whenever acces
   If the data is downloaded manually (e.g. using the link provided above), please make sure to unzip it into a local directory ``LOCAL_DIR`` and let pyplis know about it, using::
   
     import pyplis
-    pyplis.inout.set_test_data_path(``LOCAL_DIR``)
+    pyplis.inout.set_test_data_path(<desired_location>)
     
     
-TODO's
-======
-
-1. Automatic velocity cross correlation analysis from image list objects
-#. Automatic and continuous DOAS / cell calibration data
-  
 Future developments / ideas
 ===========================
 

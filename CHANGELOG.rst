@@ -99,10 +99,11 @@ Release 1.0.1 -> 1.3.0
     - NEW MODULE :mod:`calib_base` containing new calibration base class :class:`CalibData` (both :class:`DoasCalibData` and :class:`CellCalibData` inherit from this base object)
     - MAIN CHANGES associated with with refactoring into general base class :class:`CalibData`
       
-      - NEW FEATURE: Fit function for calibration data (both cell and DOAS) can now be defined arbitrarily (before, only polynomials were possible)
+      - NEW FEATURE: Fit function for calibration data (both cell and DOAS) can now be defined arbitrarily (before, only polynomials were possible). See also module :mod:`model_functions`, in particular new class :class:`CalibFuns`
       - I/O (.e.g to / from FITS, or csv) are now unified for cell and DOAS calibration
       - Visualisation (e.g. plot of calibration curve and data) now unified for cell and DOAS calibration
-      -
+      - New default fit function based on Kern et al. 2015
+      - UNCERTAINTY treatment: Error in calibrated CDs is now computed based on the standard deviation of fit residual (if more than 10 datapoints are available for retrieval of calibration curve).
       
   2. Image list classes (:mod:`imagelists`)
   
@@ -116,17 +117,26 @@ Release 1.0.1 -> 1.3.0
     - Improved user-friendliness and performance: getter / setter methods for all attributes
     - Attribute dictionaries now private (e.g. `.cam` -> `._cam`, `.source` -> `._source`). Intended of attributes is via new getter / setter methods (e.g. `geom.cam["lon"]` -> geom.cam_lon)
     - Method :func:`update_geosetup` is called whenever a relevant attribute is updated via the corresponding setter method. This ensures, that derived values such as plume distance are always up-to-date with the current attributes.
+    - New method :func:`get_topo_distance_pix` (determines distance to local topography in viewing direction of individual image pixel)
     
   4. :class:`Img` object
   
     - Renamed attribute "alt_offset" -> "altitude_offset"
+    - New methods / properties / attributes:
+    
+      :attr:`is_cropped`
+      :attr:`is_resized`
     
   X. Other changes
   
+    - In :mod:`fluxcalc` (and all included classes): renamed attr :attr:`cd_err_rel` to :attr:`cd_err` (note changes in uncertainty treatment of calibration data!)
+    - Retrieval of extinction coefficients for dilution correction based on dark terrain features can now also be performed for individual pixel coordinates in the images, in addition to the distance retrieval based on lines in the images (see `example script 11 <http://pyplis.readthedocs.io/en/latest/examples.html#example-11-image-based-signal-dilution-correction>`__)
     - Improved performance and user-friendliness of :class:`MeasGeometry` (e.g. getter / setter methods for all parameters, better handling of recomputation of geometry in case, parameters are updated)
+    - Moved class :class:`LineOnImage` into module :mod:`utils`
+    - Moved method :func:`model_dark_image` from :mod:`processing` to :mod:`image` as well as class :class:`ProfileTimeSeriesImg`
     - Changed input parameter of :func:`model_dark_image` in :mod:`processing`
     - Changed default colormap for optical density (and calibrated) images from `bwr` to `viridis` (perceptually uniform)
     - Fixed bugs
-    
+    - Included new tests (test suite still very low coverage...)
     
     

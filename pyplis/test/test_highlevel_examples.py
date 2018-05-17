@@ -14,7 +14,7 @@ the official Pyplis testdata set which is used for the example scripts.
 This minimal version does not contain all images and the images are reduced
 in size (Gauss-pyramid level 4).
 
-Author: Jonas Gliß
+Author: Jonas Gliss
 Email: jonasgliss@gmail.com
 License: GPLv3+
 """
@@ -299,15 +299,20 @@ def test_optflow():
     l = line().convert(img.pyrlevel)
     res = flow.local_flow_params(line=l, dir_multi_gauss=False)
     flow.plot_flow_histograms()
-    nominal = [2.0322566, -43.8805, -67.625, 18.265954376536538, 
-               0.18539086457525655, 0.08466243793209662, 28.07, 
-               0.864406779661017]
-    vals = [len_img.mean(), angle_img.mean(), res["_dir_mu"],
+    nominal = [0.658797, 
+               -41.952854, 
+               -65.971787,  
+               22.437565,   
+               0.128414,
+               0.086898,  
+               28.07,   
+               0.518644]
+    vals = [len_img.mean(), 
+            angle_img.mean(), res["_dir_mu"],
             res["_dir_sigma"], res["_len_mu_norm"], 
             res["_len_sigma_norm"], res["_del_t"], 
             res["_significance"]]
-    print vals
-    npt.assert_allclose(vals, nominal, rtol=1e-7)
+    npt.assert_allclose(vals, nominal, rtol=1e-5)
     return flow
     
 def test_auto_cellcalib():
@@ -315,7 +320,7 @@ def test_auto_cellcalib():
     ds = calib_dataset()
     ds.find_and_assign_cells_all_filter_lists()
     keys = ["on", "off"]
-    nominal = [6, 844.03541, 353.96765, 3, 3]
+    nominal = [6., 845.50291, 354.502678, 3., 3.]
     mean = 0
     bg_mean = ds.bg_lists["on"].this.mean() +\
               ds.bg_lists["off"].this.mean()
@@ -351,13 +356,7 @@ if __name__=="__main__":
     import matplotlib.pyplot as plt
     plt.rcParams["font.size"] = 14
     plt.close("all")
-    test_find_viewdir()
-    ds=plume_dataset()
-    lst = aa_image_list()
-    
-    test_geometry()
-    test_optflow()
-    test_line()
+    test_auto_cellcalib()
     
 
     
