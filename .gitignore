@@ -142,3 +142,6 @@ scripts/_profiler_results
 # some folders
 .idea
 .pytest_cache
+
+# Notebooks
+notebooks
