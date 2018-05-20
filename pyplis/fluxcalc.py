@@ -44,7 +44,13 @@ from .helpers import check_roi, exponent, roi2rect, map_roi
 LABEL_SIZE=rcParams["font.size"]+ 2
 
 class OutputERA(object):
-    """Class  for specifying default output for emission rate analyses"""
+    """Class  for specifying default output for emission rate analyses
+    
+    .. note::
+        
+        This class is under development and not intended to be used currently
+    
+    """
     def __init__(self, out_dir=None, overlay_optflow=True, img_vmin=None, 
                  img_vmax=None):
         raise NotImplementedError("Site under construction")

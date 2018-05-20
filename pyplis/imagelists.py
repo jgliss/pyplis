@@ -1930,7 +1930,7 @@ class ImgList(BaseImgList):
      
     @property
     def shift_mode(self):
-        """Current list regsistration shift mode"""
+        """Current list registration shift mode"""
         return self._list_modes["shift"]
         
     @shift_mode.setter
