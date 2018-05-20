@@ -1,6 +1,3 @@
-.. include:: ../CHANGELOG_v0_9_2_v0_11_2.rst
-.. include:: ../CHANGELOG_v0_11_2_v1_0_0.rst
-
 Release 1.0.0 -> 1.0.1
 =======================================
 
@@ -111,7 +108,7 @@ Summary
 
   4. Changes related to I/O
 
-    - Moved option `LINK_OFF_TO_ON` from :class:`Dataset` to :class:`BaseSetup` (no API changes in :class:`Dataset`)
+    - Moved option ```LINK_OFF_TO_ON`` from :class:`Dataset` to :class:`BaseSetup` (no API changes in :class:`Dataset`)
     - New I/O option ``ON_OFF_SAME_FILE`` in :class:`BaseSetup` that can be set if on and off images are stored in one (e.g. FITS) file (like for the new USGS CVO camera type)
     - I/O options for data import can now be specified in file *cam_info.txt* for each camera individually using keyword ``io_opts`` and is stored as dict in :class:`CameraBaseInfo` (base class of :class:`Camera`)
     - Included I/O info for camera of USGS CVO (uses previous point)
@@ -202,10 +199,10 @@ Summary
 
   - Improved user-friendliness and performance: getter / setter methods for all attributes
 
-    - Intended access / modification of attributes is via new getter / setter methods (e.g. `geom.cam["lon"]` -> geom.cam_lon)
+    - Intended access / modification of attributes is via new getter / setter methods (e.g. ```geom.cam["lon"]`` -> ``geom.cam_lon``)
     - Comes with better handling of recomputation requirements of geometry in case individual parameters (e.g. camera viewing direction, position, wind direction) are updated (in this context, note new  attribute :attr:`update_cam_geodata` in :class:`ImgList` objects). Specifically:
     - Method :func:`update_geosetup` is called whenever a relevant attribute is updated via the corresponding setter method. This ensures, that derived values such as plume distance are always up-to-date with the current attributes.
-    - Attribute dictionaries now private (e.g. `.cam` -> `._cam`, `.source` -> `._source`).
+    - Attribute dictionaries now private (e.g. ``.cam`` -> ``._cam``, ``.source`` -> ``._source``).
 
   - New methods:
 
@@ -218,7 +215,7 @@ Summary
 
   - **Removed**
 
-    - :dict:`_current_imgs`: kept copies of input images (private dictionary)
+    - dictionary :attr:`_current_imgs`: kept copies of input images (private dictionary)
     - Methods: :func:`get_current`, :func:`pyrlevel`, :func:`current_plume_background`, :func:`subtract_tau_offset`, :func:`_prep_img_type`, :func:`set_current_images`, :func:`plot_tau_result_old`
 
 6. :class:`DilutionCorr`
@@ -255,7 +252,7 @@ Summary
   - New method :func:`save_to_database` in :class:`Source` (wrapper method for :func:`save_default_source`)
   - New I/O option ``REG_SHIFT_OFF`` in classes :class:`BaseSetup` and :class:`MeasSetup`: if True (and if image lists are created using :class:`Dataset` and corresponding :class:`MeasSetup` object), then, the off-band images (in off-band :class:`ImgList`) are automatically shifted to on-band images (in on-band :class:`ImgList`) using the registration shift that is specified in :attr:`Camera.reg_shift_off` (can be set in file *cam_info.txt*)
 
-X. Other changes
+10. Other changes
 
   - New method :func:`integrate_profile` in class :class:`LineOnImage`
   - New method :func:`make_circular_mask` in module :mod:`helpers.py`
