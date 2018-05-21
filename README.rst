@@ -16,7 +16,7 @@ News
 
 .. note::
 
-  *Pyplis* version comes with **many new features** and **major improvements in user-friendliness and performance** (compared to previous release 1.0.1)
+  *Pyplis* version 1.3.0 comes with **many new features** and **major improvements in user-friendliness and performance** (compared to previous release 1.0.1)
 
   Please update your version as soon as possible, e.g. using::
 
