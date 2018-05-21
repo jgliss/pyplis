@@ -46,7 +46,7 @@ Pyplis version 1.3.0 comes with many new features and improvements. The most imp
 
 - New method ``shift`` in class ``Img``.
 - Comes with new *mode*  (``shift_mode``) in class ``ImgList`` objects.
-- Default on / off shift for camera can be set in class ``Camera`` using attribute :attr:`reg_shift_off` (and correspondingly, in file *cam_info.txt*).
+- Default on / off shift for camera can be set in class ``Camera`` using attribute ``reg_shift_off`` (and correspondingly, in file *cam_info.txt*).
 
 **Camera calibration**. Major improvements and API changes:
 
