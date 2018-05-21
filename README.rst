@@ -37,38 +37,38 @@ In the following, a brief overview is provided over the most important changes a
 
 Pyplis version 1.3.0 comes with many new features and improvements. The most important changes include:
 
-**Measurement geometry** (``MeasGeometry``):
+**Measurement geometry** (class ``MeasGeometry``):
 
 - more accurate plume distance retrievals (i.e. now also in dependency of vertical distance).
 - redesigned API -> improved user-friendliness.
 
 **Image analysis**: Image registration shift can now be applied to images.
 
-- :func:`shift` in class Img.
-- Comes with new *mode*  (:attr:`shift_mode`) in :class:`ImgList` objects.
-- Default on / off shift for camera can be set in :class:`Camera` using attribute :attr:`reg_shift_off` (and correspondingly, in file *cam_info.txt*).
+- New method ``shift`` in class ``Img``.
+- Comes with new *mode*  (``shift_mode``) in class ``ImgList`` objects.
+- Default on / off shift for camera can be set in class ``Camera`` using attribute :attr:`reg_shift_off` (and correspondingly, in file *cam_info.txt*).
 
 **Camera calibration**. Major improvements and API changes:
 
-- new abstraction layer (:mod:`calib_base`) including new calibration base class. :class:`CalibData`: both :class:`DoasCalibData` and :class:`CellCalibData` are now inherited from new base class :class:`CalibData`. Advantages and new features:
+- new abstraction layer (module ``calib_base``) including new calibration base class ``CalibData``. Both class ``DoasCalibData`` and class ``CellCalibData`` are now inherited from new base class class ``CalibData``. Advantages and new features:
 
   - arbitrary definition of calibration fit function.
-  - fitting of calibration curve, I/O (read / write FITS) and visualisation of DOAS and cell calibration data are now unified in :class:`CalibData`.
+  - fitting of calibration curve, I/O (read / write FITS) and visualisation of DOAS and cell calibration data are now unified in class ``CalibData``.
 
 **Further changes**
 
-- :class:`ImgStack` more intuitive and flexible (e.g. dynamically expandable).
-- Improved index handling and performance of image list objects (:mod:`imagelists`).
-- :class:`PlumeBackgroundModel`: revision, clean up and performance improvements.
-- Improved user-friendliness and performance of plume background retrieval in :class:`ImgList` objects.
-- Correction for signal dilution (:class:`DilutionCorr`): increased flexibility and user-friendliness.
-- Improved flexibility for image import using :class:`Dataset` class (e.g. on / off images can be stored in the same file).
-- Reviewed and largely improved performance of general workflow (i.e. iteration over instances of :class:`ImgList` in ``calib_mode``, ``dilcorr_mode`` and ``optflow_mode``).
+- class ``ImgStack`` more intuitive and flexible (e.g. dynamically expandable).
+- Improved index handling and performance of image list objects (module ``imagelists``).
+- class ``PlumeBackgroundModel``: revision, clean up and performance improvements.
+- Improved user-friendliness and performance of plume background retrieval in class ``ImgList`` objects.
+- Correction for signal dilution (class ``DilutionCorr``): increased flexibility and user-friendliness.
+- Improved flexibility for image import using class ``Dataset`` class (e.g. on / off images can be stored in the same file).
+- Reviewed and largely improved performance of general workflow (i.e. iteration over instances of class ``ImgList`` in ``calib_mode``, ``dilcorr_mode`` and ``optflow_mode``).
 
 **Major bug fixes**
 
-- Fixed conceptual error in cross-correlation algorithm for velocity retrieval (:func:`find_signal_correlation` in module :mod:`plumespeed`).
-- Fixed: :class:`ImgList` in AA mode used current off-band image (at index ``idx_off``) both for the current and next on-band image (and not ``idx_off+1``).
+- Fixed conceptual error in cross-correlation algorithm for velocity retrieval (method ``find_signal_correlation`` in module ``plumespeed``).
+- Fixed: class ``ImgList`` in AA mode used current off-band image (at index ``idx_off``) both for the current and next on-band image (and not ``idx_off+1``).
 
 .. _paper:
 
@@ -242,7 +242,7 @@ If any test fails, please `raise an issue <https://github.com/jgliss/pyplis/issu
 Running the pyplis Etna example scripts
 ---------------------------------------
 
-In order to run the Etna example scripts, you have to download the Etna test dataset (about 2.7 GB). You can download the testdata automatically into a specified folder <desired_location>::
+In order to run the Etna example scripts, you have to download the Etna test dataset (about 2.7 GB). You can download the testdata automatically into a specified folder *<desired_location>*::
 
   >>> import pyplis
   >>> pyplis.inout.download_test_data(<desired_location>)
@@ -265,20 +265,20 @@ The Pyplis `example scripts <https://github.com/jgliss/pyplis/tree/master/script
 Example and test data
 =====================
 
-The pyplis example data (required to run example scripts) is not part of the installation. It can be downloaded `here <https://folk.nilu.no/~arve/pyplis/pyplis_etna_testdata.zip>`__ or automatically within a Python shell (after installation) using::
+The pyplis example data (required to run example scripts) is not part of the installation. It can be downloaded `here <https://folk.nilu.no/~arve/pyplis/pyplis_etna_testdata.zip>`__ or automatically downloaded in a Python shell (after installation) using::
 
   import pyplis
   pyplis.inout.download_test_data(<desired_location>)
 
-which downloads the data into the *my_pyplis* directory if <desired_location> is unspecified. Else, (and if <desired_location> is a valid location) it will be downloaded into <desired_location> which will then be added to the supplementary file **_paths.txt** located in the installation **data** directory. It can then be found by the test data search method::
+which downloads the data into the *my_pyplis* directory if <desired_location> is unspecified. Else, (and if <desired_location> is a valid location) it will be downloaded into <desired_location> which will then be added to the supplementary file *_paths.txt* located in the installation *data* directory. It can then be found by the test data search method::
 
   pyplis.inout.find_test_data()
 
-The latter searches all paths provided in the file **_paths.txt** whenever access to the test data is required. It raises an Exception, if the data cannot be found.
+The latter searches all paths provided in the file *_paths.txt* whenever access to the test data is required. It raises an Exception, if the data cannot be found.
 
 .. note::
 
-  If the data is downloaded manually (e.g. using the link provided above), please make sure to unzip it into a local directory ``LOCAL_DIR`` and let pyplis know about it, using::
+  If the data is downloaded manually (e.g. using the link provided above), please make sure to unzip it into a local directory *<desired_location>* and let pyplis know about it, using::
 
     import pyplis
     pyplis.inout.set_test_data_path(<desired_location>)
