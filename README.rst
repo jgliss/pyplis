@@ -37,38 +37,38 @@ In the following, a brief overview is provided over the most important changes a
 
 Pyplis version 1.3.0 comes with many new features and improvements. The most important changes include:
 
-**Measurement geometry** (class ``MeasGeometry``):
+- **Measurement geometry** (class ``MeasGeometry``):
 
-- more accurate plume distance retrievals (i.e. now also in dependency of vertical distance).
-- redesigned API -> improved user-friendliness.
+  - more accurate plume distance retrievals (i.e. now also in dependency of vertical distance).
+  - redesigned API -> improved user-friendliness.
 
-**Image analysis**: Image registration shift can now be applied to images.
+- **Image analysis**: Image registration shift can now be applied to images.
 
-- New method ``shift`` in class ``Img``.
-- Comes with new *mode*  (``shift_mode``) in class ``ImgList`` objects.
-- Default on / off shift for camera can be set in class ``Camera`` using attribute ``reg_shift_off`` (and correspondingly, in file *cam_info.txt*).
+  - New method ``shift`` in class ``Img``.
+  - Comes with new *mode*  (``shift_mode``) in class ``ImgList`` objects.
+  - Default on / off shift for camera can be set in class ``Camera`` using attribute ``reg_shift_off`` (and correspondingly, in file *cam_info.txt*).
 
-**Camera calibration**. Major improvements and API changes:
+- **Camera calibration**. Major improvements and API changes:
 
-- new abstraction layer (module ``calib_base``) including new calibration base class ``CalibData``. Both class ``DoasCalibData`` and class ``CellCalibData`` are now inherited from new base class class ``CalibData``. Advantages and new features:
+  - new abstraction layer (module ``calib_base``) including new calibration base class ``CalibData``. Both class ``DoasCalibData`` and class ``CellCalibData`` are now inherited from new base class class ``CalibData``. Advantages and new features:
 
-  - arbitrary definition of calibration fit function.
-  - fitting of calibration curve, I/O (read / write FITS) and visualisation of DOAS and cell calibration data are now unified in class ``CalibData``.
+    - arbitrary definition of calibration fit function.
+    - fitting of calibration curve, I/O (read / write FITS) and visualisation of DOAS and cell calibration data are now unified in class ``CalibData``.
 
-**Further changes**
+- **Further changes**
 
-- class ``ImgStack`` more intuitive and flexible (e.g. dynamically expandable).
-- Improved index handling and performance of image list objects (module ``imagelists``).
-- class ``PlumeBackgroundModel``: revision, clean up and performance improvements.
-- Improved user-friendliness and performance of plume background retrieval in class ``ImgList`` objects.
-- Correction for signal dilution (class ``DilutionCorr``): increased flexibility and user-friendliness.
-- Improved flexibility for image import using class ``Dataset`` class (e.g. on / off images can be stored in the same file).
-- Reviewed and largely improved performance of general workflow (i.e. iteration over instances of class ``ImgList`` in ``calib_mode``, ``dilcorr_mode`` and ``optflow_mode``).
+  - class ``ImgStack`` more intuitive and flexible (e.g. dynamically expandable).
+  - Improved index handling and performance of image list objects (module ``imagelists``).
+  - class ``PlumeBackgroundModel``: revision, clean up and performance improvements.
+  - Improved user-friendliness and performance of plume background retrieval in class ``ImgList`` objects.
+  - Correction for signal dilution (class ``DilutionCorr``): increased flexibility and user-friendliness.
+  - Improved flexibility for image import using class ``Dataset`` class (e.g. on / off images can be stored in the same file).
+  - Reviewed and largely improved performance of general workflow (i.e. iteration over instances of class ``ImgList`` in ``calib_mode``, ``dilcorr_mode`` and ``optflow_mode``).
 
-**Major bug fixes**
+- **Major bug fixes**
 
-- Fixed conceptual error in cross-correlation algorithm for velocity retrieval (method ``find_signal_correlation`` in module ``plumespeed``).
-- Fixed: class ``ImgList`` in AA mode used current off-band image (at index ``idx_off``) both for the current and next on-band image (and not ``idx_off+1``).
+  - Fixed conceptual error in cross-correlation algorithm for velocity retrieval (method ``find_signal_correlation`` in module ``plumespeed``).
+  - Fixed: class ``ImgList`` in AA mode used current off-band image (at index ``idx_off``) both for the current and next on-band image (and not ``idx_off+1``).
 
 .. _paper:
 
