@@ -26,7 +26,7 @@ News
 
     git clone https://github.com/jgliss/pyplis.git -b v1.3.0
 
-  For detailed installation instructions see :ref:`install`
+  For detailed installation instructions see detailed installation instructions below.
 
 In the following, a brief overview is provided over the most important changes associated with this release. Please see latest `changelog <file:///C:/Users/Jonas/repos/pyplis/docs/_build/html/changelog.html#release-1-0-1-1-3-0>`__ for a detailed description of all changes.
 
@@ -37,7 +37,7 @@ In the following, a brief overview is provided over the most important changes a
 
 Pyplis version 1.3.0 comes with many new features and improvements. The most important changes include:
 
-**Measurement geometry** (:class:`MeasGeometry`):
+**Measurement geometry** (``MeasGeometry``):
 
 - more accurate plume distance retrievals (i.e. now also in dependency of vertical distance).
 - redesigned API -> improved user-friendliness.
