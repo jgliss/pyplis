@@ -22,40 +22,37 @@ Release 1.0.1 -> 1.3.0
 Summary
 -------
 
-**New features:**
+**Measurement geometry** (:class:`MeasGeometry`):
 
-  - Plume distance retrievals more accurate (i.e. now also in dependency of vertical distance)
-  - Image registration shift can now be applied to images.
+- more accurate plume distance retrievals (i.e. now also in dependency of vertical distance).
+- redesigned API -> improved user-friendliness.
 
-    - :func:`shift` in class :class:`Img`
-    - Comes with new mode :attr:`shift_mode` in :class:`ImgList` objects.
-    - Default on / off shift for camera can be set in :class:`Camera` using attribute :attr:`reg_shift_off` (and correspondingly, in file *cam_info.txt*)
+**Image analysis**: Image registration shift can now be applied to images.
 
-  - Camera calibration: major improvements and API changes
+- :func:`shift` in class Img.
+- Comes with new *mode*  (:attr:`shift_mode`) in :class:`ImgList` objects.
+- Default on / off shift for camera can be set in :class:`Camera` using attribute :attr:`reg_shift_off` (and correspondingly, in file *cam_info.txt*).
 
-    - new abstraction layer :mod:`calib_base` including :class:`CalibData`. Both :class:`DoasCalibData` and :class:`CellCalibData` are now inherited from new base class. This includes / results in:
+**Camera calibration**. Major improvements and API changes:
 
-      - arbitrary definition of calibration fit function
-      - unified fitting, I/O (read / write FITS) and visualisation of calibration data for DOAS and cell calibration (due to new base class :class:`CalibData`, details see below)
+- new abstraction layer (:mod:`calib_base`) including new calibration base class. :class:`CalibData`: both :class:`DoasCalibData` and :class:`CellCalibData` are now inherited from new base class :class:`CalibData`. Advantages and new features:
 
-  - New default camera (for USGS CVO camera type)
+  - arbitrary definition of calibration fit function.
+  - fitting of calibration curve, I/O (read / write FITS) and visualisation of DOAS and cell calibration data are now unified in :class:`CalibData`.
 
-**Improvements in API, user-friendliness and performance:**
+**Further changes**
 
-  - Increased user-friendliness in :class:`MeasGeometry`
-  - :class:`ImgStack` more intuitive and dynamically expandable
-  - Improved index handling and performance of image list objects (:mod:`imagelists`)
-  - Improved user-friendliness and performance of plume background retrieval in instances of :class:`ImgList` objects.
-  - Improved user-friendliness and flexibility of dilution-correction
-  - Improved flexibility for image import using :class:`Dataset` (e.g. on / off images can be stored in the same file)
-  - Reviewed and largely improved performance of general workflow (i.e. iteration over instances of :class:`ImgList` in `calib_mode` and `optflow_mode`)
-  - New abstraction layer for camera calibration (:mod:`calib_base`)
-
-    - Classes :class:`CellCalibData` (in :mod:`cellcalib`) and :class:`DoasCalibData` (in :mod:`doascalib`) are now sub-classed from new base class :class:`CalibData` (in :mod:`calib_base`)
+- :class:`ImgStack` more intuitive and flexible (e.g. dynamically expandable).
+- Improved index handling and performance of image list objects (:mod:`imagelists`).
+- :class:`PlumeBackgroundModel`: revision, clean up and performance improvements.
+- Improved user-friendliness and performance of plume background retrieval in :class:`ImgList` objects.
+- Correction for signal dilution (:class:`DilutionCorr`): increased flexibility and user-friendliness.
+- Improved flexibility for image import using :class:`Dataset` class (e.g. on / off images can be stored in the same file).
+- Reviewed and largely improved performance of general workflow (i.e. iteration over instances of :class:`ImgList` in ``calib_mode``, ``dilcorr_mode`` and ``optflow_mode``).
 
 **Major bug fixes**
 
-- Fixed conceptual error in cross-correlation algorithm for velocity retrieval
+- Fixed conceptual error in cross-correlation algorithm for velocity retrieval (:func:`find_signal_correlation` in module :mod:`plumespeed`).
 - Fixed: :class:`ImgList` in AA mode used current off-band image (at index ``idx_off``) both for the current and next on-band image (and not ``idx_off+1``).
 
 1.0.1 -> 1.1.0

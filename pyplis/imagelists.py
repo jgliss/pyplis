@@ -1698,6 +1698,7 @@ class AutoDilcorrSettings(object):
         """String representation"""
         for k, v in self.__dict__.iteritems():
             print "%s: %s" %(k, v)
+            
 class _LinkedLists:
     """Management class for linked image lists
     
@@ -1725,6 +1726,7 @@ class _LinkedLists:
     
     def add(self):
         raise NotImplementedError
+        
 class ImgList(BaseImgList):
     """Image list object with expanded functionality (cf. :class:`BaseImgList`)
     

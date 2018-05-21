@@ -104,7 +104,7 @@ scripts/_private
 scripts/scripts_out/bu
 
 # GUI stuff
-pyplis/_gui_features
+pyplis/gui_features
 
 # Sorted out stuff
 pyplis/_sorted_out
