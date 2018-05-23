@@ -22,7 +22,6 @@ from os.path import join, basename, exists, isfile, abspath, expanduser
 from os import listdir, remove, walk
 from re import split
 
-from matplotlib.pyplot import imread
 from collections import OrderedDict as od
 try:
     from progressbar import ProgressBar, Percentage, Bar, RotatingMarker,\
@@ -180,11 +179,6 @@ def download_test_data(save_path=None):
     remove(filename)
     print ("Download successfully finished, deleting temporary data file"
            "at: %s" %filename)
-
-def load_img_dummy():
-    """Load image dummy as numpy array"""
-    from pyplis import _LIBDIR
-    return imread(join(_LIBDIR, "data", "no_images_dummy.png"))
 
 def find_test_data():
     """Searches location of test data folder"""

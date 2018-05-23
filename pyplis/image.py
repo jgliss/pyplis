@@ -33,7 +33,7 @@ from __future__ import division
 from astropy.io import fits
 from matplotlib import gridspec
 import matplotlib.cm as cmaps
-from matplotlib.pyplot import imread, figure, tight_layout
+from matplotlib.pyplot import figure, tight_layout
 from numpy import (ndarray, argmax, histogram, uint, nan, linspace, isnan, 
                    uint8, float32, finfo, ones, invert, log, ogrid, asarray)
 from json import loads, dumps
@@ -42,10 +42,11 @@ from os import remove
 from warnings import warn
 from datetime import datetime
 from decimal import Decimal
-from cv2 import pyrDown, pyrUp, addWeighted, dilate, erode
+from cv2 import imread, pyrDown, pyrUp, addWeighted, dilate, erode
 from scipy.ndimage.filters import gaussian_filter, median_filter
 from scipy.ndimage.interpolation import shift
 from collections import OrderedDict as od
+from traceback import format_exc
 from copy import deepcopy
 
 from .glob import DEFAULT_ROI
@@ -374,11 +375,8 @@ class Img(object):
             
     def set_data(self, input):
         """Try load input"""
-        try:
-            self.load_input(input)
-        except Exception as e:
-            print repr(e)
-    
+        self.load_input(input)
+        
     def reload(self):
         """Try reload from file"""
         file_path = self.meta["path"]
@@ -399,10 +397,14 @@ class Img(object):
                     input = input.astype(self.dtype)
                 self.img = input
             else:
-                raise
+                raise TypeError("Need array or readable file")
+            if self.img.ndim > 2:
+                warn("Image array has {} dimensions (not a grayscale). Pyplis"
+                     " is designed for grayscale images. This may cause "
+                     "problems in your further analysis")
         except:
-            raise IOError("Image data could not be imported, invalid input: %s"
-                        %(input))
+            raise IOError("Image data could not be imported, invalid input: "
+                          "{}. Traceback: {}".format(input, format_exc()))
     
     def make_histogram(self):
         """Make histogram of current image"""
@@ -1055,7 +1057,7 @@ class Img(object):
         try:
             self.load_fits(file_path)
         except:
-            img = imread(file_path)
+            img = imread(file_path, -1)
             if not self.dtype is None:
                 img = img.astype(self.dtype)
             self.img = img

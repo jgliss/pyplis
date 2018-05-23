@@ -43,8 +43,9 @@ Valid keys for import of image meta information:
       
 """
 from __future__ import division
-from matplotlib.pyplot import imread
-from numpy import swapaxes, flipud, asarray, rot90, float32
+#from matplotlib.pyplot import imread
+from cv2 import imread
+from numpy import swapaxes, flipud, asarray, rot90
 from warnings import warn
 from astropy.io import fits
 from cv2 import resize
@@ -57,7 +58,7 @@ from re import sub
 try:
     from PIL.Image import open as open_pil
 except:
-    pass
+    warn("Python Imaging library PIL could not be imported")
 
 def load_ecII_fits(file_path, meta={}, **kwargs):
     """Load NILU ECII camera FITS file and import meta information"""
@@ -97,7 +98,7 @@ def load_hd_custom(file_path, meta={}, **kwargs):
         - dict, dictionary containing meta information
     
     """
-    im = imread(file_path, 2)#[1::, 1::]
+    im = imread(file_path, -1)#[1::, 1::]
     img = flipud(swapaxes(resize(im, (1024, 1024)), 0, 1))
     try:
         f = sub('.tiff', '.txt', file_path)
@@ -128,10 +129,18 @@ def load_hd_new(file_path, meta={}, **kwargs):
         - ndarray, image data
         - dict, dictionary containing meta information
     """
-    im = open_pil(file_path)
+    try:
+        read = open_pil(file_path)
+        meta["texp"] = float(read.tag_v2[270].split(" ")[0].split("s")[0])
+        img = asarray(read)
+    except:
+        warn("Python Imaging Library (PIL) could not be imported. Using "
+             "opencv method for image import. Cannot import exposure time "
+             "info from tiff header...please install PIL")
+        img = imread(file_path, -1)
     #img = asarray(im)[::-1, 0::] #flip
-    img = rot90(rot90(asarray(im)))
-    meta["texp"] = float(im.tag_v2[270].split(" ")[0].split("s")[0])
+    img = rot90(rot90(img))
+    
     meta["start_acq"] = datetime.strptime("_".join(basename(file_path)
                             .split("_")[:3]), "%Y%m%d_%H%M%S_%f")
     

@@ -44,7 +44,6 @@ from traceback import format_exc
 
 from .glob import DEFAULT_ROI
 from .image import Img, model_dark_image
-from .inout import load_img_dummy
 from .exceptions import ImgMetaError
 from .setupclasses import Camera
 from .geometry import MeasGeometry
@@ -775,12 +774,6 @@ class BaseImgList(object):
         lst_match = ImgList(match, list_id="match", camera=self.camera)
         lst_rest = ImgList(rest, list_id="rest", camera=self.camera)
         return (lst_match, lst_rest)
-        
-    def set_dummy(self):
-        """Load dummy image"""
-        dummy = Img(load_img_dummy())
-        for key in self.loaded_images:
-            self.loaded_images[key] = dummy
             
     def set_camera(self, camera=None, cam_id=None):
         """Set the current camera

@@ -11,6 +11,29 @@ Contact: Jonas Gliss (jonasgliss@gmail.com)
 News
 ====
 
+**Removed strict dependency for pillow (v1.3.1)**
+-------------------------------------------------
+
+In order to reduce the number of dependencies, the default image read function is ``cv2.imread`` from the OpenCV library. Before, the ``imread`` function of matplotlib was used which uses the
+``pillow`` (or formerly ``PIL``) library.
+
+Also, it appeared complicated to install pillow using conda on a Windows machine (see installation instructions below).
+
+.. note::
+
+  **Version 1.3.1 is not yet released**
+
+**Warning when cloning: the repository is quite large (~500 MB)**
+------------------------------------------------------------------
+
+The size of the repository is quite large, due to many updates of the example scripts (in particular the output figures) in the history of the project. When cloning the repository using::
+
+  git clone https://github.com/jgliss/pyplis.git
+
+the whole git history of the project is cloned, hence, the currently 500MB.
+
+This will be cleaned up within the next days (timestamp: 23/05/2018, 23:18).
+
 **Version 1.3.0 released (21/05/2018)**
 ---------------------------------------
 
@@ -124,7 +147,6 @@ Pyplis requires the following packages:
 - numpy >= 1.11.0
 - scipy >= 0.17.0
 - opencv (cv2) >= 2.4.11 (please note `this issue <https://github.com/jgliss/pyplis/issues/4>`__)
-- Pillow (PIL fork) >= 3.3.0 (installs scipy.misc.pilutil)
 - astropy >= 1.0.3
 - geonum >= 1.2.0
 
@@ -137,6 +159,12 @@ Pyplis requires the following packages:
 - matplotlib >= 1.4.3
 
 **Optional dependencies (to use extra features)**
+
+- Pillow (PIL fork) >= 3.3.0
+
+  - may be used to define custom image read functions, see e.g. `here <https://pyplis.readthedocs.io/en/latest/api.html#pyplis.custom_image_import.load_hd_new>`__
+  - We recommend using ``pip install pillow`` rather than ``conda install pillow`` due to
+  - well known installation issues, e.g. `here <https://github.com/python-pillow/Pillow/issues/2945>`__
 
 - pydoas >= 1.0.0
 
