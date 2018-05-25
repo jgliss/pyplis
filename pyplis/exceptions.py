@@ -16,17 +16,22 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
+
 class CellSearchError(Exception):
     pass
+
 
 class FileNameInfoAccessError(Exception):
     pass
 
+
 class ImgMetaError(Exception):
     pass
 
+
 class ImgModifiedError(Exception):
     pass
+
 
 class MetaAccessError(Exception):
     pass
