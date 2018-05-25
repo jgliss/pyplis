@@ -7,3 +7,4 @@ geonum
 pandas
 pydoas
 utils
+six
