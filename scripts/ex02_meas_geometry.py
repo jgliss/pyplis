@@ -15,198 +15,202 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
-"""
-Pyplis example script no. 2 - Features of the MeasGeometry class
+"""Pyplis example script no. 2 - Features of the MeasGeometry class.
 
-In this script, some important features of the MeasGeometry class are 
+In this script, some important features of the MeasGeometry class are
 introduced. The class itself is automatically created in the MeasSetup
-object which was created in example script ex01_analysis_setup.py and was 
-passed as input for a Dataset object. The relevant MeasGeometry class is stored 
-within the Dataset object and can be accessed via the ``meas_geometry`` 
+object which was created in example script ex01_analysis_setup.py and was
+passed as input for a Dataset object. The relevant MeasGeometry class is stored
+within the Dataset object and can be accessed via the ``meas_geometry``
 attribute.
 
-As a first feature, the viewing direction of the camera is retrieved from the 
-image using the position of the south east (SE) crater of Mt.Etna. The result 
+As a first feature, the viewing direction of the camera is retrieved from the
+image using the position of the south east (SE) crater of Mt.Etna. The result
 is then visualized in a 2D map to give an overview of the geometry. The map
-further includes the initial viewing direction (see example script 
-ex01_analysis_setup.py) which was logged in the field using a compass and a 
+further includes the initial viewing direction (see example script
+ex01_analysis_setup.py) which was logged in the field using a compass and a
 mechanical inclinometer.
- 
-Further, the distance to the plume is retrieved on a pixel basis (represented 
+
+Further, the distance to the plume is retrieved on a pixel basis (represented
 as image).
 """
-# Check script version
 from SETTINGS import check_version
-check_version()
 
 from geonum.base import GeoPoint
 from matplotlib.pyplot import subplots, show, close
 from os.path import join
 
-### IMPORT GLOBAL SETTINGS
+# IMPORT GLOBAL SETTINGS
 from SETTINGS import SAVEFIGS, SAVE_DIR, FORMAT, DPI, OPTPARSE
 
-### IMPORTS FROM OTHER EXAMPLE SCRIPTS
+# IMPORTS FROM OTHER EXAMPLE SCRIPTS
 from ex01_analysis_setup import create_dataset
 
-### SCRIPT FUNCTION DEFINITIONS    
+# Check script version
+check_version()
+
+# SCRIPT FUNCTION DEFINITIONS
+
+
 def find_viewing_direction(meas_geometry, draw_result=True):
-    """Correct viewing direction using location of Etna SE crater
-    
+    """Correct viewing direction using location of Etna SE crater.
+
     Defines location of Etna SE crater within images (is plotted into current
-    plume onband image of dataset) and uses its geo location to retrieve the 
+    plume onband image of dataset) and uses its geo location to retrieve the
     camera viewing direction
-    
+
     :param meas_geometry: :class:`MeasGeometry` object
-    
+
     """
     # Position of SE crater in the image (x, y)
-    se_crater_img_pos = [806, 736] 
-    
+    se_crater_img_pos = [806, 736]
+
     # Geographic position of SE crater (extracted from Google Earth)
     # The GeoPoint object (geonum library) automatically retrieves the altitude
-    # using SRTM data 
+    # using SRTM data
     se_crater = GeoPoint(37.747757, 15.002643, name="SE crater")
-    
-    print "Retrieved altitude SE crater (SRTM): %s" %se_crater.altitude
-    
+
+    print("Retrieved altitude SE crater (SRTM): %s" % se_crater.altitude)
+
     # The following method finds the camera viewing direction based on the
-    # position of the south east crater. 
+    # position of the south east crater.
     new_elev, new_azim, _, basemap =\
-    meas_geometry.find_viewing_direction(pix_x=se_crater_img_pos[0], 
-                                         pix_y=se_crater_img_pos[1],
-                                         pix_pos_err=100, #for uncertainty estimate
-                                         geo_point=se_crater,
-                                         draw_result=draw_result,
-                                         update=True) #overwrite old settings 
-                                         
-    print ("Updated camera azimuth and elevation in MeasGeometry, new values: "
-            "elev = %.1f, azim = %.1f" %(new_elev, new_azim))
-            
+        meas_geometry.find_viewing_direction(pix_x=se_crater_img_pos[0],
+                                             pix_y=se_crater_img_pos[1],
+                                             # for uncertainty estimate
+                                             pix_pos_err=100,
+                                             geo_point=se_crater,
+                                             draw_result=draw_result,
+                                             update=True)  # overwrite settings
+
+    print("Updated camera azimuth and elevation in MeasGeometry, new values: "
+          "elev = %.1f, azim = %.1f" % (new_elev, new_azim))
+
     return meas_geometry, basemap
-    
+
+
 def plot_plume_distance_image(meas_geometry):
-    """Determines and plots image plume distance and pix-to-pix distance images"""
+    """Determine and plot image plume distance and pix-to-pix distance imgs."""
     # This function returns three images, the first corresponding to pix-to-pix
     # distances in horizontal direction and the second (ignored here) to
-    # the vertical (in this case they are the same since pixel height and 
-    # pixel width are the same for this detector). The third image gives 
+    # the vertical (in this case they are the same since pixel height and
+    # pixel width are the same for this detector). The third image gives
     # camera to plume distances on a pixel basis
     (dist_img, _, plume_dist_img) =\
         meas_geometry.compute_all_integration_step_lengths()
-    
-    fig, ax = subplots(2, 1, figsize = (7,8))
-    
+
+    fig, ax = subplots(2, 1, figsize=(7, 8))
+
     # Show pix-to-pix distance image
     dist_img.show(cmap="gray", ax=ax[0], zlabel="Pix-to-pix distance [m]")
     ax[0].set_title("Parameterised pix-to-pix dists")
-    
+
     # Show plume distance image (convert pixel values to from m -> km)
-    (plume_dist_img / 1000.0).show(cmap="gray", ax=ax[1], zlabel="Plume distance [km]")
+    (plume_dist_img / 1000.0).show(cmap="gray",
+                                   ax=ax[1], zlabel="Plume distance [km]")
     ax[1].set_title("Plume dists")
     return fig
 
-### SCRIPT MAIN FUNCTION
+
+# SCRIPT MAIN FUNCTION
 if __name__ == "__main__":
     close("all")
-    
+
     # Create the Dataset object (see ex01)
     ds = create_dataset()
-    
+
     # execute function defined above (see above for definition and information)
     geom_corr, map_ = find_viewing_direction(ds.meas_geometry)
-    
+
     # execute 2. script function (see above for definition and information)
-    fig =  plot_plume_distance_image(ds.meas_geometry)
-    
+    fig = plot_plume_distance_image(ds.meas_geometry)
+
     # You can compute the plume distance for the camera CFOV pixel column just
     # by calling the method plume_dist() without specifying the input azimuth
     # angle...
     plume_dist_cfov = geom_corr.plume_dist()[0]
-    
-    # ... and the corresponding uncertainty 
+
+    # ... and the corresponding uncertainty
     plume_dist_err_cfov = geom_corr.plume_dist_err()
-    
-    # You can also retrieve an array containing the camera azimuth angles for 
+
+    # You can also retrieve an array containing the camera azimuth angles for
     # each pixel column...
     all_azimuths = geom_corr.all_azimuths_camfov()
-    
+
     # ... and use this to compute plume distances on a pixel column basis
     plume_dists_all_cols = geom_corr.plume_dist(all_azimuths)
-    
-    # If you want, you can update information about camera, source or 
-    # meteorolgy using either of the following methods (below we apply a 
+
+    # If you want, you can update information about camera, source or
+    # meteorolgy using either of the following methods (below we apply a
     # change in the wind-direction such that the plume propagation direction
     # is changed from S to SE )
-    #geom_corr.update_cam_specs()
-    #geom_corr.update_source_specs()
-    
+    # geom_corr.update_cam_specs()
+    # geom_corr.update_source_specs()
+
     geom_corr.update_wind_specs(dir=315)
-    geom_corr.draw_map_2d() # this figure is only displayed and not saved 
-    
-    #recompute plume distance of CFOV pixel
+    geom_corr.draw_map_2d()  # this figure is only displayed and not saved
+
+    # recompute plume distance of CFOV pixel
     plume_dist_cfov_new = geom_corr.plume_dist()[0]
-    
+
     print("Comparison of plume distances after change of wind direction:\n"
           "Previous: %.3f m\n"
-          "New: %.3f m" %(plume_dist_cfov, plume_dist_cfov_new))
+          "New: %.3f m" % (plume_dist_cfov, plume_dist_cfov_new))
     # Using this a
-    ### IMPORTANT STUFF FINISHED    
+    # IMPORTANT STUFF FINISHED
     if SAVEFIGS:
-        map_.ax.figure.savefig(join(SAVE_DIR, "ex02_out_1.%s" %FORMAT), 
-                              format=FORMAT, dpi=DPI)
-        fig.savefig(join(SAVE_DIR, "ex02_out_2.%s" %FORMAT), format=FORMAT,
+        map_.ax.figure.savefig(join(SAVE_DIR, "ex02_out_1.%s" % FORMAT),
+                               format=FORMAT, dpi=DPI)
+        fig.savefig(join(SAVE_DIR, "ex02_out_2.%s" % FORMAT), format=FORMAT,
                     dpi=DPI)
-    
-    ### IMPORTANT STUFF FINISHED (Below follow tests and display options)
-    
+
+    # IMPORTANT STUFF FINISHED (Below follow tests and display options)
+
     # Import script options
     (options, args) = OPTPARSE.parse_args()
-    
-    # If applicable, do some tests. This is done only if TESTMODE is active: 
-    # testmode can be activated globally (see SETTINGS.py) or can also be 
-    # activated from the command line when executing the script using the 
+
+    # If applicable, do some tests. This is done only if TESTMODE is active:
+    # testmode can be activated globally (see SETTINGS.py) or can also be
+    # activated from the command line when executing the script using the
     # option --test 1
     if int(options.test):
         import numpy.testing as npt
         from os.path import basename
-        
+
         npt.assert_array_equal([],
                                [])
-        
+
         # check some propoerties of the basemap (displayed in figure)
-        
-        #map basemap coordinates to lon / lat values
+
+        # map basemap coordinates to lon / lat values
         lon, lat = map_(8335, 9392, inverse=True)
         npt.assert_allclose(actual=[lon, lat, map_.delta_lon, map_.delta_lat],
                             desired=[15.075131135, 37.76678834,
                                      0.149263852982,
                                      0.118462659944],
                             rtol=1e-7)
-        
+
         # check some basic properties / values of the geometry
         npt.assert_allclose(actual=[geom_corr.cam_elev,
                                     geom_corr.cam_elev_err,
                                     geom_corr.cam_azim,
-                                    geom_corr.cam_azim_err, 
+                                    geom_corr.cam_azim_err,
                                     plume_dist_cfov,
                                     plume_dist_err_cfov,
                                     plume_dists_all_cols.mean(),
                                     plume_dist_cfov_new],
-                            desired=[1.547754e+01, 
-                                     1.064556e+00, 
-                                     2.793013e+02, 
+                            desired=[1.547754e+01,
+                                     1.064556e+00,
+                                     2.793013e+02,
                                      1.065411e+00,
-                                     1.073102e+04, 
-                                     1.645586e+02, 
+                                     1.073102e+04,
+                                     1.645586e+02,
                                      1.076047e+04,
                                      9.961593e+03],
                             rtol=1e-6)
-        print("All tests passed in script: %s" %basename(__file__)) 
+        print("All tests passed in script: %s" % basename(__file__))
     try:
         if int(options.show) == 1:
             show()
-    except:
-        print "Use option --show 1 if you want the plots to be displayed"
-    
-    
+    except BaseException:
+        print("Use option --show 1 if you want the plots to be displayed")
