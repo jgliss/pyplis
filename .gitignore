@@ -145,3 +145,6 @@ scripts/_profiler_results
 
 # Notebooks
 notebooks
+
+# scripts_out folder
+scripts/scripts_out/*

@@ -8,8 +8,27 @@ Contact: Jonas Gliss (jonasgliss@gmail.com)
 
 .. _news:
 
-News
-====
+News / Notifications
+====================
+
+**UPDATE for large repo warning below: "Warning when cloning ...**
+------------------------------------------------------------------
+
+- ISSUE RESOLVED: The size of the repository has been reduced by removing old versions and deprecated binary files from the history following `the official github recommendations <https://help.github.com/articles/removing-sensitive-data-from-a-repository/>`__
+- The history of all binary files has been cleaned up
+- New repository size is ~30MB
+- **NOTE (if you have a clone of the repo)**: Since we changed the history of the repository (i.e. removing old versions and deprecated binary files) in order to reduce the repo size, you can do either of the following with your local copy.
+
+  - make a backup of your version (if you applied changes to it) and make a fresh clone of the cleaned up repo (recommended)::
+
+    git clone https://www.github.com/jgliss/pyplis.git
+
+  - Rebase and update reference log, run git garbage collector (see `here <https://github.com/sgrid/pysgrid/issues/75>`__ for details). From your local ``pyplis`` repo run::
+
+    git fetch origin
+    git rebase
+    git reflog expire --expire=now --all
+    git gc --aggressive --prune=now
 
 **Removed strict dependency for pillow (v1.3.1)**
 -------------------------------------------------
