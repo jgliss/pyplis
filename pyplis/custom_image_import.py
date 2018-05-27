@@ -146,6 +146,37 @@ def load_hd_new(file_path, meta={}, **kwargs):
     
     return (img, meta)
 
+def load_qsi_lmv(file_path, meta={}, **kwargs):
+    """Load images for QSI cam from LMV
+    
+    Laboratoire Magmas et Volcans,
+    Université Clermont Auvergne - CNRS - IRD, OPGC
+
+    This format contains IPTC information
+    
+    Parameters
+    ----------
+    
+    file_path : str
+        image file path 
+    meta : dict 
+        optional, meta info dictionary to which additional meta
+        information is supposed to be appended
+    
+    Returns
+    -------
+    tuple
+        2-element tuple, containing:
+            
+            - ndarray, image data
+            - dict, dictionary containing meta information
+            
+    """
+    img = imread(file_path, -1)
+    #img = asarray(im)[::-1, 0::] #flip
+    img = rot90(rot90(img))
+    return (img, meta)
+
 def load_usgs_multifits(file_path, meta={}):
     img = None
     if not "filter_id" in meta:

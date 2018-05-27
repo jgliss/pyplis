@@ -1164,6 +1164,10 @@ class CameraBaseInfo(object):
         
     def _init_access_substring_info(self):
         """Check number of sub strings for specific access values after split"""
+        if not self.delim:
+            warn("Cannot init filename access info in Camera. Delimiter is "
+                 "unspecified.")
+            return False
         self._time_info_subnum = len(self.time_info_str.split(self.delim))
         for f in self.default_filters:
             len_acro = len(f.acronym.split(self.delim))
@@ -1179,7 +1183,8 @@ class CameraBaseInfo(object):
                 self._fid_subnum_max = len_acro
             if len_mtype > self._mtype_subnum_max:
                 self._mtype_subnum_max = len_mtype
-        
+        return True
+    
     def update_file_access_flags(self):
         """Check which info can (potentially) be extracted from filename
         
