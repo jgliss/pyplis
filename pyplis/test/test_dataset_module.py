@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
-"""
-Pyplis test module for dataset.py base module of Pyplis
+u"""Pyplis test module for dataset.py base module of Pyplis.
 
 Author: Jonas Gliss
 Email: jonasgliss@gmail.com
