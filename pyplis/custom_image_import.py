@@ -39,7 +39,8 @@ Valid keys for import of image meta information:
 
 'start_acq', 'stop_acq', 'texp', 'focal_length', 'pix_width', 'pix_height', 
 'bit_depth', 'f_num', 'read_gain', 'filter', 'path', 'file_name', 'file_type', 
-'device_id', 'ser_no'
+'device_id', 'ser_no', 'wvlngth', 'fits_idx', 'temperature', 'user_param1',
+'user_param2', 'user_param3'
       
 """
 from __future__ import division
@@ -248,3 +249,101 @@ def load_usgs_multifits_uncompr(file_path, meta={}):
         raise IOError("Failed to import image data using custom method\n"
                       "Error message: %s" %repr(e))
     return (img, meta)
+  
+  def _read_binary_timestamp(timestamp):
+    """ Converts an (1,14)-array of pixel as given by the pco camware software to
+    a valid datetime 
+
+    Parameters
+    ----------
+    timestamp : array
+        array containg 14 pixel which code as the following
+        0 pixel 1 image counter (MSB) (00 … 99)
+        1 pixel 2 image counter (00 … 99)
+        2 pixel 3 image counter (00 … 99)
+        3 pixel 4 image counter (LSB) (00 … 99)
+        4 pixel 5 year (MSB) (20)
+        5 pixel 6 year (LSB) (03 … 99)
+        6 pixel 7 month (01 … 12) 
+        7 pixel 8 day (01 ... 31)
+        8 pixel 9 h (00 … 23)
+        9 pixel 10 min (00 … 59)
+        10 pixel 11 s (00 … 59)
+        11 pixel 12 μs * 10000 (00 … 99)
+        12 pixel 13 μs * 100 (00 … 99)
+        13 pixel 14 μs (00 … 90)
+            
+    Returns
+    -------
+    datetime.datetime
+        3-element tuple containing
+    """
+    try:
+        values = [10 * (timestamp[0,j] >> 4) +  timestamp[0,j] - ((timestamp[0,j] >> 4) << 4) for j in range(14)]
+    except:
+        try:
+            values = [10 * (timestamp[j] >> 4) +  timestamp[j] - ((timestamp[j] >> 4) << 4) for j in range(14)]
+        except:
+            print('Failed to convert the binary timestamp.')
+    year = int(values[4]*100 + values[5])
+    microsecond = int(values[11]*10000 + values[12]*100 + values[13])
+    endtime = datetime(year, values[6], values[7], values[8], values[9],
+                       values[10], microsecond)
+    return endtime
+
+def load_comtessa(file_path, meta={}):
+    """ Load image from a multi-layered fits file (several images in one file)
+    Meta data is available only inside the header.
+    
+    This corresponds to image data from the COMTESSA project at Norwegian
+    Institute for Air Research.
+    
+    Note
+    ----
+    The comtessa *.fits files have several timestamps: 1) Filename --> minute 
+    in which the image was saved. 2) Meta information in the image header -->
+    computer time when the image was saved. 3) First 14 image pixels contain
+    a binary timestamp --> time when exposure was finished. Here nr 3) is saved
+    as meta['stop_acq']. meta['start_acq'] is calculated from meta['stop_acq'] 
+    and meta['texp']. meta['user_param1'] is the gain (float type).
+    
+    Parameters
+    ----------
+    file_path : string
+        image file path
+    meta: dictionary
+        optional, meta info dictionary to which additional meta
+        information is appended. The image index should be provided with key 
+        "fits_idx".
+        
+    Returns 
+    -------
+    ndarray
+        image data
+    dict
+        dictionary containing meta information 
+
+    """ 
+    hdulist = fits.open(file_path)
+    try:
+        img_hdu = meta['fits_idx']
+    except:
+        img_hdu = 0
+        meta['fits_idx'] = 0
+        warn("Loading of comtessa fits file without providing the image index "
+             "of desired image within the file. Image index was set to 0. "
+             "Provide the image index via the meta = {'fits_idx':0} keyword.")
+    # Load the image
+    image = hdulist[img_hdu].data
+    # read and replace binary time stamp
+    endtime = _read_binary_timestamp(image)
+    image[0,0:14] = image[1,0:14]
+    # load meta data
+    imageHeader = hdulist[img_hdu].header
+    meta.update({"start_acq"    : endtime - timedelta(microseconds=int(imageHeader['EXP'])*1000),
+                "stop_acq"      : endtime,
+                "texp"          : float(imageHeader['EXP']) / 1000., # in seconds
+                "temperature"   : float(imageHeader['TCAM']),
+                "ser_no"        : imageHeader['SERNO'],
+                "user_param1"   : float(imageHeader['GAIN']) })
+    return (image, meta)
