@@ -172,17 +172,22 @@ class Img(object):
                         ("lat"           ,   nan),   #latitude (dec. deg)
                         ("altitude"      ,   nan),    # in m
                         ("altitude_offs" ,   nan),    # offset in altitude above topography
-                        ("elev"         ,    nan),
-                        ("elev_err"     ,    nan),
-                        ("azim"         ,    nan),
-                        ("azim_err"     ,    nan),
+                        ("elev"          ,   nan),
+                        ("elev_err"      ,   nan),
+                        ("azim"          ,   nan),
+                        ("azim_err"      ,   nan),
                         ("filter_id"     ,   ""),
                         ("path"          ,   ""),
                         ("file_name"     ,   ""),
                         ("file_type"     ,   ""),
                         ("device_id"     ,   ""),
                         ("ser_no"        ,   ""),
-                        ("wvlngth"       ,   nan)])
+                        ("wvlngth"       ,   nan),
+                        ("fits_idx"      ,   int(0)), # image level of fits files with multiple images 
+                        ("temperature"   ,   nan), # camera temperature in degree Celsius
+                        ("user_param1"   ,   nan), # custom parameters for definition by pyplis user in import_method
+                        ("user_param2"   ,   nan),
+                        ("user_param3"   ,   nan)])
                       
         if import_method is not None:
             data, meta_info = import_method(input, meta_info) 
