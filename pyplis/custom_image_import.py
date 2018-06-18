@@ -250,7 +250,7 @@ def load_usgs_multifits_uncompr(file_path, meta={}):
                       "Error message: %s" %repr(e))
     return (img, meta)
   
-  def _read_binary_timestamp(timestamp):
+def _read_binary_timestamp(timestamp):
     """ Converts an (1,14)-array of pixel as given by the pco camware software to
     a valid datetime 
 
