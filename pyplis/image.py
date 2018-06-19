@@ -36,6 +36,7 @@ import matplotlib.cm as cmaps
 from matplotlib.pyplot import figure, tight_layout
 from numpy import (ndarray, argmax, histogram, uint, nan, linspace, isnan, 
                    uint8, float32, finfo, ones, invert, log, ogrid, asarray)
+from numpy.ma import masked_array
 from json import loads, dumps
 from os.path import abspath, splitext, basename, exists, join, isdir, dirname
 from os import remove
@@ -632,6 +633,28 @@ class Img(object):
         """
         self.img = gaussian_filter(self.img, sigma, **kwargs)
         self.edit_log["blurring"] += sigma   
+    
+    def get_masked_img(self, mask, fill_value=None):
+        """ Returns a np.ma.masked_array of the img array
+        Parameters:
+        -----------
+        mask : numpy.ndarray
+            entries which should be masked (True=invalid entry)
+            has to be same shape as current state of self.img
+        fill_value : float
+            (optional, default None) If defined, invalid entries are replaced 
+            by fill_value
+        Returns:
+        --------
+        numpy.ma.masked_array
+            masked array
+        """
+        data = deepcopy(self.img)
+        data_masked = masked_array(data, mask)
+        if fill_value is None:
+            return data_masked
+        else:
+            return data_masked.filled(fill_value=fill_value)           
     
     def get_thresh_mask(self, threshold):
         """Apply threshold and get binary mask"""

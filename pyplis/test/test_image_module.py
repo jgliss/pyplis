@@ -9,8 +9,10 @@ License: GPLv3+
 
 from pyplis import Img, __dir__
 from os.path import join, exists
+from numpy import nan, zeros
 from numpy.testing import assert_allclose
 import pytest
+import math
 
 EC2_IMG_PATH = join(__dir__, "data", "test_201509160708_F01_335.fts")
 
@@ -45,9 +47,26 @@ def test_pyramid_crop(ec2_img):
 def test_meta_info(ec2_img):
     """Test if all relevant meta information is loaded"""
     assert ec2_img.shape == (1024, 1344)
-    
-    
 
+@pytest.fixture
+def binary_mask(scope='module'):
+    """ Binary mask for ec2 image """
+    mask = zeros((1024, 1344))
+    mask[0:500,:] = 1
+    return mask
+
+@pytest.mark.parametrize("fill_value", [
+        0.0, 10, -1.234])
+    
+def test_masked_img(ec2_img, mask, fill_value):
+    """ Test if masking works """
+    masked_img = ec2_img.get_masked_img(mask=mask, fill_value=fill_value)
+    assert masked_img[200, 500] == fill_value
+
+def test_masked_img_nan(ec2_img, mask):
+    """ Test if masking works """
+    masked_img = ec2_img.get_masked_img(mask=mask, fill_value=nan)
+    assert math.isnan(masked_img[200, 500])
     
     
     
