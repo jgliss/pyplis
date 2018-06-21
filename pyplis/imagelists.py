@@ -29,6 +29,7 @@ current and next image).
 #from __future__ import division
 from numpy import (asarray, zeros, argmin, arange, ndarray, float32, isnan,
                    logical_or, uint8, exp, ones)
+from numpy.ma import nomask
 from datetime import timedelta, datetime, date
 
 from pandas import Series, DataFrame
@@ -123,6 +124,7 @@ class BaseImgList(object):
         self._list_modes = {} #init for :class:`ImgList` object
         
         self._vign_mask = None #a vignetting correction mask can be stored here
+        self.__sky_mask = nomask # mask for invalid pixel
         self.loaded_images = {"this"  :    None}
         
         #used to store the img edit state on load
@@ -308,7 +310,22 @@ class BaseImgList(object):
             else:
                 value.pyr_up(pyrlevel_rel)
         self._vign_mask = value
-        
+
+    @property
+    def sky_mask(self):
+        """Sky access mask: 0 for sky, 1 for non-sky (=invalid)
+        (in masked arrays, entries marked with 1 are invalid) """
+        return self.__sky_mask
+    
+    @sky_mask.setter
+    def sky_mask(self, value):
+        # TODO: Check if the mask has the same dimension as the images
+        # TODO: maybe load as pyplis img
+        if not isinstance(value, ndarray):
+            raise TypeError("Could not set sky_mask, need MeasGeometry "
+                "object")
+        self.__sky_mask = deepcopy(value)
+    
     @property
     def integration_step_length(self):
         """The integration step length for emission-rate analyses
