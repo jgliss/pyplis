@@ -278,3 +278,27 @@ reg_shift_off:0.00,0.00
 io_opts:LINK_OFF_TO_ON=1,USE_ALL_FILES=0,INCLUDE_SUB_DIRS=1,SEPARATE_FILTERS=1
 image_import_method:load_ecII_fits
 ENDCAM
+
+
+NEWCAM
+cam_ids:comtessa, nilu, NILU, 
+cam_id:comtessa
+delim:_
+time_info_pos:0
+time_info_str:%Y%m%dZ%H%M
+filter_id_pos:1
+texp_pos:
+texp_unit:
+file_type:fts
+main_filter_id:on
+meas_type_pos:1
+DARK_CORR_OPT:2
+focal_length:25.04
+pix_height:4.65e-06
+pix_width:4.65e-06
+pixnum_x:1392
+pixnum_y:1040
+filter:on,on,A,A,310
+filter:off,off,B,B,330
+image_import_method:load_comtessa
+ENDCAM

@@ -51,7 +51,7 @@ from warnings import warn
 from astropy.io import fits
 from cv2 import resize
 from os.path import basename
-from datetime import datetime
+from datetime import datetime, timedelta
 from .helpers import matlab_datenum_to_datetime
 
 from re import sub

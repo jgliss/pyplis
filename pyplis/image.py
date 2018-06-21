@@ -397,6 +397,7 @@ class Img(object):
             if any([isinstance(input, x) for x in [str, unicode]]) and\
                                                                 exists(input):
                 self.load_file(input)
+                print(input)
             
             elif isinstance(input, ndarray):
                 if self.dtype is not None:
