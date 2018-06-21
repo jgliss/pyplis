@@ -2419,6 +2419,7 @@ class OptflowFarneback(object):
         #print "Calculating Farneback optical flow"
         self.flow = calcOpticalFlowFarneback(self.images_prep["this"],
                                              self.images_prep["next"], 
+                                             flow=None,
                                              flags=OPTFLOW_FARNEBACK_GAUSSIAN,
                                              **settings)
         return self.flow 
