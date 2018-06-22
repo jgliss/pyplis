@@ -58,14 +58,14 @@ def binary_mask(scope='module'):
 @pytest.mark.parametrize("fill_value", [
         0.0, 10, -1.234])
     
-def test_masked_img(ec2_img, mask, fill_value):
+def test_masked_img(ec2_img, binary_mask, fill_value):
     """ Test if masking works """
-    masked_img = ec2_img.get_masked_img(mask=mask, fill_value=fill_value)
+    masked_img = ec2_img.get_masked_img(mask=binary_mask, fill_value=fill_value)
     assert masked_img[200, 500] == fill_value
 
-def test_masked_img_nan(ec2_img, mask):
+def test_masked_img_nan(ec2_img, binary_mask):
     """ Test if masking works """
-    masked_img = ec2_img.get_masked_img(mask=mask, fill_value=nan)
+    masked_img = ec2_img.get_masked_img(mask=binary_mask, fill_value=nan)
     assert math.isnan(masked_img[200, 500])
     
     
