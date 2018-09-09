@@ -18,11 +18,11 @@
 
 from setuptools import setup, find_packages
 from codecs import open
-from os.path import join, abspath, dirname, expanduser
+from os.path import join, abspath, dirname, expanduser, exists
+from os import mkdir
 
-here = abspath(dirname(__file__))
-
-with open(join(here,'README.rst'), encoding = 'utf-8') as file:
+with open(join(abspath(dirname(__file__)),'README.rst'), 
+          encoding = 'utf-8') as file:
     readme = file.read()
     
 with open("VERSION.rst") as f:
@@ -32,7 +32,9 @@ with open("VERSION.rst") as f:
 #with open(join("pyplis","data", "_paths.txt"), 'w'): pass
 
 usr_dir = join(expanduser('~'), "my_pyplis")
-
+if not exists(usr_dir):
+    mkdir(usr_dir)
+    
 setup(
     name        =   'pyplis',
     version     =   version,

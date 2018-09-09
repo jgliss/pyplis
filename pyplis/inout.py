@@ -19,7 +19,7 @@
 Module containing all sorts of I/O-routines (e.g. test data access)
 """
 from os.path import join, basename, exists, isfile, abspath, expanduser
-from os import listdir, remove, walk
+from os import listdir, mkdir, remove, walk
 from re import split
 
 from collections import OrderedDict as od
@@ -38,7 +38,10 @@ from shutil import copy2
 def data_search_dirs():
     """Get basic search directories for package data files"""
     from pyplis import __dir__
-    return (expanduser(join('~', 'my_pyplis')), join(__dir__, "data"))
+    usr_dir = expanduser(join('~', 'my_pyplis'))
+    if not exists(usr_dir):
+        mkdir(usr_dir)
+    return (usr_dir, join(__dir__, "data"))
 
 def zip_example_scripts(repo_base):
     from pyplis import __version__ as v
@@ -150,7 +153,7 @@ def download_test_data(save_path=None):
                   "file _paths.txt: %s" %save_path)
             f.close()
         
-    print "installing test data at %s" %save_path
+    print("installing test data at %s" %save_path)
     
     filename = mktemp('.zip')
     
@@ -210,12 +213,14 @@ def all_test_data_paths():
     paths = []
     [paths.append(x) for x in dirs]
     for data_path in dirs:
-        with open(join(data_path, "_paths.txt"), "r") as f:
-            lines = f.readlines()
-            for line in lines:
-                p = line.split("\n")[0].lower()
-                if exists(p):
-                    paths.append(p)
+        fp = join(data_path, "_paths.txt")
+        if exists(fp):
+            with open(join(data_path, "_paths.txt"), "r") as f:
+                lines = f.readlines()
+                for line in lines:
+                    p = line.split("\n")[0].lower()
+                    if exists(p):
+                        paths.append(p)
     return paths
     
 def set_test_data_path(save_path):
