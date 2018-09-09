@@ -524,6 +524,11 @@ class Camera(CameraBaseInfo):
     def __init__(self, cam_id=None, filter_list=[], default_filter_on=None,
                  default_filter_off=None, ser_no=9999, **geom_info):
         
+        if cam_id is not None:
+            if not isinstance(cam_id, str):
+                raise TypeError("Camera initialisation: cam_id argument has "
+                                "to be of type str or None")
+            
         super(Camera, self).__init__(cam_id)
     
         #specify the filters used in the camera and the main filter (e.g. On)        
