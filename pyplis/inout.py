@@ -144,7 +144,7 @@ def download_test_data(save_path=None):
         where = dirs[1]
         fp = join(where, "_paths.txt")
     if save_path is None or not exists(save_path):
-        save_path = join(where, "data")
+        save_path = where
         print("Save path unspecified")
     else:
         with open(fp, "a") as f:
