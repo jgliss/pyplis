@@ -29,6 +29,7 @@ current and next image).
 #from __future__ import division
 from numpy import (asarray, zeros, argmin, arange, ndarray, float32, isnan,
                    logical_or, uint8, exp, ones)
+from numpy.ma import nomask
 from datetime import timedelta, datetime, date
 
 from pandas import Series, DataFrame
@@ -104,7 +105,7 @@ class BaseImgList(object):
         self._integration_step_lengths = None
         self._plume_dists = None
         
-        self.set_camera(camera)
+        self.set_camera(camera=camera, cam_id=None)
         
         self._update_cam_geodata = False
         self._edit_active = True
@@ -123,6 +124,7 @@ class BaseImgList(object):
         self._list_modes = {} #init for :class:`ImgList` object
         
         self._vign_mask = None #a vignetting correction mask can be stored here
+        self.__sky_mask = nomask # mask for invalid pixel
         self.loaded_images = {"this"  :    None}
         
         #used to store the img edit state on load
@@ -308,7 +310,22 @@ class BaseImgList(object):
             else:
                 value.pyr_up(pyrlevel_rel)
         self._vign_mask = value
-        
+
+    @property
+    def sky_mask(self):
+        """Sky access mask: 0 for sky, 1 for non-sky (=invalid)
+        (in masked arrays, entries marked with 1 are invalid) """
+        return self.__sky_mask
+    
+    @sky_mask.setter
+    def sky_mask(self, value):
+        # TODO: Check if the mask has the same dimension as the images
+        # TODO: maybe load as pyplis img
+        if not isinstance(value, ndarray):
+            raise TypeError("Could not set sky_mask, need MeasGeometry "
+                "object")
+        self.__sky_mask = deepcopy(value)
+    
     @property
     def integration_step_length(self):
         """The integration step length for emission-rate analyses
@@ -781,7 +798,7 @@ class BaseImgList(object):
         Two options:
             
             1. set :obj:`Camera` directly
-            #. provide one of the default camera IDs (e.g. "ecII", "hdcam")
+            2. provide one of the default camera IDs (e.g. "ecII", "hdcam")
         
         Parameters
         ----------
@@ -793,9 +810,20 @@ class BaseImgList(object):
             camera IDs)
             
         """
-        if not isinstance(camera, Camera):
-            camera = Camera(cam_id)
-        self.camera = camera
+        if camera is not None:
+            if not isinstance(camera, Camera):
+                raise TypeError("Camera argument for image list was not correctly "
+                     "initialised with an object of type pyplis.Camera ")
+                
+            self.camera = camera
+
+        else:
+            if cam_id is not None:
+                self.camera = Camera(cam_id)
+        
+        #if not isinstance(camera, Camera):
+        #    camera = Camera(cam_id)
+        #self.camera = camera
     
     def reset_img_prep(self):
         """Init image pre-edit settings"""
@@ -3798,7 +3826,223 @@ class CellImgList(ImgList):
         self.cell_id = cell_id
         self.gas_cd = gas_cd
         self.gas_cd_err = gas_cd_err
+
+
+from numpy import size, array
+from pandas import to_datetime, concat
+from astropy.io import fits
+from custom_image_import import _read_binary_timestamp
+
+class ImgListLayered(ImgList):
+    """ Image list object able to deal with multi layered fits files
+    
+    Additional features:
         
+            1. Indexing using double index: Filename and image layer
+            2. Function which returns a DataFrame of all available data
+            
+    Parameters
+    ----------
+    files : list
+        list containing image file paths, defaults to ``[]`` (i.e. empty list)
+    meta : DataFrame
+        meta data from a previous load of the same image list. Can be used 
+        alternatively for a faster initialisation
+    list_id : :obj:`str`, optional
+        string ID of this list, defaults to None
+    list_type : :obj:`str`, optional
+        string specifying type of image data in this list (e.g. on, off)
+    camera : :obj:`Camera`, optional
+        camera specifications, defaults to None
+    geometry : :obj:`MeasGeometry`, optional
+        measurement geometry
+    init : bool
+        if True, the first two images in list ``files`` are loaded
+        
+    Note
+    ----
+    Initialise with a list of n files each containing a (variable) 
+    number of image layers) m_n. The file header needs to be read in for 
+    every file in order to get the right amount of total images. The
+    attribute `self.files` will contain m_n copies of the file n.
+    If the list has been loaded before, the ImgListLayered can also be 
+    initialised with a DataFrame containing all meta information.
+        
+    """
+    
+    def __init__(self, files=[], meta=None, list_id=None, list_type=None, camera=None,
+                 geometry=None, init=True):
+        # uses the init method from ImgList but does not load the files!
+        super(ImgListLayered, self).__init__(files, list_id, list_type, camera, 
+                                      geometry, init=False)
+        
+        self.fitsfiles = files
+        
+        if isinstance(meta, DataFrame):
+            try:
+                self.metaData = meta
+            except:
+                self.metaData = self.get_img_meta_all()
+        else:
+            self.metaData = self.get_img_meta_all()
+
+        # Image referencing by two information: file and image layer
+        # filename subindex (file is repeated m_n times)
+        self.files = self.metaData['file'].values
+        # image layer inside fits file
+        self.hdu_nr = self.metaData['hdu_nr'].values
+                                      
+        if self.data_available and init:
+            self.load()    
+
+    def get_img_meta_from_filename(self, file_path):
+        """Loads and prepares img meta input dict for Img object
+        
+        Note
+        ----
+        Convenience method only rewritten in order to not break the code.
+        Loads meta data of first image plane in fits file_path
+        
+        Parameters
+        ----------
+        file_path : str 
+            file path of image
+        
+        Returns
+        -------
+        dict
+            dictionary containing retrieved values for ``start_acq`` and 
+            ``texp``
+        """
+        
+        warn('This method does not make a lot of sense for the ImgListLayered!'
+             ' Returns the meta data of the first image in file_path.'
+             ' Use metaData attribute to access meta information instead.')
+        
+        hdulist = fits.open(file_path)
+        # Load the image
+        image = hdulist[0].data
+        time = _read_binary_timestamp(image) 
+        texp = float(hdulist[0].header['EXP']) / 1000. # in s
+        return {"start_acq" : time, "texp": texp}
+    
+    
+        
+    def get_img_meta_all_filenames(self):   
+        """ returns the same data as expected from 
+        ImgList.get_img_meta_all_filenames()
+        
+        Note
+        ----
+        Convenience method only rewritten in order to not break the code
+        
+        Returns
+        -------
+        tuple
+            2-element tuple containing
+            
+            - list, list containing all retrieved acq. time stamps
+            - list, containing all retrieved exposure times
+        """
+        meta = self.metaData
+        times = meta.start_acq.values
+        texps = meta.exposure.values         
+        return times, texps
+    
+    def get_img_meta_one_fitsfile(self, file_path):
+        """ Load all meta data from all image layers of one fits file.
+        In this form it is custom for the comtessa files
+        TODO: Make general for multilayered fits """
+        
+        # temporary lists of parameters
+        imgFileStart = []
+        imgFileStop = []
+        imgFileMin = []
+        imgFileMax = []
+        imgFileMean = []
+        imgFileExp = []
+        imgFileTemp = []
+        
+        #open the file, returning a list containg Header-Data Units (HDU)
+        hdulist = fits.open(file_path)
+        imgPerFile = size(hdulist)
+#            hdulist.close()
+        for hdu in range(imgPerFile):
+            # Info from image
+            image = hdulist[hdu].data    
+            imgFileStop.append(_read_binary_timestamp(image))
+            image[0,0:14] = image[1,0:14] #replace binary timestamp
+            imgFileMin.append(image.min())
+            imgFileMax.append(image.max())
+            imgFileMean.append(image.mean())
+            # Info from header
+            imageHeader = hdulist[hdu].header
+            imgFileStart.append(imgFileStop[-1] - timedelta(microseconds=int(imageHeader['EXP'])*1000))
+            imgFileExp.append(float(imageHeader['EXP']) / 1000.) # in s
+            imgFileTemp.append(float(imageHeader['TCAM']))
+        
+        # Combine the temporary lists to a dataFrame and return it
+        meta = DataFrame(data={'file'       : [file_path]*imgPerFile,
+                               'hdu_nr'     : array(range(imgPerFile),dtype=int),
+                               'start_acq'  : imgFileStart,
+                               'stop_acq'   : imgFileStop,
+                               'exposure'   : imgFileExp,
+                               'temperature': imgFileTemp,
+                               'min'        : imgFileMin,
+                               'max'        : imgFileMax,
+                               'mean'       : imgFileMean},
+                            index=imgFileStart)
+        meta.index = to_datetime(meta.index)
+        return meta
+        
+    
+    def get_img_meta_all(self):
+        """ Load all available meta data from fits files            
+        Returns
+        -------
+        dataFrame
+            containing all metadata
+        """
+        
+        if self.fitsfiles == []:
+            print("ImgListLayered was intialised without providing the "
+                  "fitsfile (e.g. only by meta file). self.get_img_meta_all "
+                  "will return the existing metaData.")
+            return self.metaData
+        
+        # Exatract information of every image in every fits file in fitsFile
+        meta_single = [self.get_img_meta_one_fitsfile(file_path) for file_path in self.fitsfiles]
+        meta = concat(meta_single)
+        meta['img_id'] = arange(0,len(meta),1)
+        meta.index = to_datetime(meta.index)
+        return meta
+
+    
+    def _load_image(self, list_index):
+        """ Loads a single image
+        
+        Parameters
+        ----------
+        index : int
+            index of image which should be loaded
+        Returns
+        -------
+        Img
+            loaded image including meta data
+         """
+        img_file = self.files[list_index]
+        img_hdu = self.hdu_nr[list_index]
+        meta = {}
+        meta["fits_idx"] = img_hdu
+        meta["filter_id"] = self.list_id
+        try:
+            image =  Img(input=img_file,
+                         import_method=self.camera.image_import_method,                            
+                         **meta)
+        except:
+            warn('Could not load image with self.camera.image_import_method.')
+        return image
+
 # OLD version of ImgList before major changes (stamp: 3/3/2018)    
 # =============================================================================
 # class ImgList(BaseImgList):
