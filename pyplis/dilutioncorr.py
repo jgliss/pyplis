@@ -24,6 +24,7 @@ from matplotlib.pyplot import subplots, rcParams
 from collections import OrderedDict as od
 from warnings import warn
 from pandas import Series, DataFrame
+import six
 
 from .utils import LineOnImage
 from .image import Img
@@ -107,7 +108,7 @@ class DilutionCorr(object):
 
     def update_settings(self, **settings):
         """Update settings dict for topo distance retrieval."""
-        for k, v in settings.iteritems():
+        for k, v in six.iteritems(settings):
             if k in self.settings:
                 self.settings[k] = v
 
@@ -158,7 +159,7 @@ class DilutionCorr(object):
             :func:`get_topo_distances_line` in :class:`MeasGeometry`
 
         """
-        for lid, line in self.lines.iteritems():
+        for lid, line in six.iteritems(self.lines):
             self.det_topo_dists_line(lid, **settings)
 
     def det_topo_dists_line(self, line_id, **settings):
