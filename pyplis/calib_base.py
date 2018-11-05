@@ -40,6 +40,7 @@ from .helpers import exponent, isnum
 from .model_functions import CalibFuns
 from .image import Img
 from .setupclasses import Camera
+import six
 
 
 class CalibData(object):
@@ -589,7 +590,7 @@ class CalibData(object):
         self.calib_id = hdu[0].header["calib_id"]
         self.type = hdu[0].header["type"]
 
-        for key, val in hdu[0].header.iteritems():
+        for key, val in six.iteritems(hdu[0].header):
             k = key.lower()
             if k in self.senscorr_mask.edit_log:
                 self.senscorr_mask.edit_log[k] = val
