@@ -16,6 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 from collections import OrderedDict as od
+import six
 
 
 class FormCollectionBase(object):
@@ -37,7 +38,7 @@ class FormCollectionBase(object):
 
         self.type = ""
 
-        for key, val in forms_dict.iteritems():
+        for key, val in six.iteritems(forms_dict):
             self[key] = val
 
     def add(self, x0, y0, x1, y1, id=None):
@@ -191,7 +192,7 @@ class FormCollectionBase(object):
         if not bool(self.keys()):
             return s + "No forms available"
 
-        for key, val in self._forms.iteritems():
+        for key, val in six.iteritems(self._forms):
             s = (s + "ID: %s\nStart (x,y): %s, %s\n"
                      "Stop (x,y): %s, %s\n"
                      % (key, val[0], val[1], val[2], val[3]))
