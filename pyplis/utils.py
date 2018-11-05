@@ -39,6 +39,7 @@ from datetime import datetime as dt
 from collections import OrderedDict as od
 from .inout import get_camera_info, save_new_default_camera, get_cam_ids
 import custom_image_import
+import six
 
 
 def identify_camera_from_filename(filepath):
@@ -1050,7 +1051,7 @@ class LineOnImage(object):
             dictionary containing line parameters (cf. :func:`to_dict`)
 
         """
-        for k, v in settings_dict.iteritems():
+        for k, v in six.iteritems(settings_dict):
             if k in self.__dict__:
                 self.__dict__[k] = v
 
@@ -1154,7 +1155,7 @@ class CameraBaseInfo(object):
                 warn("Failed to load camera information for cam_id %s:\n%s "
                      % (cam_id, repr(e)))
         type_conv = self._type_dict
-        for k, v in kwargs.iteritems():
+        for k, v in six.iteritems(kwargs):
             if k in type_conv:
                 self[k] = type_conv[k](v)
 
@@ -1360,7 +1361,7 @@ class CameraBaseInfo(object):
         dark_info = []
         missed = []
         err = []
-        for key, func in types.iteritems():
+        for key, func in six.iteritems(types):
             if key in info_dict:
                 try:
                     val = func(info_dict[key])
