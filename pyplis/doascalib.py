@@ -28,6 +28,7 @@ from copy import deepcopy
 from astropy.io import fits
 from traceback import format_exc
 from warnings import warn
+import six
 
 from matplotlib.pyplot import subplots
 from matplotlib.patches import Circle, Ellipse
@@ -380,7 +381,7 @@ class DoasFOV(object):
         prep_keys = Img().edit_log.keys()
         search_keys = DoasFOVEngine()._settings.keys()
 
-        for key, val in hdu[i].header.iteritems():
+        for key, val in six.iteritems(hdu[i].header):
             k = key.lower()
             if k in prep_keys:
                 self.img_prep[k] = val
@@ -449,10 +450,10 @@ class DoasFOV(object):
     def __str__(self):
         s = "DoasFOV information\n------------------------\n"
         s += "\nImg stack preparation settings\n............................\n"
-        for k, v in self.img_prep.iteritems():
+        for k, v in six.iteritems(self.img_prep):
             s += "%s: %s\n" % (k, v)
         s += "\nFOV search settings\n............................\n"
-        for k, v in self.search_settings.iteritems():
+        for k, v in six.iteritems(self.search_settings):
             s += "%s: %s\n" % (k, v)
         if self.method == "ifr":
             s += "\nIFR search results \n.........................\n"
@@ -462,7 +463,7 @@ class DoasFOV(object):
                 s += "%s: %.3f\n" % (GAUSS_2D_PARAM_INFO[k], popt[k])
         elif self.method == "pearson":
             s += "\nPearson search results \n.......................\n"
-            for k, v in self.result_pearson.iteritems():
+            for k, v in six.iteritems(self.result_pearson):
                 if not k == "corr_curve":
                     s += "%s: %s\n" % (k, v)
         return s
@@ -668,7 +669,7 @@ class DoasFOVEngine(object):
         :param **settings: keyword args to be updated (only
             valid keys will be updated)
         """
-        for k, v in settings.iteritems():
+        for k, v in six.iteritems(settings):
             if k in self._settings:
                 print("Updating FOV search setting %s, new value: %s"
                       % (k, v))
