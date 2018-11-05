@@ -34,6 +34,7 @@ from scipy.stats.stats import pearsonr
 from os.path import isdir, join, isfile
 from os import getcwd
 from six.moves import xrange
+import six
 
 from pandas import Series, DataFrame
 
@@ -508,7 +509,7 @@ class VeloCrossCorrEngine(object):
             dictionary containing new settings
 
         """
-        for k, v in settings_dict.iteritems():
+        for k, v in six.iteritems(settings_dict):
             if k in self.settings:
                 print("Updating cross-correlation search setting %s=%s"
                       % (k, v))
@@ -1115,7 +1116,7 @@ class LocalPlumeProperties(object):
         self._fit_success = []
         self._pyrlevel = []
 
-        for k, v in kwargs.iteritems():
+        for k, v in six.iteritems(kwargs):
             self[k] = v
 
     @property
@@ -1404,7 +1405,7 @@ class LocalPlumeProperties(object):
 
         """
         res = optflow_farneback.local_flow_params(**kwargs)
-        for key, val in res.iteritems():
+        for key, val in six.iteritems(res):
             if key in self.__dict__:
                 self.__dict__[key].append(val)
 
@@ -1755,7 +1756,7 @@ class LocalPlumeProperties(object):
             this object
 
         """
-        for k, v in d.iteritems():
+        for k, v in six.iteritems(d):
             if k in self.__dict__:
                 self.__dict__[k] = v
 
@@ -1919,7 +1920,7 @@ class FarnebackSettings(object):
             considered, i.e. class attributes)
 
         """
-        for k, v in settings.iteritems():
+        for k, v in six.iteritems(settings):
             self[k] = v  # see __setitem__ method
 
     @property
@@ -2185,22 +2186,22 @@ class FarnebackSettings(object):
 
     def __str__(self):
         s = "Image contrast settings (applied before flow calc):\n"
-        for key, val in self._contrast.iteritems():
+        for key, val in six.iteritems(self._contrast):
             s += "%s: %s\n" % (key, val)
         s += "\nOptical flow algo input (see OpenCV docs):\n"
-        for key, val in self._flow_algo.iteritems():
+        for key, val in six.iteritems(self._flow_algo):
             s += "%s: %s\n" % (key, val)
         s += "\nPost analysis settings:\n"
-        for key, val in self._analysis.iteritems():
+        for key, val in six.iteritems(self._analysis):
             s += "%s: %s\n" % (key, val)
         s += "\nDisplay settings:\n"
-        for key, val in self._display.iteritems():
+        for key, val in six.iteritems(self._display):
             s += "%s: %s\n" % (key, val)
         return s
 
     def __setitem__(self, key, value):
         """Set item method."""
-        for k, v in self.__dict__.iteritems():
+        for k, v in six.iteritems(self.__dict__):
             try:
                 if key in v:
                     v[key] = value
@@ -2211,7 +2212,7 @@ class FarnebackSettings(object):
         """Get item method."""
         if name in self.__dict__:
             return self.__dict__[name]
-        for k, v in self.__dict__.iteritems():
+        for k, v in six.iteritems(self.__dict__):
             try:
                 if name in v:
                     return v[name]
@@ -3662,7 +3663,7 @@ class OptflowFarneback(object):
             print("Returning current optical flow field, settings: ")
             print(self.settings)
             return self.flow
-        for key, val in self.__dict__.iteritems():
+        for key, val in six.iteritems(self.__dict__):
             try:
                 if item in val:
                     return val[item]
