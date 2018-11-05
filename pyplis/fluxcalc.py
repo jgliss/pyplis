@@ -30,7 +30,7 @@ from .utils import LineOnImage
 from .imagelists import ImgList
 from .plumespeed import LocalPlumeProperties
 from .helpers import check_roi, exponent, roi2rect, map_roi
-
+import six
 from pandas import Series, DataFrame
 try:
     from scipy.constants import N_A
@@ -160,7 +160,7 @@ class EmissionRateSettings(object):
         for line in pcs_lines:
             self.add_pcs_line(line)
 
-        for key, val in settings.iteritems():
+        for key, val in six.iteritems(settings):
             self[key] = val
 
         if self.velo_modes["glob"]:
@@ -348,7 +348,7 @@ class EmissionRateSettings(object):
         else:
             s += "No PCS lines assigned yet ...\n"
         s += "\nVelocity retrieval:\n"
-        for k, v in self.velo_modes.iteritems():
+        for k, v in six.iteritems(self.velo_modes):
             s += "%s: %s\n" % (k, v)
         s += "\nGlobal velocity: v = (%2f +/- %.2f) m/s" % (self.velo_glob,
                                                             self.velo_glob_err)
@@ -543,7 +543,7 @@ class EmissionRates(object):
         """
         d = self.to_dict()
         num = len(self.start_acq)
-        for k, v in d.iteritems():
+        for k, v in six.iteritems(d):
             if not len(v) == num:
                 self.__dict__[k] = [nan] * num
 
@@ -1048,7 +1048,7 @@ class EmissionRateAnalysis(object):
         if isinstance(val, ImgList) and val.nof == self.imglist.nof:
             val.goto_img(self.imglist.cfn)
             print("Setting list for optflow retrieval, current mode status:")
-            for k, v in val._list_modes.iteritems():
+            for k, v in six.iteritems(val._list_modes):
                 print("%s: %s" % (k, v))
 
             self._imglist_optflow = val
@@ -1172,7 +1172,7 @@ class EmissionRateAnalysis(object):
             pyrlevel=PYR)[0]
         # init dicts
         dists, dist_errs = {}, {}
-        for line_id, line in self.pcs_lines.iteritems():
+        for line_id, line in six.iteritems(self.pcs_lines):
             dists[line_id] = line.get_line_profile(dist_img)
             col = line.center_pix[0]  # pixel column of center of PCS
             dist_errs[line_id] = lst.meas_geometry.pix_dist_err(col, PYR)
@@ -1199,9 +1199,9 @@ class EmissionRateAnalysis(object):
                              "dictionary.")
 
         res = od()
-        for line_id, line in self.pcs_lines.iteritems():
+        for line_id, line in six.iteritems(self.pcs_lines):
             res[line_id] = od()
-            for mode, val in self.settings.velo_modes.iteritems():
+            for mode, val in six.iteritems(self.settings.velo_modes):
                 if val:
                     res[line_id][mode] = EmissionRates(line_id, mode)
         self.results = res
@@ -1228,7 +1228,7 @@ class EmissionRateAnalysis(object):
         lst = self.imglist
         span = (lst.stop - lst.start).total_seconds()
 
-        for key, line in self.pcs_lines.iteritems():
+        for key, line in six.iteritems(self.pcs_lines):
             try:
                 p = line.plume_props
                 dt0 = (p.start - lst.start).total_seconds()
@@ -1252,8 +1252,8 @@ class EmissionRateAnalysis(object):
 
     def _write_meta(self, dists, dist_errs, cd_err):
         """Write meta info in result classes."""
-        for line_id, mode_dict in self.results.iteritems():
-            for mode, resultclass in mode_dict.iteritems():
+        for line_id, mode_dict in six.iteritems(self.results):
+            for mode, resultclass in six.iteritems(mode_dict):
                 resultclass.pix_dist_mean = mean(dists[line_id])
                 resultclass.pix_dist_mean_err = dist_errs[line_id]
                 resultclass.cd_err = cd_err
@@ -1359,7 +1359,7 @@ class EmissionRateAnalysis(object):
                 if self.settings.ref_check_mode:
                     ok = False
             if ok:
-                for pcs_id, pcs in lines.iteritems():
+                for pcs_id, pcs in six.iteritems(lines):
                     res = results[pcs_id]
                     n = pcs.normal_vector
                     cds = pcs.get_line_profile(img)
@@ -1600,7 +1600,7 @@ class EmissionRateAnalysis(object):
         # plot current image in list and draw line into it
         if ax is None:
             ax = self.imglist.show_current(**kwargs)
-        for line_id, line in self.pcs_lines.iteritems():
+        for line_id, line in six.iteritems(self.pcs_lines):
             line.plot_line_on_grid(ax=ax, include_normal=True, label=line_id)
         ax.legend(loc='best', fancybox=True, framealpha=0.5)
         return ax
