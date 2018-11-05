@@ -43,6 +43,7 @@ from .image import Img
 from .helpers import shifted_color_map
 from .setupclasses import MeasSetup, Source, Camera
 from .exceptions import ImgMetaError
+import six
 
 
 class Dataset(object):
@@ -224,7 +225,7 @@ class Dataset(object):
     def filter_acronyms(self):
         """Make a dictionary of filter IDs and corresponding acronyms."""
         acros = {}
-        for key, val in self.filters.filters.iteritems():
+        for key, val in six.iteritems(self.filters.filters):
             # read the acronym from the filter object
             acros[key] = val.acronym
         return acros
@@ -321,7 +322,7 @@ class Dataset(object):
     def create_lists_default(self):
         """Initialize of default lists (if camera specs not available)."""
         self._lists_intern = od()
-        for key, f in self.filters.filters.iteritems():
+        for key, f in six.iteritems(self.filters.filters):
             l = self.lst_type(list_id=key, list_type=f.type,
                               camera=self.camera,
                               geometry=self.meas_geometry)
@@ -334,7 +335,7 @@ class Dataset(object):
     def create_lists_cam(self):
         """Initialize of all image lists, old lists are deleted."""
         self._lists_intern = od()
-        for key, f in self.filters.filters.iteritems():
+        for key, f in six.iteritems(self.filters.filters):
             l = self.lst_type(list_id=key, list_type=f.type,
                               camera=self.camera,
                               geometry=self.meas_geometry)
@@ -449,8 +450,8 @@ class Dataset(object):
                 except:
                     print("File %s could not be added..." % p)
 
-            for meas_type, sub_dict in self._lists_intern.iteritems():
-                for filter_id, lst in sub_dict.iteritems():
+            for meas_type, sub_dict in six.iteritems(self._lists_intern):
+                for filter_id, lst in six.iteritems(sub_dict):
                     lst.init_filelist()
             for lst in self.img_lists_with_data.values():
                 lst.load()
@@ -677,8 +678,8 @@ class Dataset(object):
         Loops over ``self._lists_intern`` and the corresponding sub directories
         """
         lists = []
-        for meas_type, sub_dict in self._lists_intern.iteritems():
-            for filter_id, lst in sub_dict.iteritems():
+        for meas_type, sub_dict in six.iteritems(self._lists_intern):
+            for filter_id, lst in six.iteritems(sub_dict):
                 lists.append(lst)
         return lists
 
@@ -711,7 +712,7 @@ class Dataset(object):
 #             self.find_master_darks(no_dark_ids)
 # ==============================================================================
         # loop over all image lists ...
-        for filter_id, lst in self.img_lists.iteritems():
+        for filter_id, lst in six.iteritems(self.img_lists):
             # ... that contain data
             if lst.nof > 0:
                 lists = od()
@@ -749,7 +750,7 @@ class Dataset(object):
                 if not lists:
                     lists = self.dark_lists
                 rm = []
-                for key, dark_list in lists.iteritems():
+                for key, dark_list in six.iteritems(lists):
                     if dark_list.nof < 1:
                         try:
                             self.find_master_dark(dark_list)
@@ -787,7 +788,7 @@ class Dataset(object):
     def dark_lists_with_data(self):
         """Return all dark/offset lists that include image data."""
         lists = od()
-        for dark_id, lst in self.dark_lists.iteritems():
+        for dark_id, lst in six.iteritems(self.dark_lists):
             if lst.nof > 0:
                 lists[dark_id] = lst
         return lists
@@ -814,7 +815,7 @@ class Dataset(object):
     def img_lists_with_data(self):
         """Wrap :func:`get_all_image_lists`."""
         lists = od()
-        for key, lst in self.img_lists.iteritems():
+        for key, lst in six.iteritems(self.img_lists):
             if lst.nof > 0:
                 lists[key] = lst
         return lists
@@ -822,7 +823,7 @@ class Dataset(object):
     def check_dark_lists(self):
         """Check all dark lists whether they contain images or not."""
         no_data_ids = []
-        for dark_id, lst in self.dark_lists.iteritems():
+        for dark_id, lst in six.iteritems(self.dark_lists):
             if not lst.nof > 0:
                 no_data_ids.append(lst.list_id)
         return no_data_ids
@@ -976,7 +977,7 @@ class Dataset(object):
 
     def update_image_prep_settings(self, **settings):
         """Update image preparation settings in all image lists."""
-        for list_id, lst in self.img_lists.iteritems():
+        for list_id, lst in six.iteritems(self.img_lists):
             print("Checking changes in list %s: " % list_id)
             val = lst.update_img_prep_settings(**settings)
             print("list %s updated (0 / 1): %s" % (list_id, val))
@@ -1031,12 +1032,12 @@ class Dataset(object):
         ax = self.current_image(filter_id).show_img()
         if add_forms:
             handles = []
-            for k, v in self.lines._forms.iteritems():
+            for k, v in six.iteritems(self.lines._forms):
                 l = Line2D([v[0], v[2]], [v[1], v[3]], color="#00ff00",
                            label=k)
                 handles.append(l)
                 ax.add_artist(l)
-            for k, v in self.rects._forms.iteritems():
+            for k, v in six.iteritems(self.rects._forms):
                 w, h = v[2] - v[0], v[3] - v[1]
                 r = Rectangle((v[0], v[1]), w, h, ec="#00ff00", fc="none",
                               label=k)
@@ -1144,7 +1145,7 @@ class Dataset(object):
         fig.colorbar(im, ax=axes[1, 1], format=FuncFormatter(fmt))
         axes[1, 1].set_title("AA")
         tight_layout()
-        for k, v in tm.iteritems():
+        for k, v in six.iteritems(tm):
             lists[k].activate_tau_mode(v)
         return axes
 
