@@ -408,7 +408,7 @@ class Img(object):
         """Try to load input as numpy array and additional meta data."""
         try:
             if any([isinstance(input, x) for x in
-                    [six.string_types, six.six.text_types]]) and exists(input):
+                    [six.string_types, six.text_type]]) and exists(input):
                 self.load_file(input)
                 print(input)
 
@@ -609,7 +609,7 @@ class Img(object):
                 self.img = self.img / mask
         except Exception as e:
             print(type(e),
-                  type(e)(e.message + "\nPlease check vignetting mask"))
+                  type(e)(str(e) + "\nPlease check vignetting mask"))
             raise
         self.edit_log["vigncorr"] = new_state
         self.vign_mask = mask
@@ -1003,7 +1003,7 @@ class Img(object):
 
     def print_meta(self):
         """Print current image meta information."""
-        for key, val in self.meta.iteritems():
+        for key, val in six.iteritems(self.meta):
             print("%s: %s\n" % (key, val))
 
     def make_info_header_str(self):
@@ -1146,7 +1146,7 @@ class Img(object):
         # import valid meta information from header of first HDU
         editkeys = self.edit_log.keys()
         metakeys = self.meta.keys()
-        for key, val in head.iteritems():
+        for key, val in six.iteritems(head):
             k = key.lower()
             if k in editkeys:
                 self.edit_log[k] = val
@@ -1171,7 +1171,7 @@ class Img(object):
     def _prep_meta_dict_fits(self):
         """Prepare current meta-information for storage in FITS header."""
         d = od()
-        for k, v in self.meta.iteritems():
+        for k, v in six.iteritems(self.meta):
             try:
                 d[k] = v.strftime("%Y%m%d%H%M%S%f")
             except BaseException:
@@ -1378,10 +1378,10 @@ class Img(object):
         s += "Shape: %s\n" % str(self.shape)
         s += "ROI (abs. coords): %s\n" % self.roi_abs
         s += "\nMeta information\n-------------------\n"
-        for k, v in self.meta.iteritems():
+        for k, v in six.iteritems(self.meta):
             s += "%s: %s\n" % (k, v)
         s += "\nEdit log\n-----------\n"
-        for k, v in self.edit_log.iteritems():
+        for k, v in six.iteritems(self.edit_log):
             s += "%s: %s\n" % (k, v)
         return s
 
@@ -1599,7 +1599,7 @@ class ProfileTimeSeriesImg(Img):
         hdu.data = self._img
         hdu.header.update(self.edit_log)
         hdu.header["img_id"] = self.img_id
-        for key, val in self.profile_info.iteritems():
+        for key, val in six.iteritems(self.profile_info):
             if key == "_roi_abs_def":
                 try:
                     hdu.header["_roi_abs_def"] = dumps(val)
@@ -1645,7 +1645,7 @@ class ProfileTimeSeriesImg(Img):
             profile_keys = []
             print("Failed to load profile info dictionary")
 
-        for key, val in hdu[0].header.iteritems():
+        for key, val in six.iteritems(hdu[0].header):
             k = key.lower()
             if k in prep.keys():
                 self.edit_log[k] = val
