@@ -30,6 +30,7 @@ from os.path import exists
 from numpy import nan, rad2deg, arctan
 from abc import ABCMeta
 from warnings import warn
+import six
 
 from .forms import LineCollection, RectCollection
 from .helpers import isnum, to_datetime
@@ -91,7 +92,7 @@ class Source(object):
                 info_dict.update(info)
 
         self._import_from_dict(info_dict)
-        for k, v in kwargs.iteritems():
+        for k, v in six.iteritems(kwargs):
             self[k] = v
 
     @property
@@ -186,7 +187,7 @@ class Source(object):
             raise TypeError(
                 "need dictionary like object for source info update")
         err = []
-        for key, val in info_dict.iteritems():
+        for key, val in six.iteritems(info_dict):
             if key in types:
                 func = types[key]
             else:
@@ -254,7 +255,7 @@ class Source(object):
 
     def __str__(self):
         s = ("\npyplis Source\n-------------------------\n")
-        for key, val in self._type_dict.iteritems():
+        for key, val in six.iteritems(self._type_dict):
             s = s + "%s: %s\n" % (key, self(key))
         return s
 
@@ -555,7 +556,7 @@ class Camera(CameraBaseInfo):
                              ("elev_err", None),
                              ("alt_offset", 0.0)])
 
-        for k, v in geom_info.iteritems():
+        for k, v in six.iteritems(geom_info):
             self[k] = v
 
         self.filter_setup = None
@@ -680,7 +681,7 @@ class Camera(CameraBaseInfo):
             ``self.geom_data``)
 
         """
-        for key, val in settings.iteritems():
+        for key, val in six.iteritems(settings):
             self[key] = val
 
     def get_altitude_srtm(self):
@@ -743,7 +744,7 @@ class Camera(CameraBaseInfo):
         """Convert this object into a dictionary."""
         d = super(Camera, self).to_dict()
         d["ser_no"] = self.ser_no
-        for key, val in self.geom_data.iteritems():
+        for key, val in six.iteritems(self.geom_data):
             d[key] = val
         return d
 
@@ -824,7 +825,7 @@ class Camera(CameraBaseInfo):
         s += str(self.filter_setup)
 
         s += "\nGeometry info\n----------------------\n"
-        for key, val in self.geom_data.iteritems():
+        for key, val in six.iteritems(self.geom_data):
             try:
                 s += "%s: %.3f\n" % (key, val)
             except BaseException:
@@ -843,7 +844,7 @@ class Camera(CameraBaseInfo):
         """Get class item."""
         if name in self.__dict__:
             return self.__dict__[name]
-        for k, v in self.__dict__.iteritems():
+        for k, v in six.iteritems(self.__dict__):
             try:
                 if name in v:
                     return v[name]
@@ -867,6 +868,7 @@ class FormSetup(object):
         return s
 
 
+@six.add_metaclass(ABCMeta)
 class BaseSetup(object):
     """Abstract base class for basic measurement setup.
 
@@ -894,8 +896,6 @@ class BaseSetup(object):
 
     """
 
-    __metaclass__ = ABCMeta
-
     def __init__(self, base_dir, start, stop, **opts):
         self.base_dir = base_dir
         self.save_dir = base_dir
@@ -916,7 +916,7 @@ class BaseSetup(object):
 
         self.check_timestamps()
         print(self.LINK_OFF_TO_ON)
-        for k, v in opts.iteritems():
+        for k, v in six.iteritems(opts):
             if k in self.options:
                 self.options[k] = v
 
@@ -1132,7 +1132,7 @@ class BaseSetup(object):
              "Options:\n"
              % (self.base_dir, self.save_dir, self.start, self.stop))
 
-        for key, val in self.options.iteritems():
+        for key, val in six.iteritems(self.options):
             s = s + "%s: %s\n" % (key, val)
 
         return s
@@ -1234,7 +1234,7 @@ class MeasSetup(BaseSetup):
             dictionary containing wind information
 
         """
-        for key, val in info_dict.iteritems():
+        for key, val in six.iteritems(info_dict):
             if key in self.wind_info:
                 self.wind_info[key] = val
 
@@ -1285,7 +1285,7 @@ class MeasSetup(BaseSetup):
         ok = 1
         s = ("\n------------------------------\nChecking basic geometry info"
              "\n------------------------------\n")
-        for key, val in self.camera.geom_data.iteritems():
+        for key, val in six.iteritems(self.camera.geom_data):
             if not self._check_if_number(val):
                 ok = 0
                 s += "Missing info in Camera setup\n"
@@ -1295,12 +1295,12 @@ class MeasSetup(BaseSetup):
             if not self._check_if_number(val):
                 ok = 0
                 s += self._dict_miss_info_str(key, val)
-        for key, val in source.geo_data.iteritems():
+        for key, val in six.iteritems(source.geo_data):
             if not self._check_if_number(val):
                 ok = 0
                 s += "Missing info in Source: %s\n" % source.name
                 s += self._dict_miss_info_str(key, val)
-        for key, val in self.wind_info.iteritems():
+        for key, val in six.iteritems(self.wind_info):
             if not self._check_if_number(val):
                 ok = 0
                 s += "Missing Meteorology info\n"
@@ -1339,13 +1339,13 @@ class MeasSetup(BaseSetup):
         """Detailed information string."""
         s = super(BaseSetup, self).__str__() + "\n\n"
         s += "Meteorology info\n-----------------------\n"
-        for key, val in self.wind_info.iteritems():
+        for key, val in six.iteritems(self.wind_info):
             s += "%s: %s\n" % (key, val)
         s += "\n" + str(self.camera) + "\n"
         s += str(self.source)
         if self.cell_info_dict.keys():
             s += "\nCell specifications:\n"
-            for key, val in self.cell_info_dict.iteritems():
+            for key, val in six.iteritems(self.cell_info_dict):
                 s += "%s: %s +/- %s\n" % (key, val[0], val[1])
         return s
 
