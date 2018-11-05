@@ -25,6 +25,7 @@ from collections import OrderedDict as od
 from warnings import warn
 from matplotlib.pyplot import figure
 from copy import deepcopy
+import six
 
 from .image import Img
 from .helpers import check_roi, isnum
@@ -529,7 +530,7 @@ class MeasGeometry(object):
         """
         info_dict.update(kwargs)
         types = self._type_dict
-        for key, val in info_dict.iteritems():
+        for key, val in six.iteritems(info_dict):
             if key in self._cam:
                 try:
                     val = types[key](val)
@@ -564,7 +565,7 @@ class MeasGeometry(object):
         """
         info_dict.update(kwargs)
         types = self._type_dict
-        for key, val in info_dict.iteritems():
+        for key, val in six.iteritems(info_dict):
             if key in self._source:
                 try:
                     val = types[key](val)
@@ -599,7 +600,7 @@ class MeasGeometry(object):
         """
         info_dict.update(kwargs)
         types = self._type_dict
-        for key, val in info_dict.iteritems():
+        for key, val in six.iteritems(info_dict):
             if key in self._wind:
                 try:
                     val = types[key](val)
@@ -1863,13 +1864,13 @@ class MeasGeometry(object):
     def __str__(self):
         s = "pyplis MeasGeometry object\n##################################\n"
         s += "\nCamera specifications\n-------------------\n"
-        for k, v in self._cam.iteritems():
+        for k, v in six.iteritems(self._cam):
             s += "%s: %s\n" % (k, v)
         s += "\nSource specifications\n-------------------\n"
-        for k, v in self._source.iteritems():
+        for k, v in six.iteritems(self._source):
             s += "%s: %s\n" % (k, v)
         s += "\nWind specifications\n-------------------\n"
-        for k, v in self._wind.iteritems():
+        for k, v in six.iteritems(self._wind):
             s += "%s: %s\n" % (k, v)
         return s
 
@@ -1878,7 +1879,7 @@ class MeasGeometry(object):
 
         :param item: name of attribute
         """
-        for key, val in self.__dict__.iteritems():
+        for key, val in six.iteritems(self.__dict__):
             try:
                 if item in val:
                     return val[item]
