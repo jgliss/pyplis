@@ -62,6 +62,7 @@ from numpy import size, array
 from pandas import to_datetime, concat
 from astropy.io import fits
 from custom_image_import import _read_binary_timestamp
+import six
 
 
 class BaseImgList(object):
@@ -155,7 +156,7 @@ class BaseImgList(object):
         self._always_reload = {}
 
         # update image preparation settings (if applicable)
-        for key, val in img_prep_settings.iteritems():
+        for key, val in six.iteritems(img_prep_settings):
             if key in self.img_prep:
                 self.img_prep[key] = val
 
@@ -605,7 +606,7 @@ class BaseImgList(object):
 
         """
         self.iter_indices(to_index=at_index)
-        for key, val in self.loaded_images.iteritems():
+        for key, val in six.iteritems(self.loaded_images):
             self.loaded_images[key] = None
 
         if self.nof > 0:
@@ -762,7 +763,7 @@ class BaseImgList(object):
             ``img_prep`` dictionary)
 
         """
-        for key, val in settings.iteritems():
+        for key, val in six.iteritems(settings):
             if key in self.img_prep and\
                     isinstance(val, type(self.img_prep[key])):
                 self.img_prep[key] = val
@@ -963,7 +964,7 @@ class BaseImgList(object):
 
         """
         sd = self.img_prep
-        for key, val in settings_dict.iteritems():
+        for key, val in six.iteritems(settings_dict):
             if key in sd:
                 if not sd[key] == val:
                     return False
@@ -1326,7 +1327,7 @@ class BaseImgList(object):
         d = self.current_img().edit_log
         print("\nImgList %s, image edit info\n----------------------------"
               % self.list_id)
-        for key, val in d.iteritems():
+        for key, val in six.iteritems(d):
             print("%s: %s" % (key, val))
 
     """
@@ -1668,7 +1669,7 @@ class BaseImgList(object):
         if not self.has_files():
             return s
         try:
-            for k, v in self.current_img().edit_log.iteritems():
+            for k, v in six.iteritems(self.current_img().edit_log):
                 s += "%s: %s\n" % (k, v)
             if self.crop is True:
                 s += "Cropped in ROI\t[x0, y0, x1, y1]:\n"
@@ -1689,7 +1690,7 @@ class BaseImgList(object):
         """Get item method."""
         if name in self.__dict__:
             return self.__dict__[name]
-        for k, v in self.__dict__.iteritems():
+        for k, v in six.iteritems(self.__dict__):
             try:
                 if name in v:
                     return v[name]
@@ -1762,7 +1763,7 @@ class AutoDilcorrSettings(object):
         self.bg_model = PlumeBackgroundModel(mode=99)
 
     def __str__(self):
-        for k, v in self.__dict__.iteritems():
+        for k, v in six.iteritems(self.__dict__):
             print("%s: %s" % (k, v))
 
 
@@ -2901,7 +2902,7 @@ class ImgList(BaseImgList):
         updated = False
         try:
             num = self.index
-            for read_gain, info in self.dark_lists.iteritems():
+            for read_gain, info in six.iteritems(self.dark_lists):
                 darknum = info["idx"][num]
                 if darknum != info["list"].index:
                     updated = True
@@ -2912,7 +2913,7 @@ class ImgList(BaseImgList):
                     info["list"].goto_img(darknum)
 
             if self.darkcorr_opt == 1 and updated:
-                for read_gain, info in self.offset_lists.iteritems():
+                for read_gain, info in six.iteritems(self.offset_lists):
                     offsnum = info["idx"][num]
                     if offsnum != info["list"].index:
                         print("Offset image index (read_gain %s) was changed "
@@ -3040,9 +3041,9 @@ class ImgList(BaseImgList):
                 warnings.append("Obj of type %s could not be linked, need "
                                 " DarkImgList " % type(lst))
 
-        for gain, value in self.dark_lists.iteritems():
+        for gain, value in six.iteritems(self.dark_lists):
             value["idx"] = self.assign_indices_linked_list(value["list"])
-        for gain, value in self.offset_lists.iteritems():
+        for gain, value in six.iteritems(self.offset_lists):
             value["idx"] = self.assign_indices_linked_list(value["list"])
         _print_list(warnings)
         return dark_assigned, offset_assigned
@@ -3051,7 +3052,7 @@ class ImgList(BaseImgList):
 
     def change_index_linked_lists(self):
         """Update current index in all linked lists based on ``cfn``."""
-        for key, lst in self.linked_lists.iteritems():
+        for key, lst in six.iteritems(self.linked_lists):
             lst.goto_img(self._linked_indices[key][self.index],
                          reload_here=self._always_reload[key])
 
