@@ -34,6 +34,7 @@ from os.path import join, exists
 import numpy as np
 from matplotlib.pyplot import close, subplots, show
 from matplotlib.patches import Circle
+import six
 
 # IMPORT GLOBAL SETTINGS
 from SETTINGS import SAVEFIGS, SAVE_DIR, FORMAT, DPI, OPTPARSE
@@ -75,7 +76,7 @@ def plot_pcs_comparison(aa_init, aa_imgs_corr, pcs1, pcs2):
     axes[0].plot(p10, "-", label=r"Init $\phi=%.3f$" % (sum(p10) / num))
     axes[1].plot(p20, "-", label=r"Init $\phi=%.3f$" % (sum(p20) / num))
 
-    for cd, aa_corr in aa_imgs_corr.iteritems():
+    for cd, aa_corr in six.iteritems(aa_imgs_corr):
         p1 = pcs1.get_line_profile(aa_corr.img)
         p2 = pcs2.get_line_profile(aa_corr.img)
 
