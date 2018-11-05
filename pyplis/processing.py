@@ -15,12 +15,11 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
-"""
-This Pyplis module contains the following processing classes and methods:
+r"""Pyplis module contains the following processing classes and methods.
 
-    1. :class:`ImgStack`: Object for storage of 3D image data
-    #. :class:`PixelMeanTimeSeries`: storage and post analysis of time\
-    series of average pixel intensities
+1. :class:`ImgStack`: Object for storage of 3D image data
+#. :class:`PixelMeanTimeSeries`: storage and post analysis of time\
+series of average pixel intensities
 """
 from numpy import (vstack, empty, ones, asarray, sum, dstack, float32, zeros,
                    poly1d, polyfit, argmin, where, logical_and, rollaxis,
@@ -93,6 +92,7 @@ class ImgStack(object):
         (e.g. roi, gauss pyramid level, dark corrected?, blurred?)
     **stack_data
         can be used to pass stack data directly
+
     """
 
     def __init__(self, height=0, width=0, img_num=0, dtype=float32,
@@ -123,7 +123,7 @@ class ImgStack(object):
             self.camera = camera
 
     def init_stack_array(self, height=0, width=0, img_num=0):
-        """Initiate the actual stack data array.
+        """Initialize the actual stack data array.
 
         Note
         ----
@@ -138,6 +138,7 @@ class ImgStack(object):
             width of images to be stacked
         num : int
             number of images to be stacked
+
         """
         try:
             self.stack = empty((int(img_num), int(height), int(width))).\
@@ -694,7 +695,7 @@ class ImgStack(object):
         return new
 
     def total_time_period_in_seconds(self):
-        """Returns start time stamp of first image."""
+        """Return start time stamp of first image."""
         return (self.stop - self.start).total_seconds()
 
     def get_nearest_indices(self, tstamps_other):
@@ -705,6 +706,7 @@ class ImgStack(object):
         tstamps_other :
             datetime, or datetime array of other time series for which closest
             index / indices are searched
+
         """
         idx = []
         delt = []
@@ -726,7 +728,7 @@ class ImgStack(object):
         raise NotImplementedError
 
     def has_data(self):
-        """Returns bool"""
+        """Return bool."""  # fixme: improve this doc
         return bool(sum(self._access_mask))
 
     def sum(self, *args, **kwargs):
@@ -996,7 +998,7 @@ class ImgStack(object):
 
 def find_registration_shift_optflow(on_img, off_img,
                                     roi_abs=DEFAULT_ROI, **flow_settings):
-    """Search average shift between two images using optical flow
+    """Search average shift between two images using optical flow.
 
     Computes optical flow between two input images and determines the
     registration shift based on peaks in two histograms of the orientation
@@ -1030,6 +1032,7 @@ def find_registration_shift_optflow(on_img, off_img,
 
         - float: shift in x-direction
         - float: shift in y-direction
+
     """
     if not on_img.shape == off_img.shape:
         raise ValueError("Shape mismatch between input images")
@@ -1042,15 +1045,19 @@ def find_registration_shift_optflow(on_img, off_img,
 
 
 class PixelMeanTimeSeries(Series):
-    """A ``pandas.Series`` object with extended functionality representing time
-    series data of pixel mean values in a certain image region.
+    """A time series of mean pixel values.
+
+    This class implements a ``pandas.Series`` object with extended
+    functionality representing time series data of pixel mean values in a
+    certain image region.
 
     .. note::
-
         This object is only used to store results of a mean series analysis
         in a certain ROI, it does not include any algorithms for actually
         calculating the series
+
     """
+
     std = None
     texps = None
     img_prep = {}
@@ -1059,7 +1066,8 @@ class PixelMeanTimeSeries(Series):
 
     def __init__(self, data, start_acq, std=None, texps=None, roi_abs=None,
                  img_prep={}, **kwargs):
-        """
+        """Initialize pixel mean time series.
+
         :param ndarray data: data array
             (is passed into pandas Series init -> ``self.values``)
         :param ndarray start_acq: array containing acquisition time stamps

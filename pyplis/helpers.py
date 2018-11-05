@@ -194,7 +194,7 @@ def to_datetime(value):
 
 
 def isnum(val):
-    """Checks if input is number (int or float) and not nan.
+    """Check if input is number (int or float) and not nan.
 
     :returns: bool, True or False
     """
@@ -240,6 +240,7 @@ def make_circular_mask(h, w, cx, cy, radius, inner=True):
     -------
     ndarray
         the pixel access mask
+
     """
     y, x = ogrid[:h, :w]
     if inner:
@@ -361,7 +362,7 @@ def same_roi(roi1, roi2):
 
 
 def roi2rect(roi, inverse=False):
-    """Converts ROI to rectangle coordinates or vice versa.
+    """Convert ROI to rectangle coordinates or vice versa.
 
     :param list roi: list containing ROI corner coords ``[x0 , y0, x1, y1]``
         (input can also be tuple)

@@ -122,7 +122,7 @@ def find_signal_correlation(first_data_vec, next_data_vec,
                             max_shift_percent=20,
                             sigma_smooth=1, plot=False,
                             **kwargs):
-    """Determines cross correlation from two ICA time series
+    """Determine cross correlation from two ICA time series.
 
     Parameters
     ----------
@@ -166,6 +166,7 @@ def find_signal_correlation(first_data_vec, next_data_vec,
         - *Series*: analysis signal 1. data vector
         - *Series*: analysis signal 2. data vector
         - *Series*: analysis signal 2. data vector shifted using ``lag`
+
     """
     if not all([isinstance(x, ndarray)
                 for x in [first_data_vec, next_data_vec]]):
@@ -505,6 +506,7 @@ class VeloCrossCorrEngine(object):
         ----------
         settings_dict : dict
             dictionary containing new settings
+
         """
         for k, v in settings_dict.iteritems():
             if k in self.settings:
@@ -546,7 +548,7 @@ class VeloCrossCorrEngine(object):
 
     @property
     def pcs(self):
-        """The PCS line used for the velocity retrieval."""
+        """Return the PCS line used for the velocity retrieval."""
         return self._lines["pcs"]
 
     @pcs.setter
@@ -557,7 +559,7 @@ class VeloCrossCorrEngine(object):
 
     @property
     def pcs_offset(self):
-        """The PCS offset line used for the velocity retrieval."""
+        """Return the PCS offset line used for the velocity retrieval."""
         return self._lines["pcs_offset"]
 
     @pcs_offset.setter
@@ -568,7 +570,7 @@ class VeloCrossCorrEngine(object):
 
     @property
     def imglist(self):
-        """The image list supposed to be used for the analysis."""
+        """Return the image list supposed to be used for the analysis."""
         return self._imglist
 
     @imglist.setter
@@ -597,7 +599,7 @@ class VeloCrossCorrEngine(object):
 
     @property
     def pcs_profile_pics(self):
-        """Checks and, if applicable, returns current PCS profile images."""
+        """Check and, if applicable, return current PCS profile images."""
         img1 = self.profile_images["pcs"]
         img2 = self.profile_images["pcs_offset"]
         if not all([isinstance(x, ProfileTimeSeriesImg) for x in
@@ -1060,9 +1062,6 @@ class VeloCrossCorrEngine(object):
         ax
             matplotlib axes object
 
-        Returns
-        -------
-
         """
         if ax is None:
             fig, ax = subplots(1, 1)
@@ -1245,7 +1244,7 @@ class LocalPlumeProperties(object):
         return p
 
     def apply_significance_thresh(self, thresh=0.5):
-        """Removes all datapoints with significance val below thresh.
+        """Remove all datapoints with significance val below thresh.
 
         Datapoints with significance lower than the provided threshold are
         converted into NaN. Can be combined with interpolation and clean up.
@@ -2185,7 +2184,6 @@ class FarnebackSettings(object):
         return deepcopy(self)
 
     def __str__(self):
-        """String representation."""
         s = "Image contrast settings (applied before flow calc):\n"
         for key, val in self._contrast.iteritems():
             s += "%s: %s\n" % (key, val)
@@ -2329,7 +2327,7 @@ class OptflowFarneback(object):
 
     @roi.setter
     def roi(self):
-        """Raises AttributeError."""
+        """Raise AttributeError."""
         raise AttributeError("Please use attribute roi_abs to change the "
                              "current ROI")
 
@@ -2500,7 +2498,6 @@ class OptflowFarneback(object):
         :attr:`roi` is used (which is a rectangle aligned with the image
         x / y axis). Alternatively, a pixel access mask can be provided
         (e.g. specifying pixels in a rotated rectangle) which is then be used.
-        Returns
 
         Parameters
         ----------
@@ -2527,7 +2524,6 @@ class OptflowFarneback(object):
         except BaseException:
             fl = self.get_flow_in_roi()
         return fl[:, :, 0].flatten(), fl[:, :, 1].flatten()
-
 
 # ==============================================================================
 #     def prepare_intensity_condition_mask(self, lower_val=0.0,
@@ -3140,12 +3136,12 @@ class OptflowFarneback(object):
         return res
 
     def apply_median_filter(self, shape=(3, 3)):
-        """Apply a median filter to flow field, i.e. to both flow images (dx, dy
-        stored in self.flow) individually.
+        """Apply median filter to flow field, i.e. to both flow images individually.
+
+        dx, dy is stored in self.flow.
 
         :param tuple shape (3,3): size of the filter
         """
-
         self.flow[:, :, 0] = median_filter(self.flow[:, :, 0], shape)
         self.flow[:, :, 1] = median_filter(self.flow[:, :, 1], shape)
 
@@ -3625,7 +3621,7 @@ class OptflowFarneback(object):
         return ax
 
     def live_example(self):
-        """Show live example using webcam"""
+        """Show live example using webcam."""
         cap = VideoCapture(0)
         ret, im = cap.read()
         gray = cvtColor(im, COLOR_BGR2GRAY)
@@ -3679,7 +3675,7 @@ def find_movement(first_img, next_img, pyrlevel=2, num_contrast_ivals=8,
                   apply_erosion=True, erosion_kernel_size=20,
                   apply_dilation=True, dilation_kernel_size=20,
                   verbose=False, **optflow_settings):
-    """Iterative movement search algorithm using optical flow.
+    """Search for movement using an iterative optical flow algorithm.
 
     This algorithm searches for pixels containing movement between two
     consecutive images. This is done by using an optical flow algorithm

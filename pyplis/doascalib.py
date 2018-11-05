@@ -81,6 +81,7 @@ class DoasCalibData(CalibData):
         the camera images
 
     """
+
     def __init__(self, tau_vec=[], cd_vec=[], cd_vec_err=[], time_stamps=[],
                  calib_fun=None, calib_coeffs=[], senscorr_mask=None,
                  polyorder=1, calib_id="", camera=None, fov=None):
@@ -103,6 +104,7 @@ class DoasCalibData(CalibData):
             save directory, if None, the current working directory is used
         save_name : str
             filename of the FITS file (if None, use pyplis default naming)
+
         """
         # hdulist containing calibration data and senscorr_mask
         hdulist = self._prep_fits_save()
@@ -120,6 +122,7 @@ class DoasCalibData(CalibData):
         ----------
         file_path : str
             file path of calibration data
+
         """
         # loads senscorr_mask and calibration data (tau and cd vectors,
         # timestamps)
@@ -188,7 +191,7 @@ class DoasFOV(object):
 
     @property
     def method(self):
-        """Returns search method."""
+        """Return search method."""
         try:
             return self.search_settings["method"]
         except KeyError:
@@ -365,6 +368,7 @@ class DoasFOV(object):
         first_idx : int
             index specifying the first entry of the FOV info in the
             provided HDU list
+
         """
         i = first_idx
         try:
@@ -443,7 +447,6 @@ class DoasFOV(object):
         d.save_as_fits(**kwargs)
 
     def __str__(self):
-        """String representation."""
         s = "DoasFOV information\n------------------------\n"
         s += "\nImg stack preparation settings\n............................\n"
         for k, v in self.img_prep.iteritems():
@@ -620,7 +623,7 @@ class DoasFOVEngine(object):
 
     @property
     def blur(self):
-        """Sigma of gaussian blurring filter applied to correlation image
+        """Sigma of gaussian blurring filter applied to correlation image.
 
         The filter is applied to the correlation image before finding the
         position of the maximum correlation. This is only relevant for
@@ -650,7 +653,7 @@ class DoasFOVEngine(object):
 
     @property
     def method(self):
-        """Method used for FOV search (e.g. pearson, ifr)."""
+        """Return method used for FOV search (e.g. pearson, ifr)."""
         return self._settings["method"]
 
     @method.setter

@@ -15,9 +15,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
-"""
-Module containing all sorts of I/O-routines (e.g. test data access)
-"""
+"""Module containing all sorts of I/O-routines (e.g. test data access)."""
 from os.path import join, basename, exists, isfile, abspath, expanduser
 from os import listdir, mkdir, remove, walk
 from re import split
@@ -37,7 +35,7 @@ from shutil import copy2
 
 
 def data_search_dirs():
-    """Get basic search directories for package data files"""
+    """Get basic search directories for package data files."""
     from pyplis import __dir__
     usr_dir = expanduser(join('~', 'my_pyplis'))
     if not exists(usr_dir):
@@ -192,7 +190,7 @@ def download_test_data(save_path=None):
 
 
 def find_test_data():
-    """Searches location of test data folder"""
+    """Search location of test data folder."""
     dirs = data_search_dirs()
     folder_name = "pyplis_etna_testdata"
     for data_path in dirs:
@@ -218,7 +216,7 @@ def find_test_data():
 
 
 def all_test_data_paths():
-    """Return list of all search paths for test data"""
+    """Return list of all search paths for test data."""
     dirs = data_search_dirs()
     paths = []
     [paths.append(x) for x in dirs]
@@ -235,7 +233,7 @@ def all_test_data_paths():
 
 
 def set_test_data_path(save_path):
-    """Set local path where test data is stored"""
+    """Set local path where test data is stored."""
     if save_path.lower() in all_test_data_paths():
         print("Path is already in search tree")
         return
@@ -262,8 +260,7 @@ def set_test_data_path(save_path):
 
 
 def _load_cam_info(cam_id, filepath):
-    """Low level function that loads camera info from a specific cam_info
-       file"""
+    """Load camera info from a specific cam_info file."""
     dat = od()
     if cam_id is None:
         return dat
@@ -321,12 +318,11 @@ def _load_cam_info(cam_id, filepath):
 
 
 def get_camera_info(cam_id):
-    """Try access camera information from file "cam_info.txt" (package data)
+    """Try access camera information from file "cam_info.txt" (package data).
 
     :param str cam_id: string ID of camera (e.g. "ecII")
 
     """
-
     dirs = data_search_dirs()
     try:
         return _load_cam_info(cam_id, join(dirs[0], "cam_info.txt"))
@@ -408,8 +404,7 @@ def save_new_default_camera(info_dict):
 
 
 def save_default_source(info_dict):
-    """Adds a new default source to file source_info.txt"""
-
+    """Add a new default source to file source_info.txt."""
     if not all(k in info_dict for k in ("name", "lon", "lat", "altitude")):
         raise ValueError("Cannot save source information, require at least "
                          "name, lon, lat and altitude")

@@ -162,7 +162,7 @@ class CalibData(object):
 
     @property
     def senscorr_mask(self):
-        """Current sensitivity correction mask (:class:`Img` instance)"""
+        """Get current sensitivity correction mask (:class:`Img` instance)."""
         return self._senscorr_mask
 
     @senscorr_mask.setter
@@ -290,6 +290,7 @@ class CalibData(object):
 
             - float, tau_min: lower end of tau range
             - float, tau_max: upper end of tau range
+
         """
         tau = self.tau_vec
         taumin, taumax = tau.min(), tau.max()
@@ -382,6 +383,7 @@ class CalibData(object):
         -------
         list
             list containing optimised parameters
+
         """
         if weights_how not in ["rel", "abs"]:
             raise IOError("Invalid input for parameter weights_how:"
@@ -478,6 +480,7 @@ class CalibData(object):
         HDUList
             hdu list containing sensitivity correction mask and table with
             calib data
+
         """
         prim_hdu = fits.PrimaryHDU()
         prim_hdu.header["type"] = self.type
@@ -674,6 +677,7 @@ class CalibData(object):
             if True, the data is plotted without y-offset
         ax :
             matplotlib axes object, if None, a new one is created
+
         """
         if "color" not in kwargs:
             kwargs["color"] = "b"
@@ -706,7 +710,7 @@ class CalibData(object):
         return ax
 
     def err(self):
-        """Returns standard deviation of fit residual"""
+        """Return standard deviation of fit residual."""
         if self.residual is None:
             raise ValueError("Fit residual is not available, please call "
                              "fit_calib_data first")
@@ -728,6 +732,7 @@ class CalibData(object):
         Returns
         -------
             calibrated input
+
         """
         # make sure calibration data and fit result are available
         try:
@@ -759,5 +764,6 @@ class CalibData(object):
             optical density, can be float or n-dimensional numpy array
         :param float value: tau or AA value
         :return: corresponding column density
+
         """
         return self.calibrate(value)

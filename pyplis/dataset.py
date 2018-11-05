@@ -15,7 +15,8 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
-"""
+"""Assorted data import functionality.
+
 The :class:`Dataset` object is doing all sorts of stuff related to the
 general data import setup, for instance the automated separation of image
 files by their type (e.g. on-band, off-band, dark, offset) using
@@ -318,7 +319,7 @@ class Dataset(object):
         return self.fill_image_lists()
 
     def create_lists_default(self):
-        """Initialisation of default lists (if camera specs not available)."""
+        """Initialize of default lists (if camera specs not available)."""
         self._lists_intern = od()
         for key, f in self.filters.filters.iteritems():
             l = self.lst_type(list_id=key, list_type=f.type,
@@ -331,7 +332,7 @@ class Dataset(object):
             self.lists_access_info[f.id] = [f.meas_type_acro, f.acronym]
 
     def create_lists_cam(self):
-        """Initialisation of all image lists, old lists are deleted."""
+        """Initialize of all image lists, old lists are deleted."""
         self._lists_intern = od()
         for key, f in self.filters.filters.iteritems():
             l = self.lst_type(list_id=key, list_type=f.type,
@@ -779,12 +780,12 @@ class Dataset(object):
 
     @property
     def dark_lists(self):
-        """Wrapper for :func:`get_all_dark_offset_lists`."""
+        """Call and return :func:`get_all_dark_offset_lists`."""
         return self.get_all_dark_offset_lists()
 
     @property
     def dark_lists_with_data(self):
-        """Returns all dark/offset list that include image data."""
+        """Return all dark/offset lists that include image data."""
         lists = od()
         for dark_id, lst in self.dark_lists.iteritems():
             if lst.nof > 0:
@@ -806,12 +807,12 @@ class Dataset(object):
 
     @property
     def img_lists(self):
-        """Wrapper for :func:`get_all_image_lists`."""
+        """Wrap :func:`get_all_image_lists`."""
         return self.get_all_image_lists()
 
     @property
     def img_lists_with_data(self):
-        """Wrapper for :func:`get_all_image_lists`."""
+        """Wrap :func:`get_all_image_lists`."""
         lists = od()
         for key, lst in self.img_lists.iteritems():
             if lst.nof > 0:
@@ -905,9 +906,8 @@ class Dataset(object):
         return failed_ids
 
     def check_image_access_dark_lists(self):
-        """Check whether dark and offset image lists contain at least one
-        img."""
-
+        """Check whether dark and offset image lists contain at least one img.
+        """
         for lst in self.dark_lists.values():
             if not lst.data_available:
                 return False
@@ -1049,17 +1049,18 @@ class Dataset(object):
         # ax.draw()
 
     def plot_mean_value(self, filter_id, yerr=1, rect=None):
-        """Plot the pixel mean value of specified filter of the time span
-        covered by this dataset.
+        """Plot the pixel mean value of specified filter.
+
+        Only pixel values in the time span covered by this dataset are used.
         """
         self.get_list(filter_id).plot_mean_value(yerr=yerr, rect=rect)
 
     def draw_map_2d(self, *args, **kwargs):
-        """Wrapper for :func:`draw_map_2d` of ``self.meas_geometry`` object."""
+        """Call and return :func:`draw_map_2d` of ``self.meas_geometry``."""
         return self.meas_geometry.draw_map_2d(*args, **kwargs)
 
     def draw_map_3d(self, *args, **kwargs):
-        """Wrapper for :func:`draw_map_3d` of ``self.meas_geometry`` object."""
+        """Call and return :func:`draw_map_3d` of ``self.meas_geometry``."""
         return self.meas_geometry.draw_map_3d(*args, **kwargs)
 
     def print_list_info(self):
@@ -1086,8 +1087,9 @@ class Dataset(object):
                 self.get_list(filter_id).set_meas_geometry(self.meas_geometry)
 
     def plot_tau_preview(self, on_id="on", off_id="off", pyrlevel=2):
-        """Plot a preview of current tau_on, tau_off and AA images (AA plotted
-        twice in 1st row of subplots in 2 diffent value ranges).
+        """Plot a preview of current tau_on, tau_off and AA images.
+
+        AA is plotted twice in 1st row of subplots in 2 diffent value ranges.
 
         :param str on_id: string ID of onband filter ("on")
         :param str off_id: string ID of offband filter ("off")

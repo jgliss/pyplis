@@ -15,7 +15,8 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
-"""
+"""Image list objects.
+
 Image list objects (e.g. :class:`BaseImgList`, :class:`ImgList`,
 :class:`DarkImgList`, :class:`CellImgList`) contain a list of image file paths
 and are central for the data analysis. Images are loaded as :class:`Img`
@@ -187,7 +188,7 @@ class BaseImgList(object):
 
     @property
     def this(self):
-        """Current image."""
+        """Return current image."""
         return self.current_img()
 
     @property
@@ -226,7 +227,7 @@ class BaseImgList(object):
 
     @property
     def meas_geometry(self):
-        """Measurement geometry"""
+        """Return measurement geometry."""
         return self._meas_geometry
 
     @meas_geometry.setter
@@ -238,7 +239,7 @@ class BaseImgList(object):
 
     @property
     def update_cam_geodata(self):
-        """Update measurement geometry whenever list index is changed"""
+        """Update measurement geometry whenever list index is changed."""
         return self._update_cam_geodata
 
     @update_cam_geodata.setter
@@ -271,6 +272,7 @@ class BaseImgList(object):
             Plume distances in m. If plume distances are accessible per image
             pixel. Note that the corresponding data is converted to pyramid
             level 0 (required for dilution correction).
+
         """
         v = self._plume_dists
         if isnum(v):
@@ -296,7 +298,7 @@ class BaseImgList(object):
 
     @property
     def vign_mask(self):
-        """Current vignetting correction mask."""
+        """Return current vignetting correction mask."""
         if not any([isinstance(self._vign_mask, x) for x in (Img, ndarray)]):
             raise AttributeError("Vignetting mask is not available in list")
         return self._vign_mask
@@ -320,8 +322,12 @@ class BaseImgList(object):
 
     @property
     def sky_mask(self):
-        """Sky access mask: 0 for sky, 1 for non-sky (=invalid)
-        (in masked arrays, entries marked with 1 are invalid) """
+        """Return sky access mask.
+
+        0 for sky,
+        1 for non-sky (=invalid)
+        (in masked arrays, entries marked with 1 are invalid)
+        """
         return self.__sky_mask
 
     @sky_mask.setter
@@ -335,7 +341,7 @@ class BaseImgList(object):
 
     @property
     def integration_step_length(self):
-        """The integration step length for emission-rate analyses.
+        """Return integration step length for emission-rate analyses.
 
         The intgration step length corresponds to the physical distance in
         m between two pixels within the plume and is central for computing
@@ -359,6 +365,7 @@ class BaseImgList(object):
             Integration step lengths in m. If plume distances are accessible
             per image pixel, then the corresponding data IS converted to the
             current pyramid level
+
         """
         v = self._integration_step_lengths
         if isnum(v):
@@ -405,7 +412,7 @@ class BaseImgList(object):
 
     @property
     def pyrlevel(self):
-        """Current Gauss pyramid level.
+        """Return current Gauss pyramid level.
 
         Note
         ----
@@ -422,7 +429,7 @@ class BaseImgList(object):
 
     @property
     def gaussian_blurring(self):
-        """Current blurring level.
+        """Return current blurring level.
 
         Note
         ----
@@ -442,7 +449,7 @@ class BaseImgList(object):
 
     @property
     def roi(self):
-        """Current ROI (in relative coordinates).
+        """Return current ROI (in relative coordinates).
 
         The ROI is returned with respect to the current :attr:`pyrlevel`
         """
@@ -457,7 +464,7 @@ class BaseImgList(object):
 
     @property
     def roi_abs(self):
-        """Current roi in absolute detector coords (cf. :attr:`roi`)."""
+        """Return current roi in absolute detector coords (cf. :attr:`roi`)."""
         # return map_roi(self._roi_abs, self.img_prep["pyrlevel"])
         return self._roi_abs
 
@@ -469,27 +476,27 @@ class BaseImgList(object):
 
     @property
     def cfn(self):
-        """Current index (file number in ``files``)."""
+        """Return current index (file number in ``files``)."""
         return self.index
 
     @property
     def nof(self):
-        """Number of files in this list."""
+        """Return number of files in this list."""
         return len(self.files)
 
     @property
     def last_index(self):
-        """Index of last image."""
+        """Return index of last image."""
         return len(self.files) - 1
 
     @property
     def data_available(self):
-        """Wrapper for :func:`has_files`."""
+        """Return wrapper for :func:`has_files`."""
         return self.has_files()
 
     @property
     def has_images(self):
-        """Wrapper for :func:`has_files`."""
+        """Return wrapper for :func:`has_files`."""
         return self.has_files()
 
     @property
@@ -504,7 +511,7 @@ class BaseImgList(object):
         return ts
 
     def timestamp_to_index(self, val=datetime(1900, 1, 1)):
-        """Convert a datetime to the list index
+        """Convert a datetime to the list index.
 
         Returns the list index that is closest in time to the input time
         stamp.
@@ -524,6 +531,7 @@ class BaseImgList(object):
         -------
         int
             corresponding list index
+
         """
         times = self.start_acq
         if not len(times) == self.nof:
@@ -532,7 +540,7 @@ class BaseImgList(object):
         return argmin(abs(val - times))
 
     def index_to_timestamp(self, val=0):
-        """Get timestamp of input list index
+        """Get timestamp of input list index.
 
         Parameters
         ----------
@@ -549,6 +557,7 @@ class BaseImgList(object):
         -------
         int
             corresponding list index
+
         """
         times = self.start_acq
         if not len(times) == self.nof:
@@ -569,6 +578,7 @@ class BaseImgList(object):
         -------
         bool
             success / failed
+
         """
         if isinstance(files, str):
             files = [files]
@@ -584,7 +594,7 @@ class BaseImgList(object):
             self.load()
 
     def init_filelist(self, at_index=0):
-        """Initiate the filelist.
+        """Initialize the filelist.
 
         Sets current list index and resets loaded images
 
@@ -592,6 +602,7 @@ class BaseImgList(object):
         ----------
         at_index : int
             desired image index, defaults to 0
+
         """
         self.iter_indices(to_index=at_index)
         for key, val in self.loaded_images.iteritems():
@@ -629,6 +640,7 @@ class BaseImgList(object):
         -------
         bool
             if True, image was loaded, if False not
+
         """
         if not self._auto_reload:
             print("Automatic image reload deactivated in image list %s"
@@ -685,7 +697,7 @@ class BaseImgList(object):
         return self.this
 
     def goto_img(self, to_index, reload_here=False):
-        """Change the index of the list, load and prepare images at new index
+        """Change the index of the list, load and prepare images at new index.
 
         Parameters
         ----------
@@ -695,6 +707,7 @@ class BaseImgList(object):
             applies only if :param:`to_index` is the current list index. If
             True, then the current images are reloaded, if False, nothing is
             done.
+
         """
         if not -1 < to_index < self.nof:
             raise IndexError("Invalid index %d. List contains only %d files"
@@ -747,6 +760,7 @@ class BaseImgList(object):
         **settings
             key word args specifying settings to be updated (see keys of
             ``img_prep`` dictionary)
+
         """
         for key, val in settings.iteritems():
             if key in self.img_prep and\
@@ -837,14 +851,14 @@ class BaseImgList(object):
         # self.camera = camera
 
     def reset_img_prep(self):
-        """Init image pre-edit settings"""
+        """Init image pre-edit settings."""
         self.img_prep = dict.fromkeys(self.img_prep, 0)
         self._roi_abs = DEFAULT_ROI
         if self.nof > 0:
             self.load()
 
     def get_img_meta_from_filename(self, file_path):
-        """Loads and prepares img meta input dict for Img object
+        """Load and prepare img meta input dict for Img object.
 
         Parameters
         ----------
@@ -856,12 +870,13 @@ class BaseImgList(object):
         dict
             dictionary containing retrieved values for ``start_acq`` and
             ``texp``
+
         """
         info = self.camera.get_img_meta_from_filename(file_path)
         return {"start_acq": info[0], "texp": info[3]}
 
     def get_img_meta_all_filenames(self):
-        """Try to load acquisition and exposure times from filenames
+        """Try to load acquisition and exposure times from filenames.
 
         Note
         ----
@@ -900,7 +915,7 @@ class BaseImgList(object):
         return times, texps
 
     def assign_indices_linked_list(self, lst):
-        """Create a look up table for fast indexing between image lists
+        """Create a look up table for fast indexing between image lists.
 
         Parameters
         ----------
@@ -911,6 +926,7 @@ class BaseImgList(object):
         -------
         array
             array contining linked indices
+
         """
         idx_array = zeros(self.nof, dtype=int)
         times, _ = self.get_img_meta_all_filenames()
@@ -933,7 +949,7 @@ class BaseImgList(object):
         return idx_array
 
     def same_preedit_settings(self, settings_dict):
-        """Compare input settings dictionary with self.img_prep
+        """Compare input settings dictionary with self.img_prep.
 
         Parameters
         ----------
@@ -944,6 +960,7 @@ class BaseImgList(object):
         -------
         bool
             False if not the same, True else
+
         """
         sd = self.img_prep
         for key, val in settings_dict.iteritems():
@@ -956,7 +973,7 @@ class BaseImgList(object):
                    start_idx=0, stop_idx=None, ref_check_roi_abs=None,
                    ref_check_min_val=None, ref_check_max_val=None,
                    dtype=float32):
-        """Stack all images in this list
+        """Stack all images in this list.
 
         The stacking is performed using the current image preparation
         settings (blurring, dark correction etc). Only stack ROI and pyrlevel
@@ -1009,6 +1026,7 @@ class BaseImgList(object):
         -------
         ImgStack
             image stack containing stacked images
+
         """
         self.edit_active = True
         cfn = self.cfn
@@ -1096,7 +1114,7 @@ class BaseImgList(object):
         return stack
 
     def get_mean_img(self, start_idx=0, stop_idx=None):
-        """Determines an average image from a number of list images
+        """Determine an average image from a number of list images.
 
         Parameters
         ----------
@@ -1116,6 +1134,7 @@ class BaseImgList(object):
         -------
         Img
             average image
+
         """
         cfn = self.index
         if isinstance(start_idx, datetime):
@@ -1152,7 +1171,7 @@ class BaseImgList(object):
         return img
 
     def get_mean_tseries_rects(self, start_idx, stop_idx, *rois):
-        """Similar to :func:`get_mean_value` but for multiple rects
+        """Similar to :func:`get_mean_value` but for multiple rects.
 
         Parameters
         ----------
@@ -1175,6 +1194,7 @@ class BaseImgList(object):
         tuple
             N-element tuple containing :class:`PixelMeanTimeSeries` objects
             (one for each ROI specified on input)
+
         """
         if not self.data_available:
             raise IndexError("No images available in ImgList object")
@@ -1227,7 +1247,7 @@ class BaseImgList(object):
 
     def get_mean_value(self, start_idx=0, stop_idx=None, roi=DEFAULT_ROI,
                        apply_img_prep=True):
-        """Determine pixel mean value time series in ROI
+        """Determine pixel mean value time series in ROI.
 
         Determines the mean pixel value (and standard deviation) for all images
         in this list. Default ROI is the whole image and can be set via
@@ -1257,6 +1277,7 @@ class BaseImgList(object):
         -------
         PixelMeanTimeSeries
             time series of retrieved values
+
         """
         if not self.data_available:
             raise IndexError("No images available in ImgList object")
@@ -1297,11 +1318,11 @@ class BaseImgList(object):
                                    img.edit_log)
 
     def current_edit(self):
-        """Returns :attr:`edit_log` of current image"""
+        """Return :attr:`edit_log` of current image."""
         return self.current_img().edit_log
 
     def edit_info(self):
-        """Print the current image preparation settings"""
+        """Print the current image preparation settings."""
         d = self.current_img().edit_log
         print("\nImgList %s, image edit info\n----------------------------"
               % self.list_id)
@@ -1313,7 +1334,7 @@ class BaseImgList(object):
     """
 
     def add_gaussian_blurring(self, sigma=1):
-        """Increase amount of gaussian blurring on image load
+        """Increase amount of gaussian blurring on image load.
 
         :param int sigma (1): Add width gaussian blurring kernel
         """
@@ -1321,11 +1342,11 @@ class BaseImgList(object):
         self.load()
 
     def cam_id(self):
-        """Get the current camera ID (if camera is available)"""
+        """Get the current camera ID (if camera is available)."""
         return self.camera.cam_id
 
     def current_time(self):
-        """Get the acquisition time of the current image from image meta data
+        """Get the acquisition time of the current image from image meta data.
 
         Raises
         ------
@@ -1341,14 +1362,14 @@ class BaseImgList(object):
         return self.current_img().meta["start_acq"]
 
     def current_time_str(self, format='%H:%M:%S'):
-        """Returns a string of the current acq time"""
+        """Return a string of the current acq time."""
         return self.current_img().meta["start_acq"].strftime(format)
 
     def current_img(self, key="this"):
-        """Get the current image object
+        """Get the current image object.
 
         Parameters
-        -----------
+        ----------
         key : str
             this" or "next"
 
@@ -1356,6 +1377,7 @@ class BaseImgList(object):
         -------
         Img
             currently loaded image in list
+
         """
         img = self.loaded_images[key]
         if not isinstance(img, Img):
@@ -1366,11 +1388,11 @@ class BaseImgList(object):
         return img
 
     def show_current(self, **kwargs):
-        """Show the current image"""
+        """Show the current image."""
         return self.current_img().show(**kwargs)
 
     def append(self, file_path):
-        """Append image file to list
+        """Append image file to list.
 
         :param str file_path: valid file path
         """
@@ -1395,7 +1417,7 @@ class BaseImgList(object):
     """
 
     def plot_mean_value(self, roi=DEFAULT_ROI, yerr=False, ax=None):
-        """Plot mean value of image time series
+        """Plot mean value of image time series.
 
         Parameters
         ----------
@@ -1411,6 +1433,7 @@ class BaseImgList(object):
         -------
         Axes
             matplotlib axes object
+
         """
         if ax is None:
             fig = figure()  # figsize=(16, 6))
@@ -1422,7 +1445,7 @@ class BaseImgList(object):
 
     def plot_tseries_vert_profile(self, pos_x, start_y=0, stop_y=None,
                                   step_size=0.1, blur=4):
-        """Plot the temporal evolution of a line profile
+        """Plot the temporal evolution of a line profile.
 
         Parameters
         ----------
@@ -1502,7 +1525,7 @@ class BaseImgList(object):
     Private methods
     """
     def _this_raw_fromfile(self):
-        """Reloads and returns current image
+        """Reload and return current image.
 
         This method is used for test purposes and does not change the list
         state. See for instance :func:`activate_dilution_corr` in
@@ -1512,11 +1535,12 @@ class BaseImgList(object):
         -------
         Img
             the current image loaded and unmodified from file
+
         """
         return self._load_image(self.index)
 
     def _load_image(self, list_index):
-        """This method loads the actual image data for a given index
+        """Load the actual image data for a given index.
 
         Parameters
         ----------
@@ -1527,6 +1551,7 @@ class BaseImgList(object):
         -------
         Img
             the loaded image data (unmodified)
+
         """
         file_path = self.files[list_index]
         try:
@@ -1541,7 +1566,7 @@ class BaseImgList(object):
                    **meta)
 
     def _apply_edit(self, key):
-        """Applies the current image edit settings to image
+        """Apply the current image edit settings to image.
 
         :param str key: image id (e.g. this)
         """
@@ -1560,7 +1585,7 @@ class BaseImgList(object):
         self.loaded_images[key] = img
 
     def _iter_num(self, start_idx, stop_idx):
-        """Returns the number of iterations for a loop
+        """Return the number of iterations for a loop.
 
         The number of iterations is based on the current attribute
         ``skip_files``.
@@ -1576,12 +1601,13 @@ class BaseImgList(object):
         -------
         int
             number of required iterations
+
         """
         # the int(x) function rounds down, so no floor(x) needed
         return int((stop_idx - start_idx) / (self.skip_files + 1.0))
 
     def _first_file(self):
-        """get first file path of image list"""
+        """Get first file path of image list."""
         try:
             return self.files[0]
         except IndexError:
@@ -1590,7 +1616,7 @@ class BaseImgList(object):
             raise
 
     def _last_file(self):
-        """get last file path of image list"""
+        """Get last file path of image list."""
         try:
             return self.files[self.nof - 1]
         except IndexError:
@@ -1599,7 +1625,7 @@ class BaseImgList(object):
             raise
 
     def _make_header(self):
-        """Make header for current image (based on image meta information)"""
+        """Make header for current image (based on image meta information)."""
         try:
             im = self.current_img()
             if not isinstance(im, Img):
@@ -1616,8 +1642,7 @@ class BaseImgList(object):
             return "Creating img header failed..."
 
     def _get_and_set_geometry_info(self):
-        """Compute and write plume and pix-to-pix distances from MeasGeometry
-
+        """Compute and write plume and pix-to-pix distances from MeasGeometry.
         """
         try:
             (int_steps, _,
@@ -1636,7 +1661,6 @@ class BaseImgList(object):
     """
 
     def __str__(self):
-        """String representation of image list"""
         s = "\npyplis ImgList\n----------------------------------\n"
         s += "ID: %s\nType: %s\n" % (self.list_id, self.list_type)
         s += "Number of files (imgs): %s\n\n" % self.nof
@@ -1655,14 +1679,14 @@ class BaseImgList(object):
         return s
 
     def __call__(self, num=0):
-        """Change current file number, load and return image
+        """Change current file number, load and return image.
 
         :param int num: file number
         """
         return self.goto_img(num)
 
     def __getitem__(self, name):
-        """Get item method"""
+        """Get item method."""
         if name in self.__dict__:
             return self.__dict__[name]
         for k, v in self.__dict__.iteritems():
@@ -1674,7 +1698,7 @@ class BaseImgList(object):
 
 
 class DarkImgList(BaseImgList):
-    """A :class:`BaseImgList`object only extended by read_gain value
+    """A :class:`BaseImgList`object only extended by read_gain value.
 
     This class is meant for storage of dark and offset images.
 
@@ -1702,7 +1726,7 @@ class DarkImgList(BaseImgList):
 
 
 class AutoDilcorrSettings(object):
-    """This class stores settings for automatic dilution correction in ImgLists
+    """Store settings for automatic dilution correction in ImgLists.
 
     Attributes
     ----------
@@ -1727,7 +1751,9 @@ class AutoDilcorrSettings(object):
     dilation_kernel_size : int
         size of dilation kernel applied to plume pixel mask after
         erosion was applied
+
     """
+
     def __init__(self, tau_thresh=0.05, erosion_kernel_size=0,
                  dilation_kernel_size=0):
         self.tau_thresh = tau_thresh
@@ -1736,7 +1762,6 @@ class AutoDilcorrSettings(object):
         self.bg_model = PlumeBackgroundModel(mode=99)
 
     def __str__(self):
-        """String representation"""
         for k, v in self.__dict__.iteritems():
             print("%s: %s" % (k, v))
 
@@ -1756,7 +1781,9 @@ class _LinkedLists:
         that specifies whether images are supposed to be reloaded whenever the
         index of the parent list is changed (regardless whether the actual
         index in the linked list remains the same or not).
+
     """
+
     def __init__(self):
         self.lists = od()
         self.indices = od()
@@ -1879,7 +1906,7 @@ class ImgList(BaseImgList):
 
     @property
     def darkcorr_opt(self):
-        """Return the current dark correction mode
+        """Return the current dark correction mode.
 
         The following modes are available:
 
@@ -1906,12 +1933,12 @@ class ImgList(BaseImgList):
 
     @property
     def darkcorr_mode(self):
-        """Returns current list darkcorr mode."""
+        """Return current list darkcorr mode."""
         return self._list_modes["darkcorr"]
 
     @darkcorr_mode.setter
     def darkcorr_mode(self, value):
-        """Change current list darkcorr mode
+        """Change current list darkcorr mode.
 
         Wrapper for :func:`activate_darkcorr`
         """
@@ -1928,7 +1955,7 @@ class ImgList(BaseImgList):
 
     @property
     def vigncorr_mode(self):
-        """Activate / deactivate vignetting correction on image load"""
+        """Activate / deactivate vignetting correction on image load."""
         return int(self._list_modes["vigncorr"])
 
     @vigncorr_mode.setter
@@ -1937,7 +1964,7 @@ class ImgList(BaseImgList):
 
     @property
     def dilcorr_mode(self):
-        """Activate / deactivate dilution correction on image load"""
+        """Activate / deactivate dilution correction on image load."""
         return int(self._list_modes["dilcorr"])
 
     @dilcorr_mode.setter
@@ -1946,12 +1973,12 @@ class ImgList(BaseImgList):
 
     @property
     def sensitivity_corr_mode(self):
-        """Activate / deactivate AA sensitivity correction mode"""
+        """Activate / deactivate AA sensitivity correction mode."""
         return self._list_modes["senscorr"]
 
     @sensitivity_corr_mode.setter
     def sensitivity_corr_mode(self, val):
-        """Activate / deactivate AA sensitivity correction mode"""
+        """Activate / deactivate AA sensitivity correction mode."""
         if val == self._list_modes["senscorr"]:
             return
         if val:
@@ -1966,12 +1993,12 @@ class ImgList(BaseImgList):
 
     @property
     def tau_mode(self):
-        """Returns current list tau mode"""
+        """Return current list tau mode."""
         return self._list_modes["tau"]
 
     @tau_mode.setter
     def tau_mode(self, value):
-        """Change current list tau mode
+        """Change current list tau mode.
 
         Wrapper for :func:`activate_tau_mode`
         """
@@ -1979,12 +2006,12 @@ class ImgList(BaseImgList):
 
     @property
     def shift_mode(self):
-        """Current list registration shift mode"""
+        """Return current list registration shift mode."""
         return self._list_modes["shift"]
 
     @shift_mode.setter
     def shift_mode(self, value):
-        """Change current list registration shift mode
+        """Change current list registration shift mode.
 
         Wrapper for :func:`activate_shift_mode`
         """
@@ -1992,12 +2019,12 @@ class ImgList(BaseImgList):
 
     @property
     def aa_mode(self):
-        """Returns current list AA mode"""
+        """Return current list AA mode."""
         return self._list_modes["aa"]
 
     @aa_mode.setter
     def aa_mode(self, value):
-        """Change current list AA mode
+        """Change current list AA mode.
 
         Wrapper for :func:`activate_aa_mode`
         """
@@ -2005,17 +2032,17 @@ class ImgList(BaseImgList):
 
     @property
     def calib_mode(self):
-        """Acitivate / deactivate current list gas calibration mode"""
+        """Acitivate / deactivate current list gas calibration mode."""
         return self._list_modes["gascalib"]
 
     @calib_mode.setter
     def calib_mode(self, value):
-        """Change current list calibration mode"""
+        """Change current list calibration mode."""
         self.activate_calib_mode(value)
 
     @property
     def ext_coeff(self):
-        """Current extinction coefficient"""
+        """Return current extinction coefficient."""
         if not isinstance(self.ext_coeffs, Series):
             raise AttributeError("Extinction coefficients not available in "
                                  "image list %s" % self.list_id)
@@ -2032,7 +2059,7 @@ class ImgList(BaseImgList):
 
     @property
     def ext_coeffs(self):
-        """Dilution extinction coefficients"""
+        """Dilution extinction coefficients."""
         return self._ext_coeffs
 
     @ext_coeffs.setter
@@ -2045,7 +2072,7 @@ class ImgList(BaseImgList):
 
     @property
     def bg_img(self):
-        """Return background image based on current vignetting corr setting"""
+        """Return background image based on current vignetting corr setting."""
         img = self._bg_img
         if isinstance(img, Img):
             return img
@@ -2062,12 +2089,12 @@ class ImgList(BaseImgList):
 
     @property
     def dark_img(self):
-        """Current dark image"""
+        """Return current dark image."""
         return self.get_dark_image()
 
     @property
     def bg_list(self):
-        """Returns background image list (if assigned)"""
+        """Return background image list (if assigned)."""
         try:
             return self.linked_lists[self._bg_list_id]
         except KeyError:
@@ -2081,7 +2108,7 @@ class ImgList(BaseImgList):
 
     @property
     def senscorr_mask(self):
-        """Get / set AA correction mask"""
+        """Get / set AA correction mask."""
         if isinstance(self._senscorr_mask, ndarray):
             warn("AA correction mask in list %s is numpy array and"
                  "will be converted into Img object" % self.list_id)
@@ -2109,7 +2136,7 @@ class ImgList(BaseImgList):
 
     @senscorr_mask.setter
     def senscorr_mask(self, val):
-        """Setter for AA correction mask"""
+        """Set AA correction mask."""
         if isinstance(val, ndarray):
             warn("Input for AA correction mask in list %s is numpy array and"
                  "will be converted into Img object" % self.list_id)
@@ -2135,7 +2162,7 @@ class ImgList(BaseImgList):
 
     @property
     def calib_data(self):
-        """Get set object to perform calibration"""
+        """Get set object to perform calibration."""
         if not isinstance(self._calib_data, CalibData):
             warn("No calibration data available in imglist %s" % self.list_id)
         return self._calib_data
@@ -2155,7 +2182,7 @@ class ImgList(BaseImgList):
 
     @property
     def doas_fov(self):
-        """Try access DOAS FOV info (in case cailbration data is available)"""
+        """Try access DOAS FOV info (in case cailbration data is available)."""
         try:
             return self.calib_data.fov
         except BaseException:
@@ -2218,6 +2245,7 @@ class ImgList(BaseImgList):
         ----------
         value : bool
             new mode
+
         """
         if value is self.vigncorr_mode:  # do nothing
             return
@@ -2247,14 +2275,15 @@ class ImgList(BaseImgList):
         self.load()
 
     def activate_shift_mode(self, value=True):
-        """Activate / deactivate image shift on load
+        """Activate / deactivate image shift on load.
 
         The shift that is set in the assigned Camera class is used
 
         Parameters
-        -----------
+        ----------
         value : bool
             new mode
+
         """
         if value is self.shift_mode:
             return
@@ -2502,7 +2531,7 @@ class ImgList(BaseImgList):
     """GETTERS"""
 
     def get_dark_image(self, key="this"):
-        """Prepares the current dark image dependent on ``darkcorr_opt``
+        """Prepare the current dark image dependent on ``darkcorr_opt``.
 
         The code checks current dark correction mode and, if applicable,
         prepares the dark image.
@@ -2659,8 +2688,11 @@ class ImgList(BaseImgList):
         self._check_shift_others()
 
     def _check_shift_others(self):
-        """Checks if background and vignetting mask are shifted according to
-        current list mode"""
+        """Ensure consistent background and vignetting mask shift.
+
+        Checks if background and vignetting mask are shifted according to
+        current list mode.
+        """
         if self.shift_mode:
             dx, dy = self.camera.reg_shift_off
             try:
@@ -2690,7 +2722,7 @@ class ImgList(BaseImgList):
                 pass
 
     def set_bg_list(self, lst, always_reload=False):
-        """Assign background image list to this list
+        """Assign background image list to this list.
 
         Assigns and links an image list containing background images to this
         list. Similar to other linked lists, the index of the current BG image
@@ -2709,6 +2741,7 @@ class ImgList(BaseImgList):
             index in this list is changed (not recommended since it is slow).
             If False, the state of the background list is only changed, if the
             actual background image index is altered.
+
         """
         if isinstance(lst, str):
             if lst not in self.linked_lists:
@@ -2729,7 +2762,7 @@ class ImgList(BaseImgList):
                 "object containing BG images")
 
     def set_flow_images(self):
-        """Update images for optical flow determination
+        """Update images for optical flow determination.
 
         The images are updated in :attr:`optflow`
         (:class:`OptflowFarneback` object) using method :func:`set_images`
@@ -2861,7 +2894,7 @@ class ImgList(BaseImgList):
         self.master_offset = offset
 
     def set_closest_dark_offset(self):
-        """Updates the index of the current dark and offset images.
+        """Update the index of the current dark and offset images.
 
         The index is updated in all existing dark and offset lists.
         """
@@ -2894,7 +2927,7 @@ class ImgList(BaseImgList):
 
     """LINKING OF OTHER IMAGE LIST OBJECTS"""
     def link_imglist(self, other_list, list_id=None, always_reload=True):
-        """Link another image list to this list
+        """Link another image list to this list.
 
         Parameters
         ----------
@@ -2906,6 +2939,7 @@ class ImgList(BaseImgList):
             an offband list is linked to an onband list, not so much if a
             list containing BG images is linked to an oband list (see also
             :func:`set_bg_list`)
+
         """
         print("Linking list %s to list %s" % (other_list.list_id,
                                               self.list_id))
@@ -3086,7 +3120,7 @@ class ImgList(BaseImgList):
 
     def optflow_histo_analysis(self, lines=[], start_idx=0, stop_idx=None,
                                intensity_thresh=0, **optflow_settings):
-        """Performs optical flow histogram analysis for list images
+        """Perform optical flow histogram analysis for list images.
 
         The analysis is performed for all list images within the specified
         index (or time) range and for an arbitraty number of PCS lines.
@@ -3117,6 +3151,7 @@ class ImgList(BaseImgList):
             list containing the computed time series of optical flow
             histogram parameters (:class:`LocalPlumeProperties` instances) for
             each of the provided input :class:`LineOnImage` objects.
+
         """
         cfn_tmp = self.cfn
         if isinstance(start_idx, datetime):
@@ -3177,7 +3212,7 @@ class ImgList(BaseImgList):
         return mask
 
     def det_vign_mask_from_bg_img(self):
-        """Determine vignetting mask from current background image.
+        r"""Determine vignetting mask from current background image.
 
         The mask is determined using a blurred (:math:`\sigma = 3`)
         background image which is normalised to one.
@@ -3357,7 +3392,7 @@ class ImgList(BaseImgList):
     def calc_plumepix_mask(self, od_img, tau_thresh=0.05,
                            erosion_kernel_size=0,
                            dilation_kernel_size=0):
-        """Calculate plume pixel mask from an OD image using a OD thrshold
+        """Calculate plume pixel mask from an OD image using a OD thrshold.
 
         The method further allows to close gaps using a suitable combination
         of an erosion
@@ -3381,7 +3416,7 @@ class ImgList(BaseImgList):
                          ext_coeff=None, tau_thresh=0.05, vigncorr_mask=None,
                          erosion_kernel_size=0, dilation_kernel_size=0,
                          img_check_plumemask=True):
-        """Correct a plume image for the signal dilution effect
+        r"""Correct a plume image for the signal dilution effect.
 
         The provided plume image needs to be in intensity space, meaning the
         pixel values need to be intensities and not optical densities or
@@ -3555,6 +3590,7 @@ class ImgList(BaseImgList):
         **kwargs
             additional keyword args for dilution correction functions
             :func:`correct_dilution` and :func:`prep_data_dilutioncorr`
+
         """
         ioff()
         if self.calib_mode or self.aa_mode or self.tau_mode:
@@ -3661,13 +3697,13 @@ class ImgList(BaseImgList):
     """HELPERS"""
 
     def has_bg_img(self):
-        """Returns boolean whether or not background image is available."""
+        """Return boolean whether or not background image is available."""
         if not isinstance(self.bg_img, Img):
             return False
         return True
 
     def update_index_dark_offset_lists(self):
-        """Check and update current dark image (if possible / applicable)"""
+        """Check and update current dark image (if possible / applicable)."""
         if self.darkcorr_opt == 0:
             return False
         t_last = self.time_last_dark_check
@@ -3685,12 +3721,13 @@ class ImgList(BaseImgList):
     """Private methods"""
 
     def _apply_edit(self, key):
-        """Applies the current image edit settings to image
+        """Apply the current image edit settings to image.
 
         Parameters
         ----------
         key : str
             image identifier (use "this" or "next")
+
         """
         if not self.edit_active:
             warn("Edit not active in img_list %s: no image preparation will "
@@ -3873,6 +3910,7 @@ class CellImgList(ImgList):
     the variable ``self.gas_cd`` specifying the amount of gas (column
     density) in this cell.
     """
+
     def __init__(self, files=[], list_id=None, list_type=None, camera=None,
                  geometry=None, cell_id="", gas_cd=0.0, gas_cd_err=0.0):
 
@@ -3890,7 +3928,7 @@ class CellImgList(ImgList):
 
 
 class ImgListLayered(ImgList):
-    """ Image list object able to deal with multi layered fits files
+    """Image list object able to deal with multi layered fits files.
 
     Additional features:
 
@@ -3952,7 +3990,7 @@ class ImgListLayered(ImgList):
             self.load()
 
     def get_img_meta_from_filename(self, file_path):
-        """Loads and prepares img meta input dict for Img object
+        """Load and prepare img meta input dict for Img object.
 
         Note
         ----
@@ -3969,8 +4007,8 @@ class ImgListLayered(ImgList):
         dict
             dictionary containing retrieved values for ``start_acq`` and
             ``texp``
-        """
 
+        """
         warn('This method does not make a lot of sense for the ImgListLayered!'
              ' Returns the meta data of the first image in file_path.'
              ' Use metaData attribute to access meta information instead.')
@@ -3983,8 +4021,7 @@ class ImgListLayered(ImgList):
         return {"start_acq": time, "texp": texp}
 
     def get_img_meta_all_filenames(self):
-        """ returns the same data as expected from
-        ImgList.get_img_meta_all_filenames()
+        """Return the same data as ImgList.get_img_meta_all_filenames.
 
         Note
         ----
@@ -3997,6 +4034,7 @@ class ImgListLayered(ImgList):
 
             - list, list containing all retrieved acq. time stamps
             - list, containing all retrieved exposure times
+
         """
         meta = self.metaData
         times = meta.start_acq.values
@@ -4004,10 +4042,11 @@ class ImgListLayered(ImgList):
         return times, texps
 
     def get_img_meta_one_fitsfile(self, file_path):
-        """ Load all meta data from all image layers of one fits file.
-        In this form it is custom for the comtessa files
-        TODO: Make general for multilayered fits """
+        """Load all meta data from all image layers of one fits file.
 
+        In this form it is custom for the comtessa files
+        TODO: Make general for multilayered fits
+        """
         # temporary lists of parameters
         imgFileStart = []
         imgFileStop = []
@@ -4085,7 +4124,8 @@ class ImgListLayered(ImgList):
         -------
         Img
             loaded image including meta data
-         """
+
+        """
         img_file = self.files[list_index]
         img_hdu = self.hdu_nr[list_index]
         meta = {}

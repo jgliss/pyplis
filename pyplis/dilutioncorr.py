@@ -16,9 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-"""
-Pyplis module for image based correction of the signal dilution effect
-"""
+"""Pyplis module for image based correction of the signal dilution effect."""
 from __future__ import division
 from numpy import asarray, linspace, exp, ones, nan
 from scipy.ndimage.filters import median_filter
@@ -103,7 +101,8 @@ class DilutionCorr(object):
 
     @property
     def line_ids(self):
-        """IDs of all :class:`LineOnImage` objects for distance retrieval."""
+        """Get IDs of all :class:`LineOnImage` objects for distance retrieval.
+        """
         return self.lines.keys()
 
     def update_settings(self, **settings):

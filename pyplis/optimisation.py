@@ -56,7 +56,7 @@ GAUSS_2D_PARAM_INFO = ["amplitude", "mu_x", "mu_y", "sigma", "asymmetry",
 def dilution_corr_fit(rads, dists, rad_ambient, i0_guess=None,
                       i0_min=0.0, i0_max=None, ext_guess=1e-4, ext_min=0.0,
                       ext_max=1e-3):
-    """Performs least square fit of data.
+    """Perform least square fit on data.
 
     :param ndarray rads: vector containing measured radiances
     :param ndarray dists: vector containing corresponding dictances
@@ -231,8 +231,9 @@ def get_histo_data(data, **kwargs):
 
 
 class MultiGaussFit(object):
-    """Fitting environment for fitting an arbitrary (i.e. unknown) amount of
-    Gaussians to noisy 1D (x,y) data. It was initally desinged and developed
+    """Environment to fit arbitrary amounts of Gaussians to noisy 1D (x,y) data.
+
+    It was initally desinged and developed
     for histogram data and aims to find a solution based on a minimum of
     required superimposed Gaussians to describe the distribution. Therefore,
     the fit is performed in a controlled way (i.e. allowed Gaussians are
@@ -368,7 +369,7 @@ class MultiGaussFit(object):
 
     # Initialisation, data preparation, I/O, etc...
     def init_results(self):
-        """Initiate all result parameters."""
+        """Initialize all result parameters."""
         self._peak_indices = []
         self.params = []
         self.offset = 0.0
@@ -402,7 +403,7 @@ class MultiGaussFit(object):
         self.init_data()
 
     def init_data(self):
-        """Initiate the input data and set constraints for Gaussians."""
+        """Initialize the input data and set constraints for Gaussians."""
         if self.has_data:
             # helper for optimisation (analysis signal)
             if self.noise_amp is None:
@@ -883,7 +884,7 @@ class MultiGaussFit(object):
         return [params[i:i + 3] for i in range(0, len(params), 3)]
 
     def integrate_gauss(self, amp, mu, sigma, start=-inf, stop=inf):
-        """Return integral value of one Gaussian.
+        r"""Return integral value of one Gaussian.
 
         Parameters
         ----------
@@ -897,6 +898,7 @@ class MultiGaussFit(object):
             left integral border, defaults to :math:`-\infty`
         stop :
             right integral border, defaults to :math:`\infty`
+
         """
         if start == -inf and stop == inf:
             return amp * sigma * sqrt(2 * pi)
@@ -1479,7 +1481,7 @@ class MultiGaussFit(object):
         print(self.gauss_str(g))
 
     def gauss_str(self, g):
-        """String representation of a Gaussian.
+        """Return string representation of a Gaussian.
 
         :param list g: gauss parameter list ``[amp, mu, sigma]``
 
@@ -1508,7 +1510,6 @@ class MultiGaussFit(object):
     """
 
     def __str__(self):
-        """String representation."""
         gs = self.gaussians()
         s = ("pyplis MultiGaussFit info\n--------------------------------\n\n"
              "All current Gaussians:\n\n")

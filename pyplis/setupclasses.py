@@ -15,9 +15,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
-"""
-This  module contains several setup classes which allow to specify relevant
-parameters for the emission-rate analysis.
+"""Setup classes to specify relevant parameters for the emission-rate analysis.
 
 The most important ones are:
 
@@ -42,7 +40,7 @@ from .geometry import MeasGeometry
 
 
 class Source(object):
-    """Object containing information about emission source
+    """Object containing information about emission source.
 
     Attributes
     ----------
@@ -72,6 +70,7 @@ class Source(object):
     If input param ``name`` is a valid default ID (e.g. "Etna") then
     the source information is extracted from the database and the
     parameter ``info_dict`` is ignored.
+
     """
 
     def __init__(self, name="", info_dict={}, **kwargs):
@@ -97,7 +96,7 @@ class Source(object):
 
     @property
     def source_id(self):
-        """Get ID of source
+        """Get ID of source.
 
         Returns
         -------
@@ -109,20 +108,21 @@ class Source(object):
 
     @property
     def info_available(self):
-        """Checks if main information is available"""
+        """Check if main information is available."""
         return all([x is not None for x in [self.lon, self.lat,
                                             self.altitude]])
 
     @property
     def geo_data(self):
-        """Dictionary containing lon, lat and altitude."""
+        """Return dictionary containing lon, lat and altitude."""
         return od([("lon", self.lon),
                    ("lat", self.lat),
                    ("altitude", self.altitude)])
 
     @property
     def _type_dict(self):
-        """Dict of all attributes and corresponding string conversion funcs."""
+        """Get dict of all attributes and corresponding string conversion funcs.
+        """
         return od([("name", str),
                    ("lat", float),
                    ("lon", float),
@@ -148,7 +148,7 @@ class Source(object):
         return d
 
     def load_source_info(self, name=None, try_online=True):
-        """Try to load source info from external database
+        """Try to load source info from external database.
 
         Try to find source info in pyplis database file my_sources.txt and
         if it cannot be found there, try online, if applicable.
@@ -161,12 +161,13 @@ class Source(object):
         try_online : bool
             if True, online search is attempted in case information cannot be
             found in my_sources.txt
+
         """
         info = self.get_info(name, try_online)
         self._import_from_dict(info)
 
     def _import_from_dict(self, info_dict):
-        """Try access default information of source
+        """Try access default information of source.
 
         Parameters
         ----------
@@ -200,7 +201,7 @@ class Source(object):
         return self.info_available
 
     def save_to_database(self):
-        """Saves the current information as a new source
+        """Save the current information as a new source.
 
         The information is stored in the *my_sources.txt* file that can be
         found in the pyplis installation folder *my_pyplis*
@@ -208,7 +209,7 @@ class Source(object):
         save_default_source(self.to_dict())
 
     def get_info(self, name=None, try_online=True):
-        """Load source info from database
+        """Load source info from database.
 
         Looks if desired source (specified by argument `name`) can be found in
         the *my_sources.txt* file and if not, tries to find information about
@@ -252,33 +253,29 @@ class Source(object):
         return self._type_dict.keys()
 
     def __str__(self):
-        """String representation of source."""
         s = ("\npyplis Source\n-------------------------\n")
         for key, val in self._type_dict.iteritems():
             s = s + "%s: %s\n" % (key, self(key))
         return s
 
     def __setitem__(self, key, value):
-        """Update class item."""
         if key in self.__dict__:
             self.__dict__[key] = value
         else:
             self.suppl_info[key] = value
 
     def __getitem__(self, name):
-        """Load value of class item."""
         if name in self.__dict__:
             return self.__dict__[name]
         if name in self.suppl_info:
             return self.suppl_info[name]
 
     def __call__(self, key):
-        """Make object callable (access item)."""
         return self.__getitem__(key)
 
 
 class FilterSetup(object):
-    """A collection of :class:`pyplis.utils.Filter` objects
+    """A collection of :class:`pyplis.utils.Filter` objects.
 
     This collection specifies a filter setup for a camera. A typical setup
     would be one on and one off band filter. An instance of this class is
@@ -310,12 +307,12 @@ class FilterSetup(object):
 
     @property
     def on_band(self):
-        """Default on band filter."""
+        """Return default on band filter."""
         return self.filters[self.default_key_on]
 
     @property
     def off_band(self):
-        """Default on band filter."""
+        """Return default on band filter."""
         try:
             return self.filters[self.default_key_off]
         except BaseException:
@@ -351,7 +348,7 @@ class FilterSetup(object):
         return len(self.filters)
 
     def init_filters(self, filters):
-        """Initiate the filter collection (old settings will be deleted)
+        """Initialize the filter collection (old settings will be deleted).
 
         The filters will be written into the dictionary ``self.filters``
         in the list order, keys are the filter ids
@@ -361,6 +358,7 @@ class FilterSetup(object):
         filters : list
             list of :class:`pyplis.utils.Filter` objects
             specifying camera filter setup
+
         """
         self.filters = od()
         try:
@@ -379,6 +377,7 @@ class FilterSetup(object):
         ----------
         filter_dict : dict
             dictionary, containing filter information
+
         """
         for f in filter_dict.values():
             if isinstance(f, Filter):
@@ -477,7 +476,6 @@ class FilterSetup(object):
         return self.filters[filter_id]
 
     def __str__(self):
-        """String representation."""
         s = ""
         for f in self.filters.values():
             s += ("%s, type: %s (%s): %s nm\n"
@@ -487,7 +485,7 @@ class FilterSetup(object):
 
 
 class Camera(CameraBaseInfo):
-    """Base class to specify a camera setup
+    """Base class to specify a camera setup.
 
     Class representing a UV camera system including detector specifications,
     optics, file naming convention and the bandpass filters that are
@@ -609,7 +607,7 @@ class Camera(CameraBaseInfo):
 
     @property
     def elev(self):
-        """Viewing elevation angle (center pixel) in degrees.
+        """Return viewing elevation angle (center pixel) in degrees.
 
         0 refers to horizon, 90 to zenith
         """
@@ -630,7 +628,8 @@ class Camera(CameraBaseInfo):
 
     @property
     def azim(self):
-        """Viewing azimuth angle in deg relative to north (center pixel)."""
+        """Return viewing azimuth angle in deg relative to north (center pixel).
+        """
         return self.geom_data["azim"]
 
     @azim.setter
@@ -648,7 +647,7 @@ class Camera(CameraBaseInfo):
 
     @property
     def alt_offset(self):
-        """Height of camera position above topography in m
+        """Height of camera position above topography in m.
 
         This offset can be added in case the camera is positioned above the
         ground and is only required if :param:`altitude` corresponds to the
@@ -661,7 +660,7 @@ class Camera(CameraBaseInfo):
         self.geom_data["alt_offset"] = val
 
     def update_settings(self, **settings):
-        """Wrapper (old name) for :func:`update`."""
+        """Call for :func:`update` (old name)."""
         warn("Old name of method update")
         self.update(**settings)
 
@@ -703,7 +702,7 @@ class Camera(CameraBaseInfo):
 
     def prepare_filter_setup(self, filter_list=None, default_key_on=None,
                              default_key_off=None):
-        """Create :class:`FilterSetup` object
+        """Create :class:`FilterSetup` object.
 
         This method defines the camera filter setup based on an input list of
         :class:`Filter` instances.
@@ -818,7 +817,6 @@ class Camera(CameraBaseInfo):
                                   "length, and pixel pitch (pix_height)")
 
     def __str__(self):
-        """String representation of this setup."""
         s = ("%s, serno. %s\n-------------------------\n"
              % (self.cam_id, self.ser_no))
         s += self._short_str()
@@ -854,8 +852,8 @@ class Camera(CameraBaseInfo):
 
 
 class FormSetup(object):
-    """A setup class for all forms (lines, rectangles etc.) supposed to be used
-    for the evaluation"""
+    """Setup class for all forms (lines, rectangles etc.) used for evaluation.
+    """
 
     def __init__(self, line_dict={}, rect_dict={}):
         self.id = "forms"
@@ -863,7 +861,6 @@ class FormSetup(object):
         self.rects = RectCollection(rect_dict)
 
     def __str__(self):
-        """String representation."""
         s = "pyplis FormSetup\n-----------------------------------\n\n"
         s += "Lines: %s\n" % self.lines
         s += "Rects: %s\n" % self.rects
@@ -871,7 +868,7 @@ class FormSetup(object):
 
 
 class BaseSetup(object):
-    """abstract base class for basic measurement setup,
+    """Abstract base class for basic measurement setup.
 
     Specifies image base path and start / stop time stamps of measurement
     as well as the following boolean access flags:
@@ -894,7 +891,9 @@ class BaseSetup(object):
         stop time of Dataset (can also be datetime.time)
     **opts
         setup options for file import (see specs above)
+
     """
+
     __metaclass__ = ABCMeta
 
     def __init__(self, base_dir, start, stop, **opts):
@@ -968,7 +967,7 @@ class BaseSetup(object):
 
     @property
     def SEPARATE_FILTERS(self):
-        """File import option (boolean)
+        """File import option (boolean).
 
         If true, files are separated by filter type (e.g. "on", "off")
         """
@@ -1052,7 +1051,7 @@ class BaseSetup(object):
 
     @property
     def REG_SHIFT_OFF(self):
-        """File import option (boolean)
+        """File import option (boolean).
 
         If True, the images in an offband image list that is linked to an
         onband image list (cf. :attr:`LINK_OFF_TO_ON`) are shifted using the
@@ -1121,11 +1120,10 @@ class BaseSetup(object):
         return isnum(val)
 
     def _dict_miss_info_str(self, key, val):
-        """String notification for invalid value."""
+        """Return a string notification for invalid value."""
         return "Missing / wrong information: %s, %s\n" % (key, val)
 
     def __str__(self):
-        """String representation of this class."""
         s = ("\nSetup\n---------\n\n"
              "Base path: %s\n"
              "Save path: %s\n"
@@ -1241,8 +1239,7 @@ class MeasSetup(BaseSetup):
                 self.wind_info[key] = val
 
     def base_info_check(self):
-        """Checks if all req. info is available."""
-
+        """Check if all req. info is available."""
         ok = 1
         s = ("Base info check\n-----------------------------\n")
         if not self.base_dir or not exists(self.base_dir):
@@ -1323,7 +1320,7 @@ class MeasSetup(BaseSetup):
                                     auto_topo_access=self.auto_topo_access)
 
     def short_str(self):
-        """A short info string."""
+        """Return a short info string."""
         s = super(BaseSetup, self).__str__() + "\n"
         return s + "Camera: %s\nSource: %s" % (self.camera.cam_id,
                                                self.source.name)

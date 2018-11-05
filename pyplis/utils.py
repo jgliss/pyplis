@@ -58,6 +58,7 @@ def identify_camera_from_filename(filepath):
     ------
     IOError
         Exception is raised if no match can be found
+
     """
     if not exists(filepath):
         warn("Invalid file path")
@@ -221,7 +222,7 @@ class LineOnImage(object):
 
     @property
     def roi_abs_def(self):
-        """Current ROI (in absolute detector coordinates)."""
+        """Return current ROI (in absolute detector coordinates)."""
         return self._roi_abs_def
 
     @roi_abs_def.setter
@@ -234,7 +235,7 @@ class LineOnImage(object):
     # Redundancy (after renaming attribute in v0.10)
     @property
     def pyrlevel(self):
-        """Pyramid level at which line coords are defined"""
+        """Pyramid level at which line coords are defined."""
         warn("This method was renamed in version 0.10. "
              "Please use pyrlevel_def")
         return self._pyrlevel_def
@@ -248,7 +249,7 @@ class LineOnImage(object):
 
     @property
     def roi_abs(self):
-        """Current ROI (in absolute detector coordinates)"""
+        """Return current ROI (in absolute detector coordinates)."""
         warn("This method was renamed in version 0.10. Please use roi_abs_def")
         return self._roi_abs_def
 
@@ -261,12 +262,12 @@ class LineOnImage(object):
 
     @property
     def pyrlevel_def(self):
-        """Pyramid level at which line coords are defined"""
+        """Pyramid level at which line coords are defined."""
         return self._pyrlevel_def
 
     @pyrlevel_def.setter
     def pyrlevel_def(self):
-        """Raises AttributeError"""
+        """Raise AttributeError."""
         raise AttributeError("This attribute is not supposed to be changed, "
                              "please use method convert() to create a new "
                              "LineOnImage object "
@@ -274,12 +275,12 @@ class LineOnImage(object):
 
     @property
     def coords(self):
-        """Return coordinates as ROI list"""
+        """Return coordinates as ROI list."""
         return [self.x0, self.y0, self.x1, self.y1]
 
     @property
     def rect_roi_rot(self):
-        """Rectangle specifying coordinates of ROI aligned with line normal"""
+        """Rectangle specifying coordinates of ROI aligned with line normal."""
         try:
             if not self._rect_roi_rot.shape == (5, 2):
                 raise Exception
@@ -292,12 +293,13 @@ class LineOnImage(object):
 
     @property
     def velo_glob(self):
-        """Global velocity in m/s, assigned to this line
+        """Global velocity in m/s, assigned to this line.
 
         Raises
         ------
         AttributeError
             if current value is not of type float
+
         """
         if not isinstance(self._velo_glob, float) or isnan(self._velo_glob):
             raise AttributeError("Global velocity not assigned to line")
@@ -323,12 +325,13 @@ class LineOnImage(object):
 
     @property
     def velo_glob_err(self):
-        """Error of global velocity in m/s, assigned to this line
+        """Error of global velocity in m/s, assigned to this line.
 
         Raises
         ------
         AttributeError
             if current value is not of type float
+
         """
         if not isinstance(self._velo_glob_err, float) or\
                 isnan(self._velo_glob_err):
@@ -347,7 +350,7 @@ class LineOnImage(object):
 
     @property
     def plume_props(self):
-        """:class:`LocalPlumeProperties` object assigned to this list"""
+        """:class:`LocalPlumeProperties` object assigned to this list."""
         from pyplis import LocalPlumeProperties
         if not isinstance(self._plume_props, LocalPlumeProperties):
             raise AttributeError("Local plume properties not assigned to line")
@@ -361,12 +364,10 @@ class LineOnImage(object):
         self._plume_props = val
 
     def dist_other(self, other):
-        """Determines the distance to another line
-
+        """Determine the distance to another line.
 
         Note
         ----
-
             1. The offset is applied in relative coordinates, i.e. it does not
             consider the pyramide level or ROI.
 
@@ -386,6 +387,7 @@ class LineOnImage(object):
         ------
         ValueError
             if the two lines are not parallel
+
         """
         dx0, dy0 = other.x0 - self.x0, other.y0 - self.y0
         dx1, dy1 = other.x1 - self.x1, other.y1 - self.y1
@@ -394,7 +396,7 @@ class LineOnImage(object):
         return mean([norm([dx0, dy0]), norm([dx1, dy1])])
 
     def offset(self, pixel_num=20, line_id=None):
-        """Returns a new line shifted within normal direction
+        """Return a new line shifted within normal direction.
 
         Note
         ----
@@ -431,7 +433,7 @@ class LineOnImage(object):
                            pyrlevel_def=self.pyrlevel_def)
 
     def convert(self, to_pyrlevel=0, to_roi_abs=DEFAULT_ROI):
-        """Convert to other image preparation settings"""
+        """Convert to other image preparation settings."""
         if to_pyrlevel == self.pyrlevel_def and same_roi(self.roi_abs_def,
                                                          to_roi_abs):
             print("Same shape settings, returning current line object""")
@@ -470,7 +472,7 @@ class LineOnImage(object):
         return new_line
 
     def check_coordinates(self):
-        """Check line coordinates
+        """Check line coordinates.
 
         Checks if coordinates are in the right order and exchanges start / stop
         points if not
@@ -479,6 +481,7 @@ class LineOnImage(object):
         ------
         ValueError
             if any of the current coordinates is smaller than zero
+
         """
         if any([x < 0 for x in self.coords]):
             raise ValueError("Invalid value encountered, all coordinates of "
@@ -490,7 +493,7 @@ class LineOnImage(object):
             self.start, self.stop = self.stop, self.start
 
     def in_image(self, img_array):
-        """Check if this line is within the coordinates of an image array
+        """Check if this line is within the coordinates of an image array.
 
         Parameters
         ----------
@@ -501,6 +504,7 @@ class LineOnImage(object):
         -------
         bool
             True if point is in image, False if not
+
         """
         if not all(self.point_in_image(p, img_array)
                    for p in [self.start, self.stop]):
@@ -508,7 +512,7 @@ class LineOnImage(object):
         return True
 
     def point_in_image(self, x, y, img_array):
-        """Check if a given coordinate is within image
+        """Check if a given coordinate is within image.
 
         Parameters
         ----------
@@ -536,7 +540,7 @@ class LineOnImage(object):
 
     def get_roi_abs_coords(self, img_array, add_left=5, add_right=5,
                            add_bottom=5, add_top=5):
-        """Get a rectangular ROI covering this line
+        """Get a rectangular ROI covering this line.
 
         Parameters
         ----------
@@ -555,7 +559,6 @@ class LineOnImage(object):
             ROI around this line
 
         """
-
         x0, x1 = self.start[0] - add_left, self.stop[0] + add_right
         # y start must not be smaller than y stop
         y_arr = [self.start[1], self.stop[1]]
@@ -567,12 +570,13 @@ class LineOnImage(object):
         return roi_abs
 
     def integrate_profile(self, input_img, pix_step_length=None):
-        """Integrate the line profile on input image
+        """Integrate the line profile on input image.
 
         Parameters
         ----------
         input_img : Img
             input image data for
+
         """
         try:
             # in case input is an Img
@@ -596,7 +600,7 @@ class LineOnImage(object):
         return sum(vals * pix_step_length)
 
     def _roi_from_rot_rect(self):
-        """Set current ROI from current rotated rectangle coords"""
+        """Set current ROI from current rotated rectangle coords."""
         r = self._rect_roi_rot
         xc = asarray([x[0] for x in r])
         xc[xc < 0] = 0
@@ -607,7 +611,7 @@ class LineOnImage(object):
         return roi
 
     def set_rect_roi_rot(self, depth=None):
-        """Get rectangle for rotated ROI based on current tilting
+        """Get rectangle for rotated ROI based on current tilting.
 
         Note
         ----
@@ -622,6 +626,7 @@ class LineOnImage(object):
         -------
         list
             rectangle coordinates
+
         """
         dx, dy = self._delx_dely()
         if depth is None:
@@ -783,7 +788,7 @@ class LineOnImage(object):
         return int(round(hypot(*self._delx_dely())))
 
     def get_line_profile(self, array, order=1, **kwargs):
-        """Retrieve the line profile along pixels in input array
+        """Retrieve the line profile along pixels in input array.
 
         Parameters
         ----------
@@ -832,11 +837,10 @@ class LineOnImage(object):
     def plot_line_on_grid(self, img_arr=None, ax=None, include_normal=False,
                           include_roi_rot=False, include_roi=False,
                           annotate_normal=False, **kwargs):
-        """Draw this line on the image
+        """Draw this line on the image.
 
         Parameters
         ----------
-
         img_arr : ndarray
             if specified, the array is plotted using :func:`imshow` and onto
             that axes, the line is drawn
@@ -921,7 +925,7 @@ class LineOnImage(object):
         return ax
 
     def plot_rotated_roi(self, color=None, ax=None):
-        """Plot current rotated ROI into axes
+        """Plot current rotated ROI into axes.
 
         Parameters
         ----------
@@ -936,6 +940,7 @@ class LineOnImage(object):
         -------
         Axes
             axes instance
+
         """
         if ax is None:
             ax = subplot(111)
@@ -947,7 +952,7 @@ class LineOnImage(object):
         return ax
 
     def plot_line_profile(self, img_arr, ax=None):
-        """Plots the line profile"""
+        """Plot the line profile."""
         if ax is None:
             ax = subplot(111)
         p = self.get_line_profile(img_arr)
@@ -958,7 +963,7 @@ class LineOnImage(object):
         return ax
 
     def plot(self, img_arr):
-        """Creates two subplots showing line on image and corresponding profile
+        """Create two subplots showing line on image and corresponding profile.
 
         Parameters
         ----------
@@ -978,17 +983,17 @@ class LineOnImage(object):
         return fig
 
     def _delx_dely(self):
-        """Length of x and y range covered by line"""
+        """Length of x and y range covered by line."""
         return float(self.x1) - float(self.x0), float(self.y1) - float(self.y0)
 
     @property
     def norm(self):
-        """Return length of line in pixels"""
+        """Return length of line in pixels."""
         dx, dy = self._delx_dely()
         return norm([dx, dy])
 
     def det_normal_vecs(self):
-        """Get both normal vectors"""
+        """Get both normal vectors."""
         dx, dy = self._delx_dely()
         v1, v2 = array([-dy, dx]), array([dy, -dx])
         self.normal_vecs = [v1 / norm(v1), v2 / norm(v2)]
@@ -996,18 +1001,18 @@ class LineOnImage(object):
 
     @property
     def normal_vector(self):
-        """Get normal vector corresponding to current orientation setting"""
+        """Get normal vector corresponding to current orientation setting."""
         return self.normal_vecs[self._dir_idx[self.normal_orientation]]
 
     @property
     def complex_normal(self):
-        """Return current normal vector as complex number"""
+        """Return current normal vector as complex number."""
         dx, dy = self.normal_vector
         return complex(-dy, dx)
 
     @property
     def normal_theta(self):
-        """Returns orientation of normal vector in degrees
+        """Return orientation of normal vector in degrees.
 
         The angles correspond to:
 
@@ -1019,11 +1024,11 @@ class LineOnImage(object):
         return angle(self.complex_normal, True) % 360
 
     def to_list(self):
-        """Returns line coordinates as 4-list"""
+        """Return line coordinates as 4-list."""
         return [self.x0, self.y0, self.x1, self.y1]
 
     def to_dict(self):
-        """Writes relevant parameters to dictionary"""
+        """Write relevant parameters to dictionary."""
         return {"class": "LineOnImage",
                 "line_id": self.line_id,
                 "color": self.color,
@@ -1037,12 +1042,13 @@ class LineOnImage(object):
                 "_roi_abs_def": self._roi_abs_def}
 
     def from_dict(self, settings_dict):
-        """Load line parameters from dictionary
+        """Load line parameters from dictionary.
 
         Parameters
         ----------
         settings_dict : dict
             dictionary containing line parameters (cf. :func:`to_dict`)
+
         """
         for k, v in settings_dict.iteritems():
             if k in self.__dict__:
@@ -1053,7 +1059,7 @@ class LineOnImage(object):
 
     @property
     def orientation_info(self):
-        """Returns string about orientation of line and normal"""
+        """Return string about orientation of line and normal."""
         dx, dy = self._delx_dely()
         s = "delx, dely = %s, %s\n" % (dx, dy)
         s += "normal orientation: %s\n" % self.normal_orientation
@@ -1065,7 +1071,6 @@ class LineOnImage(object):
     """
 
     def __str__(self):
-        """String representation"""
         s = ("Line %s: [%d, %d, %d, %d], @pyrlevel %d, @ROI: %s"
              % (self.line_id, self.x0, self.y0, self.x1, self.y1,
                 self.pyrlevel_def, self.roi_abs_def))
@@ -1073,7 +1078,7 @@ class LineOnImage(object):
 
 
 class CameraBaseInfo(object):
-    """Low level base class for camera specific information
+    """Low level base class for camera specific information.
 
     Mainly detector definitions (pixel geometries, size, etc, detector size),
     image file convention issues and how to handle dark image correction
@@ -1081,7 +1086,7 @@ class CameraBaseInfo(object):
     """
 
     def __init__(self, cam_id=None, **kwargs):
-        """Init object
+        """Init object.
 
         :param str cam_id: string ID of camera (e.g. "ecII")
         :param dict info_dict: dictionary containing camera info (only loaded
@@ -1159,7 +1164,7 @@ class CameraBaseInfo(object):
 
     @property
     def acronym_pos(self):
-        """Wrapper for filter_id_pos"""
+        """Wrap filter_id_pos."""
         return self.filter_id_pos
 
     @acronym_pos.setter
@@ -1168,17 +1173,17 @@ class CameraBaseInfo(object):
 
     @property
     def meas_type_acro_pos(self):
-        """Wrapper getter / setter for ``meas_type_pos``"""
+        """Get / set ``meas_type_pos``."""
         return self.meas_type_pos
 
     @meas_type_acro_pos.setter
     def meas_type_acro_pos(self, val):
-        """Wrapper getter / setter for ``meas_type_pos``"""
+        """Get / set for ``meas_type_pos``."""
         self.meas_type_pos = val
 
     def _init_access_substring_info(self):
-        """Check number of sub strings for specific access values after
-           split."""
+        """Check number of sub strings for specific access values after split.
+        """
         if not self.delim:
             warn("Cannot init filename access info in Camera. Delimiter is "
                  "unspecified.")
@@ -1201,7 +1206,7 @@ class CameraBaseInfo(object):
         return True
 
     def update_file_access_flags(self):
-        """Check which info can (potentially) be extracted from filename
+        """Check which info can (potentially) be extracted from filename.
 
         This function is based on the assumption that all settings in
         cam_info.txt are set without mistakes and. It sets the
@@ -1224,7 +1229,7 @@ class CameraBaseInfo(object):
             flags["start_acq"] = True
 
     def get_img_meta_from_filename(self, file_path):
-        """Extract as much as possible from filename and update access flags
+        """Extract as much as possible from filename and update access flags.
 
         Checks if all declared import information works for a given filetype
         and update all flags for which it does not work
@@ -1279,7 +1284,7 @@ class CameraBaseInfo(object):
     """Decorators / dynamic class attributes"""
     @property
     def default_filter_acronyms(self):
-        """Get acronyms of all default filters"""
+        """Get acronyms of all default filters."""
         acros = []
         for f in self.default_filters:
             acros.append(f.acronym)
@@ -1287,7 +1292,8 @@ class CameraBaseInfo(object):
 
     @property
     def _type_dict(self):
-        """Dict of all attributes and corresponding string conversion funcs"""
+        """Get dict of all attributes and corresponding string conversion funcs.
+        """
         return od([("cam_id", str),
                    ("delim", str),
                    ("time_info_pos", int),
@@ -1311,7 +1317,7 @@ class CameraBaseInfo(object):
 
     @property
     def _info_dict(self):
-        """Returns dict containing information strings for all attributes"""
+        """Return dict containing information strings for all attributes."""
         return od([("cam_id", "ID of camera within code"),
                    ("delim", "Filename delimiter for info access"),
                    ("time_info_pos", ("Position (int) of acquisition time"
@@ -1344,7 +1350,7 @@ class CameraBaseInfo(object):
                                   "DarkOffsetInfo objects"))])
 
     def load_info_dict(self, info_dict):
-        """Loads all valid data from input dict
+        """Load all valid data from input dict.
 
         :param dict info_dict: dictionary specifying camera information
 
@@ -1412,8 +1418,7 @@ class CameraBaseInfo(object):
         return missed, err
 
     def load_default(self, cam_id):
-        """
-        Load information from one of the implemented default cameras
+        """Load information from one of the implemented default cameras.
 
         :param str cam_id: id of camera (e.g. "ecII")
         """
@@ -1433,7 +1438,7 @@ class CameraBaseInfo(object):
 
     @property
     def dark_meas_type_acros(self):
-        """Returns list containing meas_type_acros of dark images"""
+        """Return list containing meas_type_acros of dark images."""
         acros = []
         for item in self.dark_info:
             if item.meas_type_acro not in acros and item.type == "dark":
@@ -1442,7 +1447,7 @@ class CameraBaseInfo(object):
 
     @property
     def offset_acros(self):
-        """Returns list containing filename access acronyms for dark images"""
+        """Return list containing filename access acronyms for dark images."""
         acros = []
         for item in self.dark_info:
             if item.acronym not in acros and item.type == "offset":
@@ -1451,7 +1456,7 @@ class CameraBaseInfo(object):
 
     @property
     def offset_meas_type_acros(self):
-        """Returns list containing meas_type_acros of dark images"""
+        """Return list containing meas_type_acros of dark images."""
         acros = []
         for item in self.dark_info:
             if item.meas_type_acro not in acros and item.type == "offset":
@@ -1459,7 +1464,7 @@ class CameraBaseInfo(object):
         return acros
 
     def get_acronym_dark_offset_corr(self, read_gain=0):
-        """Get file name acronyms for dark and offset image identification
+        """Get file name acronyms for dark and offset image identification.
 
         :param str read_gain (0): detector read gain
         """
@@ -1477,7 +1482,7 @@ class CameraBaseInfo(object):
     """
 
     def to_dict(self):
-        """Writes specs into dictionary which is returned"""
+        """Write specs into dictionary which is returned."""
         d = od()
         for k in self._type_dict.keys():
             if k in ["default_filters", "dark_info"]:
@@ -1494,7 +1499,7 @@ class CameraBaseInfo(object):
         return d
 
     def save_as_default(self, *add_cam_ids):
-        """Saves this camera to default data base"""
+        """Save this camera to default data base."""
         cam_ids = [self.cam_id]
         cam_ids.extend(add_cam_ids)
         d = od([("cam_ids", cam_ids)])
@@ -1502,11 +1507,11 @@ class CameraBaseInfo(object):
         save_new_default_camera(d)
 
     def _all_params(self):
-        """Return list of all relevant source attributes"""
+        """Return list of all relevant source attributes."""
         return self._type_dict.keys()
 
     def _short_str(self):
-        """Short string repr"""
+        """Short string repr."""
         s = ""
         for key in self._type_dict:
             # print key in ["defaultFilterSetup", "dark_img_info"]
@@ -1528,7 +1533,6 @@ class CameraBaseInfo(object):
     """
 
     def __str__(self):
-        """String representation"""
         s = ("\npyplis CameraBaseInfo\n-------------------------\n\n")
         for key in self._type_dict:
             # print key in ["defaultFilterSetup", "dark_img_info"]
@@ -1541,7 +1545,7 @@ class CameraBaseInfo(object):
         return s
 
     def __setitem__(self, key, value):
-        """Set class item
+        """Set class item.
 
         :param str key: valid class attribute
         :param value: new value
@@ -1550,7 +1554,7 @@ class CameraBaseInfo(object):
             self.__dict__[key] = value
 
     def __getitem__(self, key):
-        """Get current item
+        """Get current item.
 
         :param str key: valid class attribute
         """
@@ -1558,19 +1562,19 @@ class CameraBaseInfo(object):
             return self.__dict__[key]
 
     def __call__(self, key):
-        """Make object callable (access item)"""
+        """Make object callable (access item)."""
         return self.__getitem__(key)
 
 
 class Filter(object):
-    """Object representing an interference filter
+    """Object representing an interference filter.
 
     A low level helper class to store information of interference filters.
     """
 
     def __init__(self, id=None, type="on", acronym="default",
                  meas_type_acro=None, center_wavelength=nan):
-        """Initiation of object
+        """Initialize of object.
 
         :param str id ("on"): string identification of this object for
             working environment
@@ -1606,12 +1610,12 @@ class Filter(object):
             self.id = self.type
 
     def to_list(self):
-        """Return filter info as list"""
+        """Return filter info as list."""
         return [self.id, self.type, self.acronym, self.meas_type_acro,
                 self.center_wavelength]
 
     def set_trans_curve(self, data, wavelengths=None):
-        """Assign transmission curve to this filter
+        """Assign transmission curve to this filter.
 
         :param ndarray data: transmission data
         :param ndarray wavelengths: corresponding wavelength array
@@ -1634,7 +1638,6 @@ class Filter(object):
                       self.id)
 
     def __str__(self):
-        """String representation"""
         s = ("\nFilter\n---------------------------------\n"
              "ID: %s\n"
              "Type: %s\n"
@@ -1646,13 +1649,12 @@ class Filter(object):
         return s
 
     def print_specs(self):
-        """Print __str__"""
+        """Print __str__."""
         print(self.__str__())
 
 
 class DarkOffsetInfo(object):
-    """
-    Base class for storage of dark offset information
+    """Base class for storage of dark offset information.
 
     Similar to :class:`Filter`. This object can be used to store relevant
     information of different types of dark and offset images. The attribute
@@ -1665,7 +1667,7 @@ class DarkOffsetInfo(object):
 
     def __init__(self, id="dark", type="dark", acronym="", meas_type_acro=None,
                  read_gain=0):
-        """Initiation of object.
+        """Initialize object.
 
         :param str id: string identification of this object for
             working environment  (default: "dark")

@@ -51,6 +51,7 @@ class CellSearchInfo(object):
         a reference intensity
 
     """
+
     def __init__(self, filter_id, add_id, y_max):
         self.filter_id = filter_id
         self.add_id = add_id
@@ -106,6 +107,7 @@ class CellSearchInfo(object):
         -------
         int
             length of ``self.mean_vals``
+
         """
         return len(self.mean_vals)
 
@@ -168,7 +170,7 @@ class CellSearchInfo(object):
             return self.mean_vals[mid_index]
 
     def point_ok(self, idx):
-        """Checks data point at given index.
+        """Check data point at given index.
 
         Checks if intensity value at given index is within acceptance
         intensity range with respect to the middle intensity value of
@@ -277,6 +279,7 @@ class CellAutoSearchResults(object):
         off) that could not be identified as Cell or BG image
 
     """
+
     def __init__(self):
         self.cell_info = od()
         self.bg_info = od()
@@ -284,7 +287,7 @@ class CellAutoSearchResults(object):
 
     def add_cell_search_result(self, filter_id, cell_info, bg_info,
                                rest_info):
-        """Adds a collection of :class:`CellSearchInfo` objects.
+        """Add a collection of :class:`CellSearchInfo` objects.
 
         Parameters
         ----------
@@ -348,6 +351,7 @@ class CellCalibData(CalibData):
         y-position of image pixel for which the data was retrieved
 
     """
+
     def __init__(self, tau_vec=[], cd_vec=[], cd_vec_err=[], time_stamps=[],
                  calib_fun=None, calib_coeffs=[], senscorr_mask=None,
                  polyorder=1, calib_id="", camera=None,
@@ -365,7 +369,6 @@ class CellCalibData(CalibData):
 
         Note
         ----
-
         See baseclass :class:`CalibData` for more detailed information
 
         Returns
@@ -373,6 +376,7 @@ class CellCalibData(CalibData):
         HDUList
             hdu list containing sensitivity correction mask and table with
             calib data
+
         """
         hdu = super(CellCalibData, self)._prep_fits_save()
         hdu[0].header["pos_x_abs"] = self.pos_x_abs
@@ -427,6 +431,7 @@ class CellCalibEngine(Dataset):
         if True, the image lists are initiated and filled (if possible)
 
     """
+
     def __init__(self, setup=None, init=True):
         print()
         print("INIT CALIB DATASET OBJECT")
@@ -463,7 +468,7 @@ class CellCalibEngine(Dataset):
 
     def set_cell_images(self, img_paths, cell_gas_cd, cell_id, filter_id,
                         img_import_method=None):
-        """Add cell images corresponding to one cell and image type
+        """Add cell images corresponding to one cell and image type.
 
         Creates :class:`CellImgList` containing input cell images and
         adds them calling :func:`add_cell_img_list`
@@ -479,6 +484,7 @@ class CellCalibEngine(Dataset):
             string identification of cell
         filter_id : str
             filter ID for images (e.g. "on", "off")
+
         """
         try:
             # input is not a list but a valid path to (hopefully) an image
@@ -535,6 +541,7 @@ class CellCalibEngine(Dataset):
             if, valid, the list is added to :attr:`cell_lists` using it's
             ID (``lst.list_id``) as first key and ``lst.cell_id`` as
             second, e.g. ``self.cell_lists["on"]["a53"]``
+
         """
         if not isinstance(lst, CellImgList):
             raise TypeError("Error adding cell image list, need CellImgList "
@@ -885,6 +892,7 @@ class CellCalibEngine(Dataset):
         ----------
         filter_id : str
             filter ID of image list (e.g. on / off)
+
         """
         try:
             if isinstance(self.bg_lists[filter_id], Img):
@@ -994,12 +1002,13 @@ class CellCalibEngine(Dataset):
         ----------
         cell_info_dict : dict
             dictionary containing cell information
+
         """
         self.check_cell_info_dict_autosearch(cell_info_dict)
         self._cell_info_auto_search = cell_info_dict
 
     def _prep_tau_stack(self, filter_id="on", darkcorr=True, blurring=2):
-        """Prepare a stack containing cell tau images of a certain type
+        """Prepare a stack containing cell tau images of a certain type.
 
         The number of images in the stack corresponds to the number of cells
         that are available in :attr:`cell_lists`. The images in the stack are
@@ -1014,6 +1023,7 @@ class CellCalibEngine(Dataset):
             ID in :attr:`cell_lists` as well as :attr:`bg_list`)
         darkcorr : bool
             if True, the images will be dark corrected before the OD image
+
         """
         if filter_id not in self.bg_lists:
             raise AttributeError("No background images for filter ID %s "
@@ -1083,7 +1093,7 @@ class CellCalibEngine(Dataset):
 
     def prep_tau_stacks(self, on_id="on", off_id="off", darkcorr=True,
                         blurring=2):
-        """Prepare image stacks for on, off and AA calibration data
+        """Prepare image stacks for on, off and AA calibration data.
 
         Parameters
         ----------
@@ -1097,6 +1107,7 @@ class CellCalibEngine(Dataset):
             sigma of Gaussian blurring kernel
         pyrlevel : int
             pyramid level of calibration stack
+
         """
         on_stack = self._prep_tau_stack(on_id, darkcorr, blurring)
         off_stack = self._prep_tau_stack(off_id, darkcorr, blurring)
@@ -1105,7 +1116,7 @@ class CellCalibEngine(Dataset):
     def prepare_calib_data(self, pos_x_abs=None, pos_y_abs=None,
                            radius_abs=1, on_id="on", off_id="off",
                            darkcorr=True, blurring=1, **kwargs):
-        """Prepare calib data for onband, offband and AA
+        """Prepare calib data for onband, offband and AA.
 
         This function creates 3 :class:`CellCalibData` objects for each OD
         type (on, off and from that, AA). If not differently specified using

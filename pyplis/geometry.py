@@ -15,8 +15,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
-"""Pyplis module containing functionality for all relevant geometrical
-calculations.
+"""Module containing functionality for all relevant geometrical calculations.
 """
 from __future__ import division
 from numpy import nan, arctan, deg2rad, linalg, sqrt, abs, array, radians,\
@@ -206,7 +205,7 @@ class MeasGeometry(object):
 
     @property
     def cam_serno(self):
-        """Serial number of camera."""
+        """Return serial number of camera."""
         return self._cam["serno"]
 
     @cam_serno.setter
@@ -320,7 +319,7 @@ class MeasGeometry(object):
 
     @property
     def cam_focal_length(self):
-        """Focal length of camera"""
+        """Focal length of camera."""
         val = self._cam["focal_length"]
         if not isnum(val):
             warn("Invalid value: %s (need numeric)" % val)
@@ -362,7 +361,8 @@ class MeasGeometry(object):
 
     @property
     def cam_pixnum_x(self):
-        """Number of camera detector pixels in x-direction (horizontal)."""
+        """Return Number of camera detector pixels in x-direction (horizontal).
+        """
         val = self._cam["pixnum_x"]
         if not isnum(val):
             warn("Invalid value: %s (need numeric)" % val)
@@ -376,7 +376,8 @@ class MeasGeometry(object):
 
     @property
     def cam_pixnum_y(self):
-        """Number of camera detector pixels in y-direction (vertical)."""
+        """Return Number of camera detector pixels in y-direction (vertical).
+        """
         val = self._cam["pixnum_y"]
         if not isnum(val):
             warn("Invalid value: %s (need numeric)" % val)
@@ -484,7 +485,6 @@ class MeasGeometry(object):
         self._wind["dir_err"] = self._type_dict["dir_err"](val)
         self.update_geosetup()
 
-
 # METHOD REMOVED ON 29/1/2018
 # =============================================================================
 #     def get_cam_specs(self, img_obj):
@@ -508,8 +508,7 @@ class MeasGeometry(object):
 #                 self.cam[key] = img_obj.meta[key]
 # =============================================================================
 
-    def update_cam_specs(self, info_dict={}, update_geosetup=True,
-                         **kwargs):
+    def update_cam_specs(self, info_dict={}, update_geosetup=True, **kwargs):
         """Update camera settings.
 
         Update dictionary containing geometrical camera information
@@ -613,7 +612,7 @@ class MeasGeometry(object):
             self.update_geosetup()
 
     def _check_geosetup_info(self):
-        """Checks if relevant information for :attr:`geo_setup` is ready."""
+        """Check if relevant information for :attr:`geo_setup` is ready."""
         check = ["lon", "lat"]
         cam_ok, source_ok = True, True
         for key in check:
@@ -998,8 +997,7 @@ class MeasGeometry(object):
         return res
 
     def get_angular_displacement_pix_to_cfov(self, pos_x, pos_y):
-        """Get the angular difference between pixel coordinate and detector
-        center coordinates.
+        """Get the angular difference between pixel and detector center.
 
         :param int pos_x: x position on detector
         :param int pos_y: y position on detector
@@ -1138,13 +1136,12 @@ class MeasGeometry(object):
                                obj_id="", geo_point=None, lon_pt=None,
                                lat_pt=None, alt_pt=None, update=True,
                                draw_result=False):
-        """Retrieve camera viewing direction from point in image.
+        r"""Retrieve camera viewing direction from point in image.
 
         Uses the geo coordinates of a characteristic point in the image (e.g.
         the summit of a mountain) and the current position of the camera
         (Lon / Lat) to determine the viewing direction of the camera (azimuth,
         elevation).
-
 
         :param int pix_x: x position of object on camera detector
             (measured from left)
@@ -1618,7 +1615,7 @@ class MeasGeometry(object):
                               self._source["lon"], self._source["lat"])
 
     def _map_extend_km(self, fac=5.0):
-        """Helper to estimate the extend of map borders for plotting.
+        """Estimate the extend of map borders for plotting.
 
         :param float fac: fraction of geo length scale used to determine the
             extend
@@ -1849,7 +1846,6 @@ class MeasGeometry(object):
             raise IndexError("Input azimuth is out of camera FOV")
         return argmin(abs(azs - azim))
 
-
 # =============================================================================
 #
 #     def all_azimuths_camfov(self):
@@ -1865,7 +1861,6 @@ class MeasGeometry(object):
 # =============================================================================
 
     def __str__(self):
-        """String representation of this object."""
         s = "pyplis MeasGeometry object\n##################################\n"
         s += "\nCamera specifications\n-------------------\n"
         for k, v in self._cam.iteritems():

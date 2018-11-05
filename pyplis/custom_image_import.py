@@ -62,7 +62,7 @@ except BaseException:
 
 
 def load_ecII_fits(file_path, meta={}, **kwargs):
-    """Load NILU ECII camera FITS file and import meta information"""
+    """Load NILU ECII camera FITS file and import meta information."""
     hdu = fits.open(file_path)
     ec2header = hdu[0].header
     img = hdu[0].data
@@ -160,7 +160,6 @@ def load_qsi_lmv(file_path, meta={}, **kwargs):
 
     Parameters
     ----------
-
     file_path : str
         image file path
     meta : dict
@@ -257,8 +256,10 @@ def load_usgs_multifits_uncompr(file_path, meta={}):
 
 
 def _read_binary_timestamp(timestamp):
-    """ Converts an (1,14)-array of pixel as given by the pco camware software to
-    a valid datetime
+    """Read timestamp from pco camware binary format.
+
+    This converts an (1,14)-array of pixel as given by the pco camware software
+    to a valid datetime.
 
     Parameters
     ----------
@@ -283,6 +284,7 @@ def _read_binary_timestamp(timestamp):
     -------
     datetime.datetime
         3-element tuple containing
+
     """
     try:
         values = [10 * (timestamp[0, j] >> 4) +
@@ -303,7 +305,8 @@ def _read_binary_timestamp(timestamp):
 
 
 def load_comtessa(file_path, meta={}):
-    """ Load image from a multi-layered fits file (several images in one file)
+    """Load image from a multi-layered fits file (several images in one file).
+
     Meta data is available only inside the header.
 
     This corresponds to image data from the COMTESSA project at Norwegian

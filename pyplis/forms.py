@@ -187,7 +187,6 @@ class FormCollectionBase(object):
             print("No such form: " + str(name))
 
     def __str__(self):
-        """String representation."""
         s = ("\nForm collection %s\n-----------------------\n" % self.type)
         if not bool(self.keys()):
             return s + "No forms available"

@@ -44,13 +44,13 @@ LABEL_SIZE = rcParams["font.size"] + 2
 
 
 class OutputERA(object):
-    """Class  for specifying default output for emission rate analyses
+    """Class for specifying default output for emission rate analyses.
 
     .. note::
-
         This class is under development and not intended to be used currently
 
     """
+
     def __init__(self, out_dir=None, overlay_optflow=True, img_vmin=None,
                  img_vmax=None):
         raise NotImplementedError("Site under construction")
@@ -65,12 +65,11 @@ class OutputERA(object):
         self.overlay_optflow = True
 
     def init_output(self):
-        """Based on settings, create all relevant objects
-        """
+        """Create all relevant objects based on settings."""
         pass
 
     def init_axes(self):
-        """Init figure based on current settings"""
+        """Init figure based on current settings."""
         pass
 
 
@@ -174,7 +173,7 @@ class EmissionRateSettings(object):
 
     @property
     def bg_roi_abs(self):
-        """Current background reference ROI."""
+        """Return current background reference ROI."""
         return self._bg_roi_abs
 
     @bg_roi_abs.setter
@@ -340,7 +339,6 @@ class EmissionRateSettings(object):
         self.pcs_lines[line.line_id] = line
 
     def __str__(self):
-        """String representation."""
         s = "\npyplis settings for emission rate retrieval\n"
         s += "--------------------------------------------\n\n"
         s += "Retrieval lines:\n"
@@ -442,7 +440,7 @@ class EmissionRates(object):
 
     @property
     def meta_header(self):
-        """String containing available meta information.
+        """Return string containing available meta information.
 
         Returns
         -------
@@ -541,8 +539,8 @@ class EmissionRates(object):
                     _start_acq=self.start_acq)
 
     def _fill_missing_data(self):
-        """Check length of all data arrays and fill nans where data is
-        missing."""
+        """Check length of all data arrays and fill nans where data is missing.
+        """
         d = self.to_dict()
         num = len(self.start_acq)
         for k, v in d.iteritems():
@@ -884,7 +882,6 @@ class EmissionRates(object):
         return new
 
     def __str__(self):
-        """String representation."""
         s = "pyplis EmissionRates\n--------------------------------\n\n"
         s += self.meta_header
         s += ("\nphi_min=%.2f g/s\nphi_max=%.2f g/s\n"
@@ -909,12 +906,12 @@ class EmissionRateRatio(EmissionRates):
 
     @property
     def dphi(self):
-        """Wrapper for attr. phi, as this class represents ratios."""
+        """Return attr. phi, as this class represents ratios."""
         return self.phi
 
     @property
     def dphi_err(self):
-        """Wrapper for attr. phi, as this class represents ratios."""
+        """Return for attr. phi_err, as this class represents ratios."""
         return self.phi_err
 
     def plot(self, yerr=False, label=None, ax=None, date_fmt=None, ymin=None,
@@ -1061,8 +1058,7 @@ class EmissionRateAnalysis(object):
 
     @property
     def pcs_lines(self):
-        """Dictionary containing PCS retrieval lines assigned to settings class.
-
+        """Return dict containing PCS retrieval lines assigned to settings class.
         """
         return self.settings.pcs_lines
 
@@ -1119,7 +1115,7 @@ class EmissionRateAnalysis(object):
         return self.results[line_id][velo_mode]
 
     def check_and_init_list(self):
-        """Checks if image list is ready and includes all relevant info."""
+        """Check if image list is ready and include all relevant info."""
         lst = self.imglist
         # activate calibration mode: images are calibrated using DOAS
         # calibration polynomial. The fitted curve is shifted to y axis
@@ -1158,7 +1154,7 @@ class EmissionRateAnalysis(object):
             lst.dilcorr_mode = True
 
     def get_pix_dist_info_all_lines(self):
-        """Retrieve pixel distances and uncertainty for all pcs lines
+        """Retrieve pixel distances and uncertainty for all pcs lines.
 
         Returns
         -------

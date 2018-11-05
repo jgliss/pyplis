@@ -15,9 +15,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
-"""
-Pyplis module containing features related to plume background analysis
-"""
+"""Pyplis module containing features related to plume background analysis."""
 from __future__ import division
 from numpy import (polyfit, poly1d, linspace, logical_and, log, argmin,
                    gradient, nan, ndarray, arange, ones, finfo, asarray)
@@ -50,6 +48,7 @@ class PlumeBackgroundModel(object):
         are all keys in self.__dict__.keys())
 
     """
+
     def __init__(self, bg_raw=None, plume_init=None,
                  init_surf_fit_mask=True, **kwargs):
 
@@ -111,12 +110,12 @@ class PlumeBackgroundModel(object):
 
     @property
     def all_modes(self):
-        """List containing valid modelling modes"""
+        """List containing valid modelling modes."""
         return self.mode_info_dict.keys()
 
     @property
     def mode(self):
-        """Current modelling mode."""
+        """Return current modelling mode."""
         return self._mode
 
     @mode.setter
@@ -128,7 +127,7 @@ class PlumeBackgroundModel(object):
 
     @property
     def CORR_MODE(self):
-        """Current background modelling mode"""
+        """Return current background modelling mode."""
         raise AttributeError("Deprecated attribute name, please use mode")
 
     @CORR_MODE.setter
@@ -187,7 +186,7 @@ class PlumeBackgroundModel(object):
             self.__setitem__(k, v)
 
     def guess_missing_settings(self, plume_img):
-        """Wrapper for :func:`set_missing_ref_areas`.
+        """Call and return :func:`set_missing_ref_areas`.
 
         Note
         ----
@@ -362,7 +361,7 @@ class PlumeBackgroundModel(object):
 
     def get_tau_image(self, plume_img, bg_img=None,
                       check_state=True, **kwargs):
-        """Determine current tau image for input plume image
+        """Determine current tau image for input plume image.
 
         Parameters
         ----------
@@ -435,7 +434,7 @@ class PlumeBackgroundModel(object):
 
     def get_aa_image(self, plume_on, plume_off, bg_on=None, bg_off=None,
                      check_state=True, **kwargs):
-        """Method to retrieve apparent absorbance image from on and off imgs
+        """Retrieve apparent absorbance image from on and off imgs.
 
         Determines an initial AA image based on input plume and background
         images and
@@ -584,7 +583,7 @@ class PlumeBackgroundModel(object):
     """Plotting"""
 
     def plot_sky_reference_areas(self, plume):
-        """Plot the current sky ref areas into a plume image"""
+        """Plot the current sky ref areas into a plume image."""
         d = self.settings_dict()
         try:
             return plot_sky_reference_areas(plume, d)
@@ -599,7 +598,7 @@ class PlumeBackgroundModel(object):
                         figheight=8, add_mode_info=False,
                         fsize_legend=12, fsize_labels=16,
                         **add_lines):
-        """Plot current tau image including all reference areas
+        """Plot current tau image including all reference areas.
 
         Parameters
         ----------
@@ -622,6 +621,7 @@ class PlumeBackgroundModel(object):
         **kwargs:
             additional lines to be plotted, e.g.::
                 pcs = [300, 400, 500, 600]
+
         """
         tau = tau_img
         if not isinstance(tau, Img):
@@ -801,9 +801,7 @@ class PlumeBackgroundModel(object):
 
     @property
     def mode_info_dict(self):
-        """Dictionary containing information about available bg modelling modes
-
-        """
+        """Return information on available bg modelling modes."""
         return od([[0, "No additional BG image: poly surface fit using plume"
                        " image pixels specified with mask"],
                    [1, "Scaling of bg image in rect scale_rect"],
@@ -845,7 +843,8 @@ class PlumeBackgroundModel(object):
             print("Mode %s: %s" % (k, v))
 
     def _check_rect(self, rect, img):
-        """Check if rect is not None and if it is within image borders
+        """Check if rect is not None and if it is within image borders.
+
         :param list r: rectangular area ``[x0, y0, x1, y1]``
         :param ndarray img: exemplary image
         :return bool:
@@ -858,7 +857,7 @@ class PlumeBackgroundModel(object):
         return True
 
     def _check_img_states(self, img, *more_images):
-        """Check if other images have the same edit state relative to image"""
+        """Check if other images have the same edit state relative to image."""
         if not all([isinstance(x, Img) for x in more_images]):
             raise TypeError("All provided images need to be of type Img")
         if not all([x.is_vigncorr == img.is_vigncorr for x in more_images]):
@@ -892,7 +891,7 @@ class PlumeBackgroundModel(object):
 
 
 def _mean_in_rect(img_array, rect=None):
-    """Helper to get mean and standard deviation of pixels within rectangle.
+    """Get mean and standard deviation of pixels within rectangle.
 
     :param ndarray imgarray: the image data
     :param rect: rectanglular area ``[x0, y0, x1, y1]` where x0 < x1, y0 < y1
@@ -905,13 +904,13 @@ def _mean_in_rect(img_array, rect=None):
 
 
 def scale_tau_img(tau, rect):
-    """Scale tau image such that it fulfills tau==0 in reference area"""
+    """Scale tau image such that it fulfills tau==0 in reference area."""
     avg, _ = _mean_in_rect(tau, rect)
     return tau - avg
 
 
 def scale_bg_img(bg, plume, rect):
-    """Normalise background image to plume image intensity in input rect
+    """Normalise background image to plume image intensity in input rect.
 
     Parameters
     ----------
@@ -926,6 +925,7 @@ def scale_bg_img(bg, plume, rect):
     -------
     ndarray
         the scaled background image
+
     """
     # bg, plume = [x.img for x in [bg, plume] if isinstance(x, Img)]
     mean_bg, _ = _mean_in_rect(bg, rect)
@@ -935,18 +935,18 @@ def scale_bg_img(bg, plume, rect):
 
 
 def corr_tau_curvature_vert_two_rects(tau0, r0, r1):
-    """Apply linear backround curvature correction in tau img based on
-    two rectangular areas.
+    """Apply vertical linear background curvature correction to tau img.
+
+    Retrieves pixel mean value from two rectangular areas and determines
+    linear offset function based on the vertical positions of the rectangle
+    center coordinates. The corresponding offset for each image row is then
+    subtracted from the input tau image
 
     :param (ndarray, Img) tau0: inital tau image
     :param list r0: 1st rectanglular area ``[x0, y0, x1, y1]`
     :param list r1: 2nd rectanglular area ``[x0, y0, x1, y1]`
     :return ndarray: modified tau image
 
-    Retrieves pixel mean value in both rectangles and from the determines
-    linear offset function based on the vertical positions of the rectangle
-    center coordinates. The corresponding offset for each image row is then
-    subtracted from the input tau image
     """
     try:
         tau0 = tau0.img
@@ -968,18 +968,17 @@ def corr_tau_curvature_vert_two_rects(tau0, r0, r1):
 
 
 def corr_tau_curvature_hor_two_rects(tau0, r0, r1):
-    """Apply linear backround curvature correction in tau img based on
-    two rectangular areas
+    """Apply horizonzal linear background curvature correction to tau img.
+
+    Retrieves pixel mean values from two rectangular areas and determines
+    linear offset function based on the horizontal positions of the
+    rectangle center coordinates. The corresponding offset for each image
+    row is then subtracted from the input tau image.
 
     :param (ndarray, Img) tau0: inital tau image
     :param list r0: 1st rectanglular area ``[x0, y0, x1, y1]`
     :param list r1: 2nd rectanglular area ``[x0, y0, x1, y1]`
     :return ndarray: modified tau image
-
-    Retrieves pixel mean value in both rectangles and from the determines
-    linear offset function based on the horizontal positions of the
-    rectangle center coordinates. The corresponding offset for each image
-    row is then subtracted from the input tau image
     """
     try:
         tau0 = tau0.img
@@ -1002,8 +1001,7 @@ def corr_tau_curvature_hor_two_rects(tau0, r0, r1):
 
 def corr_tau_curvature_vert_line(tau0, pos_x, start_y=0, stop_y=None,
                                  row_mask=None, polyorder=2):
-    """Correction of vertical tau curvature using selected row indices of
-    vertical line.
+    """Correct vertical tau curvature using selected row indices of vertical line.
 
     :param (ndarray, Img) tau0: inital tau image
     :param int pos_x: x position of line (column number)
@@ -1043,8 +1041,8 @@ def corr_tau_curvature_vert_line(tau0, pos_x, start_y=0, stop_y=None,
 
 def corr_tau_curvature_hor_line(tau0, pos_y, start_x=0, stop_x=None,
                                 col_mask=None, polyorder=2):
-    """Correction of vertical tau curvature using selected row indices of
-    vertical line.
+    #  fixme: this doc is propably wrong
+    """Correct vertical tau curvature using selected row indices of vertical line.
 
     :param (ndarray, Img) tau0: inital tau image
     :param int pos_y: y position of line (row number)

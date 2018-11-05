@@ -15,9 +15,9 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
+"""Classes representing image data and corresponding processing features.
 
-"""Module containing classes representing image data and corresponding
-processing features. The image base class :class:`Img` is a powerful object for
+The image base class :class:`Img` is a powerful object for
 image data, containing I/O routines for many data formats, processing classes
 and keeping track on changes applied to the images.
 The actual image data is stored as numpy array in the :attr:`img` of an
@@ -227,7 +227,7 @@ class Img(object):
 
     @img.setter
     def img(self, val):
-        """Setter for image data"""
+        """Set image data."""
         self._img = val  # .astype(self.dtype)
 
     @property
@@ -278,8 +278,10 @@ class Img(object):
 
     @property
     def pyr_up_factor(self):
-        """Factor to convert coordinates at current pyramid level into
-        original size coordinates
+        """Return coordinates conversion factor.
+
+        This factor is used to convert coordinates at current pyramid level
+        into original size coordinates.
         """
         return 2 ** self.edit_log["pyrlevel"]
 
@@ -335,8 +337,7 @@ class Img(object):
 
     @property
     def is_dilcorr(self):
-        """Boolean specifying whether this image is corrected for signal
-        dilution"""
+        """Return whether this image is corrected for signal dilution."""
         return self.edit_log["dilcorr"]
 
     @property
@@ -351,7 +352,7 @@ class Img(object):
 
     @property
     def is_shifted(self):
-        """Boolean specifying whether image was shifted
+        """Boolean specifying whether image was shifted.
 
         This may be e.g. the case for stereo imaging
         """
@@ -371,7 +372,7 @@ class Img(object):
 
     @property
     def roi(self):
-        """Return current roi (in consideration of current pyrlevel)."""
+        """Return current roi in consideration of current pyrlevel."""
         roi_sub = map_roi(self._roi_abs, self.edit_log["pyrlevel"])
         return roi_sub
 
@@ -392,7 +393,7 @@ class Img(object):
             self._roi_abs = val
 
     def set_data(self, input):
-        """Try load input"""
+        """Try load input."""
         self.load_input(input)
 
     def reload(self):
@@ -621,7 +622,7 @@ class Img(object):
         self._roi_abs = [0, 0, w * 2**self.pyrlevel, h * 2**self.pyrlevel]
 
     def apply_median_filter(self, size_final=3):
-        """Apply a median filter to
+        """Apply a median filter.
 
         :param tuple shape (3,3): size of the filter
         """
@@ -652,19 +653,22 @@ class Img(object):
         self.edit_log["blurring"] += sigma
 
     def get_masked_img(self, mask, fill_value=None):
-        """ Returns a np.ma.masked_array of the img array
-        Parameters:
-        -----------
+        """Return a np.ma.masked_array of the img array.
+
+        Parameters
+        ----------
         mask : numpy.ndarray
             entries which should be masked (True=invalid entry)
             has to be same shape as current state of self.img
         fill_value : float
             (optional, default None) If defined, invalid entries are replaced
             by fill_value
-        Returns:
-        --------
+
+        Returns
+        -------
         numpy.ma.masked_array
             masked array
+
         """
         data = deepcopy(self.img)
         data_masked = masked_array(data, mask)
@@ -674,7 +678,7 @@ class Img(object):
             return data_masked.filled(fill_value=fill_value)
 
     def get_thresh_mask(self, threshold):
-        """Apply threshold and get binary mask"""
+        """Apply threshold and get binary mask."""
         return (self.img > threshold).astype(uint8)
 
     def to_binary(self, threshold=None, new_img=False):
@@ -706,7 +710,7 @@ class Img(object):
         return self
 
     def invert(self):
-        """Invert image
+        """Invert image.
 
         Note
         ----
@@ -734,7 +738,7 @@ class Img(object):
         return self
 
     def convolve_with_mask(self, mask):
-        """Convolves this image data with input mask and return value
+        """Convolves this image data with input mask and return value.
 
         Note
         ----
@@ -751,6 +755,7 @@ class Img(object):
         -------
         float
              corresponding value after normalisation and convolution
+
         """
         mask = mask.astype(float)
         mask_norm = mask / mask.sum()
@@ -759,7 +764,7 @@ class Img(object):
         return (self.img * mask_norm).sum()
 
     def dilate(self, kernel=ones((9, 9), dtype=uint8)):
-        """Apply morphological transformation Dilation to image
+        """Apply morphological transformation Dilation to image.
 
         Uses :func:`cv2.dilate` for dilation. The method requires specification
         of a smoothing kernel, if unspecified, a 9x9 neighbourhood is used
@@ -892,6 +897,7 @@ class Img(object):
         Img
             new Img object containing tau image data
             (this object remains unchanged)
+
         """
         tau = self
         if new_img:
@@ -1032,7 +1038,7 @@ class Img(object):
         return self.img.mean()
 
     def sum(self):
-        """The sum of all pixel values."""
+        """Return the sum of all pixel values."""
         return self.img.sum()
 
     def std(self):
@@ -1079,6 +1085,7 @@ class Img(object):
             new value for all pixels above the input threshold
         threshold : float
             considered intensity threshold
+
         """
         mask = self.img > threshold
         self.img[mask] = val
@@ -1307,7 +1314,7 @@ class Img(object):
         return ax
 
     def shift(self, dx_abs=0.0, dy_abs=0.0):
-        """Applies constant image shift to this object
+        """Apply constant image shift to this object.
 
         Parameters
         ----------
@@ -1315,6 +1322,7 @@ class Img(object):
             shift in x-direction
         dy_abs : float
             shift in y-direction
+
         """
         dx_rel, dy_rel = dx_abs / 2**self.pyrlevel, dy_abs / 2**self.pyrlevel
         self.img = shift(self.img, shift=(dy_rel, dx_rel), cval=.01)
@@ -1358,13 +1366,12 @@ class Img(object):
         ax.grid()
 
     def info(self):
-        """Image info (prints string representation)."""
+        """Print image info from string representation."""
         print(self.__str__())
 
     """MAGIC METHODS"""
 
     def __str__(self):
-        """String representation."""
         s = "\n-----------\npyplis Img\n-----------\n\n"
         s += "Min / Max intensity: %s - %s\n" % (self.min(), self.max())
         s += "Mean intensity: %s\n" % (self.img.mean())
@@ -1398,7 +1405,7 @@ class Img(object):
             raise TypeError("Could not add input %s to image" % type(val))
 
     def __sub__(self, val):
-        """Subtract another image object
+        """Subtract another image object.
 
         :param Img img_obj: object to be subtracted
         :return: new image object
@@ -1430,7 +1437,7 @@ class Img(object):
                             % type(val))
 
     def __truediv__(self, val):
-        """Divide another image object (float division)
+        """Divide another image object (float division).
 
         :param Img img_obj: object to be multiplied
         :return: new image object
