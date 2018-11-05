@@ -37,6 +37,7 @@ from pandas import Series, concat, DatetimeIndex
 from cv2 import pyrDown, pyrUp
 from os.path import join, exists, dirname, basename, isdir, abspath
 from astropy.io import fits
+import six
 
 from .image import Img
 from .setupclasses import Camera
@@ -898,7 +899,7 @@ class ImgStack(object):
         self.set_stack_data(hdu[0].data.byteswap().newbyteorder().
                             astype(self.dtype))
         prep = Img().edit_log
-        for key, val in hdu[0].header.iteritems():
+        for key, val in six.iteritems(hdu[0].header):
             if key.lower() in prep.keys():
                 self.img_prep[key.lower()] = val
         self.stack_id = hdu[0].header["stack_id"]
@@ -1098,7 +1099,7 @@ class PixelMeanTimeSeries(Series):
         self.img_prep = img_prep
         self.roi_abs = roi_abs
 
-        for key, val in kwargs.iteritems():
+        for key, val in six.iteritems(kwargs):
             self[key] = val
 
     @property
