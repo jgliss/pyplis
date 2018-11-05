@@ -305,7 +305,7 @@ class CellAutoSearchResults(object):
 
         """
         self.cell_info[filter_id] = od()
-        for cell_id, res in cell_info.iteritems():
+        for cell_id, res in six.iteritems(cell_info):
             if isinstance(res, CellSearchInfo):
                 self.cell_info[filter_id][cell_id] = res
         if isinstance(bg_info, CellSearchInfo):
@@ -741,7 +741,7 @@ class CellCalibEngine(Dataset):
         bg_info.create_image_list(self.camera)
         bg_info.img_list.update_cell_info("bg", 0.0, 0.0)
         self.assign_dark_offset_lists(into_list=bg_info.img_list)
-        for cell_id, info in cell_info.iteritems():
+        for cell_id, info in six.iteritems(cell_info):
             info.create_image_list(self.camera)
             self.assign_dark_offset_lists(into_list=info.img_list)
 
@@ -799,7 +799,7 @@ class CellCalibEngine(Dataset):
             offs_dict[val.add_id] = val.offs.mean()
 
         # read the gas column amounts
-        for key, val in cell_info.iteritems():
+        for key, val in six.iteritems(cell_info):
             cell_cd_dict[key] = val[0]
         # sort the dicionaries by column amount or intensity decrease
         s0 = sorted(offs_dict, key=offs_dict.get)
@@ -827,13 +827,14 @@ class CellCalibEngine(Dataset):
 
         """
         # Add all cell image lists that were found for each filter
-        for filter_id, cell_dict in self.search_results.cell_info.iteritems():
-            for cell_id, cell in cell_dict.iteritems():
+        for filter_id, cell_dict in six.iteritems(
+                self.search_results.cell_info):
+            for cell_id, cell in six.iteritems(cell_dict):
                 lst = cell.img_list
                 if lst.has_files() and lst.gas_cd > 0:
                     self.add_cell_img_list(lst)
         # Add all BG image lists found for each filter
-        for filter_id, info in self.search_results.bg_info.iteritems():
+        for filter_id, info in six.iteritems(self.search_results.bg_info):
             self.add_bg_img_list(info.img_list)
         # set background images closest to first detected cell list for each
         # filter
@@ -852,7 +853,7 @@ class CellCalibEngine(Dataset):
         if cell_id is None:
             cell_id = self.cell_lists[self.filters.default_key_on].keys()[0]
 
-        for filter_id, lst in self.bg_lists.iteritems():
+        for filter_id, lst in six.iteritems(self.bg_lists):
             self.cell_lists[filter_id][cell_id].link_imglist(lst)
 
     def find_and_assign_cells_all_filter_lists(self, threshold=0.10):
@@ -975,7 +976,7 @@ class CellCalibEngine(Dataset):
             If any of the specs in ``cell_info_dict`` is invalid
 
         """
-        for key, val in cell_info_dict.iteritems():
+        for key, val in six.iteritems(cell_info_dict):
             if (not isinstance(key, str) and
                     not isinstance(key, six.string_types)):
                 raise KeyError("Invalid key: %s" % key)
@@ -1053,7 +1054,7 @@ class CellCalibEngine(Dataset):
             bg_mean_tseries = self.det_bg_mean_pix_timeseries(filter_id)
         except BaseException:
             pass
-        for cell_id, lst in self.cell_lists[filter_id].iteritems():
+        for cell_id, lst in six.iteritems(self.cell_lists[filter_id]):
             lst.update_img_prep(blurring=blurring)
             lst.darkcorr_mode = darkcorr
             cell_img = lst.current_img()
@@ -1150,7 +1151,7 @@ class CellCalibEngine(Dataset):
         self.check_all_lists()
         self.prep_tau_stacks(on_id, off_id, darkcorr, blurring)
 
-        for calib_id, stack in self.tau_stacks.iteritems():
+        for calib_id, stack in six.iteritems(self.tau_stacks):
             if any([x is None for x in [pos_x_abs, pos_y_abs]]):
                 print("Using image center coordinates for retrieval of cell "
                       "calibration polynomial")
@@ -1473,7 +1474,7 @@ class CellCalibEngine(Dataset):
             fig, ax = subplots(1, 1)
         tau_max = -10
         y_min = 1e20
-        for calib_id, calib in self.calib_data.iteritems():
+        for calib_id, calib in six.iteritems(self.calib_data):
             tau = calib.tau_vec
             gas_cd, gas_cd_errs = calib.cd_vec, calib.cd_vec_err
             fun, coeffs = calib.calib_fun, calib.calib_coeffs
