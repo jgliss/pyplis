@@ -17,6 +17,7 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 """Pyplis module containing mathematical model functions."""
 from numpy import exp, sin, cos
+import six
 
 # Polynomial fit functions of different order, including versions that go
 # through the origin of the coordinate system
@@ -82,7 +83,7 @@ class CalibFuns(object):
         print("Available polyorders (with offset): %s"
               "Available polyorders (without offset): %s"
               % (self.polys[0].keys(), self.polys[1].keys()))
-        for k, v in self._custom_funs_info.iteritems():
+        for k, v in six.iteritems(self._custom_funs_info):
             print("%s : %s" % (k, v))
 
     def get_custom_fun(self, key="kern2015"):
