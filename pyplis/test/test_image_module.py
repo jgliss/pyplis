@@ -51,13 +51,13 @@ def test_pyramid_crop(ec2_img):
 
 
 def test_meta_info(ec2_img):
-    """Test if all relevant meta information is loaded"""
+    """Test if all relevant meta information is loaded."""
     assert ec2_img.shape == (1024, 1344)
 
 
 @pytest.fixture
 def binary_mask(scope='module'):
-    """ Binary mask for ec2 image """
+    """Binary mask for ec2 image."""
     mask = zeros((1024, 1344))
     mask[0:500, :] = 1
     return mask
@@ -65,13 +65,13 @@ def binary_mask(scope='module'):
 
 @pytest.mark.parametrize("fill_value", [0.0, 10, -1.234])
 def test_masked_img(ec2_img, binary_mask, fill_value):
-    """ Test if masking works """
+    """Test if masking works."""
     masked_img = ec2_img.get_masked_img(mask=binary_mask,
                                         fill_value=fill_value)
     assert masked_img[200, 500] == fill_value
 
 
 def test_masked_img_nan(ec2_img, binary_mask):
-    """ Test if masking works """
+    """Test if masking works."""
     masked_img = ec2_img.get_masked_img(mask=binary_mask, fill_value=nan)
     assert math.isnan(masked_img[200, 500])

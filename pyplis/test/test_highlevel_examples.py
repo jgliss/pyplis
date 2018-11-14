@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
-"""
-Pyplis high level test module.
+"""Pyplis high level test module.
 
 This module contains some highlevel tests with the purpose to ensure
 basic functionality of the most important features for emission-rate
@@ -110,7 +109,7 @@ def setup(scope="module"):
 
 @pytest.fixture(scope="module")
 def calib_dataset():
-    """Initiate calibration dataset."""
+    """Initialize calibration dataset."""
     stp = setup()
     stp.start = START_CALIB
     stp.stop = STOP_CALIB
@@ -120,7 +119,7 @@ def calib_dataset():
 
 @pytest.fixture(scope="module")
 def plume_dataset():
-    """Initiates measurement setup and creates dataset from that."""
+    """Initialize measurement setup and create dataset from that."""
     stp = setup()
     stp.start = START_PLUME
     stp.stop = STOP_PLUME
@@ -131,7 +130,7 @@ def plume_dataset():
 
 @pytest.fixture(scope="module")
 def aa_image_list():
-    """Prepares AA image list for further analysis."""
+    """Prepare AA image list for further analysis."""
     ds = plume_dataset()
     geom = find_viewdir()
 
