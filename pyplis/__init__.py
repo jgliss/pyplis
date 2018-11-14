@@ -46,26 +46,26 @@ try:
 except BaseException:
     GEONUMAVAILABLE = 0
 
-from setupclasses import MeasSetup, Camera, Source
-from geometry import MeasGeometry
-from utils import Filter, DarkOffsetInfo, LineOnImage
-from image import Img, ProfileTimeSeriesImg
-from dataset import Dataset
-from imagelists import ImgList, CellImgList, DarkImgList
-from plumebackground import PlumeBackgroundModel
-from cellcalib import CellCalibData, CellCalibEngine
-from calib_base import CalibData
-from doascalib import DoasCalibData, DoasFOV, DoasFOVEngine
-from plumespeed import (find_signal_correlation, OptflowFarneback,
+from .setupclasses import MeasSetup, Camera, Source
+from .geometry import MeasGeometry
+from .utils import Filter, DarkOffsetInfo, LineOnImage
+from .image import Img, ProfileTimeSeriesImg
+from .dataset import Dataset
+from .imagelists import ImgList, CellImgList, DarkImgList
+from .plumebackground import PlumeBackgroundModel
+from .cellcalib import CellCalibData, CellCalibEngine
+from .calib_base import CalibData
+from .doascalib import DoasCalibData, DoasFOV, DoasFOVEngine
+from .plumespeed import (find_signal_correlation, OptflowFarneback,
                         FarnebackSettings, LocalPlumeProperties,
                         VeloCrossCorrEngine)
-from processing import ImgStack, PixelMeanTimeSeries
-from dilutioncorr import DilutionCorr
-from fluxcalc import (EmissionRateAnalysis, EmissionRates,
+from .processing import ImgStack, PixelMeanTimeSeries
+from .dilutioncorr import DilutionCorr
+from .fluxcalc import (EmissionRateAnalysis, EmissionRates,
                       EmissionRateSettings)
-from optimisation import PolySurfaceFit, MultiGaussFit
-import custom_image_import
-from inout import download_test_data, find_test_data
+from .optimisation import PolySurfaceFit, MultiGaussFit
+from . import custom_image_import
+from .inout import download_test_data, find_test_data
 # ==============================================================================
 # import model_functions
 # import helpers

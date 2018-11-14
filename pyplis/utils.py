@@ -38,7 +38,7 @@ from .glob import DEFAULT_ROI
 from datetime import datetime as dt
 from collections import OrderedDict as od
 from .inout import get_camera_info, save_new_default_camera, get_cam_ids
-import custom_image_import
+from . import custom_image_import
 import six
 
 
