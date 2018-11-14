@@ -834,7 +834,7 @@ class EmissionRates(object):
 
         return new
 
-    def __div__(self, other):
+    def truediv(self, other):
         """Divide other emission rate results.
 
         The values of the emission rates ``phi`` are divided, the other data

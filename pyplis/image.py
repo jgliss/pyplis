@@ -1436,7 +1436,7 @@ class Img(object):
             raise TypeError("Could not multiply value %s to image"
                             % type(val))
 
-    def __truediv__(self, val):
+    def truediv(self, val):
         """Divide another image object (float division).
 
         :param Img img_obj: object to be multiplied
@@ -1451,9 +1451,6 @@ class Img(object):
         except:
             raise TypeError("Could not divide image by input %s"
                             % type(val))
-
-    def __div__(self, val):
-        return self.__truediv__(val)
 
 
 def model_dark_image(texp, dark, offset):
