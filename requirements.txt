@@ -3,8 +3,12 @@ matplotlib
 scipy
 opencv-python
 astropy
+SRTM.py
+git+git://github.com/johannjacobsohn/geonum.git#egg=geonum
 geonum
 pandas
 pydoas
 utils
 six
+LatLon23
+git+git://github.com/matplotlib/basemap#egg=basemap
