@@ -29,8 +29,13 @@ try:
 except BaseException:
     PGBAR_AVAILABLE = False
 from zipfile import ZipFile, ZIP_DEFLATED
-from urllib import urlretrieve
-from urllib2 import urlopen
+
+try:
+    from urllib.request import urlopen, urlretrieve
+except ImportError:
+    from urllib2 import urlopen
+    from urllib import urlretrieve
+
 from tempfile import mktemp, gettempdir
 from shutil import copy2
 import six
