@@ -729,13 +729,12 @@ class CellCalibEngine(Dataset):
                     rest.texps.append(texps[k])
             k += 1
 
-        if not len(self._cell_info_auto_search.keys()
-                   ) == len(cell_info.keys()):
+        if not len(self._cell_info_auto_search) == len(cell_info):
             raise CellSearchError("Number of detected cells (%s) is "
                                   "different from number of cells "
                                   "specified in cellSpecInfo (%s) "
-                                  % (len(self._cell_info_auto_search.keys()),
-                                     len(cell_info.keys())))
+                                  % (len(self._cell_info_auto_search),
+                                     len(cell_info)))
 
         # Create new image lists from search results for background images
         # and one list for each cell that was detected
@@ -852,7 +851,8 @@ class CellCalibEngine(Dataset):
 
         """
         if cell_id is None:
-            cell_id = self.cell_lists[self.filters.default_key_on].keys()[0]
+            cell_id = list(
+                self.cell_lists[self.filters.default_key_on].keys())[0]
 
         for filter_id, lst in six.iteritems(self.bg_lists):
             self.cell_lists[filter_id][cell_id].link_imglist(lst)
@@ -941,7 +941,7 @@ class CellCalibEngine(Dataset):
             True (if it makes it to the return statement)
 
         """
-        filter_ids = self.cell_lists.keys()
+        filter_ids = list(self.cell_lists.keys())
         cell_ids = self.cell_lists[filter_ids[0]].keys()
         # get number of cells for first filter ID
         first_cell_num = len(self.cell_lists[filter_ids[0]])

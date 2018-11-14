@@ -23,7 +23,7 @@ def test_empty_dataset():
     ds = Dataset()
     info = ds.check_filename_info_access(EC2_IMG_PATH)
     target_vals = ["on", 4, 0]
-    actual_vals = [ds.lists_access_info.keys()[0],
+    actual_vals = [list(ds.lists_access_info.keys())[0],
                    len(info),
                    sum(info.values())]
 

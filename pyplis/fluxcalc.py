@@ -1098,7 +1098,7 @@ class EmissionRateAnalysis(object):
         """
         if line_id is None:
             try:
-                line_id = self.results.keys()[0]
+                line_id = list(self.results.keys())[0]
                 print("Input line ID unspecified, using: %s" % line_id)
             except IndexError:
                 raise IndexError("No emission rate results available...")

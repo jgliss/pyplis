@@ -156,7 +156,7 @@ if __name__ == "__main__":
         aa_imgs_corr[cd] = pyplis.Img(aa_init.img / mask.img)
 
     # get mask corresponding to minimum cell CD
-    mask = masks.values()[np.argmin(masks.keys())]
+    mask = list(masks.values())[np.argmin(list(masks.keys()))]
 
     # assing mask to aa_list
     aa_list.senscorr_mask = mask
@@ -190,7 +190,7 @@ if __name__ == "__main__":
                     dpi=DPI)
 
     # Save the sensitivity correction mask from the cell with the lowest SO2 CD
-    so2min = np.min(masks.keys())
+    so2min = np.min(list(masks.keys()))
     mask = masks[so2min]
     mask.save_as_fits(SAVE_DIR, "ex07_aa_corr_mask")
 

@@ -704,7 +704,7 @@ class Dataset(object):
         """
         if isinstance(into_list, ImgList):
             into_list.link_dark_offset_lists(
-                *self.dark_lists_with_data.values())
+                *list(self.dark_lists_with_data.values()))
             return True
 
 # ==============================================================================
@@ -768,8 +768,8 @@ class Dataset(object):
                          "list %s, no dark images could be found" % filter_id)
                 else:
                     print("Assigning dark/offset lists %s to image list %s\n"
-                          % (lists.keys(), filter_id))
-                    lst.link_dark_offset_lists(*lists.values())
+                          % (list(lists.keys()), filter_id))
+                    lst.link_dark_offset_lists(*list(lists.values()))
         return True
 
     def get_all_dark_offset_lists(self):

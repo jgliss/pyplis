@@ -103,7 +103,7 @@ class DilutionCorr(object):
     def line_ids(self):
         """Get IDs of all :class:`LineOnImage` objects for distance retrieval.
         """
-        return self.lines.keys()
+        return list(self.lines.keys)()
 
     def update_settings(self, **settings):
         """Update settings dict for topo distance retrieval."""
@@ -436,7 +436,7 @@ class DilutionCorr(object):
             print("Adding gaussian blurring of 2 for topographic radiance "
                   "retrieval")
             imglist.gaussian_blurring = 2
-        if imglist.pyrlevel != self.lines.values()[0].pyrlevel:
+        if imglist.pyrlevel != list(self.lines.values())[0].pyrlevel:
             raise ValueError("Mismatch in pyramid level of lines and imglist")
         if len(line_ids) == 0:
             line_ids = self.line_ids

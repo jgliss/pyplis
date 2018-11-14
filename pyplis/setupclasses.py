@@ -237,22 +237,22 @@ class Source(object):
         if num == 0:
             return {}
         elif num == 1:
-            return res.values()[0]
+            return list(res.values())[0]
         else:
             print("\nMultiple occurences found for %s" % name)
             ok = 0
-            print(res.keys())
+            print(list(res.keys()))
             while not ok:
                 try:
                     inp = input("\nEnter, key:\n")
                     return res[inp]
                 except:
-                    print(res.keys())
+                    print(list(res.keys()))
                     print("Retry...")
 
     def _all_params(self):
         """Return list of all relevant source attributes."""
-        return self._type_dict.keys()
+        return list(self._type_dict.keys())
 
     def __str__(self):
         s = ("\npyplis Source\n-------------------------\n")

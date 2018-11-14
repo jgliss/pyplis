@@ -112,7 +112,7 @@ class PlumeBackgroundModel(object):
     @property
     def all_modes(self):
         """List containing valid modelling modes."""
-        return self.mode_info_dict.keys()
+        return list(self.mode_info_dict.keys())
 
     @property
     def mode(self):

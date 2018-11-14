@@ -1509,7 +1509,7 @@ class CameraBaseInfo(object):
 
     def _all_params(self):
         """Return list of all relevant source attributes."""
-        return self._type_dict.keys()
+        return list(self._type_dict.keys())
 
     def _short_str(self):
         """Short string repr."""

@@ -229,10 +229,10 @@ if __name__ == "__main__":
                                          ('elev_err', None),
                                          ('alt_offset', 0.0)])
 
-        arr_nominal = geom_data_nominal.items()
-        arr_nominal.extend(cam_dict_nominal.items())
+        arr_nominal = list(geom_data_nominal.items())
+        arr_nominal.extend(list(cam_dict_nominal.items()))
 
-        arr_vals = cam.geom_data.items()
+        arr_vals = list(cam.geom_data.items())
         for k in cam_dict_nominal:
             arr_vals.append((k, cam.__dict__[k]))
 

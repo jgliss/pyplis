@@ -1625,7 +1625,7 @@ class ProfileTimeSeriesImg(Img):
 
     def _profile_dict_keys(self, profile_type="LineOnImage"):
         """Return profile dictionary keys for input profile type."""
-        d = {"LineOnImage": LineOnImage().to_dict().keys()}
+        d = {"LineOnImage": list(LineOnImage().to_dict().keys())}
         return d[profile_type]
 
     def load_fits(self, file_path, profile_type="LineOnImage"):

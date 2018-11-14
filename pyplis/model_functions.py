@@ -71,19 +71,19 @@ class CalibFuns(object):
             list containing available polyorders
 
         """
-        return self.polys[through_origin].keys()
+        return list(self.polys[through_origin].keys())
 
     def print_poly_info(self):
         """Print information about available polynomials."""
         print("Available polyorders (with offset): %s"
               "Available polyorders (without offset): %s"
-              % (self.polys[0].keys(), self.polys[1].keys()))
+              % (list(self.polys[0].keys()), list(self.polys[1].keys())))
 
     def print_custom_funs_info(self):
         """Print information about available curtom calib functions."""
         print("Available polyorders (with offset): %s"
               "Available polyorders (without offset): %s"
-              % (self.polys[0].keys(), self.polys[1].keys()))
+              % (list(self.polys[0].keys()), list(self.polys[1].keys())))
         for k, v in six.iteritems(self._custom_funs_info):
             print("%s : %s" % (k, v))
 
@@ -125,7 +125,8 @@ class CalibFuns(object):
         if order not in self.polys[through_origin].keys():
             raise ValueError("Polynomial of order %s is not supported "
                              "available orders are %s"
-                             % (order, self.polys[through_origin].keys()))
+                             % (order,
+                                list(self.polys[through_origin].keys())))
         return self.polys[through_origin][order]
 
 

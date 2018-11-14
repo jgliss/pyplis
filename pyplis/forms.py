@@ -137,11 +137,11 @@ class FormCollectionBase(object):
 
     def keys(self):
         """Return names of all current forms."""
-        return self._forms.keys()
+        return list(self._forms.keys())
 
     def values(self):
         """Return all current forms."""
-        return self._forms.values()
+        return list(self._forms.values())
 
     def get(self, form_id):
         """Get one form.

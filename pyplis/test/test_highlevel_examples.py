@@ -243,7 +243,7 @@ def test_setup():
 def test_dataset():
     """Test certain properties of the dataset object."""
     ds = plume_dataset()
-    keys = ds.img_lists_with_data.keys()
+    keys = list(ds.img_lists_with_data.keys())
     vals_exact = [ds.img_lists["on"].nof + ds.img_lists["off"].nof,
                   sum(ds.current_image("on").shape),
                   keys[0], keys[1], ds.cam_id]
