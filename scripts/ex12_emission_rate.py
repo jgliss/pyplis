@@ -35,6 +35,8 @@ PCS lines in the EmissionRateAnalysis class using ``add_pcs_line``.
 The results for each velocity mode and for each PCS line are stored within
 EmissionRateResults classes.
 """
+from __future__ import (absolute_import, division)
+
 from SETTINGS import check_version
 
 from os.path import join, exists

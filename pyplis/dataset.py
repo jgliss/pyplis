@@ -26,6 +26,7 @@ import see :mod:`pyplis.setupclasses` or read `this little introductory
 tutorial
 <http://pyplis.readthedocs.io/en/latest/tutorials.html#primer-on-data-import>`_
 """
+from __future__ import (absolute_import, division)
 from os.path import exists, join, isfile, isdir
 from os import listdir, walk
 from warnings import warn

@@ -20,6 +20,8 @@
 This example script introduces features related to plume background modelling
 and tau image calculations.
 """
+from __future__ import (absolute_import, division)
+
 from SETTINGS import check_version
 
 import numpy as np

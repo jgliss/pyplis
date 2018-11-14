@@ -57,6 +57,8 @@ displayed.
 The Dataset object created here is used in script  ex04_prep_aa_imglist.py
 which shows how to create an image list displaying AA images.
 """
+from __future__ import (absolute_import, division)
+
 from SETTINGS import check_version, IMG_DIR, OPTPARSE
 import pyplis as pyplis
 from datetime import datetime

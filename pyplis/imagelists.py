@@ -27,7 +27,7 @@ from :class:`BaseImgList`) contain powerful preprocessing modes (e.g. load
 images as dark corrected and calibrated images, compute optical flow between
 current and next image).
 """
-# from __future__ import division
+from __future__ import (absolute_import, division)
 from numpy import (asarray, zeros, argmin, arange, ndarray, float32, isnan,
                    logical_or, uint8, exp, ones)
 from numpy.ma import nomask
@@ -61,7 +61,7 @@ from .calib_base import CalibData
 from numpy import size, array
 from pandas import to_datetime, concat
 from astropy.io import fits
-from custom_image_import import _read_binary_timestamp
+from .custom_image_import import _read_binary_timestamp
 import six
 
 

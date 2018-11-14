@@ -34,6 +34,8 @@ mechanical inclinometer.
 Further, the distance to the plume is retrieved on a pixel basis (represented
 as image).
 """
+from __future__ import (absolute_import, division)
+
 from SETTINGS import check_version
 
 from geonum.base import GeoPoint

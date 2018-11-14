@@ -18,6 +18,8 @@
 """Pyplis example script no. 8 - Plume velocity retrieval by cross correlation.
 
 """
+from __future__ import (absolute_import, division)
+
 from SETTINGS import check_version
 
 from matplotlib.pyplot import close, show, subplots

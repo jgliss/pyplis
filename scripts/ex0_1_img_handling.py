@@ -27,6 +27,8 @@ encoded in the image file name. The latter can be performed automatically in
 pyplis using file name conventions (which can be specified globally, see next
 script).
 """
+from __future__ import (absolute_import, division)
+
 # Check script version
 from SETTINGS import check_version
 

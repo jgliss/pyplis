@@ -16,7 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 """Pyplis module containing low level utilitiy methods and classes."""
-
+from __future__ import (absolute_import, division)
 from numpy import (vstack, asarray, ndim, round, hypot, linspace, sum, zeros,
                    complex, angle, array, cos, sin, arctan, dot, int32, pi,
                    isnan, nan, mean, ndarray)

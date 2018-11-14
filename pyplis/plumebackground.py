@@ -16,7 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 """Pyplis module containing features related to plume background analysis."""
-from __future__ import division
+from __future__ import (absolute_import, division)
 from numpy import (polyfit, poly1d, linspace, logical_and, log, argmin,
                    gradient, nan, ndarray, arange, ones, finfo, asarray)
 from matplotlib.patches import Rectangle

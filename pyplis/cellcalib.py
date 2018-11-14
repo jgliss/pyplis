@@ -16,6 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 """Pyplis module containing features related to cell calibration."""
+from __future__ import (absolute_import, division)
 import six
 from matplotlib.pyplot import subplots
 from warnings import warn

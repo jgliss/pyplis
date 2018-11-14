@@ -33,6 +33,8 @@ Note, that this calibration does not include a dark correction of the images
 before the calibration, therefore, the results are slightly different compared
 to the results from ex05_cell_calib_auto.py.
 """
+from __future__ import (absolute_import, division)
+
 from SETTINGS import check_version
 
 import pyplis

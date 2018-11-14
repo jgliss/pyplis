@@ -30,6 +30,8 @@ The two example images are then corrected for dilution and the results are
 plotted (as comparison of the retrieved emission rate along an exemplary
 plume cross section)
 """
+from __future__ import (absolute_import, division)
+
 from SETTINGS import check_version
 
 import pyplis as pyplis

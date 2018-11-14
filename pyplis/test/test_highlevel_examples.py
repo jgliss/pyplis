@@ -18,7 +18,7 @@ Author: Jonas Gliss
 Email: jonasgliss@gmail.com
 License: GPLv3+
 """
-from __future__ import division
+from __future__ import (absolute_import, division)
 
 import pyplis
 from os.path import join

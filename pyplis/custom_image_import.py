@@ -42,7 +42,7 @@ Valid keys for import of image meta information:
 'user_param2', 'user_param3'
 
 """
-from __future__ import division
+from __future__ import (absolute_import, division)
 # from matplotlib.pyplot import imread
 from cv2 import imread
 from numpy import swapaxes, flipud, asarray, rot90

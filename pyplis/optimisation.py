@@ -16,6 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 """Module containing optimisation routines."""
+from __future__ import (absolute_import, division)
 from numpy import abs, linspace, random, asarray, ndarray, where, diff,\
     insert, argmax, average, gradient, arange, nanmean, full, inf, sqrt, pi,\
     mod, mgrid, ndim, ones_like, ogrid, finfo, remainder, e, sum, uint8, int,\

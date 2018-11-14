@@ -16,6 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 """Package initialisation."""
+from __future__ import (absolute_import, division)
 from os.path import abspath, dirname
 from pkg_resources import get_distribution
 from matplotlib import rcParams

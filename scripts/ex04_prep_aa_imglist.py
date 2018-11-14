@@ -19,6 +19,8 @@
 
 Script showing how to work in AA mode using ImgList object
 """
+from __future__ import (absolute_import, division)
+
 from SETTINGS import check_version
 
 import pyplis

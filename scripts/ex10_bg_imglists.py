@@ -16,6 +16,8 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 """Pyplis example script no. 10 - Create background image dataset."""
+from __future__ import (absolute_import, division)
+
 from SETTINGS import check_version
 
 import pyplis
