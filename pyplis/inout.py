@@ -271,13 +271,13 @@ def _load_cam_info(cam_id, filepath):
     dat = od()
     if cam_id is None:
         return dat
-    with open(filepath) as f:
+    with open(filepath, 'rb') as f:
         filters = []
         darkinfo = []
         io_opts = {}
         found = 0
         for ll in f:
-            line = ll.rstrip()
+            line = ll.decode('utf-8').rstrip()
             if line:
                 if "END" in line and found:
                     dat["default_filters"] = filters
