@@ -2580,8 +2580,8 @@ class ImgList(BaseImgList):
                 dark = self.dark_lists[read_gain]["list"].current_img()
                 offset = self.offset_lists[read_gain]["list"].current_img()
                 dark = model_dark_image(texp, dark, offset)
-            except Exception as e:
-                msg = format_exc(e)
+            except KeyError as e:
+                msg = format_exc(e.args[0])
                 try:
                     dark = model_dark_image(texp, self.master_dark,
                                             self.master_offset)
