@@ -42,12 +42,22 @@ import six
 
 
 def data_search_dirs():
-    """Get basic search directories for package data files."""
+    """Get basic search directories for package data files.
+
+    Data files are searched for in `~/my_pyplis`, `./data` and, if set,
+    in the `PYPLIS_DATADIR` environment variable.
+    """
     from pyplis import __dir__
+    import os
     usr_dir = expanduser(join('~', 'my_pyplis'))
     if not exists(usr_dir):
         mkdir(usr_dir)
-    return (usr_dir, join(__dir__, "data"))
+    env = False
+    try:
+        env = os.environ["PYPLIS_DATADIR"]
+    except KeyError:
+        pass
+    return (usr_dir, join(__dir__, "data"), env)
 
 
 def zip_example_scripts(repo_base):
