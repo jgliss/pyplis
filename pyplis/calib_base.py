@@ -72,7 +72,7 @@ class CalibData(object):
         optimisation function used for fitting of calibration data
     calib_coeffs : ;obj:`list`, optional
         optimisation parameters for calibration curve.
-    senscorr_mask : :obj:`ndarray`or :obj:`Img`, optional
+    senscorr_mask : :obj:`Img`, optional
         sensitivity correction mask that was normalised relative to the
         pixel position where the calibration data was retrieved (i.e.
         position of DOAS FOV in case of DOAS calibration data, or image pixel
@@ -133,7 +133,7 @@ class CalibData(object):
                      "(probably since no camera was provided on input). "
                      "Initiating attribute senscorr_mask with ones and "
                      "shape=(10, 10)")
-                senscorr_mask = ones((10, 10))
+                senscorr_mask = Img(ones((10, 10)))
 
         self.senscorr_mask = senscorr_mask
 
