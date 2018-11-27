@@ -457,9 +457,9 @@ def get_all_valid_cam_ids():
     """
     from pyplis import _LIBDIR
     ids = []
-    with open(join(_LIBDIR, "data", "cam_info.txt")) as f:
+    with open(join(_LIBDIR, "data", "cam_info.txt"), "rb") as f:
         for line in f:
-            spl = line.split(":")
+            spl = line.decode("ISO-8859-1").split(":")
             if spl[0].strip().lower() == "cam_ids":
                 ids.extend([x.strip()
                             for x in spl[1].split("#")[0].split(',')])
