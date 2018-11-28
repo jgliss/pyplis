@@ -358,9 +358,7 @@ class MultiGaussFit(object):
 
     @property
     def data_smooth(self):
-        """Smooth data using Gaussian kernel of width ``self.sigma_smooth``.
-
-        """
+        """Smooth data using Gaussian kernel of width ``self.sigma_smooth``."""
         return self.apply_binomial_filter(self.data, sigma=self.sigma_smooth)
 
     @property
@@ -582,7 +580,7 @@ class MultiGaussFit(object):
             params_new.extend(self.check_peak_bounds(peak))
         lower, upper = [], []
         l, u = self._prep_bounds_single_gauss()
-        for k in range(len(params_new) / 3):
+        for k in range(len(params_new) // 3):
             lower.extend(l)
             upper.extend(u)
         bds = (lower, upper)
@@ -1113,9 +1111,9 @@ class MultiGaussFit(object):
         """Get the current number of Gaussians, which is the length.
 
         :returns:
-            - float, ``len(self.params) / 3``
+            - float, ``len(self.params) // 3``
         """
-        return len(self.params) / 3
+        return len(self.params) // 3
 
     @property
     def max_amp(self):
@@ -1513,7 +1511,7 @@ class MultiGaussFit(object):
     def __str__(self):
         gs = self.gaussians()
         s = ("pyplis MultiGaussFit info\n--------------------------------\n\n"
-             "All current Gaussians:\n\n")
+             "All current Gaussians: %i\n\n" % len(gs))
         for k in range(len(gs)):
             g = gs[k]
             s += "Gaussian #%d\n%s\n" % (k, self.gauss_str(g))
