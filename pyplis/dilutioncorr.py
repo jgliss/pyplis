@@ -103,7 +103,7 @@ class DilutionCorr(object):
     def line_ids(self):
         """Get IDs of all :class:`LineOnImage` objects for distance retrieval.
         """
-        return list(self.lines.keys)()
+        return list(self.lines.keys())
 
     def update_settings(self, **settings):
         """Update settings dict for topo distance retrieval."""

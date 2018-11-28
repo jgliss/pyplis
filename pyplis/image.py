@@ -1436,7 +1436,7 @@ class Img(object):
             raise TypeError("Could not multiply value %s to image"
                             % type(val))
 
-    def truediv(self, val):
+    def __truediv__(self, val):
         """Divide another image object (float division).
 
         :param Img img_obj: object to be multiplied
