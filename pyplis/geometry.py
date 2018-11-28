@@ -171,9 +171,6 @@ class MeasGeometry(object):
         if any([bool(x) is True for x in [source_info, cam_info, wind_info]]):
             self.update_geosetup()
 
-    def __deepcopy__(self, memo):
-        return MeasGeometry(deepcopy(self._source))
-
     @property
     def _type_dict(self):
         """Return dictionary containing required data types for attributes."""
