@@ -169,7 +169,7 @@ class EmissionRateSettings(object):
                 warn("Deactivating velocity retrieval mode glob, since global"
                      " velocity was not provided")
                 self.velo_modes["glob"] = False
-        if not sum(self.velo_modes.values()) > 0:
+        if not sum(list(self.velo_modes.values())) > 0:
             warn("All velocity retrieval modes are deactivated")
 
     @property
@@ -1081,7 +1081,7 @@ class EmissionRateAnalysis(object):
             return True
         elif s.velo_modes["flow_histo"]:
             d = s.plume_props_available
-            if not sum(d.values()) == len(d):
+            if not sum(list(d.values())) == len(d):
                 return True
         return False
 
@@ -1193,7 +1193,7 @@ class EmissionRateAnalysis(object):
                 :class:`LocalPlumeProperties` objects
 
         """
-        if sum(self.settings.velo_modes.values()) == 0:
+        if sum(list(self.settings.velo_modes.values())) == 0:
             raise ValueError("Cannot initiate result structure: no velocity "
                              "retrieval mode is activated, check "
                              "self.settings.velo_modes "

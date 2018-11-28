@@ -361,7 +361,7 @@ class Img(object):
     @property
     def modified(self):
         """Check if this image was already modified."""
-        if sum(self.edit_log.values()) > 0:
+        if sum(list(self.edit_log.values())) > 0:
             return 1
         return 0
 

@@ -69,7 +69,7 @@ def identify_camera_from_filename(filepath):
     for cid in all_ids:
         cam = CameraBaseInfo(cid)
         cam.get_img_meta_from_filename(filepath)
-        matches = sum(cam._fname_access_flags.values())
+        matches = sum(list(cam._fname_access_flags.values()))
         if matches > max_match_num:
             max_match_num = matches
             cam_id = cid
