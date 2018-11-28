@@ -3474,7 +3474,7 @@ class OptflowFarneback(object):
         h, w = flow.shape[:2]
         # create and flatten a meshgrid
         y, x = mgrid[step / 2: h: step, step / 2: w: step].reshape(2, -1)
-        fx, fy = flow[y, x].T
+        fx, fy = flow[y.astype(int), x.astype(int)].T
 
         if not include_short_vecs and len_thresh > 0:
             # use only those flow vectors longer than the defined threshold
