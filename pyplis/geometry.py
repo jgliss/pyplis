@@ -1047,21 +1047,16 @@ class MeasGeometry(object):
             the camera source distance
         :param float topo_res_m: desired horizontal grid resolution in m ()
         """
-        try:
-            az = azim
-            if 0 <= col_num < self._cam["pixnum_x"]:
-                az, _ = self.get_azim_elev(col_num, 0)
+        az = azim
+        if col_num and 0 <= col_num < self._cam["pixnum_x"]:
+            az, _ = self.get_azim_elev(col_num, 0)
 
-            if dist_hor is None:
-                dist_hor = (self.cam - self._source).norm * 1.05
-            p = self.cam.get_elevation_profile(
-                azimuth=az, dist_hor=dist_hor, resolution=topo_res_m)
-            print("Succesfully determined elevation profile for az = %s" % az)
-            return p
-
-        except BaseException:
-            print("Failed to retrieve elevation profile")
-            return False
+        if dist_hor is None:
+            dist_hor = (self.cam - self._source).norm * 1.05
+        p = self.cam.get_elevation_profile(
+            azimuth=az, dist_hor=dist_hor, resolution=topo_res_m)
+        print("Succesfully determined elevation profile for az = %s" % az)
+        return p
 
     def get_distance_to_topo(self, col_num=None, row_num=None, azim=None,
                              elev=None, min_dist=0.2, max_dist=None):
