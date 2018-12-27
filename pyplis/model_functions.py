@@ -190,7 +190,7 @@ def multi_gaussian_no_offset(x, *params):
             2. Peak amplitude: 50, Mu: 15, sigma: 6
     """
     res = 0
-    num = len(params) / 3
+    num = int(len(params) / 3)
     for k in range(num):
         p = params[k * 3:(k + 1) * 3]
         res = res + gaussian_no_offset(x, *p)
