@@ -184,18 +184,18 @@ if __name__ == "__main__":
 # ==============================================================================
 
         fig, ax = subplots(2, 1, figsize=(10, 9))
-        # plume_props_l1.plot_directions(ax=ax[0],
-        #                                color=PCS1.color,
-        #                                label="PCS1")
-        # plume_props_l2.plot_directions(ax=ax[0], color=PCS2.color,
-        #                                label="PCS2")
-        #
-        # plume_props_l1.plot_magnitudes(normalised=True, ax=ax[1],
-        #                                date_fmt="%H:%M:%S", color=PCS1.color,
-        #                                label="PCS1")
-        # plume_props_l2.plot_magnitudes(normalised=True, ax=ax[1],
-        #                                date_fmt="%H:%M:%S", color=PCS2.color,
-        #                                label="PCS2")
+        plume_props_l1.plot_directions(ax=ax[0],
+                                       color=PCS1.color,
+                                       label="PCS1")
+        plume_props_l2.plot_directions(ax=ax[0], color=PCS2.color,
+                                       label="PCS2")
+    
+        plume_props_l1.plot_magnitudes(normalised=True, ax=ax[1],
+                                       date_fmt="%H:%M:%S", color=PCS1.color,
+                                       label="PCS1")
+        plume_props_l2.plot_magnitudes(normalised=True, ax=ax[1],
+                                       date_fmt="%H:%M:%S", color=PCS2.color,
+                                       label="PCS2")
         ax[0].set_xticklabels([])
         # ax[0].legend(loc='best', fancybox=True, framealpha=0.5, fontsize=14)
         # ax[0].set_title("Movement direction")
