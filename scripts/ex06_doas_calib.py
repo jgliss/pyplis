@@ -280,7 +280,7 @@ if __name__ == "__main__":
         npt.assert_array_equal(
             [len(doas_time_series), num, num_merge, h, w, stack.pyrlevel,
              prep["darkcorr"] * prep["is_tau"] * prep["is_aa"], num2, h2, w2],
-            [120, 209, 88, 256, 336, 2, 1, 209, 369, 369])
+            [120, 209, 88, 256, 336, 2, 1, 209, 375, 374])
 
         # check IFR calibration results including FOV
         # ... under development (NOT FINISHED)
@@ -290,17 +290,17 @@ if __name__ == "__main__":
         vals.append(c.fov.sigma_x_abs)
         vals.append(c.fov.sigma_y_abs)
         npt.assert_allclose(actual=vals,
-                            desired=[5.108911e-01,
-                                     1.588964e+02,
-                                     1.232153e+02,
-                                     1.503904e+01,
-                                     1.372988e+00,
-                                     1.016494e+00,
-                                     -1.080255e-04,
-                                     6.355855e+02,
-                                     4.928612e+02,
-                                     6.015614e+01,
-                                     4.381405e+01],
+                            desired=[4.888151e-01, 
+                                     1.591505e+02, 
+                                     1.232067e+02, 
+                                     1.561385e+01,
+                                     1.517309e+00, 
+                                     1.003336e+00,
+                                     -1.032671e-04,
+                                     6.366021e+02,
+                                     4.928269e+02, 
+                                     6.245541e+01, 
+                                     4.116195e+01],
                             rtol=1e-5)
         print("All tests passed in script: %s" % basename(__file__))
     try:
