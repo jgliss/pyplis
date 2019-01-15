@@ -29,8 +29,8 @@ def test_path_example_img():
     assert val is True
 
 
-@pytest.fixture
-def ec2_img(scope="module"):
+@pytest.fixture(scope="function")
+def ec2_img():
     """Load and return test image."""
     return Img(EC2_IMG_PATH)
 
@@ -55,8 +55,8 @@ def test_meta_info(ec2_img):
     assert ec2_img.shape == (1024, 1344)
 
 
-@pytest.fixture
-def binary_mask(scope='module'):
+@pytest.fixture(scope="function")
+def binary_mask():
     """Binary mask for ec2 image."""
     mask = zeros((1024, 1344))
     mask[0:500, :] = 1
