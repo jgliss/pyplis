@@ -7,14 +7,14 @@ License: GPLv3+
 """
 from __future__ import (absolute_import, division)
 
-from pyplis import Img, __dir__
+from pyplis import Img, __dir__ as pyplis__dir__
 from os.path import join, exists
 from numpy import nan, zeros
 from numpy.testing import assert_allclose
 import pytest
 import math
 
-EC2_IMG_PATH = join(__dir__, "data", "test_201509160708_F01_335.fts")
+EC2_IMG_PATH = join(pyplis__dir__, "data", "test_201509160708_F01_335.fts")
 
 
 def test_empty_img():
