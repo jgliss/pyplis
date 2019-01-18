@@ -96,7 +96,7 @@ def analyse_and_plot(lst, lines):
     ax2.set_ylim([0, ymax])
 
     ax2.set_title("")
-    # ax2.legend_.remove()
+    ax2.legend_.remove()
 
     sca(ax1)
     xticks(rotation=40, ha="right")
@@ -184,12 +184,13 @@ if __name__ == "__main__":
 # ==============================================================================
 
         fig, ax = subplots(2, 1, figsize=(10, 9))
+
         plume_props_l1.plot_directions(ax=ax[0],
                                        color=PCS1.color,
                                        label="PCS1")
         plume_props_l2.plot_directions(ax=ax[0], color=PCS2.color,
                                        label="PCS2")
-    
+
         plume_props_l1.plot_magnitudes(normalised=True, ax=ax[1],
                                        date_fmt="%H:%M:%S", color=PCS1.color,
                                        label="PCS1")
