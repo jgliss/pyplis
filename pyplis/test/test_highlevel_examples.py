@@ -48,28 +48,28 @@ BG_FILE_OFF = join(IMG_DIR, 'EC2_1106307_1R02_2015091607022216_F02_Etna.fts')
 FUN = pyplis.custom_image_import.load_ecII_fits
 
 
-@pytest.fixture
-def plume_img(scope="module"):
+@pytest.fixture(scope="function")
+def plume_img():
     return pyplis.Img(PLUME_FILE, FUN).pyr_up(1)
 
 
-@pytest.fixture
-def plume_img_next(scope="module"):
+@pytest.fixture(scope="function")
+def plume_img_next():
     return pyplis.Img(PLUME_FILE_NEXT, FUN).pyr_up(1)
 
 
-@pytest.fixture
-def bg_img_on(scope="module"):
+@pytest.fixture(scope="function")
+def bg_img_on():
     return pyplis.Img(BG_FILE_ON, FUN).to_pyrlevel(0)
 
 
-@pytest.fixture
-def bg_img_off(scope="module"):
+@pytest.fixture(scope="function")
+def bg_img_off():
     return pyplis.Img(BG_FILE_OFF, FUN).to_pyrlevel(0)
 
 
-@pytest.fixture
-def setup(scope="module"):
+@pytest.fixture(scope="function")
+def setup():
     cam_id = "ecII"
 
     # Define camera (here the default ecII type is used)
@@ -107,50 +107,41 @@ def setup(scope="module"):
                             auto_topo_access=False)
 
 
-@pytest.fixture(scope="module")
-def calib_dataset():
+@pytest.fixture(scope="function")
+def calib_dataset(setup):
     """Initialize calibration dataset."""
-    stp = setup()
-    stp.start = START_CALIB
-    stp.stop = STOP_CALIB
+    setup.start = START_CALIB
+    setup.stop = STOP_CALIB
 
-    return pyplis.CellCalibEngine(stp)
+    return pyplis.CellCalibEngine(setup)
 
 
-@pytest.fixture(scope="module")
-def plume_dataset():
+@pytest.fixture(scope="function")
+def plume_dataset(setup):
     """Initialize measurement setup and create dataset from that."""
-    stp = setup()
-    stp.start = START_PLUME
-    stp.stop = STOP_PLUME
+    setup.start = START_PLUME
+    setup.stop = STOP_PLUME
     # Create analysis object (from BaseSetup)
     # The dataset takes care of finding all vali
-    return pyplis.Dataset(stp)
+    return pyplis.Dataset(setup)
 
-
-@pytest.fixture(scope="module")
-def aa_image_list():
+@pytest.fixture(scope="function")
+def aa_image_list(plume_dataset, bg_img_on, bg_img_off, viewing_direction):
     """Prepare AA image list for further analysis."""
-    ds = plume_dataset()
-    geom = find_viewdir()
-
     # Get on and off lists and activate dark correction
-    lst = ds.get_list("on")
+    lst = plume_dataset.get_list("on")
     lst.activate_darkcorr()  # same as lst.darkcorr_mode = 1
 
-    off_list = ds.get_list("off")
+    off_list = plume_dataset.get_list("off")
     off_list.activate_darkcorr()
 
     # Prepare on and offband background images
-    bg_on = bg_img_on()
-    bg_on.subtract_dark_image(lst.get_dark_image().to_pyrlevel(0))
-
-    bg_off = bg_img_off()
-    bg_off.subtract_dark_image(off_list.get_dark_image().to_pyrlevel(0))
+    bg_img_on.subtract_dark_image(lst.get_dark_image().to_pyrlevel(0))
+    bg_img_off.subtract_dark_image(off_list.get_dark_image().to_pyrlevel(0))
 
     # set the background images within the lists
-    lst.set_bg_img(bg_on)
-    off_list.set_bg_img(bg_off)
+    lst.set_bg_img(bg_img_on)
+    off_list.set_bg_img(bg_img_off)
 
     # automatically set gas free areas
     # NOTE: this corresponds to pyramid level 3 as the test data is
@@ -186,22 +177,24 @@ def aa_image_list():
 #             ax.set_title("MODE: %d" %m.mode)
 #             m.plot_tau_result()
 # =============================================================================
-    lst.meas_geometry = geom
+    lst.meas_geometry = viewing_direction
     return lst
 
 
-@pytest.fixture
-def line(scope="module"):
+@pytest.fixture(scope="function")
+def line():
     """Create an example retrieval line."""
     return pyplis.LineOnImage(630, 780, 1000, 350, pyrlevel_def=0,
                               normal_orientation="left")
 
+@pytest.fixture(scope="function")
+def geometry(plume_dataset):
+    return plume_dataset.meas_geometry
 
-@pytest.fixture
-def find_viewdir(scope="module"):
+@pytest.fixture(scope="function")
+def viewing_direction(geometry):
     """Find viewing direction of camera based on MeasGeometry."""
     from geonum import GeoPoint
-    geom = plume_dataset().meas_geometry
     # Position of SE crater in the image (x, y)
     se_crater_img_pos = [806, 736]
 
@@ -213,23 +206,22 @@ def find_viewdir(scope="module"):
     # The following method finds the camera viewing direction based on the
     # position of the south east crater.
     new_elev, new_azim, _, basemap =\
-        geom.find_viewing_direction(
+        geometry.find_viewing_direction(
             pix_x=se_crater_img_pos[0],
             pix_y=se_crater_img_pos[1],
             pix_pos_err=100,  # for uncertainty estimate
             geo_point=se_crater,
             draw_result=False,
             update=True)  # overwrite old settings
-    return geom
+    return geometry
 
 
-def test_setup():
+def test_setup(setup):
     """Test some properties of the MeasSetup object."""
-    stp = setup()
-    s = stp.source
-    vals_exact = [stp.save_dir == stp.base_dir,
-                  stp.camera.cam_id]
-    vals_approx = [sum([sum(x) for x in stp.cell_info_dict.values()]),
+    s = setup.source
+    vals_exact = [setup.save_dir == setup.base_dir,
+                  setup.camera.cam_id]
+    vals_approx = [sum([sum(x) for x in setup.cell_info_dict.values()]),
                    s.lon + s.lat + s.altitude]
 
     nominal_exact = [True, "ecII"]
@@ -239,26 +231,23 @@ def test_setup():
     npt.assert_allclose(vals_approx, nominal_approx, rtol=1e-4)
 
 
-def test_dataset():
+def test_dataset(plume_dataset):
     """Test certain properties of the dataset object."""
-    ds = plume_dataset()
-    keys = list(ds.img_lists_with_data.keys())
-    vals_exact = [ds.img_lists["on"].nof + ds.img_lists["off"].nof,
-                  sum(ds.current_image("on").shape),
-                  keys[0], keys[1], ds.cam_id]
+    keys = list(plume_dataset.img_lists_with_data.keys())
+    vals_exact = [plume_dataset.img_lists["on"].nof + plume_dataset.img_lists["off"].nof,
+                  sum(plume_dataset.current_image("on").shape),
+                  keys[0], keys[1], plume_dataset.cam_id]
 
     nominal_exact = [178, 2368, "on", "off", "ecII"]
 
     npt.assert_array_equal(vals_exact, nominal_exact)
 
 
-def test_find_viewdir():
+def test_find_viewdir(viewing_direction):
     """Correct viewing direction using location of Etna SE crater."""
-    geom = find_viewdir()
 
-    vals = [geom.cam_azim, geom.cam_azim_err, geom.cam_elev,
-            geom.cam_elev_err]
-    print(vals)
+    vals = [viewing_direction.cam_azim, viewing_direction.cam_azim_err, 
+            viewing_direction.cam_elev, viewing_direction.cam_elev_err]
     npt.assert_allclose(actual=vals,
                         desired=[279.30130009369515,
                                  1.0654107370916108,
@@ -267,11 +256,10 @@ def test_find_viewdir():
                         rtol=1e-7)
 
 
-def test_imglists():
+def test_imglists(plume_dataset):
     """Test some properties of the on and offband image lists."""
-    ds = plume_dataset()
-    on = ds._lists_intern["F01"]["F01"]
-    off = ds._lists_intern["F02"]["F02"]
+    on = plume_dataset._lists_intern["F01"]["F01"]
+    off = plume_dataset._lists_intern["F02"]["F02"]
 
     vals_exact = [on.list_id, off.list_id]
 
@@ -280,14 +268,13 @@ def test_imglists():
     npt.assert_array_equal(vals_exact, nominal_exact)
 
 
-def test_line():
+def test_line(line):
     """Test some features from example retrieval line."""
-    l = line()
-    n1, n2 = l.normal_vector
-    l1 = l.convert(1, [100, 100, 1200, 1024])
+    n1, n2 = line.normal_vector
+    l1 = line.convert(1, [100, 100, 1200, 1024])
 
     # compute values to be tested
-    vals = [l.length(), l.normal_theta, n1, n2, l1.length() / l.length(),
+    vals = [line.length(), line.normal_theta, n1, n2, l1.length() / line.length(),
             sum(l1.roi_def)]
     # set nominal values
     nominal = [567, 310.710846671181, -0.7580108737829234, -0.6522419146504225,
@@ -296,25 +283,23 @@ def test_line():
     npt.assert_allclose(vals, nominal, rtol=1e-7)
 
 
-def test_geometry():
+def test_geometry(geometry):
     """Test important results from geometrical calculations."""
-    geom = plume_dataset().meas_geometry
-    res = geom.compute_all_integration_step_lengths()
+    res = geometry.compute_all_integration_step_lengths()
     vals = [res[0].mean(), res[1].mean(), res[2].mean()]
     npt.assert_allclose(actual=vals,
                         desired=[2.0292366, 2.0292366, 10909.873],
                         rtol=1e-7)
 
 
-def test_optflow():
+def test_optflow(plume_img, plume_img_next, line):
     """Test optical flow calculation."""
     flow = pyplis.OptflowFarneback()
-    img = plume_img()
-    flow.set_images(img, plume_img_next())
+    flow.set_images(plume_img, plume_img_next)
     flow.calc_flow()
     len_img = flow.get_flow_vector_length_img()
     angle_img = flow.get_flow_orientation_img()
-    l = line().convert(img.pyrlevel)
+    l = line.convert(plume_img.pyrlevel)
     res = flow.local_flow_params(line=l, dir_multi_gauss=False)
     flow.plot_flow_histograms()
     nominal = [0.658797,
@@ -334,32 +319,32 @@ def test_optflow():
     return flow
 
 
-def test_auto_cellcalib():
+def test_auto_cellcalib(calib_dataset):
     """Test if automatic cell calibration works."""
-    ds = calib_dataset()
-    ds.find_and_assign_cells_all_filter_lists()
+
+    calib_dataset.find_and_assign_cells_all_filter_lists()
     keys = ["on", "off"]
     nominal = [6., 845.50291, 354.502678, 3., 3.]
     mean = 0
-    bg_mean = ds.bg_lists["on"].this.mean() +\
-        ds.bg_lists["off"].this.mean()
+    bg_mean = calib_dataset.bg_lists["on"].this.mean() +\
+        calib_dataset.bg_lists["off"].this.mean()
     num = 0
     for key in keys:
-        for lst in ds.cell_lists[key].values():
+        for lst in calib_dataset.cell_lists[key].values():
             mean += lst.this.mean()
             num += 1
-    vals = [num, mean, bg_mean, len(ds.cell_lists["on"]),
-            len(ds.cell_lists["off"])]
+    vals = [num, mean, bg_mean, len(calib_dataset.cell_lists["on"]),
+            len(calib_dataset.cell_lists["off"])]
     npt.assert_allclose(nominal, vals, rtol=1e-7)
 
 
-def test_bg_model():
+def test_bg_model(plume_dataset):
     """Test properties of plume background modelling.
 
     Uses the PlumeBackgroundModel instance in the on-band image
     list of the test dataset object (see :func:`plume_dataset`)
     """
-    l = plume_dataset().get_list("on")
+    l = plume_dataset.get_list("on")
     m = l.bg_model
     sum_exceptions = 0
     try:
@@ -377,7 +362,7 @@ if __name__ == "__main__":
     import matplotlib.pyplot as plt
     plt.rcParams["font.size"] = 14
     plt.close("all")
-    test_auto_cellcalib()
+    test_auto_cellcalib(calib_dataset(setup())) # shouldnt be used in this way...
 
     # lst.bg_model.plot_sky_reference_areas(lst.bg_model._current_imgs["plume"])
 

@@ -280,8 +280,7 @@ if __name__ == "__main__":
         npt.assert_array_equal(
             [len(doas_time_series), num, num_merge, h, w, stack.pyrlevel,
              prep["darkcorr"] * prep["is_tau"] * prep["is_aa"], num2, h2, w2],
-            [120, 209, 88, 256, 336, 2, 1, 209, 369, 369])
-
+            [120, 209, 88, 256, 336, 2, 1, 209, 361, 361])
         # check IFR calibration results including FOV
         # ... under development (NOT FINISHED)
         c = calib_ifr

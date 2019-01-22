@@ -6,11 +6,11 @@ Email: jonasgliss@gmail.com
 License: GPLv3+
 """
 from __future__ import (absolute_import, division)
-from pyplis import Dataset, __dir__, Img
+from pyplis import Dataset, __dir__ as pyplis__dir__, Img
 from os.path import join
 import pytest
 
-EC2_IMG_PATH = join(__dir__, "data", "test_201509160708_F01_335.fts")
+EC2_IMG_PATH = join(pyplis__dir__, "data", "test_201509160708_F01_335.fts")
 
 
 @pytest.fixture(scope="module")
