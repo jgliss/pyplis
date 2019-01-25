@@ -2,12 +2,13 @@
    :target: pageapplet/index.html
 
 
-Pyplis is a Python toolbox for the analysis of UV SO2 camera data. The software includes a comprehensive and flexible collection of algorithms for the analysis of such data.
+
+Pyplis is a Python toolbox originally developed for the analysis of UV SO2 camera data. The software includes a comprehensive and flexible collection of algorithms for the analysis of atmospheric, imaging data.
 
 Contact: Jonas Gliss (jonasgliss@gmail.com)
 
-This branch *py3* contains a beta-version of pyplis which supports both python 2 and 3.
-Note, that both geonum and pyplis needs to be installed from source
+This branch **py3** contains a beta-version of pyplis which supports both **python 2 and 3**.
+Note, that both geonum and pyplis needs to be installed from source.
 
 Code documentation and more
 ============================
@@ -29,45 +30,6 @@ Main features
 - Support of standard image formats including `FITS format <https://de.wikipedia.org/wiki/Flexible_Image_Transport_System>`__.
 - Easy and flexible setup for data import and camera specifications.
 
-.. _release_1.3.0:
-
-**Release notes (v1.3.0)**
-^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-Pyplis version 1.3.0 comes with many new features and improvements. The most important changes include:
-
-- **Measurement geometry** (class ``MeasGeometry``):
-
-  - more accurate plume distance retrievals (i.e. now also in dependency of vertical distance).
-  - redesigned API -> improved user-friendliness.
-
-- **Image analysis**: Image registration shift can now be applied to images.
-
-  - New method ``shift`` in class ``Img``.
-  - Comes with new *mode*  (``shift_mode``) in class ``ImgList`` objects.
-  - Default on / off shift for camera can be set in class ``Camera`` using attribute ``reg_shift_off`` (and correspondingly, in file *cam_info.txt*).
-
-- **Camera calibration**. Major improvements and API changes:
-
-  - new abstraction layer (module ``calib_base``) including new calibration base class ``CalibData``. Both class ``DoasCalibData`` and class ``CellCalibData`` are now inherited from new base class class ``CalibData``. Advantages and new features:
-
-    - arbitrary definition of calibration fit function.
-    - fitting of calibration curve, I/O (read / write FITS) and visualisation of DOAS and cell calibration data are now unified in class ``CalibData``.
-
-- **Further changes**
-
-  - class ``ImgStack`` more intuitive and flexible (e.g. dynamically expandable).
-  - Improved index handling and performance of image list objects (module ``imagelists``).
-  - class ``PlumeBackgroundModel``: revision, clean up and performance improvements.
-  - Improved user-friendliness and performance of plume background retrieval in class ``ImgList`` objects.
-  - Correction for signal dilution (class ``DilutionCorr``): increased flexibility and user-friendliness.
-  - Improved flexibility for image import using class ``Dataset`` class (e.g. on / off images can be stored in the same file).
-  - Reviewed and largely improved performance of general workflow (i.e. iteration over instances of class ``ImgList`` in ``calib_mode``, ``dilcorr_mode`` and ``optflow_mode``).
-
-- **Major bug fixes**
-
-  - Fixed conceptual error in cross-correlation algorithm for velocity retrieval (method ``find_signal_correlation`` in module ``plumespeed``).
-  - Fixed: class ``ImgList`` in AA mode used current off-band image (at index ``idx_off``) both for the current and next on-band image (and not ``idx_off+1``).
 
 
 Requirements
@@ -79,7 +41,7 @@ Pyplis requires the following packages:
 - scipy >= 0.17.0
 - opencv (cv2) >= 2.4.11 (please note `this issue <https://github.com/jgliss/pyplis/issues/4>`__)
 - astropy >= 1.0.3
-- geonum >= 1.2.0 (refer also to `geonum <https://github.com/jgliss/geonum>`__
+- geonum >= 1.2.0 (refer also to `geonum <https://github.com/jgliss/geonum>`__)
 
   - latlon23 >= 1.0.7
   - srtm.py >= 0.3.2
