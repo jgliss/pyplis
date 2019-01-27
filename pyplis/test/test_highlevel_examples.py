@@ -125,6 +125,7 @@ def plume_dataset(setup):
     # The dataset takes care of finding all vali
     return pyplis.Dataset(setup)
 
+
 @pytest.fixture(scope="function")
 def aa_image_list(plume_dataset, bg_img_on, bg_img_off, viewing_direction):
     """Prepare AA image list for further analysis."""
@@ -187,9 +188,11 @@ def line():
     return pyplis.LineOnImage(630, 780, 1000, 350, pyrlevel_def=0,
                               normal_orientation="left")
 
+
 @pytest.fixture(scope="function")
 def geometry(plume_dataset):
     return plume_dataset.meas_geometry
+
 
 @pytest.fixture(scope="function")
 def viewing_direction(geometry):
@@ -233,10 +236,11 @@ def test_setup(setup):
 
 def test_dataset(plume_dataset):
     """Test certain properties of the dataset object."""
-    keys = list(plume_dataset.img_lists_with_data.keys())
-    vals_exact = [plume_dataset.img_lists["on"].nof + plume_dataset.img_lists["off"].nof,
-                  sum(plume_dataset.current_image("on").shape),
-                  keys[0], keys[1], plume_dataset.cam_id]
+    ds = plume_dataset
+    keys = list(ds.img_lists_with_data.keys())
+    vals_exact = [ds.img_lists["on"].nof + ds.img_lists["off"].nof,
+                  sum(ds.current_image("on").shape),
+                  keys[0], keys[1], ds.cam_id]
 
     nominal_exact = [178, 2368, "on", "off", "ecII"]
 
@@ -245,8 +249,7 @@ def test_dataset(plume_dataset):
 
 def test_find_viewdir(viewing_direction):
     """Correct viewing direction using location of Etna SE crater."""
-
-    vals = [viewing_direction.cam_azim, viewing_direction.cam_azim_err, 
+    vals = [viewing_direction.cam_azim, viewing_direction.cam_azim_err,
             viewing_direction.cam_elev, viewing_direction.cam_elev_err]
     npt.assert_allclose(actual=vals,
                         desired=[279.30130009369515,
@@ -274,8 +277,8 @@ def test_line(line):
     l1 = line.convert(1, [100, 100, 1200, 1024])
 
     # compute values to be tested
-    vals = [line.length(), line.normal_theta, n1, n2, l1.length() / line.length(),
-            sum(l1.roi_def)]
+    vals = [line.length(), line.normal_theta, n1, n2,
+            l1.length() / line.length(), sum(l1.roi_def)]
     # set nominal values
     nominal = [567, 310.710846671181, -0.7580108737829234, -0.6522419146504225,
                0.5008818342151675, 1212]
@@ -321,7 +324,6 @@ def test_optflow(plume_img, plume_img_next, line):
 
 def test_auto_cellcalib(calib_dataset):
     """Test if automatic cell calibration works."""
-
     calib_dataset.find_and_assign_cells_all_filter_lists()
     keys = ["on", "off"]
     nominal = [6., 845.50291, 354.502678, 3., 3.]
@@ -362,7 +364,7 @@ if __name__ == "__main__":
     import matplotlib.pyplot as plt
     plt.rcParams["font.size"] = 14
     plt.close("all")
-    test_auto_cellcalib(calib_dataset(setup())) # shouldnt be used in this way...
+    test_auto_cellcalib(calib_dataset(setup()))  # shouldnt be used in this way
 
     # lst.bg_model.plot_sky_reference_areas(lst.bg_model._current_imgs["plume"])
 
