@@ -195,7 +195,7 @@ main_filter_id:on
 meas_type_pos:3
 darkcorr_opt:2
 focal_length:35.8e-3
-# Camera read out is 4x4 binned (original size is 2048x2048 pix á 7.4 microns)
+# Camera read out is 4x4 binned (original size is 2048x2048 pix a 7.4 microns)
 pix_height:29.59e-6
 pix_width:29.59e-6
 pixnum_x:512

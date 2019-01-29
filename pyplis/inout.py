@@ -47,7 +47,7 @@ def data_search_dirs():
     Data files are searched for in `~/my_pyplis`, `./data` and, if set,
     in the `PYPLIS_DATADIR` environment variable.
     """
-    from pyplis import __dir__
+    from pyplis import __dir__ as pyplis__dir__
     import os
     usr_dir = expanduser(join('~', 'my_pyplis'))
     if not exists(usr_dir):
@@ -57,7 +57,7 @@ def data_search_dirs():
         env = os.environ["PYPLIS_DATADIR"]
     except KeyError:
         pass
-    return (usr_dir, join(__dir__, "data"), env)
+    return (usr_dir, join(pyplis__dir__, "data"), env)
 
 
 def zip_example_scripts(repo_base):
@@ -289,48 +289,61 @@ def _load_cam_info(cam_id, filepath):
         for ll in f:
             line = ll.decode('utf-8').rstrip()
             if line:
-                if "END" in line and found:
-                    dat["default_filters"] = filters
-                    dat["dark_info"] = darkinfo
-                    dat["io_opts"] = io_opts
-                    return dat
-                spl = line.split(":")
+                if line[0] == "#": # exclude comment lines
+                    continue
+
+                if "NEWCAM" in line: # potential camera
+                    found = 1
+                    continue
+                
                 if found:
-                    if line[0] != "#":
-                        spl = line.split(":")
-                        k = spl[0].strip()
-                        if k == "dark_info":
-                            l = [x.strip()
-                                 for x in spl[1].split("#")[0].split(',')]
-                            darkinfo.append(l)
-                        elif k == "filter":
-                            l = [x.strip()
-                                 for x in spl[1].split("#")[0].split(',')]
-                            filters.append(l)
-                        elif k == "io_opts":
-                            l = [x.strip()
-                                 for x in split("=|,", spl[1].split("#")[0])]
-                            keys, vals = l[::2], l[1::2]
-                            if len(keys) == len(vals):
-                                for i in range(len(keys)):
-                                    io_opts[keys[i]] = bool(int(vals[i]))
-                        elif k == "reg_shift_off":
-                            try:
-                                l = [float(x.strip()) for x in
-                                     spl[1].split("#")[0].split(',')]
-                                dat["reg_shift_off"] = l
-                            except:
-                                pass
+                    if "ENDCAM" in line and 'cam_ids' in dat.keys():
+                        dat["default_filters"] = filters
+                        dat["dark_info"] = darkinfo
+                        dat["io_opts"] = io_opts
+                        return dat
+                    
+                    # Extract the information
+                    spl = line.split(":")
+                    key = spl[0].strip()
+                    data_str = spl[1].split("#")[0] # remove inline comment
+                    
+                    # Check if the found camera is the desired one
+                    if key == "cam_ids":
+                        l = [x.strip() for x in data_str.split(',')]
+                        if cam_id in l:
+                            found = 1
+                            dat["cam_ids"] = l
                         else:
-                            data_str = spl[1].split("#")[0].strip()
-                            if any([data_str == x for x in ["''", '""']]):
-                                data_str = ""
-                            dat[k] = data_str
-                if spl[0] == "cam_ids":
-                    l = [x.strip() for x in spl[1].split("#")[0].split(',')]
-                    if cam_id in l:
-                        found = 1
-                        dat["cam_ids"] = l
+                            found = 0
+
+                    elif key == "dark_info":
+                        l = [x.strip() for x in data_str.split(',')]
+                        darkinfo.append(l)
+                    elif key == "filter":
+                        l = [x.strip() for x in data_str.split(',')]
+                        filters.append(l)
+                    elif key == "io_opts":
+                        l = [x.strip() for x in split("=|,", data_str)]
+                        keys, vals = l[::2], l[1::2]
+                        if len(keys) == len(vals):
+                            for i in range(len(keys)):
+                                io_opts[keys[i]] = bool(int(vals[i]))
+                    elif key == "reg_shift_off":
+                        try:
+                            l = [float(x.strip()) for x in data_str.split(',')]
+                            dat["reg_shift_off"] = l
+                        except:
+                            pass
+                    else:
+                        data_str = data_str.strip()
+                        if any([data_str == x for x in ["''", '""']]):
+                            data_str = ""
+                        dat[key] = data_str
+                    
+
+
+    # if the "ENDCAM" and found condition is never met
     raise IOError("Camera info for cam_id %s could not be found" % cam_id)
 
 
@@ -341,10 +354,15 @@ def get_camera_info(cam_id):
 
     """
     dirs = data_search_dirs()
-    try:
-        return _load_cam_info(cam_id, join(dirs[0], "cam_info.txt"))
-    except:
-        return _load_cam_info(cam_id, join(dirs[1], "cam_info.txt"))
+    if exists(join(dirs[0], "cam_info.txt")):
+        cam_info_path = join(dirs[0], "cam_info.txt")
+    elif exists(join(dirs[1], "cam_info.txt")):
+        cam_info_path = join(dirs[1], "cam_info.txt")
+    else:
+        raise IOError("cam_info.txt could not be found.")
+
+    return _load_cam_info(cam_id, cam_info_path)
+   
 
 
 def save_new_default_camera(info_dict):
