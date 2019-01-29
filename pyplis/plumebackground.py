@@ -900,7 +900,8 @@ def _mean_in_rect(img_array, rect=None):
     if rect is None:
         sub = img_array
     else:
-        sub = img_array[rect[1]: rect[3], rect[0]: rect[2]]
+        sub = img_array[int(rect[1]): int(rect[3]),
+                        int(rect[0]): int(rect[2])]
     return sub.mean(), sub.std()
 
 
