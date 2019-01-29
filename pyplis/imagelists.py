@@ -115,7 +115,7 @@ class BaseImgList(object):
         self._integration_step_lengths = None
         self._plume_dists = None
 
-        self.set_camera(camera=camera, cam_id=None)
+        self.camera = camera
 
         self._update_cam_geodata = False
         self._edit_active = True
@@ -170,6 +170,37 @@ class BaseImgList(object):
             self.load()
 
     """ATTRIBUTES / DECORATORS"""
+    @property
+    def camera(self):
+        """ Object of type pyplis.Camera """
+        return self._camera
+    
+    @camera.setter
+    def camera(self, value):
+        """Set the current camera.
+
+        Parameters
+        ----------
+        value : Camera or str
+            either pyplis.Camera object or identifier string of one of the 
+            predefined cameras in `data\cam_info.txt`
+
+        """
+        if value is None:
+            self._camera = None
+            warn('Set camera to None.')
+        
+        elif isinstance(value, Camera):
+            self._camera = value
+            
+        elif isinstance(value, str):
+            # maybe add some exception handling here
+            self._camera = Camera(value)
+                
+        else:
+            raise TypeError("Camera argument for image list was not "
+                            "correctly initialised with an object of type "
+                            "pyplis.Camera or existing cam_id string.")
 
     @property
     def start(self):
@@ -634,7 +665,7 @@ class BaseImgList(object):
     def load(self):
         """Load current image.
 
-        Try to load the current file ``self.files[self.cfn]`` and if remove the
+        Try to load the current file ``self.files[self.cfn]`` and remove the
         file from the list if the import fails
 
         Returns
@@ -739,7 +770,7 @@ class BaseImgList(object):
 
     def has_files(self):
         """Return boolean whether or not images are available in list."""
-        return bool(self.nof)
+        return bool(self.nof) and bool(self.camera)
 
     def plume_dist_access(self):
         """Check if measurement geometry is available."""
@@ -843,13 +874,14 @@ class BaseImgList(object):
 
             self.camera = camera
 
+        elif cam_id is not None:
+            self.camera = cam_id
+        
         else:
-            if cam_id is not None:
-                self.camera = Camera(cam_id)
-
-        # if not isinstance(camera, Camera):
-        #    camera = Camera(cam_id)
-        # self.camera = camera
+            self.camera = None
+            
+        print('Depreciation warning: Use the property.setter directly, e.g. '
+              'imagelist.camera = <new_camera>')
 
     def reset_img_prep(self):
         """Init image pre-edit settings."""
@@ -1876,7 +1908,10 @@ class ImgList(BaseImgList):
         # These dicitonaries contain lists with dark and offset images
         self.dark_lists = od()
         self.offset_lists = od()
-        self._dark_corr_opt = self.camera.darkcorr_opt
+        if self.camera is not None:
+            self._dark_corr_opt = self.camera.darkcorr_opt
+        else:
+            self._dark_corr_opt = 0
 
         self._last_dark = None
 
@@ -2950,7 +2985,8 @@ class ImgList(BaseImgList):
         if list_id in self.linked_lists:
             raise AttributeError("ImgList %s has already linked an ImgList "
                                  "with list_id %s. "
-                                 "Please choose a different ID.")
+                                 "Please choose a different ID."
+                                 %(self.list_id, list_id))
         self.linked_lists[list_id] = other_list
         # self._linked_indices[list_id] = {}
         self._always_reload[list_id] = always_reload
@@ -3059,7 +3095,9 @@ class ImgList(BaseImgList):
     def load(self):
         """Try load current and next image."""
         self.change_index_linked_lists()  # based on current index in this list
-        if not super(ImgList, self).load():
+        try: 
+            super(ImgList, self).load()
+        except:
             print("Image load aborted...")
             return False
         if self.nof > 1:
@@ -3977,17 +4015,20 @@ class ImgListLayered(ImgList):
             try:
                 self.metaData = meta
             except:
+                warn('Meta DataFrame for imagelist could not be set.')
                 self.metaData = self.get_img_meta_all()
         else:
-            self.metaData = self.get_img_meta_all()
-
-        # Image referencing by two information: file and image layer
-        # filename subindex (file is repeated m_n times)
-        self.files = self.metaData['file'].values
-        # image layer inside fits file
-        self.hdu_nr = self.metaData['hdu_nr'].values
+            if bool(files):
+                self.metaData = self.get_img_meta_all()
+            else:
+                self.metaData = None
 
         if self.data_available and init:
+            # Image referencing by two information: file and image layer
+            # filename subindex (file is repeated m_n times)
+            self.files = self.metaData['file'].values
+            # image layer inside fits file
+            self.hdu_nr = self.metaData['hdu_nr'].values
             self.load()
 
     def get_img_meta_from_filename(self, file_path):
