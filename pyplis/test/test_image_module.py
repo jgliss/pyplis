@@ -75,3 +75,5 @@ def test_masked_img_nan(ec2_img, binary_mask):
     """Test if masking works."""
     masked_img = ec2_img.get_masked_img(mask=binary_mask, fill_value=nan)
     assert math.isnan(masked_img[200, 500])
+    
+
