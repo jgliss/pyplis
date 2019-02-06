@@ -187,7 +187,7 @@ class BaseImgList(object):
         ----------
         value : Camera or str
             either pyplis.Camera object or identifier string of one of the 
-            predefined cameras in `data\cam_info.txt` 
+            predefined cameras in `data\\cam_info.txt` 
         """
         if value is None:
             self._camera = None
@@ -1217,7 +1217,8 @@ class BaseImgList(object):
         self.goto_img(cfn)
         return img
 
-    def get_mean_tseries_rects(self, start_idx, stop_idx, *rois):
+    def get_mean_tseries_rects(self, start_idx, stop_idx, *rois,
+                               return_dataframe=False):
         """Similar to :func:`get_mean_value` but for multiple rects.
 
         Parameters
@@ -1239,13 +1240,7 @@ class BaseImgList(object):
         """
         if not self.data_available:
             raise IndexError("No images available in ImgList object")
-        dat = []
-        num_rois = len(rois)
-        if num_rois == 0:
-            raise ValueError("No ROIs provided...")
-        for roi in rois:
-            dat.append([[], [], [], []])
-        cfn = self.cfn
+
         if isinstance(start_idx, datetime):
             start_idx = self.timestamp_to_index(start_idx)
         if isinstance(stop_idx, datetime):
@@ -1253,41 +1248,63 @@ class BaseImgList(object):
         if stop_idx is None or stop_idx > self.nof:
             stop_idx = self.nof
 
+        acq_times = [] # same times for all rois
+        texps = []
+        dat = [] # 2D list, [[mean_list_roi1, std_list_roi1], ...]
+        num_rois = len(rois)
+        if num_rois == 0:
+            raise ValueError("No ROIs provided...")
+        for roi in rois:
+            dat.append([[], []])
+            
+        cfn = self.cfn  # store current file number for reset afterwards
         self.goto_img(start_idx)
         num = self._iter_num(start_idx, stop_idx)
 
-        lid = self.list_id
         pnum = int(10**exponent(num) / 2.0)
         for k in range(num):
+            # regular console output
             try:
                 if k % pnum == 0:
                     print("Calc pixel mean t-series in list %s (%d | %d)"
-                          % (lid, (k + 1), num))
+                          % (self.list_id, (k + 1), num))
             except BaseException:
                 pass
+            # shared values
             img = self.loaded_images["this"]
+            acq_times.append(img.meta["start_acq"])
+            texps.append(img.meta["texp"])
+            # roi dependent values
             for i in range(num_rois):
                 roi = rois[i]
                 d = dat[i]
-                d[0].append(img.meta["texp"])
-                d[1].append(img.meta["start_acq"])
                 sub = img.img[roi[1]:roi[3], roi[0]:roi[2]]
-                d[2].append(sub.mean())
-                d[3].append(sub.std())
+                d[0].append(sub.mean())
+                d[1].append(sub.std())
 
             self.goto_next()
 
         self.goto_img(cfn)
-        means = []
-        for i in range(num_rois):
-            d = dat[i]
-            mean = PixelMeanTimeSeries(d[2], d[1], d[3], d[0], rois[i],
-                                       img.edit_log)
-            means.append(mean)
-        return means
+       
+        # Newer return value as pandas native
+        if return_dataframe:
+            result = DataFrame(data={'texps':texps}, index=acq_times)
+            for i in range(num_rois):
+                result['mean_roi'+str(i)] = dat[i][0]
+                result['std_roi'+str(i)] = dat[i][1]
+            return result
+        # Original retun value as pyplis class object
+        else:
+            means = []
+            for i in range(num_rois):
+                d = dat[i]
+                mean = PixelMeanTimeSeries(d[0], acq_times, d[1], texps, rois[i],
+                                           img.edit_log)
+                means.append(mean)
+            return means
 
     def get_mean_value(self, start_idx=0, stop_idx=None, roi=DEFAULT_ROI,
-                       apply_img_prep=True):
+                       apply_img_prep=True, return_dataframe=False):
         """Determine pixel mean value time series in ROI.
 
         Determines the mean pixel value (and standard deviation) for all images
@@ -1323,11 +1340,11 @@ class BaseImgList(object):
         if stop_idx is None or stop_idx > self.nof:
             stop_idx = self.nof
 
+        cfn = self.cfn
         self.edit_active = apply_img_prep
         self.goto_img(start_idx)
         num = self._iter_num(start_idx, stop_idx)
-
-        cfn = self.cfn
+        
         vals, stds, texps, acq_times = [], [], [], []
         lid = self.list_id
         pnum = int(10**exponent(num) / 4.0)
@@ -1348,9 +1365,14 @@ class BaseImgList(object):
             self.goto_next()
 
         self.goto_img(cfn)
+        
+        if return_dataframe:
+            return DataFrame(index=acq_times,
+                         data={'mean':vals,'std':stds,'texps':texps})
+        else:
+            return PixelMeanTimeSeries(vals, acq_times, stds, texps, roi,
+                                img.edit_log)
 
-        return PixelMeanTimeSeries(vals, acq_times, stds, texps, roi,
-                                   img.edit_log)
 
     def current_edit(self):
         """Return :attr:`edit_log` of current image."""

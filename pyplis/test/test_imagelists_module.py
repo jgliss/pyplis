@@ -111,9 +111,26 @@ def test_list_linking(imglist, bg_imglist):
 def test_closest_index(BaseImgList_ec2, method, index):
     timestamp = dt.datetime(2015, 9, 16, 7, 11, 20)
     assert BaseImgList_ec2.timestamp_to_index(timestamp, method) == index
+
+from pandas import DataFrame
+from pyplis.processing import PixelMeanTimeSeries
+
+@pytest.mark.parametrize("return_val", [True, False])
+def test_mean_timeseries(BaseImgList_ec2, return_val):
+    rect = [50, 50, 100, 100]
+    mean_timeseries = BaseImgList_ec2.get_mean_value(roi=rect,
+                                                     return_dataframe=return_val)
+    if return_val:
+        assert isinstance(mean_timeseries, DataFrame)
+        assert mean_timeseries['mean'].values == pytest.approx([146.2516, 146.9500])
+        assert mean_timeseries['std'].values == pytest.approx([1.823485, 1.679375])
+    else:
+        assert isinstance(mean_timeseries, PixelMeanTimeSeries)
+        assert mean_timeseries.values == pytest.approx([146.2516, 146.9500])
+        assert mean_timeseries.std == pytest.approx([1.823485, 1.679375])
     
-if __name__ == "__main__":
-    camera = ec2_cam()
-    files = plume_files()
-    baseil = BaseImgList_ec2(camera, files)
-    print(baseil.start_acq)
+#if __name__ == "__main__":
+#    camera = ec2_cam()
+#    files = plume_files()
+#    baseil = BaseImgList_ec2(camera, files)
+#    print(baseil.start_acq)

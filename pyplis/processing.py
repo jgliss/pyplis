@@ -34,7 +34,7 @@ from datetime import datetime, timedelta
 from matplotlib.pyplot import subplots
 from matplotlib.dates import date2num, DateFormatter
 
-from pandas import Series, concat, DatetimeIndex
+from pandas import Series, concat, DatetimeIndex, DataFrame
 from cv2 import pyrDown, pyrUp
 from os.path import join, exists, dirname, basename, isdir, abspath
 from astropy.io import fits
@@ -1046,6 +1046,45 @@ def find_registration_shift_optflow(on_img, off_img,
     raise NotImplementedError("Under development")
 
 
+# Excluded functionality to make it possible to work with DataFrames instead
+# of additional class object 
+def fit_polynomial(data, order=2, col_name=''):
+    """Fit polynomial to data series.
+
+    Parameters
+    ----------
+    data : pandas.Series or pandas.DataFrame
+        containing the data series
+    order : int (optional, default=2)
+        order of polynomial
+    col_names : string (optional)
+        name of the column for which the data should be fitted (applicable only
+        if data is DataFrame)
+    :returns:
+        - poly1d, the fitted polynomial
+    """
+    if isinstance(data, Series): data_type='series'
+    elif isinstance(data, DataFrame): data_type='frame'
+    else: raise ValueError("Data must be of type pandas.Series or DataFrame")
+    
+    s = data.copy().dropna()
+    num = len(s)
+    if num == 1:
+        raise ValueError("Could not fit polynomial to PixelMeanTimeSeries"
+                         " object: only one data point available")
+    elif num == 2:
+        warn("PixelMeanTimeSeries object only contains 2 data points, "
+             "setting polyfit order to one (default is 2)")
+        order = 1
+    x = date2num(s.index.to_pydatetime())
+    if data_type =='series':
+        y = s.values
+    elif data_type =='frame':
+        y = s[col_name].values
+    p = poly1d(polyfit(x, y, deg=order))
+
+    return p
+
 class PixelMeanTimeSeries(Series):
     """A time series of mean pixel values.
 
@@ -1141,6 +1180,9 @@ class PixelMeanTimeSeries(Series):
         :returns:
             - poly1d, the fitted polynomial
         """
+        p = fit_polynomial(self, order=order)
+        self.poly_model = p
+        """
         s = self.dropna()
         num = len(s)
         if num == 1:
@@ -1154,6 +1196,7 @@ class PixelMeanTimeSeries(Series):
         y = s.values
         p = poly1d(polyfit(x, y, deg=order))
         self.poly_model = p
+        """
         return p
 
     def includes_timestamp(self, time_stamp, ext_border_secs=0.0):
@@ -1293,26 +1336,4 @@ class PixelMeanTimeSeries(Series):
         """Return the current data arrays (mean, std)."""
         if normalised:
             return self.get_data_normalised()
-        return self.get_data()
-# ==============================================================================
-# import matplotlib.animation as animation
-#
-# def animate_stack(img_stack):
-#
-#     fig = figure() # make figure
-#
-#     # make axesimage object
-#     # the vmin and vmax here are very important to get the color map correct
-#     im = imshow(sta, cmap=plt.get_cmap('jet'), vmin=0, vmax=255)
-#
-#     # function to update figure
-#     def updatefig(j):
-#         # set the data in the axesimage object
-#         im.set_array(imagelist[j])
-#         # return the artists set
-#         return im,
-#     # kick off the animation
-#     animation.FuncAnimation(fig, updatefig, frames=range(20),
-#                                   interval=50, blit=True)
-#     plt.show()
-# ==============================================================================
+        return self #.get_data()
