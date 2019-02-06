@@ -191,8 +191,8 @@ class MeasGeometry(object):
                    ("focal_length", float),  # in m
                    ("pix_width", float),  # in m
                    ("pix_height", float),  # in m
-                   ('pixnum_x', float),
-                   ('pixnum_y', float),
+                   ('pixnum_x', int),
+                   ('pixnum_y', int),
                    ('altitude_offs', float)])
 
     @property

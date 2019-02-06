@@ -56,6 +56,7 @@ def bg_imglist(ec2_cam):
     return il.ImgList(files=[BG_FILE], camera=ec2_cam)
     
 # Create empty class objects and fill them manually
+@pytest.mark.filterwarnings('ignore::UserWarning')
 def test_empty_BaseImgList(ec2_cam, plume_files):
     baseimglist = il.BaseImgList()
     baseimglist.files = plume_files
@@ -64,20 +65,24 @@ def test_empty_BaseImgList(ec2_cam, plume_files):
     assert baseimglist.nof == 2
     assert baseimglist.start_acq[0] == dt.datetime(2015, 9, 16, 7, 11, 4, 340000)
 
+@pytest.mark.filterwarnings('ignore::UserWarning')
 def test_empty_DarkImgList():
     darkimglist = il.DarkImgList()
     assert darkimglist.nof == 0
-    
+
+@pytest.mark.filterwarnings('ignore::UserWarning')
 def test_empty_ImgList(ec2_cam, plume_files):
     imglist = il.ImgList()
     imglist.files = plume_files
     imglist.camera = ec2_cam
     imglist.load()
-    
+
+@pytest.mark.filterwarnings('ignore::UserWarning')
 def test_empty_CellImgList():
     cellimglist = il.CellImgList()
     assert cellimglist.nof == 0
-    
+
+@pytest.mark.filterwarnings('ignore::UserWarning')
 def test_empty_ImgListLayered(comtessa_cam):
     imglistlayered = il.ImgListLayered()
     imglistlayered.camera = comtessa_cam
@@ -94,6 +99,8 @@ def test_BaseImgList_ec2_str(plume_files):
     assert baseimglist.start_acq[0] == \
                 dt.datetime(2015, 9, 16, 7, 11, 4, 340000)
 
+# pops warning that list has only one entry
+@pytest.mark.filterwarnings('ignore::UserWarning')
 def test_list_linking(imglist, bg_imglist):
     imglist.set_bg_list(bg_imglist)
     
