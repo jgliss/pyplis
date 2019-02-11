@@ -114,6 +114,8 @@ class BaseImgList(object):
         # attributes
         self._integration_step_lengths = None
         self._plume_dists = None
+        self._index = 0 # current file index for which the image is loaded
+        self._skip_files = 0  # if 0, no files are skipped when iterating
         
         # This should be set via the start_acq property when timestamps are not
         # available from filename; otherwise leave None
@@ -145,11 +147,6 @@ class BaseImgList(object):
         self._load_edit = {"this": {},
                            "next": {}}
 
-        self.index = 0
-        self._skip_files = 0  # if 0, no files are skipped
-        self.next_index = 0
-        self.prev_index = 0
-
         # Other image lists can be linked to this and are automatically updated
         self.linked_lists = {}
         # this dict (linked_indices) is filled in :func:`link_imglist` to
@@ -174,21 +171,97 @@ class BaseImgList(object):
             self.load()
 
     """ATTRIBUTES / DECORATORS"""
+
+    ### index properties
+    
+    @property
+    def index(self):
+        """ current index of the ImgList. The image belonging to the file with 
+        self.index is currently stored under self.this.
+        """
+        return self._index
+    
+    @index.setter
+    def index(self, value):
+        if value < 0 or value > self.last_index:
+            raise IndexError("Invalid index %d. Last index is %d." 
+                             % (value, self.last_index))
+        self._index = value
+
+    ### ToDo: Adapt the conditions to include self.skip_files which are not
+    # equal to 0. Also improve the documentation of skip_files (it's contra-
+    # dictory at the moment)
+    @property
+    def next_index(self):
+        """ Index of the next image. self.skip_files are skipped """
+        if self.index == self.last_index:
+            warn('Requesting next image to last image in imagelist. Return '
+                 'last index in list.')
+            return self.last_index
+        else:
+            return self.index + 1 + self.skip_files
+    
+    @property
+    def prev_index(self):
+        """ Index of the previous image. self.skip_files are skipped """
+        if self.index == 0:
+            warn('Requesting previous image to first image in imagelist. Return '
+                 'first index in list.')
+            return 0
+        else:
+            return self.index - 1 - self.skip_files            
+
+    @property
+    def cfn(self):
+        """Return current index (file number in ``files``)."""
+        return self.index
+
+    @property
+    def nof(self):
+        """Return number of files in this list."""
+        return len(self.files)
+
+    @property
+    def last_index(self):
+        """Return index of last image."""
+        if self.files:
+            return len(self.files) - 1
+        else:
+            return 0
+
+    @property
+    def skip_files(self):
+        """ Get or set how many images should be skipped when iterating through
+        the file list.
+        Only integer values are allowed, the default is 0. A value of 1 means 
+        that 1 file is skipped (using half of the images when iterating 
+        through the full list). A value of 2 means that 2 files are 
+        skipped, ecetera. After setting, the images are reloaded.
+        """
+        return self._skip_files
+
+    @skip_files.setter
+    def skip_files(self, val):
+        if not val >= 0:
+            raise ValueError("Value must be 0 or positive")
+        self._skip_files = int(val)
+        self.load()
+
+    ###
+    
     @property
     def camera(self):
-        """ Object of type pyplis.Camera """
-        return self._camera
-    
-    @camera.setter
-    def camera(self, value):
-        """Set the current camera.
-
+        """ Object of type pyplis.Camera
         Parameters
         ----------
         value : Camera or str
             either pyplis.Camera object or identifier string of one of the 
-            predefined cameras in `data\\cam_info.txt` 
+            predefined cameras in `data\\cam_info.txt`
         """
+        return self._camera
+    
+    @camera.setter
+    def camera(self, value):
         if value is None:
             self._camera = None
             warn('Set camera to None.')
@@ -241,23 +314,6 @@ class BaseImgList(object):
         if value == self._edit_active:
             return
         self._edit_active = value
-        self.load()
-
-    @property
-    def skip_files(self):
-        """Integer specifying the image iter step in the file list.
-
-        Defaults to 1: every file is used, 2 means, that every second file is
-        used.
-        """
-        return self._skip_files
-
-    @skip_files.setter
-    def skip_files(self, val):
-        if not val >= 0:
-            raise ValueError("Value must be 0 or positive")
-        self._skip_files = int(val)
-        self.iter_indices(self.index)
         self.load()
 
     @property
@@ -510,21 +566,6 @@ class BaseImgList(object):
             self.load()
 
     @property
-    def cfn(self):
-        """Return current index (file number in ``files``)."""
-        return self.index
-
-    @property
-    def nof(self):
-        """Return number of files in this list."""
-        return len(self.files)
-
-    @property
-    def last_index(self):
-        """Return index of last image."""
-        return len(self.files) - 1
-
-    @property
     def data_available(self):
         """Return wrapper for :func:`has_files`."""
         return self.has_files()
@@ -566,6 +607,9 @@ class BaseImgList(object):
     ###TODO: This is really ugly and needs refinement !
     @property
     def timestamp_index(self):
+        #if "_timestamp_index" not in self:
+        #    self._timestamp_index = DatetimeIndex(self.start_acq)
+        #return self._timestamp_index
         try:
             return self._timestamp_index
         except:
@@ -669,7 +713,7 @@ class BaseImgList(object):
             desired image index, defaults to 0
 
         """
-        self.iter_indices(to_index=at_index)
+        self.index = at_index
         for key, val in six.iteritems(self.loaded_images):
             self.loaded_images[key] = None
 
@@ -687,13 +731,9 @@ class BaseImgList(object):
         This method only updates the actual list indices and does not perform
         a reload.
         """
-        try:
-            self.index = to_index % self.nof
-            self.next_index = (self.index + self.skip_files + 1) % self.nof
-            self.prev_index = (self.index - self.skip_files - 1) % self.nof
+        self.index = to_index
+        warn('DeprecationWarning: Set self.index directly.')
 
-        except:
-            self.index, self.prev_index, self.next_index = 0, 0, 0
 
     def load(self):
         """Load current image.
@@ -743,21 +783,27 @@ class BaseImgList(object):
 
     def goto_next(self):
         """Goto next index in list."""
+        if self.index == self.last_index:
+            raise IndexError("List is currently at last image with index %s "
+                             "Next image does not exist." % self.index)
         if self.nof < 2:
             warn("Only one image available, no index change or "
                  "reload performed")
             return self.this
-        self.iter_indices(to_index=self.next_index)
+        self.index = self.next_index
         self.load()
         return self.this
 
     def goto_prev(self):
         """Load previous image in list."""
+        if self.index == 0:
+            raise IndexError("List is currently at first image. "
+                             "Previous image does not exist.")
         if self.nof < 2:
             warn("Only one image available, no index change or "
                  "reload performed")
             return self.this
-        self.iter_indices(to_index=self.prev_index)
+        self.index = self.prev_index
         self.load()
         return self.this
 
@@ -766,7 +812,7 @@ class BaseImgList(object):
 
         Parameters
         ----------
-        to_index : float
+        to_index : int
              new list index
         reload_here : bool
             applies only if :param:`to_index` is the current list index. If
@@ -774,20 +820,19 @@ class BaseImgList(object):
             done.
 
         """
-        if not -1 < to_index < self.nof:
-            raise IndexError("Invalid index %d. List contains only %d files"
-                             % (to_index, self.nof))
-
-        elif to_index == self.index:
+        if not isinstance(to_index, int):
+            raise TypeError("Index has to be of type integer.")
+        
+        if to_index == self.index:
             if reload_here:
                 self.load()
-            return self.this
+            return self.this            
         elif to_index == self.next_index:
             self.goto_next()
         elif to_index == self.prev_index:
             self.goto_prev()
         else:
-            self.iter_indices(to_index)
+            self.index = to_index
             self.load()
 
         return self.loaded_images["this"]
@@ -1087,10 +1132,10 @@ class BaseImgList(object):
             start_idx = self.timestamp_to_index(start_idx)
         if isinstance(stop_idx, datetime):
             stop_idx = self.timestamp_to_index(stop_idx)
-        if stop_idx is None or stop_idx > self.nof:
-            stop_idx = self.nof
+        if stop_idx is None or stop_idx >= self.nof:
+            stop_idx = self.last_index
 
-        num = self._iter_num(start_idx, stop_idx)
+        num = self._iter_num(start_idx, stop_idx) + 1 # see issue
         # remember last image shape settings
         _roi = deepcopy(self._roi_abs)
         _pyrlevel = deepcopy(self.pyrlevel)
@@ -1147,7 +1192,8 @@ class BaseImgList(object):
             if append:
                 stack.add_img(img.img, img.meta["start_acq"],
                               img.meta["texp"])
-            self.goto_next()
+            if not self.index == self.last_index:
+                self.goto_next()
             k += 1
         stack.start_acq = asarray(stack.start_acq)
         stack.texps = asarray(stack.texps)
@@ -1203,7 +1249,7 @@ class BaseImgList(object):
             stop_idx = self.timestamp_to_index(stop_idx)
         
         if stop_idx is None:
-            stop_idx = int(self.nof-1)
+            stop_idx = self.last_index
         elif stop_idx < start_idx:
             raise IndexError('Stop index is smaller than start index')
         elif stop_idx > self.nof: # must be actually >=, see issue
@@ -1223,14 +1269,16 @@ class BaseImgList(object):
         start_acq = self.this.meta["start_acq"]
 
         ### ToDo: average automatically all relevant meta information
-        images = []
-        texps = []
-        temperatures = []
-        for k in range(n_img):
+        # Initialise lists with first image
+        images = [self.this.img]
+        texps = [self.this.meta["texp"]]
+        temperatures = [self.this.meta["temperature"]]
+        # Fill the lists
+        while self.index < stop_idx:
+            self.goto_next()
             images.append(self.this.img)
             texps.append(self.this.meta["texp"])
             temperatures.append(self.this.meta["temperature"])
-            self.goto_next()
         
         images = array(images)
         img_avg = images.mean(axis=0)
@@ -1249,8 +1297,8 @@ class BaseImgList(object):
         else:
             return Img_avg
 
-    def get_mean_tseries_rects(self, start_idx, stop_idx, *rois,
-                               return_dataframe=False):
+    def get_mean_tseries_rects(self, start_idx, stop_idx,
+                               return_dataframe=False, *rois):
         """Similar to :func:`get_mean_value` but for multiple rects.
 
         Parameters
@@ -1260,6 +1308,9 @@ class BaseImgList(object):
         stop_idx : :obj:`int` or :obj:`datetime`
             index of last considered image (if None, the last image in this
             list is used).
+        return_dataframe : bool
+            determines whether a list of :obj:'PixelMeanTimeSeries` or a single
+            :obj:`pandas.DataFrame` should be returned.
         *rois
             non keyword args specifying rectangles for data access
 
@@ -1268,6 +1319,9 @@ class BaseImgList(object):
         tuple
             N-element tuple containing :class:`PixelMeanTimeSeries` objects
             (one for each ROI specified on input)
+        pandas.DataFrame
+            DataFrame with columns mean_roi<i> and std_roi<i> where i is the
+            index of *rois
 
         """
         if not self.data_available:
@@ -1277,8 +1331,8 @@ class BaseImgList(object):
             start_idx = self.timestamp_to_index(start_idx)
         if isinstance(stop_idx, datetime):
             stop_idx = self.timestamp_to_index(stop_idx)
-        if stop_idx is None or stop_idx > self.nof:
-            stop_idx = self.nof
+        if stop_idx is None or stop_idx >= self.nof:
+            stop_idx = self.last_index
 
         acq_times = [] # same times for all rois
         texps = []
@@ -1291,7 +1345,7 @@ class BaseImgList(object):
             
         cfn = self.cfn  # store current file number for reset afterwards
         self.goto_img(start_idx)
-        num = self._iter_num(start_idx, stop_idx)
+        num = self._iter_num(start_idx, stop_idx) + 1 # see issue
 
         pnum = int(10**exponent(num) / 2.0)
         for k in range(num):
@@ -1314,7 +1368,8 @@ class BaseImgList(object):
                 d[0].append(sub.mean())
                 d[1].append(sub.std())
 
-            self.goto_next()
+            if not self.index == self.last_index: #ignore the load for the last image
+                self.goto_next()
 
         self.goto_img(cfn)
        
@@ -1356,11 +1411,16 @@ class BaseImgList(object):
         apply_img_prep : bool
             if True, img preparation is performed as specified in
             ``self.img_prep`` dictionary, defaults to True
+        return_dataframe : bool
+            determines whether a list of :obj:'PixelMeanTimeSeries` or a single
+            :obj:`pandas.DataFrame` should be returned.
 
         Returns
         -------
         PixelMeanTimeSeries
             time series of retrieved values
+        pandas.DataFrame
+            alternatively returns a dataframe if `return_dataframe` was set
 
         """
         if not self.data_available:
@@ -1369,13 +1429,13 @@ class BaseImgList(object):
             start_idx = self.timestamp_to_index(start_idx)
         if isinstance(stop_idx, datetime):
             stop_idx = self.timestamp_to_index(stop_idx)
-        if stop_idx is None or stop_idx > self.nof:
-            stop_idx = self.nof
+        if stop_idx is None or stop_idx >= self.nof:
+            stop_idx = self.last_index
 
         cfn = self.cfn
         self.edit_active = apply_img_prep
         self.goto_img(start_idx)
-        num = self._iter_num(start_idx, stop_idx)
+        num = self._iter_num(start_idx, stop_idx) + 1 # see issue
         
         vals, stds, texps, acq_times = [], [], [], []
         lid = self.list_id
@@ -1394,7 +1454,8 @@ class BaseImgList(object):
             vals.append(sub.mean())
             stds.append(sub.std())
 
-            self.goto_next()
+            if not self.index == self.last_index: #ignore the load for the last image
+                self.goto_next()
 
         self.goto_img(cfn)
         
@@ -3062,7 +3123,6 @@ class ImgList(BaseImgList):
         self._linked_indices[list_id] = idx_array
         # self.change_index_linked_lists()
         other_list.bg_model.update(**self.bg_model.settings_dict())
-
         self.load()
 
     def disconnect_linked_imglist(self, list_id):
@@ -3157,7 +3217,7 @@ class ImgList(BaseImgList):
     def change_index_linked_lists(self):
         """Update current index in all linked lists based on ``cfn``."""
         for key, lst in six.iteritems(self.linked_lists):
-            lst.goto_img(self._linked_indices[key][self.index],
+            lst.goto_img(int(self._linked_indices[key][self.index]),
                          reload_here=self._always_reload[key])
 
     def load(self):
@@ -3168,16 +3228,21 @@ class ImgList(BaseImgList):
         except:
             print("Image load aborted...")
             return False
-        if self.nof > 1:
-            next_img = self._load_image(self.next_index)
-            self.loaded_images["next"] = next_img
-            self._load_edit["next"].update(next_img.edit_log)
-            self._apply_edit("next")
-        else:
+        
+        if self.nof <= 1:
             warn("Image list contains only one image. Setting this image both "
                  "in <this> and <next> attr.")
             self.loaded_images["next"] = self.loaded_images["this"]
             self._load_edit["next"].update(self._load_edit["this"])
+        elif self.index == self.last_index:
+            warn("Last image of image list was loaded. Set <next> attribute "
+                 "to None")
+            self.loaded_images["next"] = None
+        else:
+            next_img = self._load_image(self.next_index)
+            self.loaded_images["next"] = next_img
+            self._load_edit["next"].update(next_img.edit_log)
+            self._apply_edit("next")
 
         if self.optflow_mode:
             try:
@@ -3191,12 +3256,15 @@ class ImgList(BaseImgList):
 
     def goto_next(self):
         """Load next image in list."""
+        if self.index == self.last_index:
+            raise IndexError("List is currently at last image with index %s "
+                             "Next image does not exist." % self.index)
         if self.nof < 2 or not self._auto_reload:
             print("Could not load next image, number of files in list: " +
                   str(self.nof))
             return False
 
-        self.iter_indices(to_index=self.next_index)
+        self.index = self.next_index
         self.change_index_linked_lists()  # load new images in all linked lists
 
         this_img = self.loaded_images["next"]

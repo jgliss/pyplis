@@ -129,8 +129,13 @@ def test_mean_timeseries(BaseImgList_ec2, return_val):
         assert mean_timeseries.values == pytest.approx([146.2516, 146.9500])
         assert mean_timeseries.std == pytest.approx([1.823485, 1.679375])
     
-#if __name__ == "__main__":
-#    camera = ec2_cam()
-#    files = plume_files()
-#    baseil = BaseImgList_ec2(camera, files)
-#    print(baseil.start_acq)
+if __name__ == "__main__":
+    camera = ec2_cam()
+    files = plume_files()
+    baseil = BaseImgList_ec2(camera, files)
+    #baseil.goto_img(0)
+    #print(baseil.index)
+    #baseil.goto_next()
+    #print(baseil.index)
+    series = baseil.get_mean_value(0,1,roi=[50, 50, 100, 100], return_dataframe=True)
+    print(baseil.start_acq)
