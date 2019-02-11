@@ -287,7 +287,11 @@ def _load_cam_info(cam_id, filepath):
         io_opts = {}
         found = 0
         for ll in f:
-            line = ll.decode('utf-8').rstrip()
+            try:
+                line = ll.decode('utf-8').rstrip()
+            except:
+                print(ll)
+                raise Exception
             if line:
                 if "END" in line and found:
                     dat["default_filters"] = filters
@@ -626,3 +630,9 @@ def get_icon(name, color=None):
                 return base_path + file
     print("Failed to load icon at: " + _LIBDIR)
     return False
+
+if __name__ == '__main__':
+    
+    i1 = get_camera_info('ecII')
+    
+    i2 = get_camera_info('usgs')
