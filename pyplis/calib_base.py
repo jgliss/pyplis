@@ -190,8 +190,7 @@ class CalibData(object):
                                  "in current optimisation function. "
                                  "Please check and update class attribute "
                                  "calib_fun first...")
-        if self._calib_coeffs is not None:
-            if len(self._calib_coeffs) > 0:
+        if self._calib_coeffs is not None and len(self._calib_coeffs) > 0:
                 warn("Resetting calibration coefficients manually. This may introduce "
                      "analysis errors. It is recommended to use the method "
                      "fit_calib_data instead")
