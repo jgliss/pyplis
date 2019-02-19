@@ -72,7 +72,7 @@ This will be cleaned up within the next days (timestamp: 23/05/2018, 23:18).
 
   For detailed installation instructions see detailed installation instructions below.
 
-In the following, a brief overview is provided over the most important changes associated with this release. Please see latest `changelog <file:///C:/Users/Jonas/repos/pyplis/docs/_build/html/changelog.html#release-1-0-1-1-3-0>`__ for a detailed description of all changes.
+In the following, a brief overview is provided over the most important changes associated with this release. Please see latest `changelog <https://github.com/jgliss/pyplis/blob/master/changelog/CHANGELOG_v1_0_0_v1_3_0.rst>`__ for a detailed description of all changes.
 
 .. _release_1.3.0:
 
