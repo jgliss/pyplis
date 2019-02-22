@@ -82,7 +82,7 @@ def prepare_aa_image_list(bg_corr_mode=6):
     off_list.set_bg_img(bg_off)
 
     # automatically set gas free areas
-    lst.bg_model.guess_missing_settings(lst.current_img())
+    lst.bg_model.set_missing_ref_areas(lst.current_img())
     # Now update some of the information from the automatically set sky ref
     # areas
     lst.bg_model.xgrad_line_startcol = 20

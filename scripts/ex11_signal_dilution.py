@@ -190,7 +190,7 @@ def prepare_lists(dataset):
 
     # prepare plume background modelling setup in both lists
     onlist.bg_model.mode = 6
-    onlist.bg_model.guess_missing_settings(onlist.current_img())
+    onlist.bg_model.set_missing_ref_areas(onlist.current_img())
     onlist.bg_model.xgrad_line_startcol = 10
     offlist.bg_model.update(**onlist.bg_model.settings_dict())
 

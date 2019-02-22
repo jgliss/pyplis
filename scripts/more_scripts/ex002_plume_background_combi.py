@@ -46,7 +46,7 @@ if __name__ == "__main__":
     on.gaussian_blurring = 2
 
     # Find and plot sky reference areas
-    on.bg_model.guess_missing_settings(on.current_img())
+    on.bg_model.set_missing_ref_areas(on.current_img())
     ax = on.bg_model.plot_sky_reference_areas(on.current_img())
 
     # this is a beta version
@@ -59,6 +59,6 @@ if __name__ == "__main__":
     on.set_bg_img_from_polyfit(mask.img)
     ax3 = on.bg_img.show(tit="Surface fit result")
 
-    on.bg_model.CORR_MODE = 5
+    on.bg_model.mode = 5
     on.tau_mode = True
     on.show_current()

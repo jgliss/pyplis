@@ -101,7 +101,7 @@ class PlumeBackgroundModel(object):
         self.update(**kwargs)
 
         if isinstance(plume_init, Img):
-            self.guess_missing_settings(plume_init)
+            self.set_missing_ref_areas(plume_init)
             self._init_bgsurf_mask(plume_init)
             if isinstance(bg_raw, Img):
                 self.mode = 1
