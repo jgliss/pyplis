@@ -1,134 +1,20 @@
-Pyplis is a Python toolbox for the analysis of UV SO2 camera data. The software includes a comprehensive and flexible collection of algorithms for the analysis of such data.
+.. image:: docs/_graphics/logo_pyplis_v3_with_banner.png
+   :target: pageapplet/index.html
+
+
+
+Pyplis is a Python toolbox originally developed for the analysis of UV SO2 camera data. The software includes a comprehensive and flexible collection of algorithms for the analysis of atmospheric imaging data.
 
 Contact: Jonas Gliss (jonasgliss@gmail.com)
 
-.. note::
+This branch supports only python **python 2.7**. Please use branch **py3** if you intend to use pyplis with python 3.
+The **py3** branch contains a *beta-version* of pyplis which supports both **python 2 and 3**.
 
-  The software was renamed from **piscope** to **Pyplis** on 17.02.2017
 
-.. _news:
+Code documentation and more
+============================
 
-News / Notifications
-====================
-
-**UPDATE for large repo warning below: "Warning when cloning ...**
-------------------------------------------------------------------
-
-- ISSUE RESOLVED: The size of the repository has been reduced by removing old versions and deprecated binary files from the history following `the official github recommendations <https://help.github.com/articles/removing-sensitive-data-from-a-repository/>`__
-- The history of all binary files has been cleaned up
-- New repository size is ~30MB
-- **NOTE (if you have a clone of the repo)**: Since we changed the history of the repository (i.e. removing old versions and deprecated binary files) in order to reduce the repo size, you can do either of the following with your local copy.
-
-  - make a backup of your version (if you applied changes to it) and make a fresh clone of the cleaned up repo (recommended)
-    ::
-
-      git clone https://www.github.com/jgliss/pyplis.git
-
-  - Rebase and update reference log, run git garbage collector (see `here <https://github.com/sgrid/pysgrid/issues/75>`__ for details). From your local ``pyplis`` repo run
-    ::
-
-      git fetch origin
-      git rebase
-      git reflog expire --expire=now --all
-      git gc --aggressive --prune=now
-
-**Removed strict dependency for pillow (v1.3.1)**
--------------------------------------------------
-
-In order to reduce the number of dependencies, the default image read function is ``cv2.imread`` from the OpenCV library. Before, the ``imread`` function of matplotlib was used which uses the
-``pillow`` (or formerly ``PIL``) library.
-
-Also, it appeared complicated to install pillow using conda on a Windows machine (see installation instructions below).
-
-.. note::
-
-  **Version 1.3.1 is not yet released**
-
-**Warning when cloning: the repository is quite large (~500 MB)**
-------------------------------------------------------------------
-
-The size of the repository is quite large, due to many updates of the example scripts (in particular the output figures) in the history of the project. When cloning the repository using::
-
-  git clone https://github.com/jgliss/pyplis.git
-
-the whole git history of the project is cloned, hence, the currently 500MB.
-
-This will be cleaned up within the next days (timestamp: 23/05/2018, 23:18).
-
-**Version 1.3.0 released (21/05/2018)**
----------------------------------------
-
-.. note::
-
-  *Pyplis* version 1.3.0 comes with **many new features** and **major improvements in user-friendliness and performance** (compared to previous release 1.0.1)
-
-  Please update your version as soon as possible, e.g. using::
-
-    pip install pyplis
-
-  or::
-
-    git clone https://github.com/jgliss/pyplis.git -b v1.3.0
-
-  For detailed installation instructions see detailed installation instructions below.
-
-In the following, a brief overview is provided over the most important changes associated with this release. Please see latest `changelog <https://github.com/jgliss/pyplis/blob/master/changelog/CHANGELOG_v1_0_0_v1_3_0.rst>`__ for a detailed description of all changes.
-
-.. _release_1.3.0:
-
-**Release notes (v1.3.0)**
-^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-Pyplis version 1.3.0 comes with many new features and improvements. The most important changes include:
-
-- **Measurement geometry** (class ``MeasGeometry``):
-
-  - more accurate plume distance retrievals (i.e. now also in dependency of vertical distance).
-  - redesigned API -> improved user-friendliness.
-
-- **Image analysis**: Image registration shift can now be applied to images.
-
-  - New method ``shift`` in class ``Img``.
-  - Comes with new *mode*  (``shift_mode``) in class ``ImgList`` objects.
-  - Default on / off shift for camera can be set in class ``Camera`` using attribute ``reg_shift_off`` (and correspondingly, in file *cam_info.txt*).
-
-- **Camera calibration**. Major improvements and API changes:
-
-  - new abstraction layer (module ``calib_base``) including new calibration base class ``CalibData``. Both class ``DoasCalibData`` and class ``CellCalibData`` are now inherited from new base class class ``CalibData``. Advantages and new features:
-
-    - arbitrary definition of calibration fit function.
-    - fitting of calibration curve, I/O (read / write FITS) and visualisation of DOAS and cell calibration data are now unified in class ``CalibData``.
-
-- **Further changes**
-
-  - class ``ImgStack`` more intuitive and flexible (e.g. dynamically expandable).
-  - Improved index handling and performance of image list objects (module ``imagelists``).
-  - class ``PlumeBackgroundModel``: revision, clean up and performance improvements.
-  - Improved user-friendliness and performance of plume background retrieval in class ``ImgList`` objects.
-  - Correction for signal dilution (class ``DilutionCorr``): increased flexibility and user-friendliness.
-  - Improved flexibility for image import using class ``Dataset`` class (e.g. on / off images can be stored in the same file).
-  - Reviewed and largely improved performance of general workflow (i.e. iteration over instances of class ``ImgList`` in ``calib_mode``, ``dilcorr_mode`` and ``optflow_mode``).
-
-- **Major bug fixes**
-
-  - Fixed conceptual error in cross-correlation algorithm for velocity retrieval (method ``find_signal_correlation`` in module ``plumespeed``).
-  - Fixed: class ``ImgList`` in AA mode used current off-band image (at index ``idx_off``) both for the current and next on-band image (and not ``idx_off+1``).
-
-.. _paper:
-
-Scientific background
-=====================
-
-The article
-
-*Pyplis–A Python Software Toolbox for the Analysis of SO2 Camera Images for Emission Rate Retrievals from Point Sources*, Gliß, J., Stebel, K., Kylling, A., Dinger, A. S., Sihler, H., and Sudbø, A., Geosciences, 2017
-
-introduces *Pyplis* and implementation details. Furthermore, the article provides a comprehensive review of the technique of SO2 cameras with a focus on the required image analysis. The paper was published in December 2017 as part of a special issue on `Volcanic plumes <http://www.mdpi.com/journal/geosciences/special_issues/volcanic_processes>`__ of the Journal *Geosciences* (MDPI).
-The paper can be downloaded `here <http://www.mdpi.com/2076-3263/7/4/134>`__.
-
-Citation
---------
-If you find *Pyplis* useful for your data analysis, we would highly appreciate if you acknowledge our work by citing the paper. Citing details can be found `here <http://www.mdpi.com/2076-3263/7/4/134>`__.
+The code documentation of pyplis and more information is hosted on `Read the Docs <http://pyplis.readthedocs.io/en/latest/index.html>`__.
 
 Main features
 =============
@@ -144,21 +30,7 @@ Main features
 - Support of standard image formats including `FITS format <https://de.wikipedia.org/wiki/Flexible_Image_Transport_System>`__.
 - Easy and flexible setup for data import and camera specifications.
 
-Copyright
-=========
 
-Copyright (C) 2017 Jonas Gliss (jonasgliss@gmail.com)
-
-This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License a published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
-
-This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along with this program. If not, see `here <http://www.gnu.org/licenses/>`__.
-
-Code documentation and more
-============================
-
-The code documentation of Pyplis and more information is hosted on `Read the Docs <http://pyplis.readthedocs.io/en/latest/index.html>`__.
 
 Requirements
 ============
@@ -169,9 +41,9 @@ Pyplis requires the following packages:
 - scipy >= 0.17.0
 - opencv (cv2) >= 2.4.11 (please note `this issue <https://github.com/jgliss/pyplis/issues/4>`__)
 - astropy >= 1.0.3
-- geonum >= 1.2.0
+- geonum >= 1.2.0 (refer also to `geonum <https://github.com/jgliss/geonum>`__)
 
-  - latlon >= 1.0.2
+  - latlon23 >= 1.0.7
   - srtm.py >= 0.3.2
   - pyproj  >= 1.9.5.1
   - basemap >= 1.0.7
@@ -200,7 +72,7 @@ Please, if you have problems installing Pyplis, contact us or better, raise an I
 Installation instructions
 =========================
 
-In the following, a step-by-step guide for the installation on *Pyplis* is provided. It is assumed, that no Python 2.7 installation exists. If you already have Python 2.7 installed (with potentially some packages), make sure you install `all requirements <https://github.com/jgliss/pyplis#requirements>`__.
+In the following, a step-by-step guide for the installation on *Pyplis* is provided. It is assumed, that no previous Python installation exists. If you already have Python installed (with potentially some packages), make sure you install `all requirements <https://github.com/jgliss/pyplis#requirements>`__.
 If you use `Anaconda <https://www.anaconda.com/>`__ as package manager, you can check your installed packages using::
 
   conda list
@@ -213,9 +85,9 @@ Else, you can use ``pip`` to check your package list::
 Install from scratch
 --------------------
 
-If you already have Anaconda2 installed on your machine you can skip point 1., else:
+If you already have Anaconda installed on your machine you can skip point 1., else:
 
-1. Download and install the latest version of `Anaconda2 <https://www.anaconda.com/download/#windows>`__ (Python 2.7)
+1. Download and install the latest version of `Anaconda <https://www.anaconda.com/download/>`__
 
 2. Install basemap
   ::
@@ -242,7 +114,7 @@ If you already have Anaconda2 installed on your machine you can skip point 1., e
   - Option 1: Installation using `PyPi <https://pypi.python.org/pypi/pyplis>`__
     ::
 
-      pip install Pyplis
+      pip install pyplis
 
   - Option 2: Installation from source
 
@@ -255,11 +127,6 @@ If you already have Anaconda2 installed on your machine you can skip point 1., e
 
   Use Option 2 if you want to run the tests and / or example scripts (since these are not shipped with the PyPi installation that uses a binary wheel of Pyplis).
 
-After installation, try::
-
-  >>> import pyplis
-
-from your Python or IPython console.
 
 Installation remarks and known issues
 -------------------------------------
@@ -270,46 +137,11 @@ Installation remarks and known issues
 
   - If you find a bug or detect a specific problem with one of the requirements (e.g. due to future releases) please let us know or `raise an issue <https://github.com/jgliss/pyplis/issues>`__.
 
-Testing your installation
-=========================
-
-.. note::
-
-  The following steps can only be done if download and install from source (Option 2, previous point) and do not work if you install via pip.
-
-Running tests
--------------
-
-Pyplis contains a (currently incomplete) test suite (located `here <https://github.com/jgliss/pyplis/tree/master/pyplis/test>`__.
-
-The tests can be run manually from the toplevel directory (where the setup.py file lies) using your *command line* (not Python console) using::
-
-  python -m pytest
-
-If any test fails, please `raise an issue <https://github.com/jgliss/pyplis/issues>`__.
-
-Running the pyplis Etna example scripts
----------------------------------------
-
-In order to run the Etna example scripts, you have to download the Etna test dataset (about 2.7 GB). You can download the testdata automatically into a specified folder *<desired_location>*::
-
-  >>> import pyplis
-  >>> pyplis.inout.download_test_data(<desired_location>)
-
-If you leave <desired_location> empty, the data will be downloaded into the *my_pyplis* folder, that is automatically created on installation in your user home directory (`more details below <https://github.com/jgliss/pyplis#example-and-test-data>`__).
-
-The scripts can be found in the *scripts* folder of the repo. They include a test mode (can be activated in `SETTINGS.py <https://github.com/jgliss/pyplis/blob/master/scripts/SETTINGS.py>`__ or on script execution via command line  using option --test 1, see below) and can be run automatically from the command line by executing the following two scripts::
-
-  python RUN_INTRO_SCRIPTS.py --test 1
-
-and::
-
-  python RUN_EXAMPLE_SCRIPTS.py --test 1
 
 Getting started
 ===============
 
-The Pyplis `example scripts <https://github.com/jgliss/pyplis/tree/master/scripts>`_ (see previous point) are a good starting point to get familiar with the features of Pyplis and for writing customised analysis scripts. The scripts require downloading the Etna example dataset (see following section for instructions).
+The Pyplis `example scripts <https://github.com/jgliss/pyplis/tree/master/scripts>`_ (see previous point) are a good starting point to get familiar with the features of Pyplis and for writing customised analysis scripts. The scripts require downloading the Etna example dataset (see following section for instructions). If you require more thorough testing, refer to this `wiki entry <https://github.com/jgliss/pyplis/wiki/Contribution-to-pyplis-and-testing>`__
 
 Example and test data
 =====================
@@ -333,9 +165,34 @@ The latter searches all paths provided in the file *_paths.txt* whenever access 
     pyplis.inout.set_test_data_path(<desired_location>)
 
 
-Future developments / ideas
-===========================
+.. _paper:
 
-1. Re-implementation of GUI framework
-2. Include DOAS analysis for camera calibration by combining `pydoas <https://pypi.python.org/pypi/pydoas/1.0.1>`__ with `flexDOAS <https://github.com/gkuhl/flexDOAS>`__.
-3. Include online access to meteorological databases (e.g. to estimate wind direction, velocity)
+Scientific background
+=====================
+
+The article
+
+*Pyplis–A Python Software Toolbox for the Analysis of SO2 Camera Images for Emission Rate Retrievals from Point Sources*, Gliß, J., Stebel, K., Kylling, A., Dinger, A. S., Sihler, H., and Sudbø, A., Geosciences, 2017
+
+introduces *Pyplis* and implementation details. Furthermore, the article provides a comprehensive review of the technique of SO2 cameras with a focus on the required image analysis. The paper was published in December 2017 as part of a special issue on `Volcanic plumes <http://www.mdpi.com/journal/geosciences/special_issues/volcanic_processes>`__ of the Journal *Geosciences* (MDPI).
+The paper can be downloaded `here <http://www.mdpi.com/2076-3263/7/4/134>`__.
+
+Citation
+--------
+If you find *Pyplis* useful for your data analysis, we would highly appreciate if you acknowledge our work by citing the paper. Citing details can be found `here <http://www.mdpi.com/2076-3263/7/4/134>`__.
+
+
+Copyright
+=========
+
+Copyright (C) 2017 Jonas Gliss (jonasgliss@gmail.com)
+
+This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License a published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with this program. If not, see `here <http://www.gnu.org/licenses/>`__.
+
+.. note::
+
+  The software was renamed from **piscope** to **Pyplis** on 17.02.2017
