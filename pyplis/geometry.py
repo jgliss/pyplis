@@ -32,8 +32,13 @@ from .image import Img
 from .helpers import check_roi, isnum
 from .glob import DEFAULT_ROI
 try:
-    from geonum import GeoSetup, GeoPoint, GeoVector3D, TopoData
-    from geonum.topodata import TopoAccessError
+    from geonum import __version__ as _geonum_ver
+    if int(_geonum_ver.split('.')[1]) < 4:
+        from geonum import GeoSetup, GeoPoint, GeoVector3D, TopoData
+        from geonum.topodata import TopoAccessError
+    else:
+        from geonum import GeoSetup, GeoPoint, GeoVector3D, TopoData
+        from geonum.exceptions import TopoAccessError
 except:
     warn("Geonum library could not be found")
     
