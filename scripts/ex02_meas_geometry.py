@@ -39,7 +39,7 @@ as image).
 from SETTINGS import check_version
 check_version()
 
-from geonum.base import GeoPoint
+from geonum import GeoPoint
 from matplotlib.pyplot import subplots, show, close
 from os.path import join
 
