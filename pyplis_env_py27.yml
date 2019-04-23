@@ -1,0 +1,19 @@
+channels:
+  - conda-forge
+  - menpo
+  
+dependencies:
+  - python=2.7
+  - scipy
+  - pandas
+  - matplotlib
+  - basemap
+  - astropy
+  - latlon23
+  - pytest
+  - pip
+  - opencv
+  - pip:
+    - srtm.py
+    - pydoas
+    - geonum
