@@ -122,7 +122,7 @@ if __name__ == "__main__":
     # You can compute the plume distance for the camera CFOV pixel column just
     # by calling the method plume_dist() without specifying the input azimuth
     # angle...
-    plume_dist_cfov = geom_corr.plume_dist()[0]
+    plume_dist_cfov = geom_corr.plume_dist()[0][0]
     
     # ... and the corresponding uncertainty 
     plume_dist_err_cfov = geom_corr.plume_dist_err()
@@ -145,7 +145,7 @@ if __name__ == "__main__":
     geom_corr.draw_map_2d() # this figure is only displayed and not saved 
     
     #recompute plume distance of CFOV pixel
-    plume_dist_cfov_new = geom_corr.plume_dist()[0]
+    plume_dist_cfov_new = geom_corr.plume_dist()[0][0]
     
     print("Comparison of plume distances after change of wind direction:\n"
           "Previous: %.3f m\n"
