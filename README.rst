@@ -72,53 +72,81 @@ Please, if you have problems installing Pyplis, contact us or better, raise an I
 Installation instructions
 =========================
 
-In the following, a step-by-step guide for the installation on *Pyplis* is provided. It is assumed, that no previous Python installation exists. If you already have Python installed (with potentially some packages), make sure you install `all requirements <https://github.com/jgliss/pyplis#requirements>`__.
-If you use `Anaconda <https://www.anaconda.com/>`__ as package manager, you can check your installed packages using::
+Python installation
+-------------------
 
-  conda list
+We recommend using the `Anaconda Python 2.7 distribution <https://www.anaconda.com/distribution/>`__ (or `Miniconda <https://docs.conda.io/en/latest/miniconda.html>`__, if you want to save disk space) and to use the *conda* package manager.
 
-Else, you can use ``pip`` to check your package list::
+Below it is assumed that you made yourself familiar with the *conda* package manager and that it is installed on your system. It is recommended to have a look at the guidelines related to `conda virtual environments <https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html>`__.
 
-  pip freeze
+Installation of all *Pyplis* requirements
+-----------------------------------------
 
+Before installing *Pyplis*, you need to install all requirements. In order to do so, you have 2 options, either using the provided conda environment file or by installing all requirements manually, as described in the following two sections. All instructions below assume that you use `Anaconda <https://www.anaconda.com/>`__ as package manager and
 
-Install from scratch
---------------------
+Installation of requirements using provided conda environment file
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-If you already have Anaconda installed on your machine you can skip point 1., else:
+The easiest way to install *all mandatory requirements is to use the provided environment file *pyplis_env_py27.yml*. This requires that the `conda` package manager is available. You can install the environment file either into a new environment (here, named *pyplis*) using::
 
-1. Download and install the latest version of `Anaconda <https://www.anaconda.com/download/>`__
+  conda env create -n pyplis_env_test -f pyplis_env_py27.yml
 
-2. Install basemap
+Or you may install it into an existing environment using::
+
+  conda env update -f=pyplis_env_py27.yml
+
+Manual installation of requirements
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+You may also install all requirements from scratch as described in the following step-by-step guide:
+
+1. (Optional): Create new empty python 2.7 environment for pyplis
   ::
 
-    conda install -c conda-forge basemap
+    conda create --name pyplis python=2.7
 
-3. Install opencv version 2
+  Activate the new environment
   ::
 
-    conda install -c menpo opencv
+    conda activate pyplis
 
-4. Install `Geonum <https://github.com/jgliss/geonum>`__
+2. Install scipy, pandas and astropy
   ::
 
+    conda install scipy pandas astropy
+
+3. Install basemap and OpenCV
+  ::
+
+    conda install -c conda-forge basemap opencv
+
+  Note: this installs opencv version 4.
+
+4. Install geonum
+  ::
+    conda install latlon23
+    pip install SRTM.py
     pip install geonum
 
-5. Install `Pydoas <https://github.com/jgliss/pydoas>`__
+5. Install pydoas
   ::
 
     pip install pydoas
 
-6. Install Pyplis. Here, you have two options.
+Installation of *pyplis*
+^^^^^^^^^^^^^^^^^^^^^^^^
 
-  - Option 1: Installation using `PyPi <https://pypi.python.org/pypi/pyplis>`__
-    ::
+Here, you have two options.
+
+- Option 1: Installation of latest `PyPi release <https://pypi.python.org/pypi/pyplis>`__
+  ::
 
       pip install pyplis
 
-  - Option 2: Installation from source
+- Option 2: Installation of latest development version
+  ::
 
-    Download `the latest release <https://github.com/jgliss/pyplis/releases>`__ or the latest (not released) version of the `repository <https://github.com/jgliss/pyplis>`__ (green button "Clone or download") into a local directory of your choice. Unzip, and call
+    Clone the `repository <https://github.com/jgliss/pyplis>`__ (green button "Clone or download") into a local directory of your choice. Unzip, and call
     ::
 
       python setup.py install
@@ -131,11 +159,11 @@ If you already have Anaconda installed on your machine you can skip point 1., el
 Installation remarks and known issues
 -------------------------------------
 
-  - If you work on a Windows machine and run into problems with installation of one of the requirements (e.g. if you already had Python 2.7 installed and want to upgrade dependencies such as numpy or scipy), check out the pre-compiled binary wheels on Christoph Gohlke's `webpage <http://www.lfd.uci.edu/~gohlke/pythonlibs/>`_
+- If you work on a Windows machine and run into problems with installation of one of the requirements (e.g. if you already had Python 2.7 installed and want to upgrade dependencies such as numpy or scipy), check out the pre-compiled binary wheels on Christoph Gohlke's `webpage <http://www.lfd.uci.edu/~gohlke/pythonlibs/>`_
 
-  - Sometimes it is helpful, to reinstall your whole Python environment (or, if you use Anaconda, `create a new one <https://conda.io/docs/user-guide/tasks/manage-environments.html>`__) rather than trying to upgrade all dependencies to the required version
+- Sometimes it is helpful, to reinstall your whole Python environment (or, if you use Anaconda, `create a new one <https://conda.io/docs/user-guide/tasks/manage-environments.html>`__) rather than trying to upgrade all dependencies to the required version
 
-  - If you find a bug or detect a specific problem with one of the requirements (e.g. due to future releases) please let us know or `raise an issue <https://github.com/jgliss/pyplis/issues>`__.
+- If you find a bug or detect a specific problem with one of the requirements (e.g. due to future releases) please let us know or `raise an issue <https://github.com/jgliss/pyplis/issues>`__.
 
 
 Getting started
