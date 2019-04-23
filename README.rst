@@ -124,7 +124,7 @@ You may also install all requirements from scratch as described in the following
 
 4. Install geonum
   ::
-  
+
     conda install latlon23
     pip install SRTM.py
     pip install geonum
@@ -145,12 +145,11 @@ Here, you have two options.
       pip install pyplis
 
 - Option 2: Installation of latest development version
+
+  Clone the `repository <https://github.com/jgliss/pyplis>`__ (green button "Clone or download") into a local directory of your choice. Unzip, and call
   ::
 
-    Clone the `repository <https://github.com/jgliss/pyplis>`__ (green button "Clone or download") into a local directory of your choice. Unzip, and call
-    ::
-
-      python setup.py install
+    python setup.py install
 
 .. note::
 
