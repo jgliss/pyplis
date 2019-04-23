@@ -124,6 +124,7 @@ You may also install all requirements from scratch as described in the following
 
 4. Install geonum
   ::
+  
     conda install latlon23
     pip install SRTM.py
     pip install geonum
