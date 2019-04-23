@@ -139,12 +139,12 @@ Installation of *pyplis*
 
 Here, you have two options.
 
-- Option 1: Installation of latest `PyPi release <https://pypi.python.org/pypi/pyplis>`__
+- **Option 1**: Installation of latest `PyPi release <https://pypi.python.org/pypi/pyplis>`__
   ::
 
       pip install pyplis
 
-- Option 2: Installation of latest development version
+- **Option 2**: Installation of latest development version
 
   Clone the `repository <https://github.com/jgliss/pyplis>`__ (green button "Clone or download") into a local directory of your choice. Unzip, and call
   ::
