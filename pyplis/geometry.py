@@ -1770,9 +1770,11 @@ class MeasGeometry(object):
         if isnan(rownum):
             raise ValueError("Number of pixels of camera detector is not "
                              "available")
+        rownum = int(rownum)
         daz = self.del_elev(0, 1)
         offs = -daz / 2.0 if rownum % 2 == 0 else 0.0
-        angles_rel = linspace(rownum / 2., -rownum / 2., rownum) * daz
+        
+        angles_rel = linspace(rownum / 2, -rownum / 2, rownum) * daz
         return self.cam_elev + angles_rel + offs
 
     def all_azimuths_camfov(self):
@@ -1781,13 +1783,14 @@ class MeasGeometry(object):
         if isnan(colnum):
             raise ValueError("Number of pixels of camera detector is not "
                              "available")
+        colnum = int(colnum)
         daz = self.del_az(0, 1)
         offs = -daz / 2.0 if colnum % 2 == 0 else 0.0
 # =============================================================================
 #         if colnum%2 == 0: #even number of pixels
 #             offs = -daz/2.0
 # =============================================================================
-        angles_rel = linspace(-colnum / 2., colnum / 2., colnum) * daz
+        angles_rel = linspace(-colnum/2, colnum/2, colnum) * daz
         return self.cam_azim + angles_rel + offs
 
     def col_to_az(self, colnum):
