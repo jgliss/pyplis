@@ -51,56 +51,56 @@ def prepare_aa_image_list(bg_corr_mode=6):
     geom, _ = find_viewing_direction(dataset.meas_geometry, False)
 
     # Set plume background images for on and off
-    # this is the same image which is also used for example script NO
-    # demonstrating the plume background routines
+    # this is the same image which is also used for example script
+    # ex03_plume_background.py demonstrating the plume background routines
     path_bg_on = join(IMG_DIR,
                       'EC2_1106307_1R02_2015091607022602_F01_Etna.fts')
     path_bg_off = join(IMG_DIR,
                        'EC2_1106307_1R02_2015091607022820_F02_Etna.fts')
 
     # Get on and off lists and activate dark correction
-    lst = dataset.get_list("on")
+    on_lst = dataset.get_list("on")
     off_list = dataset.get_list("off")
 
     # Deactivate automatic reload in list while changing some list
     # attributes
-    lst.auto_reload = False
+    on_lst.auto_reload = False
     off_list.auto_reload = False
 
-    lst.darkcorr_mode = True
+    on_lst.darkcorr_mode = True
     off_list.darkcorr_mode = True
 
     # Prepare on and offband background images
     bg_on = pyplis.Img(path_bg_on)
-    bg_on.subtract_dark_image(lst.get_dark_image())
+    bg_on.subtract_dark_image(on_lst.get_dark_image())
 
     bg_off = pyplis.Img(path_bg_off)
     bg_off.subtract_dark_image(off_list.get_dark_image())
 
     # set the background images within the lists
-    lst.set_bg_img(bg_on)
+    on_lst.set_bg_img(bg_on)
     off_list.set_bg_img(bg_off)
 
     # automatically set gas free areas
-    lst.bg_model.guess_missing_settings(lst.current_img())
+    on_lst.bg_model.set_missing_ref_areas(on_lst.current_img())
     # Now update some of the information from the automatically set sky ref
     # areas
-    lst.bg_model.xgrad_line_startcol = 20
-    lst.bg_model.xgrad_line_rownum = 25
+    on_lst.bg_model.xgrad_line_startcol = 20
+    on_lst.bg_model.xgrad_line_rownum = 25
     off_list.bg_model.xgrad_line_startcol = 20
     off_list.bg_model.xgrad_line_rownum = 25
 
     # set background modelling mode
-    lst.bg_model.mode = bg_corr_mode
+    on_lst.bg_model.mode = bg_corr_mode
     off_list.bg_model.mode = bg_corr_mode
 
-    lst.aa_mode = True  # activate AA mode
+    on_lst.aa_mode = True  # activate AA mode
 
     off_list.auto_reload = True
-    lst.auto_reload = True
+    on_lst.auto_reload = True
     print("INITIATED AA LIST")
-    lst.meas_geometry = geom
-    return lst
+    on_lst.meas_geometry = geom
+    return on_lst
 
 
 # SCRIPT MAIN FUNCTION

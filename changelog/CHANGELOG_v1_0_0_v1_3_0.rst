@@ -157,7 +157,7 @@ Summary
 
 3. Image list classes (:mod:`imagelists`)
 
-  - **New list mode** :attr:`shift_mode` (only for offband lists, i.e. lists with attribute ``type="off"``): activate / deactivate shift (dx, dy) of images on image load (cf. other list modes, such as :attr:`tau_mode`, :attr:`calib_mode`, :attr:`optflow_mode`). If activated, the default shift :attr:`reg_shift_off` of the assigned :class:`Camera` instance is used (is set (0, 0) if not explicitely defined (either in file *cam_info.txt* for a camera type (cf. cam "usgs" therein) or in instance of :class:`Camera` directly).
+  - **New list mode** :attr:`shift_mode` (only for offband lists, i.e. lists with attribute ``type="off"``): activate / deactivate shift (dx, dy) of images on image load (cf. other list modes, such as :attr:`tau_mode`, :attr:`calib_mode`, :attr:`optflow_mode`). If activated, the default shift :attr:`reg_shift_off` of the assigned :class:`Camera` instance is used (is set (0, 0) if not explicitly defined (either in file *cam_info.txt* for a camera type (cf. cam "usgs" therein) or in instance of :class:`Camera` directly).
 
   - **Reviewed and optimised:**
 
@@ -254,7 +254,7 @@ Summary
   - New method :func:`integrate_profile` in class :class:`LineOnImage`
   - New method :func:`make_circular_mask` in module :mod:`helpers.py`
   - In :mod:`fluxcalc` (and all included classes): renamed attr :attr:`cd_err_rel` to :attr:`cd_err` (note changes in uncertainty treatment of calibration data!)
-  - :class:`EmissionRateSettings`: new option / attribute :attr:`min_cd_flow` (in addition to already existing :attr:`min_cd`) that may be used to explicitely define the minimum column-density of an image pixel for it to be considered valid with respect to `optical flow histogram analysis <https://www.atmos-meas-tech.net/11/781/2018/>`__ (before, the threshold :attr:`min_cd` was used). Is set equal :attr:`min_cd` if not explicitely specified
+  - :class:`EmissionRateSettings`: new option / attribute :attr:`min_cd_flow` (in addition to already existing :attr:`min_cd`) that may be used to explicitly define the minimum column-density of an image pixel for it to be considered valid with respect to `optical flow histogram analysis <https://www.atmos-meas-tech.net/11/781/2018/>`__ (before, the threshold :attr:`min_cd` was used). Is set equal :attr:`min_cd` if not explicitly specified
   - Moved class :class:`LineOnImage` into module :mod:`utils`
   - Moved method :func:`model_dark_image` from :mod:`processing` to :mod:`image` as well as class :class:`ProfileTimeSeriesImg`
   - Changed input parameter of :func:`model_dark_image` in :mod:`processing`
