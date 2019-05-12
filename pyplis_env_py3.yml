@@ -1,0 +1,17 @@
+channels:
+  - conda-forge
+  
+dependencies:
+  - python>=3.6
+  - scipy
+  - pandas
+  - astropy
+  - matplotlib
+  - basemap
+  - opencv
+  - latlon23
+  - pip
+  - pip:
+    - srtm.py
+    - pydoas
+    - geonum
