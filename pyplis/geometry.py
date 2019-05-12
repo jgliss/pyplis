@@ -32,7 +32,7 @@ from .helpers import check_roi, isnum
 from .glob import DEFAULT_ROI
 try:
     from geonum import GeoSetup, GeoPoint, GeoVector3D, TopoData
-    from geonum.topodata import TopoAccessError
+    from geonum.exceptions import TopoAccessError
 except BaseException:
     warn("Geonum library could not be found")
 
