@@ -19,7 +19,6 @@ from __future__ import (absolute_import, division)
 from os import listdir, unlink
 from os.path import basename, join, isfile
 from time import time
-from traceback import format_exc
 from SETTINGS import OPTPARSE
 
 (options, args) = OPTPARSE.parse_args()
@@ -57,10 +56,10 @@ for path in paths:
         msg = ("\n\n"
                "--------------------------------------------------------\n"
                "Tests in script %s failed.\n"
-               "Error traceback:\n %s\n"
+               "Error message:\n %s\n"
                "--------------------------------------------------------"
                "\n\n"
-               % (basename(path), format_exc(e)))
+               % (basename(path), repr(e)))
         test_err_messages.append(msg)
 
 t1 = time()

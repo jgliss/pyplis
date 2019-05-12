@@ -35,7 +35,7 @@ from __future__ import (absolute_import, division)
 from SETTINGS import check_version
 
 import pyplis as pyplis
-from geonum.base import GeoPoint
+from geonum import GeoPoint
 from matplotlib.pyplot import show, close, subplots, Rectangle, plot
 from datetime import datetime
 from os.path import join, exists
