@@ -67,9 +67,7 @@ def bg_img_on():
 def bg_img_off():
     return pyplis.Img(BG_FILE_OFF, FUN).to_pyrlevel(0)
 
-
-@pytest.fixture(scope="function")
-def setup():
+def _make_setup():
     cam_id = "ecII"
 
     # Define camera (here the default ecII type is used)
@@ -84,14 +82,15 @@ def setup():
 
     # camera location and viewing direction (altitude will be retrieved
     # automatically)
-    geom_cam = {"lon": 15.1129,
-                "lat": 37.73122,
-                "elev": 20.0,
-                "elev_err": 5.0,
-                "azim": 270.0,
-                "azim_err": 10.0,
-                "alt_offset": 15.0,
-                "focal_length": 25e-3}
+    geom_cam = {"lon"           :   15.1129,
+                "lat"           :   37.73122,
+                'altitude'      :   800,
+                "elev"          :   20.0,
+                "elev_err"      :   5.0,
+                "azim"          :   270.0,
+                "azim_err"      :   10.0,
+                "alt_offset"    :   15.0,
+                "focal_length"  :   25e-3}
 
     # the camera filter setup
     filters = [pyplis.Filter(type="on", acronym="F01"),
@@ -105,6 +104,10 @@ def setup():
                             wind_info=wind_info,
                             cell_info_dict=CALIB_CELLS,
                             auto_topo_access=False)
+    
+@pytest.fixture(scope="function")
+def setup():
+    return _make_setup()
 
 
 @pytest.fixture(scope="function")
@@ -196,8 +199,7 @@ def viewing_direction(geometry):
     """Find viewing direction of camera based on MeasGeometry."""
     from geonum import GeoPoint
     # Position of SE crater in the image (x, y)
-    se_crater_img_pos = [806, 736]
-
+    se_crater_img_pos = [720, 570] #[806, 736] (changed on 12/5/19)
     # Geographic position of SE crater (extracted from Google Earth)
     # The GeoPoint object (geonum library) automatically retrieves the altitude
     # using SRTM data
@@ -249,10 +251,8 @@ def test_find_viewdir(viewing_direction):
     vals = [viewing_direction.cam_azim, viewing_direction.cam_azim_err, 
             viewing_direction.cam_elev, viewing_direction.cam_elev_err]
     npt.assert_allclose(actual=vals,
-                        desired=[279.30130009369515,
-                                 1.0654107370916108,
-                                 2.385791506425046,
-                                 1.0645558907685284],
+                        desired=[280.21752138146036, 1.0656706289128692, 
+                                 13.72632050624192, 1.0656684171601736],
                         rtol=1e-7)
 
 
@@ -359,25 +359,4 @@ def test_bg_model(plume_dataset):
 
 
 if __name__ == "__main__":
-    import matplotlib.pyplot as plt
-    plt.rcParams["font.size"] = 14
-    plt.close("all")
-    test_auto_cellcalib(calib_dataset(setup())) # shouldnt be used in this way...
-
-    # lst.bg_model.plot_sky_reference_areas(lst.bg_model._current_imgs["plume"])
-
-
-# =============================================================================
-#
-#     flow = test_optflow()
-#     l=line()
-#
-#     ds = calib_dataset()
-#     ds.find_and_assign_cells_all_filter_lists()
-# =============================================================================
-    # cell = calib_dataset()
-# =============================================================================
-#     cell.find_and_assign_cells_all_filter_lists()
-#     cell.plot_cell_search_result()
-#
-# =============================================================================
+    stp = _make_setup()
