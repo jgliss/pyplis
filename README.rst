@@ -1,51 +1,51 @@
 .. image:: docs/_graphics/logo_pyplis_v3_with_banner.png
    :target: pageapplet/index.html
 
+Pyplis is a Python toolbox originally developed for the analysis of UV SO2 camera data. The software includes a comprehensive and flexible collection of algorithms for the analysis of atmospheric imaging data and is supported for all major operating systems and python 3 as well as python 2.7.
 
-
-Pyplis is a Python toolbox originally developed for the analysis of UV SO2 camera data. The software includes a comprehensive and flexible collection of algorithms for the analysis of atmospheric imaging data.
+**NOTE (Python 2.7 retires soon)**: if you are still using Python 2.7 (or any other Python 2 version), please consider updating your installation to Python 3, `since Python 2 is reaching its end-of-life soon <https://pythonclock.org/>`__.
 
 Contact: Jonas Gliss (jonasgliss@gmail.com)
 
 Code documentation and more
 ============================
 
+The code documentation of Pyplis and more information is hosted on `Read the Docs <http://pyplis.readthedocs.io/>`__.
+
 Main features
 =============
 
-- Detailed analysis of the measurement geometry including automised retrieval of distances to the emission plume and/or to topographic features in the camera images (at pixel-level).
+- Detailed analysis of the measurement geometry including automatic retrieval of distances to the emission plume and/or to topographic features in the camera images (at pixel-level).
 - Several routines for the retrieval of plume background intensities (either from plume images directly or using an additional sky reference image).
 - Automatic analysis of cell calibration data.
 - Correction for cross-detector variations in the SO2 sensitivity arising from wavelength shifts in the filter transmission windows.
 - DOAS calibration routine including two methods to identify the field of view of a DOAS instrument within the camera images.
 - Plume velocity retrieval either using an optical flow analysis or using signal cross correlation.
-- Histogram based post analysis of optical flow field for gas velocity analysis in low contrast image regions, where the optical flow fails to detect motion.
+- Histogram based post analysis of optical flow field for gas velocity analysis in low contrast image regions, where the optical flow fails to detect motion (cf. `Gliss et al., AMT, 2018 <https://www.atmos-meas-tech.net/11/781/2018/>`__).
 - Routine for image based correction of the signal dilution effect based on contrast variations of dark terrain features located at different distances in the images.
 - Support of standard image formats including `FITS format <https://de.wikipedia.org/wiki/Flexible_Image_Transport_System>`__.
 - Easy and flexible setup for data import and camera specifications.
 
+A detailed description of pyplis and its features (including analysis examples) can be found in `Gliss et al., MDPI Geosciences, 2017 <http://www.mdpi.com/2076-3263/7/4/134>`__.
 
+.. _install:
+
+Installation instructions and Requirements
+==========================================
+
+We recommend using the `Anaconda Python distribution <https://www.anaconda.com/distribution/>`__ (or `Miniconda <https://docs.conda.io/en/latest/miniconda.html>`__, if you want to save disk space) and to use the *conda* package manager.
+
+Below it is assumed that you made yourself familiar with the *conda* package manager and that it is installed on your system. It is recommended to have a look at the guidelines related to `conda virtual environments <https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html>`__.
+
+Do not hesitate to contact us (or raise an issue), if you have problems installing pyplis.
 
 Requirements
-============
+------------
 
-Pyplis requires the following packages:
+Before installing pyplis, make sure you have all requirements installed. A list of all mandatory requirements can be found in the provided conda environment file `pyplis_env.yml <https://github.com/jgliss/pyplis/blob/master/pyplis_env.yml>`_, which can also directly be used to install the requirements, as described below.
 
-- numpy >= 1.11.0
-- scipy >= 0.17.0
-- opencv (cv2) >= 2.4.11 (please note `this issue <https://github.com/jgliss/pyplis/issues/4>`__)
-- astropy >= 1.0.3
-- geonum >= 1.2.0 (refer also to `geonum <https://github.com/jgliss/geonum>`__)
-
-  - latlon23 >= 1.0.7
-  - srtm.py >= 0.3.2
-  - pyproj  >= 1.9.5.1
-  - basemap >= 1.0.7
-
-- pandas >= 0.16.2
-- matplotlib >= 1.4.3
-
-**Optional dependencies (to use extra features)**
+Optional dependencies (to use extra features)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 - Pillow (PIL fork) >= 3.3.0
 
@@ -55,49 +55,31 @@ Pyplis requires the following packages:
 
 - pydoas >= 1.0.0
 
-Details about the installation of Pyplis and all requirements can be found in the following section.
+Installation of the requirements
+---------------------------------
 
-We recommend using `Anaconda <https://www.continuum.io/downloads>`_ as package manager since it includes most of the required dependencies and is updated on a regular basis. Moreover, it is probably the most comfortable way to postinstall and upgrade dependencies such as OpenCV (`see here <http://stackoverflow.com/questions/23119413/how-to-install-python-opencv-through-conda>`__) or the scipy stack (for .
-
-Please, if you have problems installing Pyplis, contact us or better, raise an Issue.
-
-.. _install:
-
-Installation instructions
-=========================
-
-Python installation
--------------------
-
-We recommend using the `Anaconda Python distribution <https://www.anaconda.com/distribution/>`__ (or `Miniconda <https://docs.conda.io/en/latest/miniconda.html>`__, if you want to save disk space) and to use the *conda* package manager.
-
-Below it is assumed that you made yourself familiar with the *conda* package manager and that it is installed on your system. It is recommended to have a look at the guidelines related to `conda virtual environments <https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html>`__.
-
-Installation of all *Pyplis* requirements
------------------------------------------
-
-Before installing *Pyplis*, you need to install all requirements. In order to do so, you have 2 options, either using the provided conda environment file or by installing all requirements manually, as described in the following two sections. All instructions below assume that you use `Anaconda <https://www.anaconda.com/>`__ as package manager and
+Before installing *Pyplis*, you need to install all requirements. In order to do so, you have 2 options, either using the provided conda environment file or by installing all requirements manually, as described in the following two sections. All instructions below assume that you use `Anaconda <https://www.anaconda.com/>`__ as package manager.
 
 Installation of requirements using provided conda environment file
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The easiest way to install *all mandatory requirements is to use the provided environment file *pyplis_env_py27.yml*. This requires that the `conda` package manager is available. You can install the environment file either into a new environment (here, named *pyplis*) using::
+You can install all mandatory requirements using the provided environment file *pyplis_env.yml*. You can install the environment file either into a new environment (here, named *pyplis*) using::
 
-  conda env create -n pyplis_env_test -f pyplis_env_py27.yml
+  conda env create -n pyplis_env_test -f pyplis_env.yml
 
 Or you may install it into an existing environment using::
 
-  conda env update -f=pyplis_env_py27.yml
+  conda env update -f=pyplis_env.yml
 
 Manual installation of requirements
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 You may also install all requirements from scratch as described in the following step-by-step guide:
 
-1. (Optional): Create new empty python 2.7 environment for pyplis
+1. (Optional): Create new empty python environment for pyplis, e.g. with name *pyplis*
   ::
 
-    conda create --name pyplis python=2.7
+    conda create --name pyplis
 
   Activate the new environment
   ::
@@ -112,17 +94,12 @@ You may also install all requirements from scratch as described in the following
 3. Install basemap and OpenCV and geonum
   ::
 
-    conda install -c conda-forge basemap opencv geonum
+    conda install -c conda-forge basemap opencv geonum pydoas
 
   Note: this installs opencv version 4.
 
-5. Install pydoas
-  ::
-
-    pip install pydoas
-
 Installation of *pyplis*
-^^^^^^^^^^^^^^^^^^^^^^^^
+------------------------
 
 Here, you have two options.
 
@@ -131,7 +108,7 @@ Here, you have two options.
 
       pip install pyplis
 
-- **Option 2**: Installation of latest development version
+- **Option 2**: Installation from source (e.g. latest development version)
 
   Clone the `repository <https://github.com/jgliss/pyplis>`__ (green button "Clone or download") into a local directory of your choice. Unzip, and call
   ::
@@ -192,8 +169,21 @@ The article
 introduces *Pyplis* and implementation details. Furthermore, the article provides a comprehensive review of the technique of SO2 cameras with a focus on the required image analysis. The paper was published in December 2017 as part of a special issue on `Volcanic plumes <http://www.mdpi.com/journal/geosciences/special_issues/volcanic_processes>`__ of the Journal *Geosciences* (MDPI).
 The paper can be downloaded `here <http://www.mdpi.com/2076-3263/7/4/134>`__.
 
-.. _paper:
+Citation
+--------
+If you find *Pyplis* useful for your data analysis, we would highly appreciate if you acknowledge our work by citing the paper. Citing details can be found `here <http://www.mdpi.com/2076-3263/7/4/134>`__.
 
-Scientific background
-=====================
+Copyright
+=========
+
+Copyright (C) 2017 Jonas Gliss (jonasgliss@gmail.com)
+
+This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License a published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with this program. If not, see `here <http://www.gnu.org/licenses/>`__.
+
+.. note::
+
   The software was renamed from **piscope** to **Pyplis** on 17.02.2017
