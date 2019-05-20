@@ -21,12 +21,12 @@ Main features
 - Correction for cross-detector variations in the SO2 sensitivity arising from wavelength shifts in the filter transmission windows.
 - DOAS calibration routine including two methods to identify the field of view of a DOAS instrument within the camera images.
 - Plume velocity retrieval either using an optical flow analysis or using signal cross correlation.
-- Histogram based post analysis of optical flow field for gas velocity analysis in low contrast image regions, where the optical flow fails to detect motion (cf. `Gliss et al., AMT, 2018 <https://www.atmos-meas-tech.net/11/781/2018/>`__).
+- Histogram based post analysis of optical flow field for gas velocity analysis in low contrast image regions, where the optical flow fails to detect motion (cf. `Gliss et al., 2018 AMT <https://www.atmos-meas-tech.net/11/781/2018/>`__).
 - Routine for image based correction of the signal dilution effect based on contrast variations of dark terrain features located at different distances in the images.
 - Support of standard image formats including `FITS format <https://de.wikipedia.org/wiki/Flexible_Image_Transport_System>`__.
 - Easy and flexible setup for data import and camera specifications.
 
-A detailed description of pyplis and its features (including analysis examples) can be found in `Gliss et al., MDPI Geosciences, 2017 <http://www.mdpi.com/2076-3263/7/4/134>`__.
+A detailed description of pyplis and its features (including analysis examples) can be found in `Gliss et al., 2017, MDPI Geosciences <http://www.mdpi.com/2076-3263/7/4/134>`__.
 
 .. _install:
 
