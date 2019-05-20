@@ -2,16 +2,14 @@ channels:
   - conda-forge
   
 dependencies:
-  - python=2.7
+  - python
   - scipy
   - pandas
   - astropy
   - matplotlib
   - basemap
   - opencv
-  - latlon23
+  - geonum
   - pip
   - pip:
-    - srtm.py
     - pydoas
-    - geonum
