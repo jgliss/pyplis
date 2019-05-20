@@ -10,6 +10,4 @@ dependencies:
   - basemap
   - opencv
   - geonum
-  - pip
-  - pip:
-    - pydoas
+  - pydoas
