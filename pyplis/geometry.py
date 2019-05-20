@@ -1493,6 +1493,7 @@ class MeasGeometry(object):
 
         """
         if ax is None:
+            from mpl_toolkits.mplot3d import Axes3D
             fig = figure(figsize=(14, 8))
             ax = fig.add_subplot(1, 1, 1, projection='3d')
         s = self.geo_setup
