@@ -15,16 +15,18 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
-"""
-Pyplis introduction script 5 - Optical flow Farneback live view using webcam
+"""Pyplis introduction script 5 - Optical flow Farneback liveview using webcam.
 
 Create an OpticalFlowFarneback object and activate live view (requires webcam)
 """
+from __future__ import (absolute_import, division)
+
 # Check script version
 from SETTINGS import check_version
-check_version()
 
 import pyplis
+
+check_version()
 
 flow = pyplis.plumespeed.OptflowFarneback()
 flow.live_example()

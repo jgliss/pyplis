@@ -12,7 +12,7 @@ The following two flowcharts illustrate details about the Pyplis architecture, f
 Flowchart emission-rate retrieval (scientific)
 ----------------------------------------------
 
-The following flowchart illustrates the main analysis steps for emission-rate retrievals using UV SO2 cameras. The colours indicate geometrical calculations (yellow), background modelling (light gray), camera calibration (light blue), plume speed retrieval (light purple) and the central processing steps for the emission-rate retrieval (light green). Shaded and dashed symbols indicate optional or alternative analysis methods.
+The following flowchart illustrates the main analysis steps for emission-rate retrievals using UV SO2 cameras. The colours indicate geometrical calculations (yellow), background modelling (light grey), camera calibration (light blue), plume speed retrieval (light purple) and the central processing steps for the emission-rate retrieval (light green). Shaded and dashed symbols indicate optional or alternative analysis methods.
 
 .. figure::  ./_graphics/flowchart_physical.png
   :width: 80%

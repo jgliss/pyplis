@@ -7,14 +7,8 @@ Pyplis is a Python toolbox originally developed for the analysis of UV SO2 camer
 
 Contact: Jonas Gliss (jonasgliss@gmail.com)
 
-This branch supports only python **python 2.7**. Please use branch **py3** if you intend to use pyplis with python 3.
-The **py3** branch contains a *beta-version* of pyplis which supports both **python 2 and 3**.
-
-
 Code documentation and more
 ============================
-
-The code documentation of pyplis and more information is hosted on `Read the Docs <http://pyplis.readthedocs.io/en/latest/index.html>`__.
 
 Main features
 =============
@@ -75,7 +69,7 @@ Installation instructions
 Python installation
 -------------------
 
-We recommend using the `Anaconda Python 2.7 distribution <https://www.anaconda.com/distribution/>`__ (or `Miniconda <https://docs.conda.io/en/latest/miniconda.html>`__, if you want to save disk space) and to use the *conda* package manager.
+We recommend using the `Anaconda Python distribution <https://www.anaconda.com/distribution/>`__ (or `Miniconda <https://docs.conda.io/en/latest/miniconda.html>`__, if you want to save disk space) and to use the *conda* package manager.
 
 Below it is assumed that you made yourself familiar with the *conda* package manager and that it is installed on your system. It is recommended to have a look at the guidelines related to `conda virtual environments <https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html>`__.
 
@@ -115,19 +109,12 @@ You may also install all requirements from scratch as described in the following
 
     conda install scipy pandas astropy
 
-3. Install basemap and OpenCV
+3. Install basemap and OpenCV and geonum
   ::
 
-    conda install -c conda-forge basemap opencv
+    conda install -c conda-forge basemap opencv geonum
 
   Note: this installs opencv version 4.
-
-4. Install geonum
-  ::
-
-    conda install latlon23
-    pip install SRTM.py
-    pip install geonum
 
 5. Install pydoas
   ::
@@ -205,22 +192,8 @@ The article
 introduces *Pyplis* and implementation details. Furthermore, the article provides a comprehensive review of the technique of SO2 cameras with a focus on the required image analysis. The paper was published in December 2017 as part of a special issue on `Volcanic plumes <http://www.mdpi.com/journal/geosciences/special_issues/volcanic_processes>`__ of the Journal *Geosciences* (MDPI).
 The paper can be downloaded `here <http://www.mdpi.com/2076-3263/7/4/134>`__.
 
-Citation
---------
-If you find *Pyplis* useful for your data analysis, we would highly appreciate if you acknowledge our work by citing the paper. Citing details can be found `here <http://www.mdpi.com/2076-3263/7/4/134>`__.
+.. _paper:
 
-
-Copyright
-=========
-
-Copyright (C) 2017 Jonas Gliss (jonasgliss@gmail.com)
-
-This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License a published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
-
-This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along with this program. If not, see `here <http://www.gnu.org/licenses/>`__.
-
-.. note::
-
+Scientific background
+=====================
   The software was renamed from **piscope** to **Pyplis** on 17.02.2017

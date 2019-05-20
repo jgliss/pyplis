@@ -15,16 +15,14 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
-"""
-Pyplis global settings
-"""
+"""Pyplis global settings."""
 
 # String ID of species to be analysed (for plots etc.)
 SPECIES_ID = r"SO2"
 
-#map of internal calibration access keys to string repr. for plots
-CALIB_ID_STRINGS = {"on" : "On",
-                    "off":  "Off",
-                    "aa" :  "AA"}
+# map of internal calibration access keys to string repr. for plots
+CALIB_ID_STRINGS = {"on": "On",
+                    "off": "Off",
+                    "aa": "AA"}
 
 DEFAULT_ROI = [0, 0, 9999, 9999]

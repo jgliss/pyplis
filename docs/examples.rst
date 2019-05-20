@@ -1,14 +1,14 @@
 ***************
 Example scripts
 ***************
- 
+
 pyplis example scripts. The scripts require downloading the `pyplis test data <http://pyplis.readthedocs.io/en/latest/intro.html#example-and-test-data>`__.
 
 .. note::
 
   The scripts are based on the latest commit in the `GitHub repo <https://github.com/jgliss/pyplis>`__. If you have installed an older version of pyplis, please use the corresponding scripts which are provided `here <https://github.com/jgliss/pyplis/tree/master/scripts/old_versions>`__.
-  
-Inroductory scripts
+
+Introductory scripts
 ===================
 
 These scripts give an introduction into basic features and classes of pyplis.
@@ -51,7 +51,7 @@ Manual creation of :class:`ImgList` objects and basic features.
 Example 0.4 - Introduction into the Dataset class
 -------------------------------------------------
 
-Automatic image type separation using the :class:`Dataset` object and the ECII camera standard. 
+Automatic image type separation using the :class:`Dataset` object and the ECII camera standard.
 
 **Code**
 
@@ -59,7 +59,7 @@ Automatic image type separation using the :class:`Dataset` object and the ECII c
 
 .. _ex05:
 
-Example 0.5 - Optical flow live view 
+Example 0.5 - Optical flow live view
 ------------------------------------
 
 Live view of optical flow calculation using :class:`OpticalFlowFarneback` object (requires webcam).
@@ -156,7 +156,7 @@ This scripts shows how to perform automatic cell calibration based on a time ser
 Example 6 - DOAS calibration
 ----------------------------
 
-Introduction into DOAS calibration including FOV search using both, the Pearson and the IFR method. 
+Introduction into DOAS calibration including FOV search using both, the Pearson and the IFR method.
 
 **Code**
 
@@ -167,7 +167,7 @@ Introduction into DOAS calibration including FOV search using both, the Pearson 
 Example 7 - AA sensitivity correction masks
 -------------------------------------------
 
-Combine the results from :ref:`ex5` and :ref:`ex6` in order to retrieve AA sensitivity correction masks normalised to the position of the DOAS FOV. 
+Combine the results from :ref:`ex5` and :ref:`ex6` in order to retrieve AA sensitivity correction masks normalised to the position of the DOAS FOV.
 
 **Code**
 
@@ -175,7 +175,7 @@ Combine the results from :ref:`ex5` and :ref:`ex6` in order to retrieve AA sensi
 
 .. _ex8:
 
-Example 8 - Plume velocity retrieval (Cross correlation) 
+Example 8 - Plume velocity retrieval (Cross correlation)
 --------------------------------------------------------
 
 In this script an exemplary plume velocity retrieval is performed using the signal cross correlation algorithm. The velocity is retrieved based on two plume cross sections and a time series of plume AA images (using the AA :class:`ImgList` created in :ref:`ex4`).
@@ -186,10 +186,10 @@ In this script an exemplary plume velocity retrieval is performed using the sign
 
 .. _ex9:
 
-Example 9 - Plume velocity retrieval (Optical flow Farneback) 
+Example 9 - Plume velocity retrieval (Optical flow Farneback)
 -------------------------------------------------------------
 
-This script gives an introduction into plume velocity retrievals using the Farneback optical flow algorithm (:class:`OpticalFlowFarneback`) and a historgram based post analysis. 
+This script gives an introduction into plume velocity retrievals using the Farneback optical flow algorithm (:class:`OpticalFlowFarneback`) and a histogram based post analysis.
 
 **Code**
 
@@ -197,10 +197,10 @@ This script gives an introduction into plume velocity retrievals using the Farne
 
 .. _ex10:
 
-Example 10 - Import plume background images 
+Example 10 - Import plume background images
 -------------------------------------------
 
-Create a :class:`Dataset` object for a time interval containing only plume background images (on / off). 
+Create a :class:`Dataset` object for a time interval containing only plume background images (on / off).
 
 .. note::
 
@@ -212,7 +212,7 @@ Create a :class:`Dataset` object for a time interval containing only plume backg
 
 .. _ex11:
 
-Example 11 - Image based signal dilution correction 
+Example 11 - Image based signal dilution correction
 ---------------------------------------------------
 
 This script introduces the image based signal dilution correction including automatic retrieval of terrain distances on a pixel basis.
@@ -223,7 +223,7 @@ This script introduces the image based signal dilution correction including auto
 
 .. _ex12:
 
-Example 12 - Emission rate analysis (Etna example data) 
+Example 12 - Emission rate analysis (Etna example data)
 -------------------------------------------------------
 
 Perform emission rate analysis for the example data. The analysis is performed along one plume cross section (in the image center) and using three different plume velocity retrievals.

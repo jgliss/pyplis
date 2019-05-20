@@ -15,7 +15,8 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
-
+"""Package initialisation."""
+from __future__ import (absolute_import, division)
 from os.path import abspath, dirname
 from pkg_resources import get_distribution
 from matplotlib import rcParams
@@ -24,9 +25,9 @@ rcParams["mathtext.default"] = u"regular"
 
 __dir__ = abspath(dirname(__file__))
 __version__ = get_distribution('pyplis').version
-_LIBDIR = __dir__ #from older version
+_LIBDIR = __dir__  # from older version
 # =============================================================================
-# 
+#
 # URL_TESTDATA = ("https://folk.nilu.no/~gliss/pyplis_testdata/"
 #                 "pyplis_etna_testdata.zip")
 # =============================================================================
@@ -35,44 +36,42 @@ URL_TESTDATA = ("https://folk.nilu.no/~arve/pyplis/"
                 "pyplis_etna_testdata.zip")
 try:
     import pydoas
-    PYDOASAVAILABLE =True
-except:
+    PYDOASAVAILABLE = True
+except BaseException:
     PYDOASAVAILABLE = False
 
 try:
     import geonum
     GEONUMAVAILABLE = 1
-except:
+except BaseException:
     GEONUMAVAILABLE = 0
 
-from setupclasses import MeasSetup, Camera, Source
-from geometry import MeasGeometry
-from utils import Filter, DarkOffsetInfo, LineOnImage
-from image import Img, ProfileTimeSeriesImg
-from dataset import Dataset
-from imagelists import ImgList, CellImgList, DarkImgList
-from plumebackground import PlumeBackgroundModel
-from cellcalib import CellCalibData, CellCalibEngine
-from calib_base import CalibData
-from doascalib import DoasCalibData, DoasFOV, DoasFOVEngine
-from plumespeed import (find_signal_correlation, OptflowFarneback,
+from .setupclasses import MeasSetup, Camera, Source
+from .geometry import MeasGeometry
+from .utils import Filter, DarkOffsetInfo, LineOnImage
+from .image import Img, ProfileTimeSeriesImg
+from .dataset import Dataset
+from .imagelists import ImgList, CellImgList, DarkImgList
+from .plumebackground import PlumeBackgroundModel
+from .cellcalib import CellCalibData, CellCalibEngine
+from .calib_base import CalibData
+from .doascalib import DoasCalibData, DoasFOV, DoasFOVEngine
+from .plumespeed import (find_signal_correlation, OptflowFarneback,
                         FarnebackSettings, LocalPlumeProperties,
                         VeloCrossCorrEngine)
-from processing import ImgStack, PixelMeanTimeSeries
-from dilutioncorr import DilutionCorr
-from fluxcalc import (EmissionRateAnalysis, EmissionRates,
+from .processing import ImgStack, PixelMeanTimeSeries
+from .dilutioncorr import DilutionCorr
+from .fluxcalc import (EmissionRateAnalysis, EmissionRates,
                       EmissionRateSettings)
-from optimisation import PolySurfaceFit, MultiGaussFit
-import custom_image_import
-from inout import download_test_data, find_test_data
-#==============================================================================
-# import model_functions 
+from .optimisation import PolySurfaceFit, MultiGaussFit
+from . import custom_image_import
+from .inout import download_test_data, find_test_data
+# ==============================================================================
+# import model_functions
 # import helpers
 # import exceptions
 # import glob
-#==============================================================================
+# ==============================================================================
 
 
-
-
-#import gui_features as gui_features
+# import gui_features as gui_features

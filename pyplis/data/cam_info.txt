@@ -195,7 +195,7 @@ main_filter_id:on
 meas_type_pos:3
 darkcorr_opt:2
 focal_length:35.8e-3
-# Camera read out is 4x4 binned (original size is 2048x2048 pix á 7.4 microns)
+# Camera read out is 4x4 binned (original size is 2048x2048 pix a 7.4 microns)
 pix_height:29.59e-6
 pix_width:29.59e-6
 pixnum_x:512
@@ -212,8 +212,8 @@ image_import_method:load_hd_new
 ENDCAM
 
 NEWCAM
-cam_ids:usgs
-cam_id:usgs
+cam_ids:usgs, usgs_12mm
+cam_id:usgs_12mm
 delim:_
 time_info_pos:1
 time_info_str:%Y-%m-%d_%H-%M-%S.%f
@@ -249,6 +249,43 @@ image_import_method:load_usgs_multifits
 io_opts:USE_ALL_FILES=0, SEPARATE_FILTERS=1, USE_ALL_FILE_TYPES=0,INCLUDE_SUB_DIRS=1, ON_OFF_SAME_FILE=1, LINK_OFF_TO_ON=1, REG_SHIFT_OFF=1
 ENDCAM
 
+NEWCAM
+cam_ids:usgs, usgs_9mm
+cam_id:usgs_9mm
+delim:_
+time_info_pos:1
+time_info_str:%Y-%m-%d_%H-%M-%S.%f
+filter_id_pos:
+file_type:fits
+main_filter_id:on
+meas_type_pos:
+darkcorr_opt:
+texp_pos:
+texp_unit:
+focal_length:9.0e-3
+pix_height:4.65e-6
+pix_width:4.65e-6
+pixnum_x:1392
+pixnum_y:1040
+
+# default image registration shift between off and onband image: x, y in
+# pixel coordinates
+reg_shift_off: 8, -7
+
+# Filters (row-wise, format): 
+# filter:<ID>,<type>,<type acronym>,<meas_type acronym>,<center_wavelength>
+filter:on,on,on,on,313
+filter:off,off,off,off,330
+
+# Dark / offset information (row-wise, format):
+# dark_info:<ID>,<type>,<type acronym>,<meas_type acronym>,<read_gain>
+
+image_import_method:load_usgs_multifits
+
+# Options for how to import images in Dataset class. Please see attributes
+# of BaseSetup class in setupclasses.py source file of pyplis
+io_opts:USE_ALL_FILES=0, SEPARATE_FILTERS=1, USE_ALL_FILE_TYPES=0,INCLUDE_SUB_DIRS=1, ON_OFF_SAME_FILE=1, LINK_OFF_TO_ON=1, REG_SHIFT_OFF=1
+ENDCAM
 
 NEWCAM
 cam_ids:ecII_new_test
