@@ -1,8 +1,9 @@
 channels:
   - conda-forge
-  
+
 dependencies:
   - python
+  - numpy
   - scipy
   - pandas
   - astropy
@@ -11,3 +12,4 @@ dependencies:
   - opencv
   - geonum
   - pydoas
+  - six
