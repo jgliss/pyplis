@@ -1,0 +1,15 @@
+channels:
+  - conda-forge
+
+dependencies:
+  - python=2.7
+  - numpy
+  - scipy
+  - pandas
+  - astropy
+  - matplotlib
+  - basemap
+  - opencv
+  - geonum
+  - pydoas
+  - six
