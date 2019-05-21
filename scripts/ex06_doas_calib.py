@@ -34,7 +34,7 @@ curves retrieved for both FOV parametrisations.
 Note
 ------
 
-In caae a MemoryError occurs while determining the AA image stack, then the
+In case a MemoryError occurs while determining the AA image stack, then the
 stack (3D numpy array) is too large for the RAM. In this case, try
 increasing script option PYRLEVEL_ROUGH_SEARCH.
 
@@ -45,6 +45,8 @@ from SETTINGS import check_version
 
 import pyplis
 import pydoas
+import numpy.testing as npt
+import numpy as np
 from datetime import timedelta
 from matplotlib.pyplot import close, show, subplots
 from os.path import join, exists
@@ -176,7 +178,69 @@ def get_stack(reload_stack=RELOAD_STACK, stack_path=STACK_PATH,
 
     return stack, aa_list
 
-
+### Test functions used at the end of the script
+def test_calib_pears_init(calib):
+    calib.fit_calib_data(polyorder=1)
+    cc = pyplis.helpers.get_img_maximum(calib.fov.corr_img.img)
+    assert cc == (124, 159),  cc
+    
+    pyrl = calib.fov.pyrlevel
+    assert pyrl == 2, pyrl
+    res_dict = calib.fov.result_pearson
+    npt.assert_allclose([res_dict['rad_rel'], 
+                         np.max(100*res_dict['corr_curve'].values)],
+                        [3, 95], atol=1)
+    
+    fov_ext = calib.fov.pixel_extend(abs_coords=True)
+    (fov_x, fov_y) = calib.fov.pixel_position_center(abs_coords=True)
+    
+    
+    npt.assert_allclose([fov_ext, fov_x, fov_y],
+                        [res_dict['rad_rel']*2**pyrl, 636, 496], atol=1)
+    
+    
+    npt.assert_allclose(calib.calib_coeffs,
+                        [8.58e+18, 2.71e+17], rtol=1e-1)
+  
+def test_calib_pears_fine(calib):
+    cc = pyplis.helpers.get_img_maximum(calib.fov.corr_img.img)
+    npt.assert_allclose((186, 180),  cc, atol=1)
+    
+    pyrl = calib.fov.pyrlevel
+    assert pyrl == 0, pyrl
+    res_dict = calib.fov.result_pearson
+    npt.assert_allclose([res_dict['rad_rel'], 
+                         np.max(100*res_dict['corr_curve'].values)],
+                        [6, 95], atol=1)
+    
+    fov_ext = calib.fov.pixel_extend(abs_coords=True)
+    (fov_x, fov_y) = calib.fov.pixel_position_center(abs_coords=True)
+    
+    
+    npt.assert_allclose([fov_ext, fov_x, fov_y],
+                        [6, 630, 493], atol=1)
+    
+    npt.assert_allclose(calib.calib_coeffs,
+                        [8.38e+18, 2.92e+17], rtol=1e-1)
+    
+def test_calib_ifr(calib):
+    cc = pyplis.helpers.get_img_maximum(calib.fov.corr_img.img)
+    npt.assert_allclose((123, 157), cc, atol=1)
+    
+    pyrl = calib.fov.pyrlevel
+    assert pyrl == 2, pyrl
+    npt.assert_allclose(calib.fov.result_ifr['popt'][1:5],
+                        [158.6, 122.9, 15.4, 1.5], rtol=1e-1)
+    
+    (fov_x, fov_y) = calib.fov.pixel_position_center(abs_coords=True)
+    
+    npt.assert_allclose([fov_x, fov_y, calib_ifr.fov.sigma_x_abs,
+                         calib_ifr.fov.sigma_y_abs],
+                        [635, 492, 61.5, 41.6], atol=2)
+    
+    
+    npt.assert_allclose(calib.calib_coeffs,
+                        [9.38e+18, 1.75e+17], rtol=1e-1)
 # SCRIPT MAIN FUNCTION
 if __name__ == "__main__":
     # close all plots
@@ -204,18 +268,17 @@ if __name__ == "__main__":
     s = pyplis.doascalib.DoasFOVEngine(stack, doas_time_series)
     calib_pears = s.perform_fov_search(method="pearson")
     calib_ifr = s.perform_fov_search(method="ifr", ifrlbda=4e-3)
-
+    
     # plot the FOV search results
     ax0 = calib_pears.fov.plot()
     ax1 = calib_ifr.fov.plot()
 
     calib_pears.fit_calib_data()
-
+    calib_ifr.fit_calib_data()
+    
     fig, ax2 = subplots(1, 1)
     calib_pears.plot(add_label_str="Pearson", color="b", ax=ax2)
-
-    calib_ifr.fit_calib_data()
-
+    
     calib_ifr.plot(add_label_str="IFR", color="g", ax=ax2)
     ax2.set_title("Calibration curves Pearson vs. IFR method")
     ax2.grid()
@@ -232,6 +295,7 @@ if __name__ == "__main__":
             aa_list = prepare_aa_image_list()
         # remember some properties of the current image stack that is stored in
         # the DoasFOVEngine object (i.e. the merged one in low pixel res.)
+        
         num_merge, h, w = s.img_stack.shape
         s_fine = s.run_fov_fine_search(aa_list, doas_time_series,
                                        method="pearson")
@@ -268,35 +332,23 @@ if __name__ == "__main__":
     # activated from the command line when executing the script using the
     # option --test 1
     if int(options.test):
-        import numpy.testing as npt
         from os.path import basename
-
+        
         num, h, w = stack.shape
-        num2, h2, w2 = s.img_stack.shape  # stack after fine FOV search
+        num2 = s.img_stack.shape[0]  # stack after fine FOV search
         prep = stack.img_prep
 
         # check some basic properties of the data used for the different FOV
         # searches
         npt.assert_array_equal(
             [len(doas_time_series), num, num_merge, h, w, stack.pyrlevel,
-             prep["darkcorr"] * prep["is_tau"] * prep["is_aa"], num2, h2, w2],
-            [120, 209, 88, 256, 336, 2, 1, 209, 375, 374])
-        # check IFR calibration results including FOV
-        # ... under development (NOT FINISHED)
-        c = calib_ifr
-        vals = list(c.fov.result_ifr["popt"])
-        vals.extend(c.fov.pos_abs)
-        vals.append(c.fov.sigma_x_abs)
-        vals.append(c.fov.sigma_y_abs)
-        print(vals)
-        npt.assert_allclose(actual=vals,
-                            desired=[ 4.888151e-01,  1.591505e+02,  
-                                     1.232067e+02,  1.561385e+01,
-                                     1.517309e+00,  1.003336e+00, 
-                                     -1.032666e-04,  6.366021e+02,
-                                     4.928269e+02,  6.245541e+01,  
-                                     4.116195e+01],
-                            rtol=1e-3)
+             prep["darkcorr"] * prep["is_tau"] * prep["is_aa"], num2],
+            [120, 209, 88, 256, 336, 2, 1, 209])
+        
+        test_calib_pears_init(calib_pears)
+        test_calib_ifr(calib_ifr)
+        test_calib_pears_fine(calib_pears_fine)
+        
         print("All tests passed in script: %s" % basename(__file__))
     try:
         if int(options.show) == 1:
