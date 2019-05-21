@@ -940,8 +940,11 @@ class DoasFOVEngine(object):
         if self.method == "pearson":
             cy, cx = get_img_maximum(self.calib_data.fov.corr_img.img)
             print("Start radius search in stack around x/y: %s/%s" % (cx, cy))
-            radius, corr_curve, tau_vec, cd_vec, fov_mask =\
-                self.fov_radius_search(cx, cy)
+            (radius, 
+             corr_curve, 
+             tau_vec, 
+             cd_vec, 
+             fov_mask) = self.fov_radius_search(cx, cy)
 
             if not radius > 0:
                 raise ValueError("Pearson FOV search failed")
@@ -1023,12 +1026,13 @@ class DoasFOVEngine(object):
         # loop over all radii, get tauSeries at each, (merge) and determine
         # correlation coefficient
         for r in radii:
-            print("current radius:" + str(r))
+            
             # now get mean values of all images in stack in circular ROI around
             # CFOV
             tau_series, m = stack.get_time_series(cx, cy, radius=r)
             tau_dat = tau_series.values
             coeff, err = pearsonr(tau_dat, cd_vec)
+            print("Rad: {} (R: {:.4f})".format(r, coeff))
             coeffs.append(coeff)
             coeffs_err.append(err)
             # and append correlation coefficient to results
