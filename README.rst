@@ -1,13 +1,13 @@
-Pyplis is a Python toolbox originally developed for the analysis of UV SO2 camera data. The software includes a comprehensive and flexible collection of algorithms for the analysis of atmospheric imaging data and is supported for all major operating systems and python 3 as well as python 2.7.
+Pyplis is a Python toolbox originally developed for the analysis of UV SO2 camera data. The software includes a comprehensive and flexible collection of algorithms for the analysis of atmospheric imaging data and is tested for all major operating systems and python 3 as well as python 2.7.
 
 **NOTE (Python 2.7 retires soon)**: if you are still using Python 2.7 (or any other Python 2 version), please consider updating your installation to Python 3, `since Python 2 is reaching its end-of-life soon <https://pythonclock.org/>`_.
 
 Contact: Jonas Gliss (jonasgliss@gmail.com)
 
 Code documentation and more
-============================
+===========================
 
-The code documentation of Pyplis and more information is hosted on `Read the Docs <http://pyplis.readthedocs.io/>`_.
+The code documentation of pyplis and more information is hosted on `Read the Docs <http://pyplis.readthedocs.io/>`_.
 
 Main features
 =============
@@ -18,7 +18,7 @@ Main features
 - Correction for cross-detector variations in the SO2 sensitivity arising from wavelength shifts in the filter transmission windows.
 - DOAS calibration routine including two methods to identify the field of view of a DOAS instrument within the camera images.
 - Plume velocity retrieval either using an optical flow analysis or using signal cross correlation.
-- Histogram based post analysis of optical flow field for gas velocity analysis in low contrast image regions, where the optical flow fails to detect motion (cf. `Gliss et al., 2018 AMT <https://www.atmos-meas-tech.net/11/781/2018/>`_).
+- Histogram based post analysis of optical flow field for gas velocity analysis in low contrast image regions, where the optical flow fails to detect motion (cf. `Gliss et al., 2018, AMT <https://www.atmos-meas-tech.net/11/781/2018/>`_).
 - Routine for image based correction of the signal dilution effect based on contrast variations of dark terrain features located at different distances in the images.
 - Support of standard image formats including `FITS format <https://de.wikipedia.org/wiki/Flexible_Image_Transport_System>`_.
 - Easy and flexible setup for data import and camera specifications.
@@ -137,7 +137,7 @@ Scientific background
 
 The article:
 
-*Pyplis–A Python Software Toolbox for the Analysis of SO2 Camera Images for Emission Rate Retrievals from Point Sources*, Gliß, J., Stebel, K., Kylling, A., Dinger, A. S., Sihler, H., and Sudbø, A., Geosciences, 2017
+*Pyplis�A Python Software Toolbox for the Analysis of SO2 Camera Images for Emission Rate Retrievals from Point Sources*, Gli�, J., Stebel, K., Kylling, A., Dinger, A. S., Sihler, H., and Sudb�, A., Geosciences, 2017
 
 introduces *Pyplis* and implementation details. Furthermore, the article provides a comprehensive review of the technique of SO2 cameras with a focus on the required image analysis. The paper was published in December 2017 as part of a special issue on `Volcanic plumes <http://www.mdpi.com/journal/geosciences/special_issues/volcanic_processes>`_ of the Journal *Geosciences* (MDPI).
 `Download paper <http://www.mdpi.com/2076-3263/7/4/134>`_.

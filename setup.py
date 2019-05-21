@@ -21,28 +21,27 @@ from codecs import open
 from os.path import join, abspath, dirname, expanduser, exists
 from os import mkdir
 
-with open(join(abspath(dirname(__file__)),'README.rst'), 
-          encoding = 'utf-8') as file:
-    readme = file.read()
-    
+with open('README.rst') as f:
+    readme = f.read()
+
 with open("VERSION.rst") as f:
     version = f.readline()
     f.close()
-    
+
 #with open(join("pyplis","data", "_paths.txt"), 'w'): pass
 
 usr_dir = join(expanduser('~'), "my_pyplis")
 if not exists(usr_dir):
     mkdir(usr_dir)
-    
+
 setup(
     name        =   'pyplis',
     version     =   version,
     author      =   'Jonas Gliss',
     author_email=   'jonasgliss@gmail.com',
-    license     =   'GPLv3+',
+    license     =   'GPL-3.0',
     url         =   'https://github.com/jgliss/pyplis',
-    description = ('Python library for the analysis UV SO2 camera data'),
+    description =   'Python library for the analysis UV SO2 camera data',
     long_description = readme,
     # See https://pypi.python.org/pypi?%3Aaction=list_classifiers
     classifiers=[
@@ -62,13 +61,13 @@ setup(
         # Specify the Python versions you support here. In particular, ensure
         # that you indicate whether you support Python 2, Python 3 or both.,
         'Programming Language :: Python :: 2.7',
-        'Programming Language :: Python :: 2 :: Only'
+        'Programming Language :: Python :: 3'
     ],
     #packages    =   ['pyplis'],
     package_dir =   {'pyplis'     :    'pyplis'},
                      #'pyplis.gui_features' :    'pyplis/gui_features'},
     packages =  find_packages(exclude=['contrib', 'docs', 'tests*']),
-                 
+
     package_data = {'pyplis'    :   ['data/*.txt',
                                      'data/*.rst',
                                      'data/*.png',
@@ -81,6 +80,6 @@ setup(
                              'pyplis/data/my_sources.txt'])],
 
     install_requires    =   [],
-    dependency_links    =   [],   
+    dependency_links    =   [],
     entry_points = {},#'console_scripts': ['sample=sample:main',],},
 )
