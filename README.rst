@@ -8,7 +8,7 @@ News / Notifications
 - **Pyplis 1.4.3 is released**
 
   - supports now both Python 2 and 3
-  - can be easily installed (including all requirements) via `conda install -c conda-forge pyplis`
+  - can be easily installed (including all requirements) via ``conda install -c conda-forge pyplis``
 
 - **NOTE (Python 2.7 retires soon)**
 
