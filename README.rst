@@ -56,7 +56,7 @@ Pyplis is available via the `conda-forge channel <https://anaconda.org/conda-for
 
   conda install -c conda-forge pyplis
 
-This will install all requirements as well. This is the recommended (and by far easiest) way to get pyplis running on your system. You may also
+This will install all requirements as well. This is the recommended (and by far easiest) way to get pyplis running on your system.
 
 Requirements
 ------------
