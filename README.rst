@@ -1,6 +1,13 @@
 Pyplis is a Python toolbox originally developed for the analysis of UV SO2 camera data. The software includes a comprehensive and flexible collection of algorithms for the analysis of atmospheric imaging data and is tested for all major operating systems and python 3 as well as python 2.7.
 
-**NOTE (Python 2.7 retires soon)**: if you are still using Python 2.7 (or any other Python 2 version), please consider updating your installation to Python 3, `since Python 2 is reaching its end-of-life soon <https://pythonclock.org/>`_.
+News / Notifications
+====================
+
+- **Pyplis 1.4.3 is released**
+  - supports now both Python 2 and 3
+  - can be easily installed (including all requirements) via `conda install -c conda-forge pyplis`
+- **NOTE (Python 2.7 retires soon)**
+  if you are still using Python 2.7 (or any other Python 2 version), please consider updating your installation to Python 3, `since Python 2 is reaching its end-of-life soon <https://pythonclock.org/>`_.
 
 Contact: Jonas Gliß (jonasgliss@gmail.com)
 
@@ -28,16 +35,30 @@ A detailed description of pyplis and its features (including analysis examples) 
 Installation instructions and Requirements
 ==========================================
 
-We recommend using the `Anaconda Python distribution <https://www.anaconda.com/distribution/>`_ (or `Miniconda <https://docs.conda.io/en/latest/miniconda.html>`_, if you want to save disk space) and to use the *conda* package manager.
+We recommend using the `Anaconda Python distribution <https://www.anaconda.com/distribution/>`_ (or `Miniconda <https://docs.conda.io/en/latest/miniconda.html>`_, if you want to save disk space) and to use the *conda* package manager. Why? `See, e.g. here for some good reasons <https://www.opensourceanswers.com/blog/best-practices-with-conda.html>`_.
 
 Below it is assumed that you made yourself familiar with the *conda* package manager and that it is installed on your system. It is recommended to have a look at the guidelines related to `conda virtual environments <https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html>`_.
 
-Do not hesitate to contact us (or raise an issue), if you have problems installing pyplis.
+Comment regarding conda environments
+------------------------------------
+We highly recommend to work in individual conda environments, for your different projects and not to install everything into your Anaconda root environment (base), which is usually activated by default. In other words: please do not install pyplis into your root environment but create a new one using::
+
+  conda create -n my_awesome_conda_environment
+
+Installation using conda
+------------------------
+Pyplis is available via the `conda-forge channel <https://anaconda.org/conda-forge/pyplis>`_ and can be easily installed via::
+
+  conda install -c conda-forge pyplis
+
+This will install all requirements as well. This is the recommended (and by far easiest) way to get pyplis running on your system. You may also
 
 Requirements
 ------------
 
-Before installing pyplis, make sure you have all requirements installed. A list of all mandatory requirements can be found in the provided conda environment file `pyplis_env.yml <https://github.com/jgliss/pyplis/blob/master/pyplis_env.yml>`_, which can also directly be used to install the requirements, as described below.
+Before installing pyplis, make sure you have all requirements installed (which is done automatically if you install pyplis via conda as described in previous section).
+
+A list of all mandatory requirements can be found in the provided conda environment file `pyplis_env.yml <https://github.com/jgliss/pyplis/blob/master/pyplis_env.yml>`_, which can also directly be used to install the requirements, as described below.
 
 Optional dependencies (to use extra features)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -48,21 +69,21 @@ Optional dependencies (to use extra features)
   - We recommend using ``pip install pillow`` rather than ``conda install pillow`` due to
   - well known installation issues, e.g. `here <https://github.com/python-pillow/Pillow/issues/2945>`_
 
-- pydoas >= 1.0.0
+- pydoas >= 1.0.0 (comes with conda installation and provided environment file)
 
 Installation of the requirements
 ---------------------------------
 
-Before installing *Pyplis*, you need to install all requirements. In order to do so, you have 2 options, either using the provided conda environment file or by installing all requirements manually, as described in the following two sections. All instructions below assume that you use `Anaconda <https://www.anaconda.com/>`_ as package manager.
+Before installing *Pyplis*, you need to install all requirements. To do so, you may either use the provided conda environment file or install all requirements manually, as described in the following two sections. All instructions below assume that you use `Anaconda <https://www.anaconda.com/>`_ as package manager.
 
 Installation of requirements using provided conda environment file
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-You can install all mandatory requirements using the provided environment file *pyplis_env.yml*. You can install the environment file either into a new environment (here, named *pyplis*) using::
+You can install all mandatory requirements using the provided environment file *pyplis_env.yml* (or *pyplis_env_py27.yml* if you still use python 2.7). You can install the environment file into a new environment (here, named *pyplis*) using::
 
   conda env create -n pyplis_env_test -f pyplis_env.yml
 
-Or you may install it into an existing environment using::
+Or you may install it into an existing environment by activating the environment and then::
 
   conda env update -f=pyplis_env.yml
 
@@ -75,22 +96,34 @@ You may also install all requirements from scratch as described in the following
   conda activate pyplis # activates new environment (optional)
   conda install -c conda-forge scipy pandas astropy basemap opencv geonum pydoas
 
-Installation of *pyplis*
-------------------------
+Installation of pyplis
+----------------------
 
-Here, you have two options.
+Here, you have 3 options.
 
-- **Option 1**: Installation of latest `PyPi release <https://pypi.python.org/pypi/pyplis>`_
-  ::
+Via conda
+^^^^^^^^^
+From the command line, call::
 
-      pip install pyplis
+  conda install -c conda-forge pyplis
 
-- **Option 2**: Installation from source (e.g. latest development version)
+This option installs pyplis and all requirements automatically.
 
-  Clone the `repository <https://github.com/jgliss/pyplis>`_ (green button "Clone or download") into a local directory of your choice. Unzip, and call
-  ::
+Via pip
+^^^^^^^^
+From the command line, call::
 
-    python setup.py install
+  pip install pyplis
+
+This option only installs pyplis, you have to install all requirements yourself (for details, see previous sections).
+
+From Source
+^^^^^^^^^^^
+In order to install from source, please download or clone the `repo <https://github.com/jgliss/pyplis>`_ (or one of the `pyplis releases <https://github.com/jgliss/pyplis/releases>`_) into a local directory of your choice. Then, unzip and from the project root directory (the one that contains setup.py file) call::
+
+  python setup.py install
+
+This option only installs pyplis, you have to install all requirements yourself (for details, see previous sections).
 
 Note
 ^^^^
@@ -104,6 +137,8 @@ Installation remarks and known issues
 - Sometimes it is helpful, to reinstall your whole Python environment (or, if you use Anaconda, `create a new one <https://conda.io/docs/user-guide/tasks/manage-environments.html>`_) rather than trying to upgrade all dependencies to the required version
 
 - If you find a bug or detect a specific problem with one of the requirements (e.g. due to future releases) please let us know or `raise an issue <https://github.com/jgliss/pyplis/issues>`_.
+
+**Do not hesitate to contact us (or raise an issue), if you have problems installing pyplis.**
 
 Getting started
 ===============
