@@ -44,9 +44,11 @@ Below it is assumed that you made yourself familiar with the *conda* package man
 
 Comment regarding conda environments
 ------------------------------------
-We highly recommend to work in individual conda environments, for your different projects and not to install everything into your Anaconda root environment (base), which is usually activated by default. In other words: please do not install pyplis into your root environment but create a new one using::
+We highly recommend to work in individual conda environments for your different projects and not to install everything into your Anaconda root environment (base), which is usually activated by default. In other words: please do not install pyplis into your root environment but create a new one using::
 
   conda create -n my_awesome_conda_environment
+
+`Why? <https://www.opensourceanswers.com/blog/best-practices-with-conda.html>`_
 
 Installation using conda
 ------------------------
