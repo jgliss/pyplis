@@ -301,7 +301,6 @@ def test_optflow(plume_img, plume_img_next, line):
     angle_img = flow.get_flow_orientation_img()
     l = line.convert(plume_img.pyrlevel)
     res = flow.local_flow_params(line=l, dir_multi_gauss=False)
-    flow.plot_flow_histograms()
     nominal = [0.658797,
                -41.952854,
                -65.971787,
@@ -346,15 +345,8 @@ def test_bg_model(plume_dataset):
     """
     l = plume_dataset.get_list("on")
     m = l.bg_model
-    sum_exceptions = 0
-    try:
-        m.plot_sky_reference_areas(l.this)
-    except ValueError:
-        sum_exceptions += 1
-    m.set_missing_ref_areas(l.this)
 
-    npt.assert_array_equal([sum_exceptions],
-                           [1])
+    m.set_missing_ref_areas(l.this)
     # m.set_missing_ref_areas(plume_img())
 
 
