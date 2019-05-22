@@ -1,15 +1,18 @@
 Pyplis is a Python toolbox originally developed for the analysis of UV SO2 camera data. The software includes a comprehensive and flexible collection of algorithms for the analysis of atmospheric imaging data and is tested for all major operating systems and python 3 as well as python 2.7.
 
+Contact: Jonas Gliß (jonasgliss@gmail.com)
+
 News / Notifications
 ====================
 
 - **Pyplis 1.4.3 is released**
+
   - supports now both Python 2 and 3
   - can be easily installed (including all requirements) via `conda install -c conda-forge pyplis`
-- **NOTE (Python 2.7 retires soon)**
-  if you are still using Python 2.7 (or any other Python 2 version), please consider updating your installation to Python 3, `since Python 2 is reaching its end-of-life soon <https://pythonclock.org/>`_.
 
-Contact: Jonas Gliß (jonasgliss@gmail.com)
+- **NOTE (Python 2.7 retires soon)**
+
+  If you are still using Python 2.7 (or any other Python 2 version), please consider updating your installation to Python 3, `since Python 2 is reaching its end-of-life soon <https://pythonclock.org/>`_.
 
 Code documentation and more
 ===========================
