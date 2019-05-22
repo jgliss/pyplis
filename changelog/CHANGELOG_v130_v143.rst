@@ -1,0 +1,192 @@
+Automatically generated (and slightly modified) using::
+
+   git log --pretty=format:"- %ad, %aN%x09%s" --date=short v1.3.0..HEAD > changelog/CHANGELOG_v130_v143.rst
+
+Release 1.3.0 -> 1.4.3
+=======================================
+
+- 2019-05-22, jgliss	Updated README
+- 2019-05-22, jgliss	Updated README
+- 2019-05-22, jgliss	Updated README
+- 2019-05-22, jgliss	Updated README
+- 2019-05-22, jgliss	Updated README
+- 2019-05-22, jgliss	Removed release note for version 1.3.0
+- 2019-05-21, jgliss	Fixed some formatting errors in README
+- 2019-05-21, jgliss	Updated version to 1.4.3, cleaned up and reformatted README so that it passes twine check and included Python 3 support into classifiers in setup.py
+- 2019-05-21, jgliss	Updated version to 1.4.2
+- 2019-05-21, jgliss	Removed / reformatted problematic parts from README.rst, so that it will be (hopefully) rendered properly in PyPi
+- 2019-05-21, jgliss	Removed pyplis logo from README (since it could not be rendered on PyPi) and updated version to 1.4.1
+- 2019-05-21, jgliss	Changed version to 1.4.0 (ready for release)
+- 2019-05-21, jgliss	Added LICENSE file to MANIFEST.in
+- 2019-05-21, jgliss	Refined tests performed in script ex06_doas_calib.py and accounted for minor differences in results between python 2.7 and 3.7
+- 2019-05-21, jgliss	Minor changes in output of radius search in doascalib.py
+- 2019-05-21, jgliss	Updated requirements file and added explicit conda environment file for python 2.7
+- 2019-05-20, jgliss	Updated README
+- 2019-05-20, jgliss	Updated README
+- 2019-05-20, jgliss	Added numpy and six to environment file
+- 2019-05-20, jgliss	Updated version
+- 2019-05-20, jgliss	Added pydoas to conda-forge dependency in pyplis_env.yml (no pip dependencies anymore)
+- 2019-05-20, jgliss	Added import of mpl_toolkits.mplot3d in 3d plotting routine of MeasGeometry
+- 2019-05-20, jgliss	Updated, simplified and merged two conda environment files for python 2 and 3 into new one that works for both: pyplis_env.yml
+- 2019-05-20, jgliss	Updated version and fixed one test in ex02_meas_geometry.py
+- 2019-05-20, jgliss	Merge branch 'py3'
+- 2019-05-12, jgliss	Fixed some minor Deprecationwarnings
+- 2019-05-12, jgliss	Fixed failing test related to viewing direction correction of camera
+- 2019-05-12, jgliss	Fixed import error in geometry.py of geonum class TopoAccessError, due to recent API changes in geonum
+- 2019-05-12, Jonas	Merge pull request #23 from johannjacobsohn/fix-typos
+- 2019-05-12, jgliss	Fixed relative imports of geonum in example scripts; fixed failing test in ex06_doas_calib.py
+- 2019-05-12, jgliss	Added conda environment file for python 3 installation (not yet tested)
+- 2019-04-23, Jonas Gliss	Updated pyplis_env_py27.yml
+- 2019-04-23, Jonas Gliss	Updated README
+- 2019-04-23, Jonas Gliss	Updated README
+- 2019-04-23, Jonas Gliss	Updated README
+- 2019-04-23, Jonas Gliss	Updated VERSION to 1.4.0.dev1
+- 2019-04-23, Jonas Gliss	Updated installation instructions in README
+- 2019-04-23, Jonas Gliss	Updated script ex02_meas_geometry.py due to failing tests
+- 2019-04-23, Jonas Gliss	Added python 2.7 conda environment file pyplis_env_py27.yml
+- 2019-04-22, jgliss	Merged and updated README from py3 branch
+- 2019-04-22, jgliss	Updated geometry.py due to recent API updates in new geonum release v1.4.0
+- 2019-04-22, jgliss	Updated example scripts due to recent API changes in latest version 1.4.0 of geonum
+- 2019-03-01, Jonas	Update README.rst
+- 2019-02-25, Johann Jacobsohn	cleanup
+- 2019-02-22, Johann Jacobsohn	fixup use of depreciated methods and properties
+- 2019-02-19, Johann Jacobsohn	fixup typos
+- 2019-02-19, Solvejg Dinger	Fix broken link in Readme
+- 2019-02-19, Solvejg Dinger	Merge pull request #10 from heliotropium72/patch-1
+- 2019-02-19, Solvejg Dinger	Adapt suggestion for one-liner
+- 2019-02-11, Jonas Gliss	Refers to  #13: Added new default camera usgs_9mm; the 12mm focal length version can now be accessed via the former ID usgs but also via usgs_12mm
+- 2019-01-25, Solvejg Dinger	Fixed rendering problem of README
+- 2019-01-25, Solvejg Dinger	Update README.rst
+- 2019-01-22, Solvejg Dinger	Merge pull request #16 from johannjacobsohn/py3
+- 2019-01-17, Johann Jacobsohn	WIP: fixup to make tests pass, needs to be investigated
+- 2019-01-17, Johann Jacobsohn	py3.7 doesn't like __dir__ to be overwritten...
+- 2019-01-17, Johann Jacobsohn	add python 3.5 and 3.7 to tox, update pytest dependency and remove sitepackages from tox to make tests more consistent
+- 2019-01-15, heliotropium72	Fix pytest fixtures to correct usage
+- 2019-01-14, heliotropium72	Revert previous WIP
+- 2019-01-02, jgliss	Partly fixed failing tests
+- 2018-12-27, jgliss	Fixed bug arising from division returning float rather than int, due to recent Python 3 port
+- 2018-11-29, Johann Jacobsohn	Revert "skip failing test until fixed"
+- 2018-11-29, Johann Jacobsohn	WIP to pass tox scripts - needs to be reverted and fixed!
+- 2018-11-29, Johann Jacobsohn	add RUN_EXAMPLE_SCRIPTS.py to tox, use sitepackages for Basemap
+- 2018-11-29, Johann Jacobsohn	fix floordiv issue from python3 work, and cleanup
+- 2018-11-28, Johann Jacobsohn	protect possible None value against < operator, which fails in python3. Remove try..except block that only obscures exceptions
+- 2018-11-28, Johann Jacobsohn	remove __deepcopy__, underlying issue needs to be fixed in geonum
+- 2018-11-28, Johann Jacobsohn	make sure to use int for array indices
+- 2018-11-28, Johann Jacobsohn	numpy.sum does not handle .values() as you would expect in python3...
+- 2018-11-28, Johann Jacobsohn	truediv -> __truediv__, fix typo
+- 2018-11-27, Johann Jacobsohn	fix reading of cam_info.txt in python3
+- 2018-11-27, Johann Jacobsohn	try to load test data from envvar PYPLIS_DATADIR if not found in default location (helpful for testing)
+- 2018-11-27, Johann Jacobsohn	fixup: CalibData.senscorr_mask does actually not accecpt ndarray
+- 2018-11-23, Johann Jacobsohn	add RUN_INTRO_SCRIPTS.py to tox
+- 2018-11-16, Johann Jacobsohn	fix pytest to version 3
+- 2018-11-16, Johann Jacobsohn	fix difference in exception handling between python 2 and 3, restrict exceptions to KeyError
+- 2018-11-14, Johann Jacobsohn	skip failing test until fixed
+- 2018-11-14, Johann Jacobsohn	fixup requirements and tox environment
+- 2018-11-14, Johann Jacobsohn	fixup import syntax for py3
+- 2018-11-14, Johann Jacobsohn	fixup deepcopy of MeasGeometry in py3
+- 2018-11-14, Johann Jacobsohn	fix test_io in py3
+- 2018-11-14, Johann Jacobsohn	fix urlib import for python3
+- 2018-11-14, Johann Jacobsohn	small pydocstyle fixes
+- 2018-11-14, Johann Jacobsohn	__div__ -> truediv
+- 2018-11-14, Johann Jacobsohn	return value of .keys() and .values() have changed between python 2 and 3, this should make it consistent between the two
+- 2018-11-14, Johann Jacobsohn	add __future__ to help make python 2 and 3 behave consistent
+- 2018-11-09, Johann Jacobsohn	add pylint and disable every offending check
+- 2018-11-05, Johann Jacobsohn	scripts/ex07_doas_cell_calib.py: improve python3 compability, fix bugbear lint
+- 2018-11-05, Johann Jacobsohn	pyplis/utils.py: improve python3 compability, fix bugbear lint
+- 2018-11-05, Johann Jacobsohn	pyplis/setupclasses.py: improve python3 compability, fix bugbear lint
+- 2018-11-05, Johann Jacobsohn	pyplis/processing.py: improve python3 compability, fix bugbear lint
+- 2018-11-05, Johann Jacobsohn	pyplis/plumespeed.py: improve python3 compability, fix bugbear lint
+- 2018-11-05, Johann Jacobsohn	pyplis/plumebackground.py: improve python3 compability, fix bugbear lint
+- 2018-11-05, Johann Jacobsohn	pyplis/model_functions.py: improve python3 compability, fix bugbear lint
+- 2018-11-05, Johann Jacobsohn	pyplis/inout.py: improve python3 compability, fix bugbear lint
+- 2018-11-05, Johann Jacobsohn	pyplis/image.py: improve python3 compability, fix bugbear lint
+- 2018-11-05, Johann Jacobsohn	pyplis/imagelists.py: improve python3 compability, fix bugbear lint
+- 2018-11-05, Johann Jacobsohn	pyplis/geometry.py: improve python3 compability, fix bugbear lint
+- 2018-11-05, Johann Jacobsohn	pyplis/forms.py: improve python3 compability, fix bugbear lint
+- 2018-11-05, Johann Jacobsohn	pyplis/fluxcalc.py: improve python3 compability, fix bugbear lint
+- 2018-11-05, Johann Jacobsohn	pyplis/doascalib.py: improve python3 compability, fix bugbear lint
+- 2018-11-05, Johann Jacobsohn	pyplis/dilutioncorr.py: improve python3 compability, fix bugbear lint
+- 2018-11-05, Johann Jacobsohn	pyplis/dataset.py: improve python3 compability, fix bugbear lint
+- 2018-11-05, Johann Jacobsohn	pyplis/cellcalib.py: improve python3 compability, fix bugbear lint
+- 2018-11-05, Johann Jacobsohn	pyplis/calib_base.py: improve python3 compability, fix bugbear lint
+- 2018-11-05, Johann Jacobsohn	add bugbear lint to improve python 3 compability
+- 2018-11-05, Johann Jacobsohn	Light phrasing changes to conform to PEP 257 and pass pydocstyle validation
+- 2018-06-01, Johann Jacobsohn	lint pyplis/test/test_dataset_module.py
+- 2018-05-25, Johann Jacobsohn	lint scripts/more_scripts/ex002_plume_background_combi.py
+- 2018-05-25, Johann Jacobsohn	lint scripts/more_scripts/ex001_save_all_calib_imgs.py
+- 2018-05-25, Johann Jacobsohn	lint scripts/ex12_emission_rate.py
+- 2018-05-25, Johann Jacobsohn	lint scripts/ex11_signal_dilution.py
+- 2018-05-25, Johann Jacobsohn	lint scripts/ex10_bg_imglists.py
+- 2018-05-25, Johann Jacobsohn	lint scripts/ex0_7_cellcalib_manual.py
+- 2018-05-25, Johann Jacobsohn	lint scripts/ex0_6_pcs_lines.py
+- 2018-05-25, Johann Jacobsohn	lint scripts/ex0_5_optflow_livecam.py
+- 2018-05-25, Johann Jacobsohn	lint scripts/ex0_4_imglists_auto.py
+- 2018-05-25, Johann Jacobsohn	lint scripts/ex0_3_imglists_manually.py
+- 2018-05-25, Johann Jacobsohn	lint scripts/ex0_2_camera_setup.py
+- 2018-05-25, Johann Jacobsohn	lint scripts/ex0_1_img_handling.py
+- 2018-05-25, Johann Jacobsohn	lint scripts/ex09_velo_optflow.py
+- 2018-05-25, Johann Jacobsohn	lint scripts/ex08_velo_crosscorr.py
+- 2018-05-25, Johann Jacobsohn	lint scripts/ex07_doas_cell_calib.py
+- 2018-05-25, Johann Jacobsohn	lint scripts/ex06_doas_calib.py
+- 2018-05-25, Johann Jacobsohn	lint scripts/ex05_cell_calib_auto.py
+- 2018-05-25, Johann Jacobsohn	lint scripts/ex04_prep_aa_imglist.py
+- 2018-05-25, Johann Jacobsohn	lint scripts/ex03_plume_background.py
+- 2018-05-25, Johann Jacobsohn	lint scripts/ex02_meas_geometry.py
+- 2018-05-25, Johann Jacobsohn	lint scripts/ex01_analysis_setup.py
+- 2018-05-25, Johann Jacobsohn	lint scripts/SETTINGS.py
+- 2018-05-25, Johann Jacobsohn	lint scripts/RUN_INTRO_SCRIPTS.py
+- 2018-05-25, Johann Jacobsohn	lint scripts/RUN_EXAMPLE_SCRIPTS.py
+- 2018-05-25, Johann Jacobsohn	lint pyplis/utils.py
+- 2018-05-25, Johann Jacobsohn	lint pyplis/test/test_io.py
+- 2018-05-25, Johann Jacobsohn	lint pyplis/test/test_image_module.py
+- 2018-05-25, Johann Jacobsohn	lint pyplis/test/test_highlevel_examples.py
+- 2018-05-25, Johann Jacobsohn	lint pyplis/test/test_dataset_module.py
+- 2018-05-25, Johann Jacobsohn	lint pyplis/test/__init__.py
+- 2018-05-25, Johann Jacobsohn	lint pyplis/setupclasses.py
+- 2018-05-25, Johann Jacobsohn	lint pyplis/processing.py
+- 2018-05-25, Johann Jacobsohn	lint pyplis/plumespeed.py
+- 2018-05-25, Johann Jacobsohn	lint pyplis/plumebackground.py
+- 2018-05-25, Johann Jacobsohn	lint pyplis/optimisation.py
+- 2018-05-25, Johann Jacobsohn	lint pyplis/model_functions.py
+- 2018-05-25, Johann Jacobsohn	lint pyplis/inout.py
+- 2018-05-25, Johann Jacobsohn	lint pyplis/imagelists.py
+- 2018-05-25, Johann Jacobsohn	lint pyplis/image.py
+- 2018-05-25, Johann Jacobsohn	lint pyplis/helpers.py
+- 2018-05-25, Johann Jacobsohn	lint pyplis/glob.py
+- 2018-05-25, Johann Jacobsohn	lint pyplis/geometry.py
+- 2018-05-25, Johann Jacobsohn	lint pyplis/forms.py
+- 2018-05-25, Johann Jacobsohn	lint pyplis/fluxcalc.py
+- 2018-05-25, Johann Jacobsohn	lint pyplis/exceptions.py
+- 2018-05-25, Johann Jacobsohn	lint pyplis/doascalib.py
+- 2018-05-25, Johann Jacobsohn	lint pyplis/dilutioncorr.py
+- 2018-05-25, Johann Jacobsohn	lint pyplis/dataset.py
+- 2018-05-25, Johann Jacobsohn	lint pyplis/custom_image_import.py
+- 2018-05-25, Johann Jacobsohn	lint pyplis/cellcalib.py
+- 2018-05-25, Johann Jacobsohn	lint pyplis/calib_base.py
+- 2018-11-01, Solvejg Dinger	Bug Fix: Setting of calibration coefficients
+- 2018-05-25, Johann Jacobsohn	lint pyplis/__init__.py
+- 2018-05-25, Johann Jacobsohn	lint scripts/priv_01_plot_raw_vs_calib.py
+- 2018-05-24, Johann Jacobsohn	add python 3 to tox
+- 2018-05-17, Johann Jacobsohn	add tox to run tests
+- 2018-09-09, jgliss	Merge branch 'heliotropium72-multi_layer_fits'
+- 2018-09-09, jgliss	fixed minor bug (download location of test data)#
+- 2018-09-09, jgliss	Fixed minor bug
+- 2018-09-09, jgliss	Merge branch 'multi_layer_fits' of https://github.com/heliotropium72/pyplis into heliotropium72-multi_layer_fits
+- 2018-06-22, heliotropium72	Fix binary_mask fixture
+- 2018-06-21, heliotropium72	Add sky_mask to image lists
+- 2018-06-21, heliotropium72	Add class ImgListLayered
+- 2018-06-21, heliotropium72	Make `OptflowFarneback.calc_flow` compatible with OpenCV 2.x and 3.x
+- 2018-06-20, Jonas	Merge pull request #8 from heliotropium72/patch-3
+- 2018-06-20, Jonas	Merge pull request #7 from heliotropium72/patch-2
+- 2018-06-19, heliotropium72	Add get_masked_img method and corresponding tests
+- 2018-06-18, Solvejg Dinger	Merge pull request #11 from heliotropium72/patch-3
+- 2018-06-18, Solvejg Dinger	Fix indentation level
+- 2018-06-18, Solvejg Dinger	Merge pull request #10 from heliotropium72/patch-3
+- 2018-06-18, Solvejg Dinger	Merge pull request #9 from heliotropium72/patch-2
+- 2018-06-07, Solvejg Dinger	Add custom import method for Comtessa image data
+- 2018-06-07, Solvejg Dinger	Extended image.meta dictionary
+- 2018-05-27, jgliss	Fixed minor bug; added custom image read method template for QSI camera LMV group, France
+- 2018-05-26, jgliss	Updated formatting
+- 2018-05-26, jgliss	Updated formatting
+- 2018-05-26, jgliss	Deleted history of old binary files (repo size down to 30MB from ~500MB); Added content of scripts_out folder to .gitignore; updated README
+- 2018-05-23, jgliss	Removed strict PIL dependency for image read (now using opencv method imread)
