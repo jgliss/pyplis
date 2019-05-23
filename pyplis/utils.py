@@ -1639,15 +1639,15 @@ class Filter(object):
                       self.id)
 
     def __str__(self):
-        s = ("\nFilter\n---------------------------------\n"
-             "ID: %s\n"
-             "Type: %s\n"
-             "Acronym: %s\n"
-             "Meastype acronym: %s\n"
-             "Central wavelength [nm]: %s\n"
-             % (self.id, self.type, self.acronym, self.meas_type_acro,
-                 self.center_wavelength))
-        return s
+        s = ("\nFilter\n-----------\n"
+             "id: {}\n"
+             "type: {}\n"
+             "acronym: {}\n"
+             "meas_type_acro: {}\n"
+             "center_wavelength: {}\n"
+             .format(self.id, self.type, self.acronym, self.meas_type_acro,
+                     self.center_wavelength))
+        return
 
     def print_specs(self):
         """Print __str__."""
