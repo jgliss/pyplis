@@ -137,7 +137,7 @@ pix_height:4.65e-6
 pix_width:4.65e-6
 pixnum_x:1344
 pixnum_y:1024
-reg_shift_off: 8, -7
+reg_shift_off:
 
 # Filters (row-wise, format): 
 # filter:<ID>,<type>,<type acronym>,<meas_type acronym>,<center_wavelength>
