@@ -52,14 +52,12 @@ def data_search_dirs():
     usr_dir = expanduser(join('~', 'my_pyplis'))
     if not exists(usr_dir):
         mkdir(usr_dir)
-    env = False
     try:
         env = os.environ["PYPLIS_DATADIR"]
+        return (usr_dir, join(__dir__, "data"), env)
     except KeyError:
-        pass
-    return (usr_dir, join(__dir__, "data"), env)
-
-
+        return (usr_dir, join(__dir__, "data"))
+    
 def zip_example_scripts(repo_base):
     from pyplis import __version__ as v
     vstr = ".".join(v.split(".")[:3])
