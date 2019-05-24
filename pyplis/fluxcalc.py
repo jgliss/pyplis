@@ -18,7 +18,7 @@
 """Pyplis module containing methods and classes for emission-rate retrievals.
 """
 from __future__ import (absolute_import, division)
-from warnings import warn
+
 from numpy import dot, sqrt, mean, nan, isnan, asarray, nanmean, nanmax,\
     nanmin, sum, arctan2, rad2deg, logical_and, ones, arange, nanstd
 from matplotlib.dates import DateFormatter
@@ -27,6 +27,8 @@ from matplotlib.pyplot import subplots, rcParams, Rectangle
 from os.path import join, isdir
 from os import getcwd
 from traceback import format_exc
+
+from pyplis import logger, print_log
 from .utils import LineOnImage
 from .imagelists import ImgList
 from .plumespeed import LocalPlumeProperties
@@ -166,11 +168,11 @@ class EmissionRateSettings(object):
 
         if self.velo_modes["glob"]:
             if not self._check_velo_glob_access():
-                warn("Deactivating velocity retrieval mode glob, since global"
+                logger.warning("Deactivating velocity retrieval mode glob, since global"
                      " velocity was not provided")
                 self.velo_modes["glob"] = False
         if not sum(list(self.velo_modes.values())) > 0:
-            warn("All velocity retrieval modes are deactivated")
+            logger.warning("All velocity retrieval modes are deactivated")
 
     @property
     def bg_roi_abs(self):
@@ -270,10 +272,10 @@ class EmissionRateSettings(object):
         if val < 0:
             raise ValueError("Velocity must be larger than 0")
         elif val > 40:
-            warn("Large value warning: input velocity exceeds 40 m/s")
+            logger.warning("Large value warning: input velocity exceeds 40 m/s")
         self._velo_glob = val
         if self.velo_glob_err is None or isnan(self.velo_glob_err):
-            warn("Global velocity error not assigned, assuming 50% of "
+            logger.warning("Global velocity error not assigned, assuming 50% of "
                  "velocity")
             self.velo_glob_err = val * 0.50
 
@@ -332,7 +334,7 @@ class EmissionRateSettings(object):
             line.plume_props  # raises exception if not assigned
             self.plume_props_available[line.line_id] = 1
         except BaseException:
-            print("Creating new LocalPlumeProperties object in line %s"
+            logger.info("Creating new LocalPlumeProperties object in line %s"
                   % line.line_id)
             line.plume_props = LocalPlumeProperties(roi_id=line.line_id)
             self.plume_props_available[line.line_id] = 0
@@ -561,7 +563,7 @@ class EmissionRates(object):
             df = DataFrame(d, index=self.start_acq)
             return df
         except BaseException:
-            warn("Failed to convert EmissionRates into pandas DataFrame")
+            logger.warning("Failed to convert EmissionRates into pandas DataFrame")
 
     def from_pandas_dataframe(self, df):
         """Import results from pandas :class:`DataFrame` object.
@@ -781,11 +783,11 @@ class EmissionRates(object):
                 [self.pix_dist_mean_err, other.pix_dist_mean_err])
             new.pix_dist_mean_err = max([pdm_diff, pdm_err])
         except BaseException:
-            warn("Could not access meta info pix_dist_mean in flux results")
+            logger.warning("Could not access meta info pix_dist_mean in flux results")
         try:
             new.cd_err = nanmean([self.cd_err, other.cd_err])
         except BaseException:
-            warn("Could not access meta cd_err in flux results")
+            logger.warning("Could not access meta cd_err in flux results")
         return new
 
     def __sub__(self, other):
@@ -826,11 +828,11 @@ class EmissionRates(object):
                 [self.pix_dist_mean_err, other.pix_dist_mean_err])
             new.pix_dist_mean_err = max([pdm_diff, pdm_err])
         except BaseException:
-            warn("Could not access meta info pix_dist_mean in flux results")
+            logger.warning("Could not access meta info pix_dist_mean in flux results")
         try:
             new.cd_err = nanmean([self.cd_err, other.cd_err])
         except BaseException:
-            warn("Could not access meta cd_err in flux results")
+            logger.warning("Could not access meta cd_err in flux results")
 
         return new
 
@@ -874,11 +876,11 @@ class EmissionRates(object):
                 [self.pix_dist_mean_err, other.pix_dist_mean_err])
             new.pix_dist_mean_err = max([pdm_diff, pdm_err])
         except BaseException:
-            warn("Could not access meta info pix_dist_mean in flux results")
+            logger.warning("Could not access meta info pix_dist_mean in flux results")
         try:
             new.cd_err = nanmean([self.cd_err, other.cd_err])
         except BaseException:
-            warn("Could not access meta cd_err in flux results")
+            logger.warning("Could not access meta cd_err in flux results")
 
         return new
 
@@ -902,7 +904,7 @@ class EmissionRateRatio(EmissionRates):
 
     def __init__(self, *args, **kwargs):
         super(EmissionRateRatio, self).__init__(*args, **kwargs)
-        warn("You are using an old name EmissionRateResults for class"
+        logger.warning("You are using an old name EmissionRateResults for class"
              "EmissionRates")
 
     @property
@@ -999,7 +1001,7 @@ class EmissionRateAnalysis(object):
                     raise ValueError("Fatal: check scale rectangle in "
                                      "background model of image list...")
             except BaseException:
-                warn("Failed to access scale rectangle in background model "
+                logger.warning("Failed to access scale rectangle in background model "
                      "of image list, setting bg_roi to lower left image "
                      "corner")
                 bg_roi_abs = [5, 5, 20, 20]
@@ -1018,7 +1020,7 @@ class EmissionRateAnalysis(object):
             self.warnings.append("Failed to initate image list for analysis "
                                  "check previous warnings...")
         for warning in self.warnings:
-            warn(warning)
+            logger.warning(warning)
 
     @property
     def imglist_optflow(self):
@@ -1048,9 +1050,9 @@ class EmissionRateAnalysis(object):
                           " as current analysis list")
         if isinstance(val, ImgList) and val.nof == self.imglist.nof:
             val.goto_img(self.imglist.cfn)
-            print("Setting list for optflow retrieval, current mode status:")
+            logger.info("Setting list for optflow retrieval, current mode status:")
             for k, v in six.iteritems(val._list_modes):
-                print("%s: %s" % (k, v))
+                logger.info("%s: %s" % (k, v))
 
             self._imglist_optflow = val
             self.imglist.link_imglist(self._imglist_optflow)
@@ -1099,13 +1101,13 @@ class EmissionRateAnalysis(object):
         if line_id is None:
             try:
                 line_id = list(self.results.keys())[0]
-                print("Input line ID unspecified, using: %s" % line_id)
+                logger.info("Input line ID unspecified, using: %s" % line_id)
             except IndexError:
                 raise IndexError("No emission rate results available...")
         if velo_mode is None:
             try:
                 velo_mode = self.results[line_id].keys()[0]
-                print("Input velo_mode unspecified, using: %s" % velo_mode)
+                logger.info("Input velo_mode unspecified, using: %s" % velo_mode)
             except BaseException:
                 raise IndexError("No emission rate results available...")
         if line_id not in self.results:
@@ -1247,7 +1249,7 @@ class EmissionRateAnalysis(object):
                 self.settings.plume_props_available[key] = 1
             except Exception as e:
                 if isinstance(e, ValueError):
-                    warn(format_exc(e))
+                    logger.warning(format_exc(e))
                 self.settings.plume_props_available[key] = 0
                 line.plume_props = LocalPlumeProperties(roi_id=key)
 
@@ -1261,7 +1263,7 @@ class EmissionRateAnalysis(object):
 
     def calc_emission_rate(self, **kwargs):
         """Old name of :func:`run_retrieval`."""
-        warn("Old name of method run_retrieval")
+        logger.warning("Old name of method run_retrieval")
         return self.run_retrieval(**kwargs)
 
     def run_retrieval(self, start_index=0, stop_index=None, check_list=True):
@@ -1315,7 +1317,7 @@ class EmissionRateAnalysis(object):
         try:
             cd_err = lst.calib_data.err()
         except ValueError as e:
-            warn("Calibration error could not be accessed: {}".format(repr(e)))
+            logger.warning("Calibration error could not be accessed: {}".format(repr(e)))
             cd_err = None
 
         self._write_meta(dists, dist_errs, cd_err)
@@ -1353,7 +1355,7 @@ class EmissionRateAnalysis(object):
                     if not imin < avg < imax:
                         ok = False
             except BaseException:
-                warn("Failed to retrieve data within background ROI (bg_roi)"
+                logger.warning("Failed to retrieve data within background ROI (bg_roi)"
                      "writing NaN")
                 bg_std.append(nan)
                 bg_mean.append(nan)
@@ -1379,7 +1381,7 @@ class EmissionRateAnalysis(object):
                                                          cd_err, vglob_err,
                                                          disterr, mmol)
                         if isnan(phi):
-                            print(cds)
+                            logger.info(cds)
                             raise ValueError
                         res["glob"]._start_acq.append(t)
                         res["glob"]._phi.append(phi)
@@ -1438,7 +1440,7 @@ class EmissionRateAnalysis(object):
                                     dir_multi_gauss=gauss_fit)
                             idx = -1
 
-                        # print("IMGLIST CTIME: %s "
+                        # logger.info("IMGLIST CTIME: %s "
                         #       % self.imglist.current_time())
                         # get effective velocity through the pcs based on
                         # results from histogram analysis
@@ -1447,7 +1449,7 @@ class EmissionRateAnalysis(object):
                                                     disterr,
                                                     pcs.normal_vector,
                                                     sigma_tol=fl_sigma_tol)
-                        # print("HISTO VEFF: %.2f m/s" %v)
+                        # logger.info("HISTO VEFF: %.2f m/s" %v)
                         phi, phi_err = det_emission_rate(cds, v, distarr,
                                                          cd_err, verr, disterr,
                                                          mmol)
@@ -1536,7 +1538,7 @@ class EmissionRateAnalysis(object):
                         veff_avg = veff_arr.mean()
                         fl_err = veff_avg * self.settings.optflow_err_rel_veff
 
-                        # print("Assumed intrinsic optflow error veff=%.2f m/s"
+                        # logger.info("Assumed intrinsic optflow error veff=%.2f m/s"
                         #       % fl_err)
                         # neglect uncertainties in the successfully constraint
                         # flow vectors along the pcs by initiating an zero
@@ -1554,11 +1556,11 @@ class EmissionRateAnalysis(object):
 
 
 # ==============================================================================
-#                         print("Fraction of bad vectors along %s): %.3f"
+#                         logger.info("Fraction of bad vectors along %s): %.3f"
 #                               % (pcs_id, frac_bad))
-#                         print("Kappa: %.3f %%" %(ica_fac_ok))
+#                         logger.info("Kappa: %.3f %%" %(ica_fac_ok))
 # ==============================================================================
-                        # print("Avg. eff. velocity (hybrid) = %.2f +/- %.2f"
+                        # logger.info("Avg. eff. velocity (hybrid) = %.2f +/- %.2f"
                         #       %(veff_avg, veff_err_avg))
                         res["flow_hybrid"]._start_acq.append(t)
                         res["flow_hybrid"]._phi.append(phi)
@@ -1571,10 +1573,10 @@ class EmissionRateAnalysis(object):
                             ica_fac_ok)
                 counter += 1
             else:
-                warn("Skipped image no. %d" % k)
+                logger.warning("Skipped image no. %d" % k)
             try:
                 if k % pnum == 0:
-                    print("Progress: %d (%d)" % (k, num))
+                    logger.info("Progress: %d (%d)" % (k, num))
             except:
                 pass
             lst.goto_next()
@@ -1585,7 +1587,7 @@ class EmissionRateAnalysis(object):
         if not counter > 0:
             raise ValueError("Emission rate retrieval failed for all images "
                              "in image list...")
-        print("Emission rates could be successfully retrieved for %d of %d"
+        logger.info("Emission rates could be successfully retrieved for %d of %d"
               "images in image list" % (counter, (stop_index - start_index)))
         return self.results
 
@@ -1682,16 +1684,16 @@ def det_emission_rate(cds, velo, pix_dists, cds_err=None, velo_err=None,
 
     """
     if cds_err is None:
-        print("Uncertainty in column densities unspecified, assuming 20 % of "
+        logger.info("Uncertainty in column densities unspecified, assuming 20 % of "
               "mean CD")
         cds_err = mean(cds) * 0.20
     if velo_err is None:
-        print("Uncertainty in plume velocity unspecified, assuming 20 % of "
+        logger.info("Uncertainty in plume velocity unspecified, assuming 20 % of "
               "mean velocity")
         velo_err = mean(velo) * 0.20
 
     if pix_dists_err is None:
-        print("Uncertainty in pixel distance unspecified, assuming 10 % of "
+        logger.info("Uncertainty in pixel distance unspecified, assuming 10 % of "
               "mean pixel distance")
         pix_dists_err = mean(pix_dists) * 0.10
 
@@ -1709,5 +1711,5 @@ class EmissionRateResults(EmissionRates):
 
     def __init__(self, *args, **kwargs):
         super(EmissionRateResults, self).__init__(*args, **kwargs)
-        warn("You are using an old name EmissionRateResults for class"
+        logger.warning("You are using an old name EmissionRateResults for class"
              "EmissionRates")

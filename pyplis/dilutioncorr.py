@@ -21,10 +21,11 @@ from numpy import asarray, linspace, exp, ones, nan
 from scipy.ndimage.filters import median_filter
 from matplotlib.pyplot import subplots, rcParams
 from collections import OrderedDict as od
-from warnings import warn
+
 from pandas import Series, DataFrame
 import six
 
+from pyplis import logger, print_log
 from .utils import LineOnImage
 from .image import Img
 from .optimisation import dilution_corr_fit
@@ -137,7 +138,7 @@ class DilutionCorr(object):
 
         """
         if not isnum(dist):
-            print("Input distance for point unspecified, trying automatic "
+            logger.info("Input distance for point unspecified, trying automatic "
                   "access")
             (dist,
              derr,
@@ -184,7 +185,7 @@ class DilutionCorr(object):
         """
         if line_id not in self.lines.keys():
             raise KeyError("No line with ID %s available" % line_id)
-        print("Searching topo distances for pixels on line %s" % line_id)
+        logger.info("Searching topo distances for pixels on line %s" % line_id)
         self.update_settings(**settings)
 
         l = self.lines[line_id]
@@ -231,7 +232,7 @@ class DilutionCorr(object):
                 dists.extend(self._dists_lines[line_id][mask])
                 rads.extend(l.get_line_profile(img)[::skip][mask])
             else:
-                warn("Distances to line %s not available, please apply "
+                logger.warning("Distances to line %s not available, please apply "
                      "distance retrieval first using class method "
                      "det_topo_dists_line")
         for x, y, dist in self._add_points:
@@ -433,7 +434,7 @@ class DilutionCorr(object):
         imglist.auto_reload = False
         imglist.darkcorr_mode = True
         if imglist.gaussian_blurring and imglist.pyrlevel == 0:
-            print("Adding gaussian blurring of 2 for topographic radiance "
+            logger.info("Adding gaussian blurring of 2 for topographic radiance "
                   "retrieval")
             imglist.gaussian_blurring = 2
         if imglist.pyrlevel != list(self.lines.values())[0].pyrlevel:

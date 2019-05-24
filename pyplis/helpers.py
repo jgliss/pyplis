@@ -20,7 +20,7 @@ from __future__ import (absolute_import, division)
 import matplotlib.cm as colormaps
 import matplotlib.colors as colors
 from datetime import datetime, time, date, timedelta
-from warnings import warn
+
 from matplotlib.pyplot import draw
 from numpy import (mod, linspace, hstack, vectorize, uint8, cast, asarray,
                    log2, unravel_index, nanargmax, meshgrid, int, floor, log10,
@@ -28,7 +28,7 @@ from numpy import (mod, linspace, hstack, vectorize, uint8, cast, asarray,
 from scipy.ndimage.filters import gaussian_filter
 from cv2 import pyrUp
 import six
-
+from pyplis import logger, print_log
 
 def exponent(num):
     return int(floor(log10(abs(num))))
@@ -172,10 +172,10 @@ def closest_index(time_stamp, time_stamps):
 
     """
     if time_stamp < time_stamps[0]:
-        warn("Time stamp is earlier than first time stamp in array")
+        logger.warning("Time stamp is earlier than first time stamp in array")
         return 0
     elif time_stamp > time_stamps[-1]:
-        warn("Time stamp is later than last time stamp in array")
+        logger.warning("Time stamp is later than last time stamp in array")
         return len(time_stamps) - 1
     return argmin([abs((time_stamp - x).total_seconds()) for x in time_stamps])
 
@@ -476,7 +476,7 @@ def shifted_color_map(vmin, vmax, cmap=None):
 def _print_list(lst):
     """Print a list rowwise."""
     for item in lst:
-        print(item)
+        logger.info(item)
 
 
 def rotate_xtick_labels(ax, deg=30, ha="right"):
@@ -580,5 +580,5 @@ if __name__ == "__main__":
     crop = arr[roi[1]:roi[3], roi[0]:roi[2]]
     for k in range(pyrlevel):
         crop = pyrDown(crop)
-    print(crop.shape)
-    print(subimg_shape(roi=roi, pyrlevel=pyrlevel))
+    logger.info(crop.shape)
+    logger.info(subimg_shape(roi=roi, pyrlevel=pyrlevel))

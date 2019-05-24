@@ -41,7 +41,7 @@ from numpy.ma import masked_array
 from json import loads, dumps
 from os.path import abspath, splitext, basename, exists, join, isdir, dirname
 from os import remove
-from warnings import warn
+
 from datetime import datetime
 from decimal import Decimal
 from cv2 import imread, pyrDown, pyrUp, addWeighted, dilate, erode
@@ -51,6 +51,7 @@ from collections import OrderedDict as od
 from traceback import format_exc
 from copy import deepcopy
 
+from pyplis import logger, print_log
 from .glob import DEFAULT_ROI
 from .helpers import bytescale, map_roi, check_roi
 from .exceptions import ImgMetaError
@@ -418,7 +419,7 @@ class Img(object):
         """Try reload from file."""
         file_path = self.meta["path"]
         if not exists(file_path):
-            warn("Image reload failed, no valid filepath set in meta info")
+            logger.warning("Image reload failed, no valid filepath set in meta info")
         else:
             self.__init__(input=file_path)
 
@@ -428,7 +429,7 @@ class Img(object):
             if any([isinstance(input, x) for x in
                     [six.string_types, six.text_type]]) and exists(input):
                 self.load_file(input)
-                print(input)
+                logger.info(input)
 
             elif isinstance(input, ndarray):
                 if self.dtype is not None:
@@ -437,7 +438,7 @@ class Img(object):
             else:
                 raise TypeError("Need array or readable file")
             if self.img.ndim > 2:
-                warn("Image array has {} dimensions (not a grayscale). Pyplis"
+                logger.warning("Image array has {} dimensions (not a grayscale). Pyplis"
                      " is designed for grayscale images. This may cause "
                      "problems in your further analysis")
         except:
@@ -447,12 +448,12 @@ class Img(object):
     def make_histogram(self):
         """Make histogram of current image."""
         if isnan(self.meta["bit_depth"]):
-            print("Error in " + self.__str__() + ".make_histogram\n "
+            logger.info("Error in " + self.__str__() + ".make_histogram\n "
                   "No MetaData available => BitDepth could not be retrieved. "
                   "Using 100 bins and img min/max range instead")
             hist, bins = histogram(self.img, 100)
             return hist, bins
-        # print("Determining Histogram")
+        # logger.info("Determining Histogram")
         hist, bins = histogram(self.img, 2**(self.meta["bit_depth"]),
                                [0, 2**(self.meta["bit_depth"])])
         return hist, bins
@@ -545,7 +546,7 @@ class Img(object):
             - Img, cropped image
         """
         if self.edit_log["crop"]:
-            warn("Cropping image that was already cropped...")
+            logger.warning("Cropping image that was already cropped...")
         self.roi_abs = roi_abs  # updates current roi_abs setting
         roi = self.roi  # .roi is @property method and takes care of ROI conv
         sub = self.img[roi[1]:roi[3], roi[0]:roi[2]]
@@ -577,7 +578,7 @@ class Img(object):
         """
         from pyplis.processing import model_dark_image
         if self.modified:
-            print("Dark correction not possible, it was either already "
+            logger.info("Dark correction not possible, it was either already "
                   "performed, the image was already modified")
             return
 
@@ -626,7 +627,7 @@ class Img(object):
             else:  # then, new_state is 1, i.e. want corrected image
                 self.img = self.img / mask
         except Exception as e:
-            print(type(e),
+            logger.info(type(e),
                   type(e)(str(e) + "\nPlease check vignetting mask"))
             raise
         self.edit_log["vigncorr"] = new_state
@@ -868,7 +869,7 @@ class Img(object):
         if mask is not None:
             try:
                 if not mask.shape == self.shape:
-                    warn("Shape of input mask does not match image shape, "
+                    logger.warning("Shape of input mask does not match image shape, "
                          "trying to update pyrlevel in mask")
                     try:
                         mask.to_pyrlevel(self.pyrlevel)
@@ -877,14 +878,14 @@ class Img(object):
                     except BaseException:
                         raise Exception
             except BaseException:
-                warn("Failed to match shapes of input mask and image data, "
+                logger.warning("Failed to match shapes of input mask and image data, "
                      "using all pixels for fit")
                 mask = None
 
         fit = PolySurfaceFit(self.img, mask, polyorder, pyrlevel)
         try:
             if fit.model.shape == self.shape:
-                print("Fit successful")
+                logger.info("Fit successful")
                 return Img(fit.model)
             raise Exception
         except BaseException:
@@ -1022,7 +1023,7 @@ class Img(object):
     def print_meta(self):
         """Print current image meta information."""
         for key, val in six.iteritems(self.meta):
-            print("%s: %s\n" % (key, val))
+            logger.info("%s: %s\n" % (key, val))
 
     def make_info_header_str(self):
         """Make header string for image (using image meta information)."""
@@ -1035,7 +1036,7 @@ class Img(object):
                                                    self.pyrlevel,
                                                    self.roi_abs))
         except Exception as e:
-            print(repr(e))
+            logger.info(repr(e))
             return self.meta["file_name"]
 
     def duplicate(self):
@@ -1181,7 +1182,7 @@ class Img(object):
             pass
         try:
             self.vign_mask = hdu[2].data
-            print("Fits file includes vignetting mask")
+            logger.info("Fits file includes vignetting mask")
         except BaseException:
             pass
         hdu.close()
@@ -1246,7 +1247,7 @@ class Img(object):
             hdulist.append(fits.ImageHDU(data=self.vign_mask.astype(uint8)))
         path = join(save_dir, save_name)
         if exists(path):
-            print("Image already exists at %s and will be overwritten" % path)
+            logger.info("Image already exists at %s and will be overwritten" % path)
             remove(path)
         hdulist.writeto(path)
         return save_name
@@ -1385,7 +1386,7 @@ class Img(object):
 
     def info(self):
         """Print image info from string representation."""
-        print(self.__str__())
+        logger.info(self.__str__())
 
     """MAGIC METHODS"""
 
@@ -1497,7 +1498,7 @@ def model_dark_image(texp, dark, offset):
                            "exposure time encountered for at least one of the "
                            "input images")
     if any([x.modified for x in [dark, offset]]):
-        warn("Images used for modelling dark image are modified")
+        logger.warning("Images used for modelling dark image are modified")
 
     dark_img = (offset.img + (dark.img - offset.img) * texp /
                              (dark.meta["texp"] - offset.meta["texp"]))
@@ -1561,7 +1562,7 @@ class ProfileTimeSeriesImg(Img):
         try:
             return self.time_stamps[0]
         except BaseException:
-            print("no time information available, return 1/1/1900")
+            logger.info("no time information available, return 1/1/1900")
             return datetime(1900, 1, 1)
 
     @property
@@ -1570,7 +1571,7 @@ class ProfileTimeSeriesImg(Img):
         try:
             return self.time_stamps[-1]
         except BaseException:
-            print("no time information available, return 1/1/1900")
+            logger.info("no time information available, return 1/1/1900")
             return datetime(1900, 1, 1)
 
     def save_as_fits(self, save_dir=None, save_name=None,
@@ -1619,7 +1620,7 @@ class ProfileTimeSeriesImg(Img):
                 try:
                     hdu.header["_roi_abs_def"] = dumps(val)
                 except BaseException:
-                    warn("Failed to write roi_abs_def")
+                    logger.warning("Failed to write roi_abs_def")
             else:
                 hdu.header[key] = val
 
@@ -1628,15 +1629,15 @@ class ProfileTimeSeriesImg(Img):
         path = join(save_dir, save_name)
         if exists(path):
             try:
-                print("Image already exists at %s and will be overwritten"
+                logger.info("Image already exists at %s and will be overwritten"
                       % path)
                 remove(path)
             except BaseException:
-                warn("Failed to delete existing file...")
+                logger.warning("Failed to delete existing file...")
         try:
             hdulist.writeto(path, clobber=overwrite_existing)
         except BaseException:
-            warn("Failed to save FITS File (check previous warnings)")
+            logger.warning("Failed to save FITS File (check previous warnings)")
 
     def _profile_dict_keys(self, profile_type="LineOnImage"):
         """Return profile dictionary keys for input profile type."""
@@ -1658,7 +1659,7 @@ class ProfileTimeSeriesImg(Img):
             profile_keys = self._profile_dict_keys(profile_type)
         except BaseException:
             profile_keys = []
-            print("Failed to load profile info dictionary")
+            logger.info("Failed to load profile info dictionary")
 
         for key, val in six.iteritems(hdu[0].header):
             k = key.lower()
@@ -1675,5 +1676,5 @@ class ProfileTimeSeriesImg(Img):
             self.time_stamps = asarray([datetime.strptime(x, "%Y%m%d%H%M%S%f")
                                         for x in hdu[1].data["time_stamps"]])
         except BaseException:
-            print("Failed to import time stamps")
+            logger.info("Failed to import time stamps")
         self._format_check()

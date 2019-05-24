@@ -24,7 +24,7 @@ from numpy import mgrid, vstack, int32, sqrt, arctan2, rad2deg, asarray, sin,\
 from numpy.linalg import norm
 from traceback import format_exc
 from copy import deepcopy
-from warnings import warn
+
 from datetime import datetime
 from collections import OrderedDict as od
 from matplotlib.pyplot import subplots, figure, GridSpec, Line2D, Circle
@@ -45,6 +45,8 @@ from cv2 import calcOpticalFlowFarneback, OPTFLOW_FARNEBACK_GAUSSIAN,\
 
 from .helpers import bytescale, check_roi, map_roi, roi2rect, set_ax_lim_roi,\
     nth_moment, rotate_xtick_labels
+
+from pyplis import logger, print_log
 from .optimisation import MultiGaussFit
 from .processing import ImgStack
 from .utils import LineOnImage
@@ -76,7 +78,7 @@ def get_veff(normal_vec, dir_mu, dir_sigma, len_mu, len_sigma,
     len_mu : float
         expectation value of displacement magnitude in units of pixels
         (e.g. retrieved using histogram analysis)
-    len_dir : float
+    len_sigma : float
         uncertainty of prev. magnitude
     pix_dist_m : float
         pixel-to-pixel distance in m
@@ -179,9 +181,9 @@ def find_signal_correlation(first_data_vec, next_data_vec,
     if (time_stamps is not None and
             len(time_stamps) == len(first_data_vec) and
             all([isinstance(x, datetime) for x in time_stamps])):
-        print("Input is time series data")
+        logger.info("Input is time series data")
         if itp_method not in ["linear", "quadratic", "cubic"]:
-            warn("Invalid interpolation method %s: setting default (linear)"
+            logger.warning("Invalid interpolation method %s: setting default (linear)"
                  % itp_method)
             itp_method = "linear"
 
@@ -195,9 +197,9 @@ def find_signal_correlation(first_data_vec, next_data_vec,
                 reg_grid_tres = int(reg_grid_tres * 1000)
             else:
                 freq_unit = "S"
-        print(reg_grid_tres, freq_unit)
+        logger.info(reg_grid_tres, freq_unit)
         delt_str = "%d%s" % (reg_grid_tres, freq_unit)
-        print("Delta t string for resampling: %s" % delt_str)
+        logger.info("Delta t string for resampling: %s" % delt_str)
 
         s1 = Series(first_data_vec, time_stamps)
         s2 = Series(next_data_vec, time_stamps)
@@ -224,9 +226,9 @@ def find_signal_correlation(first_data_vec, next_data_vec,
     max_coeff = -100
     max_coeff_signal = None
     max_shift = int(len(s1_vec) * max_shift_percent / 100.0)
-    print("Signal correlation analysis running...")
+    logger.info("Signal correlation analysis running...")
     for k in range(max_shift):
-        print("Current shift=%d" % k)
+        logger.info("Current shift=%d" % k)
         shift_s1 = roll(s1_vec, k)[k:]
         r = pearsonr(shift_s1, s2_vec[k:])
         coeffs.append(r[0])
@@ -327,9 +329,9 @@ def find_signal_correlation_old(first_data_vec, next_data_vec,
     lag_fac = 1  # factor to convert retrieved lag from indices to seconds
     if time_stamps is not None and len(time_stamps) == len(first_data_vec)\
             and all([isinstance(x, datetime) for x in time_stamps]):
-        print("Input is time series data")
+        logger.info("Input is time series data")
         if itp_method not in ["linear", "quadratic", "cubic"]:
-            warn("Invalid interpolation method %s: setting default (linear)"
+            logger.warning("Invalid interpolation method %s: setting default (linear)"
                  % itp_method)
             itp_method = "linear"
 
@@ -343,9 +345,9 @@ def find_signal_correlation_old(first_data_vec, next_data_vec,
                 reg_grid_tres = int(reg_grid_tres * 1000)
             else:
                 freq_unit = "S"
-        print(reg_grid_tres, freq_unit)
+        logger.info(reg_grid_tres, freq_unit)
         delt_str = "%d%s" % (reg_grid_tres, freq_unit)
-        print("Delta t string for resampling: %s" % delt_str)
+        logger.info("Delta t string for resampling: %s" % delt_str)
 
         s1 = Series(first_data_vec, time_stamps)
         s2 = Series(next_data_vec, time_stamps)
@@ -373,7 +375,7 @@ def find_signal_correlation_old(first_data_vec, next_data_vec,
     coeffs = []
     max_coeff = -100
     max_coeff_signal = None
-    print("Signal correlation analysis running...")
+    logger.info("Signal correlation analysis running...")
     for k in range(len(s1_vec)):
         shift_s1 = roll(s1_vec, k)
         r = pearsonr(shift_s1, s2_vec)
@@ -512,7 +514,7 @@ class VeloCrossCorrEngine(object):
         """
         for k, v in six.iteritems(settings_dict):
             if k in self.settings:
-                print("Updating cross-correlation search setting %s=%s"
+                logger.info("Updating cross-correlation search setting %s=%s"
                       % (k, v))
                 self.settings[k] = v
 
@@ -682,7 +684,7 @@ class VeloCrossCorrEngine(object):
         data = stack.stack
         for k in range(num):
             if k % 25 == 0:
-                print("Loading PCS profiles from stack: %d (%d)" % (k, num))
+                logger.info("Loading PCS profiles from stack: %d (%d)" % (k, num))
             img = data[k]
             profiles1[:, k] = pcs1.get_line_profile(img)
             profiles2[:, k] = pcs2.get_line_profile(img)
@@ -784,7 +786,7 @@ class VeloCrossCorrEngine(object):
         times = []
         for k in range(num):
             if k % 25 == 0:
-                print("Loading PCS profiles from list: %d (%d)" % (k, num))
+                logger.info("Loading PCS profiles from list: %d (%d)" % (k, num))
             img = lst.current_img().img
             profiles1[:, k] = pcs1.get_line_profile(img)
             profiles2[:, k] = pcs2.get_line_profile(img)
@@ -912,7 +914,7 @@ class VeloCrossCorrEngine(object):
             raise AttributeError("List contains no images")
 
         elif lst.nof < 20:
-            warn("List contains less than 20 images, cross-correlation "
+            logger.warning("List contains less than 20 images, cross-correlation "
                  "analysis is likely to fail")
         try:
             lst.meas_geometry.compute_all_integration_step_lengths()
@@ -1044,7 +1046,7 @@ class VeloCrossCorrEngine(object):
         if isinstance(ylabel, str):
             ax.set_ylabel(ylabel)
         else:
-            warn("No y-label provided, setting y-axis invisible, since ICA"
+            logger.warning("No y-label provided, setting y-axis invisible, since ICA"
                  "may also correspond to integrated optical densities")
             ax.yaxis.set_visible(0)
         # ax.xaxis.set_major_formatter(DateFormatter("%H:%M"))
@@ -1773,7 +1775,7 @@ class LocalPlumeProperties(object):
             df = DataFrame(d, index=self.start_acq)
             return df
         except BaseException:
-            warn("Failed to convert LocalPlumeProperties "
+            logger.warning("Failed to convert LocalPlumeProperties "
                  "into pandas DataFrame")
 
     def from_pandas_dataframe(self, df):
@@ -1945,13 +1947,13 @@ class FarnebackSettings(object):
     @property
     def roi_rad(self):
         """Old name of :attr:`roi_rad_abs`."""
-        warn("This method was renamed after release 0.11.2. Please use "
+        logger.warning("This method was renamed after release 0.11.2. Please use "
              "roi_rad_abs in the future")
         return self._contrast["roi_rad_abs"]
 
     @roi_rad.setter
     def roi_rad(self, val):
-        warn("This method was renamed after release 0.11.2. Please use "
+        logger.warning("This method was renamed after release 0.11.2. Please use "
              "roi_rad_abs in the future")
         self.roi_rad_abs = val
 
@@ -2042,9 +2044,9 @@ class FarnebackSettings(object):
         if val <= 0:
             raise ValueError("winsize must exceed 0")
         elif val < 4:
-            warn("Small value for optical flow input parameter: iterations")
+            logger.warning("Small value for optical flow input parameter: iterations")
         elif val > 10:
-            warn("Large value for optical flow input parameter: iterations. "
+            logger.warning("Large value for optical flow input parameter: iterations. "
                  "This might significantly increase computation time")
         self._flow_algo["iterations"] = val
 
@@ -2091,9 +2093,9 @@ class FarnebackSettings(object):
     @min_length.setter
     def min_length(self, val):
         if not val >= 1.0:
-            print("WARNING: Minimum length of optical flow vectors for "
+            logger.info("WARNING: Minimum length of optical flow vectors for "
                   "analysis is smaller than 1 (pixel)")
-        print("Updating param min_length: %.2f" % val)
+        logger.info("Updating param min_length: %.2f" % val)
         self._analysis["min_length"] = val
 
     @property
@@ -2107,19 +2109,19 @@ class FarnebackSettings(object):
     def min_count_frac(self, val):
         if not val <= 1.0:
             raise ValueError("Please use a fraction between 0 and 1")
-        print("Updating param min_count_frac: %.2f" % val)
+        logger.info("Updating param min_count_frac: %.2f" % val)
         self._analysis["min_count_frac"] = val
 
     @property
     def hist_dir_sigma(self):
         """Old name of :attr:`hist_sigma_tol`."""
-        warn("This method was renamed after release 0.11.2. Please use "
+        logger.warning("This method was renamed after release 0.11.2. Please use "
              "hist_sigma_tol in the future")
         return self._analysis["hist_sigma_tol"]
 
     @hist_dir_sigma.setter
     def hist_dir_sigma(self, val):
-        warn("This method was renamed after release 0.11.2. Please use "
+        logger.warning("This method was renamed after release 0.11.2. Please use "
              "hist_sigma_tol in the future")
         self.hist_sigma_tol = val
 
@@ -2298,7 +2300,7 @@ class OptflowFarneback(object):
     @auto_update_contrast.setter
     def auto_update_contrast(self, val):
         self.settings.auto_update = val
-        print("Auto update contrast mode was updated in OptflowFarneback "
+        logger.info("Auto update contrast mode was updated in OptflowFarneback "
               "but not applied to current image objects, please call method "
               "set_images in order to apply the changes")
         return val
@@ -2353,7 +2355,7 @@ class OptflowFarneback(object):
         try:
             return self.images_input["this"].meta["start_acq"]
         except BaseException:
-            warn("Image acq. time cannot be accessed in OptflowFarneback")
+            logger.warning("Image acq. time cannot be accessed in OptflowFarneback")
             return datetime(1900, 1, 1)
 
     def set_mode_auto_update_contrast_range(self, value=True):
@@ -2411,7 +2413,7 @@ class OptflowFarneback(object):
         self.images_input["this"] = this_img
         self.images_input["next"] = next_img
         if any([x.edit_log["crop"] for x in [this_img, next_img]]):
-            warn("Input images for optical flow calculation are cropped")
+            logger.warning("Input images for optical flow calculation are cropped")
 
         i_min, i_max = self.current_contrast_range()
         if self.roi_abs == [0, 0, 9999, 9999]:
@@ -3051,13 +3053,13 @@ class OptflowFarneback(object):
                                                  angles=angles,
                                                  min_length=min_length)
         except BaseException:
-            warn("Retrieval of flow orientation histogram failed")
+            logger.warning("Retrieval of flow orientation histogram failed")
             return res
 
         # Check if enough vectors are left to go on with the analysis
         frac = len(angs) / float(len(angles))
         if frac < min_count_frac:
-            warn("Aborted retrieval of main flow field paramaters"
+            logger.warning("Aborted retrieval of main flow field paramaters"
                  "only %d %% of the vectors in current ROI are longer than "
                  "minimum required length %.1f"
                  % (frac * 100, min_length))
@@ -3078,14 +3080,14 @@ class OptflowFarneback(object):
                                      in add_gaussians]) / tot_num
                 # sign = int(fit.integrate_gauss(*g) * 100 / tot_num)
                 if sign_addgauss > .2:  # other peaks exceed 20% of main peak
-                    warn("Aborting histogram analysis: Multi-Gauss fit "
+                    logger.warning("Aborting histogram analysis: Multi-Gauss fit "
                          "yielded additional Gaussian exceeding "
                          "significance thresh of 0.2 in histo of "
                          "orientation angles\nSignificance: %s %%\n"
                          % (sign_addgauss * 100))
                     return res
             else:
-                warn("Aborting histogram analysis, Multi-Gauss fit failed")
+                logger.warning("Aborting histogram analysis, Multi-Gauss fit failed")
                 return res
         else:
             dir_mu, dir_sigma = self.mu_sigma_from_moments(count, bins)
@@ -3093,7 +3095,7 @@ class OptflowFarneback(object):
             # dir_sigma *= sigma_tol
             add_gaussians = 0
 # ==============================================================================
-#           warn("Could not retrieve predominant peak of orientation "
+#           logger.warning("Could not retrieve predominant peak of orientation "
 #                "histogram from multi gauss fit. Using 1. and 2. moment of "
 #                "distr. for estimate of mean displacement direction")
 #             dir_mu, dir_sigma = self.mu_sigma_from_moments(count, bins)
@@ -3115,7 +3117,7 @@ class OptflowFarneback(object):
         # Check if enough vectors are left to go on with the analysis
         frac = sum(cond) / float(len(lens))
         if frac < min_count_frac:
-            warn("Aborted retrieval of main flow field parameters"
+            logger.warning("Aborted retrieval of main flow field parameters"
                  "only %d %% of the vectors in current ROI remain after "
                  "limiting angular range from fit result of orientation histo"
                  % (frac * 100))
@@ -3131,7 +3133,7 @@ class OptflowFarneback(object):
 #         len_sigma *= sigma_tol
 # =============================================================================
 
-        # print("Avg. displ. length: %.1f +/- %.1f" %(len_mu, len_sigma))
+        # logger.info("Avg. displ. length: %.1f +/- %.1f" %(len_mu, len_sigma))
 
         res["_len_mu_norm"] = len_mu / del_t  # normalise to 1s ival
         res["_len_sigma_norm"] = len_sigma / del_t  # normalise to 1s ival
@@ -3203,7 +3205,7 @@ class OptflowFarneback(object):
             t0 = self.images_input["this"].meta["start_acq"]
             t1 = self.images_input["next"].meta["start_acq"]
         except BaseException:
-            warn("Image acquisition times cannot be accessed in"
+            logger.warning("Image acquisition times cannot be accessed in"
                  " OptflowFarneback")
             t0 = datetime(1900, 1, 1)
             t1 = datetime(1900, 1, 1, 0, 0, 1)
@@ -3243,7 +3245,7 @@ class OptflowFarneback(object):
                 min_length=min_length,
                 bin_res_degrees=bin_res_degrees)
         except BaseException:
-            warn("Failed to retrieve orientation histogram: probably no "
+            logger.warning("Failed to retrieve orientation histogram: probably no "
                  "vectors left for retrieval of histogram. Current time: %s "
                  % self.current_time)
             return (ax, None, None)
@@ -3314,7 +3316,7 @@ class OptflowFarneback(object):
                                             min_length=min_length,
                                             bin_res_pix=bin_res_pix)
         except BaseException:
-            warn("Failed to retrieve length histogram: probably no vectors "
+            logger.warning("Failed to retrieve length histogram: probably no vectors "
                  "left for retrieval of histogram. Current time: %s "
                  % self.current_time)
         w = bins[1] - bins[0]
@@ -3545,7 +3547,7 @@ class OptflowFarneback(object):
         draw_img = True
 
         if self.flow is None:
-            print("Could not draw flow, no flow available")
+            logger.info("Could not draw flow, no flow available")
             return
         try:
             if ax is None:
@@ -3555,7 +3557,7 @@ class OptflowFarneback(object):
                     draw_img = False
                 fig = ax.figure
         except BaseException:
-            warn("Could not draw optical flow, invalid input for parameter ax")
+            logger.warning("Could not draw optical flow, invalid input for parameter ax")
             return 0
         i_min, i_max = self.current_contrast_range()
 
@@ -3661,8 +3663,8 @@ class OptflowFarneback(object):
 
     def __call__(self, item=None):
         if item is None:
-            print("Returning current optical flow field, settings: ")
-            print(self.settings)
+            logger.info("Returning current optical flow field, settings: ")
+            logger.info(self.settings)
             return self.flow
         for key, val in six.iteritems(self.__dict__):
             try:
@@ -3783,8 +3785,8 @@ def find_movement(first_img, next_img, pyrlevel=2, num_contrast_ivals=8,
     # initiate mask specifying movement pixels
     cond_movement = zeros_like(first_img.img)
     if verbose:
-        print(fl.settings)
-        print("\nIterative movement search, varying input contrast range for"
+        logger.info(fl.settings)
+        logger.info("\nIterative movement search, varying input contrast range for"
               " optflow calculation. Current contrast interval:")
     for ival in ivals:
         fl.settings.i_min = ival[0]
@@ -3795,13 +3797,13 @@ def find_movement(first_img, next_img, pyrlevel=2, num_contrast_ivals=8,
 
         c = (len_im.img > fl.settings.min_length).astype(uint8)
         if verbose:
-            print("Low: %.3f, High: %.3f, movement detected in %d pixels"
+            logger.info("Low: %.3f, High: %.3f, movement detected in %d pixels"
                   % (ival[0], ival[1], sum(c)))
         cond_movement[c == 1] = 1
 
     if apply_erosion:
         if verbose:
-            print(
+            logger.info(
                 "Applying erosion using kernel size: %d" %
                 erosion_kernel_size)
         erosion_kernel = ones((erosion_kernel_size,
@@ -3810,7 +3812,7 @@ def find_movement(first_img, next_img, pyrlevel=2, num_contrast_ivals=8,
 
     if apply_dilation:
         if verbose:
-            print("Applying dilation using kernel size: %d"
+            logger.info("Applying dilation using kernel size: %d"
                   % dilation_kernel_size)
         dilation_kernel = ones((dilation_kernel_size,
                                 dilation_kernel_size), dtype=uint8)
@@ -3835,7 +3837,7 @@ class OpticalFlowFarnebackSettings(FarnebackSettings):
 
     def __init__(self, *args, **kwargs):
         super(OpticalFlowFarnebackSettings, self).__init__(*args, **kwargs)
-        warn("You are using an old name (OpticalFlowFarnebackSettings) for "
+        logger.warning("You are using an old name (OpticalFlowFarnebackSettings) for "
              "class FarnebackSettings")
 
 
@@ -3844,5 +3846,5 @@ class OpticalFlowFarneback(OptflowFarneback):
 
     def __init__(self, *args, **kwargs):
         super(OpticalFlowFarneback, self).__init__(*args, **kwargs)
-        warn("You are using an old name OpticalFlowFarneback for class"
+        logger.warning("You are using an old name OpticalFlowFarneback for class"
              "OptflowFarneback")

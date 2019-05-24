@@ -24,9 +24,10 @@ from matplotlib.pyplot import figure, subplots, setp
 import matplotlib.colors as colors
 from collections import OrderedDict as od
 from scipy.ndimage.filters import gaussian_filter
-from warnings import warn
+
 import six
 
+from pyplis import logger, print_log
 from .image import Img
 from .utils import LineOnImage
 from .optimisation import PolySurfaceFit
@@ -194,7 +195,7 @@ class PlumeBackgroundModel(object):
         This is the previous name of the method
         :func:`set_missing_ref_areas`
         """
-        warn("Please use new name of method: set_missing_ref_areas",
+        logger.warning("Please use new name of method: set_missing_ref_areas",
              DeprecationWarning)
         self.set_missing_ref_areas(plume_img)
 
@@ -292,7 +293,7 @@ class PlumeBackgroundModel(object):
         return mask
 
     def _init_bgsurf_mask(self, plume):
-        print("Initiating BG surface mask in PlumeBackgroundModel")
+        logger.info("Initiating BG surface mask in PlumeBackgroundModel")
         mask = ones(plume.shape)
         self.surface_fit_mask = mask
         return mask
@@ -343,7 +344,7 @@ class PlumeBackgroundModel(object):
                 mask = self._init_bgsurf_mask(plume)
         pyrlevel_rel = pyrlevel - plume.pyrlevel
         if pyrlevel_rel < 0:
-            warn("Pyramid level of input image (%d) is larger than desired "
+            logger.warning("Pyramid level of input image (%d) is larger than desired "
                  "pyramid level for computation of surface fit (%d). Using "
                  "the current pyrlevel %d of input image" % (plume.pyrlevel,
                                                              pyrlevel))
@@ -399,7 +400,7 @@ class PlumeBackgroundModel(object):
             self.__setitem__(k, v)
 
         if not plume_img.is_darkcorr:
-            warn("plume image is not corrected for dark current")
+            logger.warning("plume image is not corrected for dark current")
         if plume_img.is_tau:
             raise AttributeError("Input image is already tau image")
         tau = None
@@ -839,9 +840,9 @@ class PlumeBackgroundModel(object):
 
     def print_mode_info(self):
         """Print information about the different correction modes."""
-        print("Available modes for automatic plume background retrieval")
+        logger.info("Available modes for automatic plume background retrieval")
         for k, v in six.iteritems(self.mode_info_dict):
-            print("Mode %s: %s" % (k, v))
+            logger.info("Mode %s: %s" % (k, v))
 
     def _check_rect(self, rect, img):
         """Check if rect is not None and if it is within image borders.
@@ -875,7 +876,7 @@ class PlumeBackgroundModel(object):
     def __setitem__(self, key, value):
         """Update class item."""
         if key in self.__dict__:
-            print("Updating %s in background model" % key)
+            logger.info("Updating %s in background model" % key)
             self.__dict__[key] = value
         elif key == "mode":
             "Updating %s in background model" % key
@@ -883,7 +884,7 @@ class PlumeBackgroundModel(object):
         elif key == "surface_fit_mask":
             self.surface_fit_mask = value
         elif key == "CORR_MODE":
-            warn("Got input key CORR_MODE which is out-dated in versions 0.10+"
+            logger.warning("Got input key CORR_MODE which is out-dated in versions 0.10+"
                  ". Updated background modelling mode accordingly")
             self.mode = value
 

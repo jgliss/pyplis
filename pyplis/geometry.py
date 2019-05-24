@@ -22,11 +22,12 @@ from numpy import nan, arctan, deg2rad, linalg, sqrt, abs, array, radians,\
     sin, cos, arcsin, tan, rad2deg, linspace, isnan, asarray, arange,\
     argmin, newaxis
 from collections import OrderedDict as od
-from warnings import warn
+
 from matplotlib.pyplot import figure
 from copy import deepcopy
 import six
 
+from pyplis import logger, print_log
 from .image import Img
 from .helpers import check_roi, isnum
 from .glob import DEFAULT_ROI
@@ -39,7 +40,7 @@ try:
         from geonum import GeoSetup, GeoPoint, GeoVector3D, TopoData
         from geonum.exceptions import TopoAccessError
 except:
-    warn("Geonum library could not be found")
+    logger.warning("Geonum library could not be found")
 
 
 class MeasGeometry(object):
@@ -223,7 +224,7 @@ class MeasGeometry(object):
         """Longitude position of camera."""
         val = self._cam["lon"]
         if not isnum(val):
-            warn("Invalid value: %s (need numeric)" % val)
+            logger.warning("Invalid value: %s (need numeric)" % val)
         return val
 
     @cam_lon.setter
@@ -238,7 +239,7 @@ class MeasGeometry(object):
         """Latitude position of camera."""
         val = self._cam["lat"]
         if not isnum(val):
-            warn("Invalid value: %s (need numeric)" % val)
+            logger.warning("Invalid value: %s (need numeric)" % val)
         return val
 
     @cam_lat.setter
@@ -253,7 +254,7 @@ class MeasGeometry(object):
         """Altitude of camera position."""
         val = self._cam["altitude"]
         if not isnum(val):
-            warn("Invalid value: %s (need numeric)" % val)
+            logger.warning("Invalid value: %s (need numeric)" % val)
         return val
 
     @cam_altitude.setter
@@ -268,7 +269,7 @@ class MeasGeometry(object):
         """Elevation angle of camera viewing direction (CFOV)."""
         val = self._cam["elev"]
         if not isnum(val):
-            warn("Invalid value: %s (need numeric)" % val)
+            logger.warning("Invalid value: %s (need numeric)" % val)
         return val
 
     @cam_elev.setter
@@ -283,7 +284,7 @@ class MeasGeometry(object):
         """Elevation angle error of camera viewing direction (CFOV)."""
         val = self._cam["elev_err"]
         if not isnum(val):
-            warn("Invalid value: %s (need numeric)" % val)
+            logger.warning("Invalid value: %s (need numeric)" % val)
         return val
 
     @cam_elev_err.setter
@@ -298,7 +299,7 @@ class MeasGeometry(object):
         """Azimuth of camera viewing direction (CFOV)."""
         val = self._cam["azim"]
         if not isnum(val):
-            warn("Invalid value: %s (need numeric)" % val)
+            logger.warning("Invalid value: %s (need numeric)" % val)
         return val
 
     @cam_azim.setter
@@ -313,7 +314,7 @@ class MeasGeometry(object):
         """Azimuth error of camera viewing direction (CFOV)."""
         val = self._cam["azim_err"]
         if not isnum(val):
-            warn("Invalid value: %s (need numeric)" % val)
+            logger.warning("Invalid value: %s (need numeric)" % val)
         return val
 
     @cam_azim_err.setter
@@ -328,7 +329,7 @@ class MeasGeometry(object):
         """Focal length of camera."""
         val = self._cam["focal_length"]
         if not isnum(val):
-            warn("Invalid value: %s (need numeric)" % val)
+            logger.warning("Invalid value: %s (need numeric)" % val)
         return val
 
     @cam_focal_length.setter
@@ -342,7 +343,7 @@ class MeasGeometry(object):
         """Pixel width of camera detector (horizonzal pix-to-pix distance)."""
         val = self._cam["pix_width"]
         if not isnum(val):
-            warn("Invalid value: %s (need numeric)" % val)
+            logger.warning("Invalid value: %s (need numeric)" % val)
         return val
 
     @cam_pix_width.setter
@@ -356,7 +357,7 @@ class MeasGeometry(object):
         """Pixel height of camera detector (vertical pix-to-pix distance)."""
         val = self._cam["pix_height"]
         if not isnum(val):
-            warn("Invalid value: %s (need numeric)" % val)
+            logger.warning("Invalid value: %s (need numeric)" % val)
         return val
 
     @cam_pix_height.setter
@@ -371,7 +372,7 @@ class MeasGeometry(object):
         """
         val = self._cam["pixnum_x"]
         if not isnum(val):
-            warn("Invalid value: %s (need numeric)" % val)
+            logger.warning("Invalid value: %s (need numeric)" % val)
         return val
 
     @cam_pixnum_x.setter
@@ -386,7 +387,7 @@ class MeasGeometry(object):
         """
         val = self._cam["pixnum_y"]
         if not isnum(val):
-            warn("Invalid value: %s (need numeric)" % val)
+            logger.warning("Invalid value: %s (need numeric)" % val)
         return val
 
     @cam_pixnum_y.setter
@@ -407,7 +408,7 @@ class MeasGeometry(object):
         """
         val = self._cam["altitude_offs"]
         if not isnum(val):
-            warn("Invalid value: %s (need numeric)" % val)
+            logger.warning("Invalid value: %s (need numeric)" % val)
         return val
 
     @cam_altitude_offs.setter
@@ -421,7 +422,7 @@ class MeasGeometry(object):
         """Longitude position of source."""
         val = self._source["lon"]
         if not isnum(val):
-            warn("Invalid value: %s (need numeric)" % val)
+            logger.warning("Invalid value: %s (need numeric)" % val)
         return val
 
     @source_lon.setter
@@ -436,7 +437,7 @@ class MeasGeometry(object):
         """Latitude position of source."""
         val = self._source["lat"]
         if not isnum(val):
-            warn("Invalid value: %s (need numeric)" % val)
+            logger.warning("Invalid value: %s (need numeric)" % val)
         return val
 
     @source_lat.setter
@@ -451,7 +452,7 @@ class MeasGeometry(object):
         """Altitude of source position."""
         val = self._source["altitude"]
         if not isnum(val):
-            warn("Invalid value: %s (need numeric)" % val)
+            logger.warning("Invalid value: %s (need numeric)" % val)
         return val
 
     @source_altitude.setter
@@ -466,7 +467,7 @@ class MeasGeometry(object):
         """Azimuth of wind direction."""
         val = self._wind["dir"]
         if not isnum(val):
-            warn("Invalid value: %s (need numeric)" % val)
+            logger.warning("Invalid value: %s (need numeric)" % val)
         return val
 
     @wind_dir.setter
@@ -481,7 +482,7 @@ class MeasGeometry(object):
         """Azimuth error of wind direction."""
         val = self._wind["dir_err"]
         if not isnum(val):
-            warn("Invalid value: %s (need numeric)" % val)
+            logger.warning("Invalid value: %s (need numeric)" % val)
         return val
 
     @wind_dir_err.setter
@@ -629,7 +630,7 @@ class MeasGeometry(object):
                 # print "missing info in source, key %s" %key
                 source_ok = False
         if not isnum(self._wind["dir"]) and cam_ok and isnum(self.cam_azim):
-            print("setting orientation angle of wind direction relative to "
+            logger.info("setting orientation angle of wind direction relative to "
                   "camera cfov")
             self._wind["dir"] = (self._cam["azim"] + 90) % 360
             self._wind["dir_err"] = 45.0
@@ -658,9 +659,9 @@ class MeasGeometry(object):
                 cam = GeoPoint(self._cam["lat"], self._cam["lon"],
                                self._cam["altitude"], name="cam")
                 from geonum import __version__ as v
-                warn("Outdated version of Geonum: %s. Require >= v1.2.0" % v)
+                logger.warning("Outdated version of Geonum: %s. Require >= v1.2.0" % v)
             self.geo_setup.add_geo_point(cam)
-            print("Updated camera in GeoSetup of MeasGeometry")
+            logger.info("Updated camera in GeoSetup of MeasGeometry")
         if source_ok:
             try:
                 source = GeoPoint(self._source["lat"], self._source["lon"],
@@ -670,19 +671,19 @@ class MeasGeometry(object):
                 from geonum import __version__ as v
                 source = GeoPoint(self._source["lat"], self._source["lon"],
                                   self._source["altitude"], name="source")
-                warn("Outdated version of Geonum: %s. Require >= v1.2.0" % v)
+                logger.warning("Outdated version of Geonum: %s. Require >= v1.2.0" % v)
             self.geo_setup.add_geo_point(source)
-            print("Updated source in GeoSetup of MeasGeometry")
+            logger.info("Updated source in GeoSetup of MeasGeometry")
         if cam_ok and source_ok:
             try:
                 source2cam = cam - source  # Vector pointing from source to cam
                 mag = source2cam.norm  # length of this vector
                 source2cam.name = "source2cam"
                 self.geo_setup.add_geo_vector(source2cam)
-                print("Updated source2cam GeoVector in GeoSetup of "
+                logger.info("Updated source2cam GeoVector in GeoSetup of "
                       "MeasGeometry")
             except BaseException:
-                warn("Failed to compute GeoVector between camera and source")
+                logger.warning("Failed to compute GeoVector between camera and source")
                 all_ok = False
             try:
                 # vector representing the camera center pix viewing direction
@@ -691,10 +692,10 @@ class MeasGeometry(object):
                                            elevation=self._cam["elev"],
                                            dist_hor=mag, anchor=cam,
                                            name="cfov")
-                print("Updated camera CFOV vector in GeoSetup of MeasGeometry")
+                logger.info("Updated camera CFOV vector in GeoSetup of MeasGeometry")
                 self.geo_setup.add_geo_vector(cam_view_vec)
             except BaseException:
-                warn("Failed to compute camera CFOV GeoVector"
+                logger.warning("Failed to compute camera CFOV GeoVector"
                      "in GeoSetup of MeasGeometry")
                 all_ok = False
             try:
@@ -703,10 +704,10 @@ class MeasGeometry(object):
                 plume_vec = GeoVector3D(azimuth=self.plume_dir,
                                         dist_hor=mag, anchor=source,
                                         name="plume_vec")
-                print("Updated plume vector in GeoSetup of MeasGeometry")
+                logger.info("Updated plume vector in GeoSetup of MeasGeometry")
                 self.geo_setup.add_geo_vector(plume_vec)
             except BaseException:
-                warn("Failed to compute plume GeoVector"
+                logger.warning("Failed to compute plume GeoVector"
                      "in GeoSetup of MeasGeometry")
                 all_ok = False
             try:
@@ -715,11 +716,11 @@ class MeasGeometry(object):
                 # Geopoint at intersection
                 intersect = source + offs
                 intersect.name = "intersect"
-                print("Updated GeoPoint of intersection between camera CFOV "
+                logger.info("Updated GeoPoint of intersection between camera CFOV "
                       "and plume vector in GeoSetup of MeasGeometry")
                 self.geo_setup.add_geo_point(intersect)
             except BaseException:
-                warn("Could not compute intersection point between camera CFOV"
+                logger.warning("Could not compute intersection point between camera CFOV"
                      " and plume vector in GeoSetup of MeasGeometry")
                 all_ok = False
             try:
@@ -729,7 +730,7 @@ class MeasGeometry(object):
             except BaseException:
                 pass
             if all_ok:
-                print("MeasGeometry was updated and fulfills all requirements")
+                logger.info("MeasGeometry was updated and fulfills all requirements")
                 return True
 
         elif cam_ok:
@@ -738,8 +739,8 @@ class MeasGeometry(object):
                                        dist_hor=mag, anchor=cam,
                                        name="cfov")
             self.geo_setup.add_geo_vector(cam_view_vec)
-            print("MeasGeometry was updated but misses source specifications")
-        print("MeasGeometry not (yet) ready for analysis")
+            logger.info("MeasGeometry was updated but misses source specifications")
+        logger.info("MeasGeometry not (yet) ready for analysis")
 
         return False
 
@@ -798,7 +799,7 @@ class MeasGeometry(object):
             try:
                 dists.append(dist_secs[-1])
             except BaseException:
-                warn("Temporary solution, need a fix here...")
+                logger.warning("Temporary solution, need a fix here...")
                 dists.append(nan)
         return idx_x, idx_y, dists
 
@@ -822,7 +823,7 @@ class MeasGeometry(object):
 
         """
         if not line.roi_abs_def == DEFAULT_ROI or line.pyrlevel_def > 0:
-            warn("Input line is not in absolute detector coordinates "
+            logger.warning("Input line is not in absolute detector coordinates "
                  "and will be converted to uncropped image coords at "
                  "pyrlevel 0")
             line = line.convert(to_pyrlevel=0, to_roi_abs=DEFAULT_ROI)
@@ -881,7 +882,7 @@ class MeasGeometry(object):
 
         """
         try:
-            print(self.cam)
+            logger.info(self.cam)
         except BaseException:
             raise AttributeError("Failed to retrieve distance to topo: geo "
                                  "location of camera is not available")
@@ -930,9 +931,9 @@ class MeasGeometry(object):
             pointing into flatter topographic areas are ignored
         """
         try:
-            print(self.cam)
+            logger.info(self.cam)
         except BaseException:
-            print("Failed to retrieve distance to topo for line %s in "
+            logger.info("Failed to retrieve distance to topo for line %s in "
                   "MeasGeometry: geo location of camera is not available"
                   % line)
             return False
@@ -940,7 +941,7 @@ class MeasGeometry(object):
             try:
                 self.geo_setup.load_topo_data()
             except BaseException:
-                print("Failed to retrieve distance to topo for line %s in "
+                logger.info("Failed to retrieve distance to topo for line %s in "
                       "MeasGeometry: topo data could not be accessed..."
                       % line)
                 return False
@@ -952,7 +953,7 @@ class MeasGeometry(object):
          i_pos,
          j_pos) = azims[cond], elevs[cond], i_pos[cond], j_pos[cond]
         if not len(azims) > 0:
-            print("Failed to retrieve distance to topo for line %s in "
+            logger.info("Failed to retrieve distance to topo for line %s in "
                   "MeasGeometry: viewing directions (azim, elev) could not "
                   "be retrieved..." % line)
             return False
@@ -981,7 +982,7 @@ class MeasGeometry(object):
             if d is not None and min_slope_angle > 0:
                 slope = ep.slope_angle(d)
                 if slope < min_slope_angle:
-                    print("Slope angle too small, remove point at dist %.1f"
+                    logger.info("Slope angle too small, remove point at dist %.1f"
                           % d)
                     d = None
             ok = True
@@ -1032,7 +1033,7 @@ class MeasGeometry(object):
                 self.geo_setup.load_topo_data()
                 return True
             except Exception as e:
-                print("Failed to retrieve topo data in MeasGeometry..: %s"
+                logger.info("Failed to retrieve topo data in MeasGeometry..: %s"
                       % repr(e))
                 return False
         return True
@@ -1060,7 +1061,7 @@ class MeasGeometry(object):
             dist_hor = (self.cam - self._source).norm * 1.05
         p = self.cam.get_elevation_profile(
             azimuth=az, dist_hor=dist_hor, resolution=topo_res_m)
-        print("Succesfully determined elevation profile for az = %s" % az)
+        logger.info("Succesfully determined elevation profile for az = %s" % az)
         return p
 
     def get_distance_to_topo(self, col_num=None, row_num=None, azim=None,
@@ -1108,7 +1109,7 @@ class MeasGeometry(object):
             d, d_err, pf = p.get_first_intersection(elev, min_dist)
             return d, d_err, pf
         except Exception as e:
-            print("Failed to retrieve distance to topo:" % repr(e))
+            logger.info("Failed to retrieve distance to topo:" % repr(e))
             return False
 
     def _check_float(self, val):
@@ -1208,10 +1209,10 @@ class MeasGeometry(object):
 
         if update:
             elev_old, az_old = geom_old._cam["elev"], geom_old._cam["azim"]
-            print(
+            logger.info(
                 "Old Elev / Azim cam CFOV: %.2f / %.2f" %
                 (elev_old, az_old))
-            print(
+            logger.info(
                 "New Elev / Azim cam CFOV: %.2f / %.2f" %
                 (elev_cam, az_cam))
             self._cam["elev"] = elev_cam

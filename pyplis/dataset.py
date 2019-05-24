@@ -29,7 +29,7 @@ tutorial
 from __future__ import (absolute_import, division)
 from os.path import exists, join, isfile, isdir
 from os import listdir, walk
-from warnings import warn
+
 from datetime import datetime, date
 from numpy import inf
 from matplotlib.pyplot import subplots, FuncFormatter, tight_layout, Line2D
@@ -39,6 +39,7 @@ from copy import deepcopy
 from traceback import format_exc
 from collections import OrderedDict as od
 
+from pyplis import logger, print_log
 from .imagelists import ImgList, DarkImgList
 from .image import Img
 from .helpers import shifted_color_map
@@ -103,7 +104,7 @@ class Dataset(object):
             self.init_image_lists()
         else:
             self.create_lists_default()
-        print("DATASET INITIATED")
+        logger.info("DATASET INITIATED")
 
     @property
     def camera(self):
@@ -147,7 +148,7 @@ class Dataset(object):
     @USE_ALL_FILES.setter
     def USE_ALL_FILES(self, val):
         self.setup.USE_ALL_FILES = val
-        print("Option USE_ALL_FILES was updated in Dataset, please call class"
+        logger.info("Option USE_ALL_FILES was updated in Dataset, please call class"
               " method ``init_image_lists`` in order to apply the changes")
 
     @property
@@ -158,7 +159,7 @@ class Dataset(object):
     @USE_ALL_FILE_TYPES.setter
     def USE_ALL_FILE_TYPES(self, val):
         self.setup.USE_ALL_FILE_TYPES = val
-        print("Option USE_ALL_FILE_TYPES was updated in Dataset, please call "
+        logger.info("Option USE_ALL_FILE_TYPES was updated in Dataset, please call "
               "class method ``init_image_lists`` in order "
               "to apply the changes")
 
@@ -170,7 +171,7 @@ class Dataset(object):
     @INCLUDE_SUB_DIRS.setter
     def INCLUDE_SUB_DIRS(self, val):
         self.setup.INCLUDE_SUB_DIRS = val
-        print("Option INCLUDE_SUB_DIRS was updated in Dataset, please call "
+        logger.info("Option INCLUDE_SUB_DIRS was updated in Dataset, please call "
               "class method ``init_image_lists`` to apply the changes")
 
     @property
@@ -181,7 +182,7 @@ class Dataset(object):
     @LINK_OFF_TO_ON.setter
     def LINK_OFF_TO_ON(self, val):
         self.setup.LINK_OFF_TO_ON = val
-        print("Option INCLUDE_SUB_DIRS was updated in Dataset, please call "
+        logger.info("Option INCLUDE_SUB_DIRS was updated in Dataset, please call "
               "class method ``init_image_lists`` in order "
               "to apply the changes")
 
@@ -193,7 +194,7 @@ class Dataset(object):
     @start.setter
     def start(self, val):
         self.setup.start = val
-        print("Start time stamp was updated in Dataset, please call class "
+        logger.info("Start time stamp was updated in Dataset, please call class "
               "method ``init_image_lists`` in order to apply the changes")
 
     @property
@@ -204,7 +205,7 @@ class Dataset(object):
     @stop.setter
     def stop(self, val):
         self.setup.stop = val
-        print("Stop time stamp was updated in Dataset, please call class "
+        logger.info("Stop time stamp was updated in Dataset, please call class "
               "method ``init_image_lists`` in order to apply the changes")
 
     @property
@@ -277,12 +278,12 @@ class Dataset(object):
         """
         if self.set_setup(input):
             return 1
-        print("Creating empty MeasSetup within Dataset")
+        logger.info("Creating empty MeasSetup within Dataset")
         self.setup = MeasSetup()
         if input is None:
             return 0
         if isinstance(input, str) and isdir(input):
-            print("Updating base_dir variable in self.setup with input "
+            logger.info("Updating base_dir variable in self.setup with input "
                   "directory: %s" % input)
             self.change_img_base_dir(input)
         elif isinstance(input, Source):
@@ -290,7 +291,7 @@ class Dataset(object):
         elif isinstance(input, Camera):
             self.setup.camera = input
         elif isinstance(input, datetime):
-            print("Input is datetime and will be set as start time for data "
+            logger.info("Input is datetime and will be set as start time for data "
                   "import")
             self.setup.start = input
         else:
@@ -309,7 +310,7 @@ class Dataset(object):
 
         """
         if isinstance(stp, MeasSetup):
-            print("Updating measurement setup in Dataset")
+            logger.info("Updating measurement setup in Dataset")
             self.setup = stp
             return 1
         return 0
@@ -349,7 +350,7 @@ class Dataset(object):
         if not bool(self.camera.dark_info):
             msg = ("Warning: dark image lists could not be initiated, no "
                    "dark image file information available in self.camera")
-            print(msg)
+            logger.info(msg)
             return 0
 
         for item in self.camera.dark_info:
@@ -374,7 +375,7 @@ class Dataset(object):
             s = ("Warning: image base directory does not exist, method "
                  "init_image_lists aborted in Dataset")
             warnings.append(s)
-            warn(s)
+            logger.warning(s)
             return False
         #: load all file paths
         paths = self.get_all_filepaths()
@@ -384,7 +385,7 @@ class Dataset(object):
             s = ("Warning: lists could not be initiated, no valid files found "
                  "method init_image_lists aborted in Dataset")
             warnings.append(s)
-            warn(s)
+            logger.warning(s)
             return False
         # check which image meta information can be accessed from first file in
         # list (updates ``_fname_access_flags`` in :class:`Camera`)
@@ -401,7 +402,7 @@ class Dataset(object):
         #: Set option to use all files in case acquisition time stamps cannot
         #: be accessed from filename
         if not flags["start_acq"]:
-            print("Acquisition time access from filename not possible, "
+            logger.info("Acquisition time access from filename not possible, "
                   "using all files")
             self.setup.options["USE_ALL_FILES"] = True
 
@@ -419,7 +420,7 @@ class Dataset(object):
             else:
                 paths = paths_temp
         if self.setup.ON_OFF_SAME_FILE:
-            print("Option ON_OFF_SAME_FILE is active: using same file paths "
+            logger.info("Option ON_OFF_SAME_FILE is active: using same file paths "
                   "in default on and offband list. Please note that no "
                   "further file separation is applied (e.g. separation of "
                   "dark images)")
@@ -439,7 +440,7 @@ class Dataset(object):
                 self.setup.options["SEPARATE_FILTERS"] = False
                 i = self.lists_access_info[self.filters.default_key_on]
                 self._lists_intern[i[0]][i[1]].add_files(paths)
-                [warn(x) for x in warnings]
+                [logger.warning(x) for x in warnings]
                 return True
 
             #: now perform separation by meastype and filter
@@ -449,7 +450,7 @@ class Dataset(object):
                         get_img_meta_from_filename(p)
                     self._lists_intern[meas_type][filter_id].files.append(p)
                 except:
-                    print("File %s could not be added..." % p)
+                    logger.info("File %s could not be added..." % p)
 
             for meas_type, sub_dict in six.iteritems(self._lists_intern):
                 for filter_id, lst in six.iteritems(sub_dict):
@@ -469,7 +470,7 @@ class Dataset(object):
                 if lst.list_type == "off":
                     lst.shift_mode = True
 
-        [warn(x) for x in warnings]
+        [logger.warning(x) for x in warnings]
         return True
 
     def get_all_filepaths(self):
@@ -483,50 +484,50 @@ class Dataset(object):
             type is not explicitely set in the camera class.)
 
         """
-        print("\nSEARCHING VALID FILE PATHS IN\n%s\n" % self.base_dir)
+        logger.info("\nSEARCHING VALID FILE PATHS IN\n%s\n" % self.base_dir)
 
         p = self.base_dir
         ftype = self.file_type
         if not isinstance(ftype, str):
-            print("file_type not specified in Dataset..."
+            logger.info("file_type not specified in Dataset..."
                   "Using all files and file_types")
             self.setup.options["USE_ALL_FILES"] = True
             self.setup.options["USE_ALL_FILE_TYPES"] = True
 
         if p is None or not exists(p):
             message = ('Error: path %s does not exist' % p)
-            print(message)
+            logger.info(message)
             return []
 
         if not self.INCLUDE_SUB_DIRS:
-            print("Image search is only performed in specified directory "
+            logger.info("Image search is only performed in specified directory "
                   "and does not include subdirectories")
             if self.USE_ALL_FILE_TYPES:
-                print("Using all file types")
+                logger.info("Using all file types")
                 all_paths = [join(p, f) for f in listdir(p) if
                              isfile(join(p, f))]
             else:
-                print("Using only %s files" % self.file_type)
+                logger.info("Using only %s files" % self.file_type)
                 all_paths = [join(p, f) for f in listdir(p) if
                              isfile(join(p, f)) and f.endswith(ftype)]
 
         else:
-            print("Image search includes files from subdirectories")
+            logger.info("Image search includes files from subdirectories")
             all_paths = []
             if self.USE_ALL_FILE_TYPES:
-                print("Using all file types")
+                logger.info("Using all file types")
                 for path, subdirs, files in walk(p):
                     for filename in files:
                         all_paths.append(join(path, filename))
             else:
-                print("Using only %s files" % ftype)
+                logger.info("Using only %s files" % ftype)
                 for path, subdirs, files in walk(p):
                     for filename in files:
                         if filename.endswith(ftype):
                             all_paths.append(join(path, filename))
 
         all_paths.sort()
-        print("Total number of files found %s" % len(all_paths))
+        logger.info("Total number of files found %s" % len(all_paths))
 
         return all_paths
 
@@ -552,7 +553,7 @@ class Dataset(object):
         """
         err = self.camera.get_img_meta_from_filename(filepath)[4]
         for item in err:
-            print(item)
+            logger.info(item)
         return self.camera._fname_access_flags
 
     def change_img_base_dir(self, img_dir):
@@ -563,7 +564,7 @@ class Dataset(object):
         if not exists(img_dir):
             msg = ("Could not update base_dir, input path %s does not "
                    "exist" % img_dir)
-            print(msg)
+            logger.info(msg)
             self.warnings.append(msg)
             return 0
         self.setup.base_dir = img_dir
@@ -590,7 +591,7 @@ class Dataset(object):
         :param list all_paths: list of image filepaths
         """
         if not self.camera._fname_access_flags["start_acq"]:
-            warn("Acq. time information cannot be accessed from file names")
+            logger.warning("Acq. time information cannot be accessed from file names")
             return all_paths
         acq_time0 = self.camera.get_img_meta_from_filename(all_paths[0])[0]
         if acq_time0.date() == date(1900, 1, 1):
@@ -599,11 +600,11 @@ class Dataset(object):
             paths = self._find_files_ival_datetime(all_paths)
 
         if not bool(paths):
-            warn("Error: no files could be found in specified time "
+            logger.warning("Error: no files could be found in specified time "
                  "interval %s - %s" % (self.start, self.stop))
             self.USE_ALL_FILES = True
         else:
-            print("%s files of type were found in specified time interval %s "
+            logger.info("%s files of type were found in specified time interval %s "
                   "- %s" % (len(paths), self.start, self.stop))
         return paths
 
@@ -640,10 +641,10 @@ class Dataset(object):
                 paths.append(path)
 
         if not bool(paths):
-            warn("Error: no files could be found in specified time "
+            logger.warning("Error: no files could be found in specified time "
                  "interval %s - %s" % (self.start, self.stop))
         else:
-            print("%s files of type were found in specified time interval %s "
+            logger.info("%s files of type were found in specified time interval %s "
                   "- %s" % (len(paths), self.start, self.stop))
         return paths
 
@@ -728,7 +729,7 @@ class Dataset(object):
                                         _lists_intern[dark_mtype][dark_acro]
                                     if isinstance(dark_lst, DarkImgList):
                                         lists[dark_lst.list_id] = dark_lst
-                                        print("Found dark list match for "
+                                        logger.info("Found dark list match for "
                                               "image list %s, dark ID: %s"
                                               % (lst.list_id,
                                                  dark_lst.list_id))
@@ -742,7 +743,7 @@ class Dataset(object):
                                         _lists_intern[offs_mtype][offset_acro]
                                     if isinstance(offs_lst, DarkImgList):
                                         lists[offs_lst.list_id] = offs_lst
-                                        print("Found offset list match for "
+                                        logger.info("Found offset list match for "
                                               "image list %s: dark ID: %s"
                                               % (lst.list_id,
                                                  offs_lst.list_id))
@@ -764,10 +765,10 @@ class Dataset(object):
                     if not isinstance(l.loaded_images["this"], Img):
                         l.load()
                 if not bool(lists):
-                    warn("Failed to assign dark / offset lists to image "
+                    logger.warning("Failed to assign dark / offset lists to image "
                          "list %s, no dark images could be found" % filter_id)
                 else:
-                    print("Assigning dark/offset lists %s to image list %s\n"
+                    logger.info("Assigning dark/offset lists %s to image list %s\n"
                           % (list(lists.keys()), filter_id))
                     lst.link_dark_offset_lists(*list(lists.values()))
         return True
@@ -836,7 +837,7 @@ class Dataset(object):
         contain images
         """
         dark_id = dark_list.list_id
-        print("\nSearching master dark image for dark list %s" % dark_id)
+        logger.info("\nSearching master dark image for dark list %s" % dark_id)
         flags = self.camera._fname_access_flags
         if not (flags["filter_id"] and flags["meas_type"]):
             #: it is not possible to separate different image types (on, off,
@@ -858,9 +859,9 @@ class Dataset(object):
                                       meas_type_acro)
             dark_list.files.append(p)
             dark_list.init_filelist()
-            print("Found dark image for ID %s\n" % dark_id)
+            logger.info("Found dark image for ID %s\n" % dark_id)
         except BaseException:
-            print("Failed to find dark image for ID %s\n" % dark_id)
+            logger.info("Failed to find dark image for ID %s\n" % dark_id)
             raise Exception
 
         return dark_list
@@ -871,7 +872,7 @@ class Dataset(object):
         Search a master dark image for all dark image lists that do not
         contain images.
         """
-        print("\nCHECKING DARK IMAGE LISTS IN DATASET")
+        logger.info("\nCHECKING DARK IMAGE LISTS IN DATASET")
         flags = self.camera._fname_access_flags
         if not (flags["filter_id"] and flags["meas_type"]):
             #: it is not possible to separate different image types (on, off,
@@ -892,7 +893,7 @@ class Dataset(object):
             lst = self.dark_lists[dark_id]
             if not lst.nof > 0:
                 meas_type_acro, acronym = self.lists_access_info[dark_id]
-                print("\nSearching master dark image for\nID: %s\nacronym: %s"
+                logger.info("\nSearching master dark image for\nID: %s\nacronym: %s"
                       "\nmeas_type_acro: %s" % (dark_id, acronym,
                                                 meas_type_acro))
                 try:
@@ -900,9 +901,9 @@ class Dataset(object):
                                               meas_type_acro)
                     lst.files.append(p)
                     lst.init_filelist()
-                    print("Found dark image for ID %s\n" % dark_id)
+                    logger.info("Found dark image for ID %s\n" % dark_id)
                 except BaseException:
-                    print("Failed to find dark image for ID %s\n" % dark_id)
+                    logger.info("Failed to find dark image for ID %s\n" % dark_id)
                     failed_ids.append(dark_id)
 
         return failed_ids
@@ -950,7 +951,7 @@ class Dataset(object):
         info = self.lists_access_info[list_id]
         lst = self._lists_intern[info[0]][info[1]]
         if not lst.nof > 0:
-            warn("Image list %s does not contain any images" % list_id)
+            logger.warning("Image list %s does not contain any images" % list_id)
         return lst
 
     def get_current_img_prep_dict(self, list_id=None):
@@ -974,14 +975,14 @@ class Dataset(object):
             if lst.nof > 0:
                 lst.load()
             else:
-                warn("No images available in list %s" % lst.list_id)
+                logger.warning("No images available in list %s" % lst.list_id)
 
     def update_image_prep_settings(self, **settings):
         """Update image preparation settings in all image lists."""
         for list_id, lst in six.iteritems(self.img_lists):
-            print("Checking changes in list %s: " % list_id)
+            logger.info("Checking changes in list %s: " % list_id)
             val = lst.update_img_prep_settings(**settings)
-            print("list %s updated (0 / 1): %s" % (list_id, val))
+            logger.info("list %s updated (0 / 1): %s" % (list_id, val))
 
     def update_times(self, start, stop):
         """Update start and stop times of this dataset and reload.
@@ -1000,7 +1001,7 @@ class Dataset(object):
 
     def duplicate(self):
         """Duplicate Dataset object."""
-        print('Dataset successfully duplicated')
+        logger.info('Dataset successfully duplicated')
         return deepcopy(self)
 
     """GUI stuff
@@ -1076,7 +1077,7 @@ class Dataset(object):
         for lst in self.dark_lists.values():
             s += ("ID: %s, type: %s, read_gain: %s,  %s images\n"
                   % (lst.list_id, lst.list_type, lst.read_gain, lst.nof))
-        print(s)
+        logger.info(s)
 
     """
     THE FOLLOWING STUFF WAS COPIED FROM OLD PLUMEDATA OBJECT
@@ -1109,14 +1110,14 @@ class Dataset(object):
                 l = self.get_list(list_id)
                 lists[list_id] = l
                 if not l.bg_model.ready_2_go():
-                    print("Tau preview could not be plotted, bg model is not "
+                    logger.info("Tau preview could not be plotted, bg model is not "
                           " ready for filter: %s" % list_id)
                     return 0
                 if not l.tau_mode:
                     tm[list_id] = 0
                     l.activate_tau_mode()
             except BaseException:
-                print(format_exc())
+                logger.info(format_exc())
                 return 0
         fig, axes = subplots(2, 2, figsize=(16, 10))
         tau_on = lists[on_id].current_img().pyr_down(pyrlevel)

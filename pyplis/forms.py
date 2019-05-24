@@ -17,6 +17,7 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 from __future__ import (absolute_import, division)
 from collections import OrderedDict as od
+from pyplis import logger, print_log
 import six
 
 
@@ -74,7 +75,7 @@ class FormCollectionBase(object):
     def update(self, x0, y0, x1, y1, id):
         """Update an existing form (or create new if it does not exist)."""
         if id in self._forms.keys():
-            print("Form with ID " + str(id) + " could not be updated because "
+            logger.info("Form with ID " + str(id) + " could not be updated because "
                   "it does not exist, creating new form instead")
             self.remove(id)
         if self.add(x0, y0, x1, y1, id):
@@ -95,10 +96,10 @@ class FormCollectionBase(object):
         :param str id: string id of the form to be deleted
         """
         if id not in self._forms.keys():
-            print("Error: could not delete form " + id + " from "
+            logger.info("Error: could not delete form " + id + " from "
                   "collection, no such form in collection")
             return 0
-        print("Delete form " + id + " from collection")
+        logger.info("Delete form " + id + " from collection")
         del self._forms[id]
 
     def rename(self, current_id, new_id):
@@ -176,7 +177,7 @@ class FormCollectionBase(object):
         try:
             self.add(val[0], val[1], val[2], val[3], key)
         except Exception as e:
-            print("Adding form failed_ %s" % repr(e))
+            logger.info("Adding form failed_ %s" % repr(e))
 
     def __getitem__(self, name):
         """Get item.
@@ -186,7 +187,7 @@ class FormCollectionBase(object):
         try:
             return self._forms[name]
         except BaseException:
-            print("No such form: " + str(name))
+            logger.info("No such form: " + str(name))
 
     def __str__(self):
         s = ("\nForm collection %s\n-----------------------\n" % self.type)

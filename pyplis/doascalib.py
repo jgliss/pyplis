@@ -27,9 +27,10 @@ from pandas import Series
 from copy import deepcopy
 from astropy.io import fits
 from traceback import format_exc
-from warnings import warn
+
 import six
 
+from pyplis import logger, print_log
 from matplotlib.pyplot import subplots
 from matplotlib.patches import Circle, Ellipse
 from matplotlib.cm import RdBu
@@ -307,7 +308,7 @@ class DoasFOV(object):
         try:
             cx, cy = self.cx_rel, self.cy_rel
         except BaseException:
-            warn("Could not access information about FOV position")
+            logger.warning("Could not access information about FOV position")
         if not abs_coords:
             return (cx, cy)
         return map_coordinates_sub_img(cx, cy, self.roi_abs, self.pyrlevel,
@@ -375,7 +376,7 @@ class DoasFOV(object):
         try:
             self.fov_mask_rel = hdu[i].data.byteswap().newbyteorder()
         except BaseException:
-            print("(Warning loading DOAS calib data): FOV mask not "
+            logger.info("(Warning loading DOAS calib data): FOV mask not "
                   "available")
 
         prep_keys = Img().edit_log.keys()
@@ -393,14 +394,14 @@ class DoasFOV(object):
         try:
             self.corr_img = Img(hdu[i + 1].data.byteswap().newbyteorder())
         except BaseException:
-            print("(Warning loading DOAS calib data): FOV search correlation "
+            logger.info("(Warning loading DOAS calib data): FOV search correlation "
                   "image not available")
         self.roi_abs = hdu[i + 2].data["roi"].byteswap().newbyteorder()
         try:
             self.result_ifr["popt"] =\
                 hdu[i + 3].data["ifr_res"].byteswap().newbyteorder()
         except BaseException:
-            print("Failed to import array containing IFR optimisation "
+            logger.info("Failed to import array containing IFR optimisation "
                   " results from FOV search")
 
     def prep_hdulist(self):
@@ -417,7 +418,7 @@ class DoasFOV(object):
                                        cy_rel=rd["cy_rel"],
                                        rad_rel=rd["rad_rel"])
             except BaseException:
-                warn("Position of FOV (pearson method) not available")
+                logger.warning("Position of FOV (pearson method) not available")
 
         elif self.method == "ifr":
             ifr_res = self.result_ifr["popt"]
@@ -426,7 +427,7 @@ class DoasFOV(object):
             hdu_cim = fits.ImageHDU(data=self.corr_img.img)
         except BaseException:
             hdu_cim = fits.ImageHDU()
-            warn("FOV search correlation image not available")
+            logger.warning("FOV search correlation image not available")
 
         roi = fits.BinTableHDU.from_columns([fits.Column(name="roi",
                                                          format="I",
@@ -565,7 +566,7 @@ class DoasFOVEngine(object):
 
     @maxrad.setter
     def maxrad(self, val):
-        print("Updating seeting for maximum radius of FOV, new value: %s"
+        logger.info("Updating seeting for maximum radius of FOV, new value: %s"
               % val)
         self._settings["maxrad"] = int(val)
 
@@ -671,7 +672,7 @@ class DoasFOVEngine(object):
         """
         for k, v in six.iteritems(settings):
             if k in self._settings:
-                print("Updating FOV search setting %s, new value: %s"
+                logger.info("Updating FOV search setting %s, new value: %s"
                       % (k, v))
                 self._settings[k] = v
 
@@ -806,7 +807,7 @@ class DoasFOVEngine(object):
 
         """
         if self.data_merged:
-            print("Data merging unncessary, img stack and DOAS vector are "
+            logger.info("Data merging unncessary, img stack and DOAS vector are "
                   "already merged in time")
             return
         if merge_type is None:
@@ -878,7 +879,7 @@ class DoasFOVEngine(object):
         for i in range(h):
             try:
                 if i % exp == 0:
-                    print("FOV search: current img row (y): " + str(i))
+                    logger.info("FOV search: current img row (y): " + str(i))
             except BaseException:
                 pass
             for j in range(w):
@@ -939,7 +940,7 @@ class DoasFOVEngine(object):
             raise Exception("Could not access correlation image")
         if self.method == "pearson":
             cy, cx = get_img_maximum(self.calib_data.fov.corr_img.img)
-            print("Start radius search in stack around x/y: %s/%s" % (cx, cy))
+            logger.info("Start radius search in stack around x/y: %s/%s" % (cx, cy))
             (radius, 
              corr_curve, 
              tau_vec, 
@@ -1015,7 +1016,7 @@ class DoasFOVEngine(object):
             self.maxrad = int(max_rad * 2**(pyrlevel))
         # radius array
         radii = arange(1, max_rad_search + 1, 1)
-        print("Maximum radius at pyramid level %d: %s"
+        logger.info("Maximum radius at pyramid level %d: %s"
               % (pyrlevel, max_rad_search))
         # some variable initialisations
         coeffs, coeffs_err = [], []
@@ -1032,7 +1033,7 @@ class DoasFOVEngine(object):
             tau_series, m = stack.get_time_series(cx, cy, radius=r)
             tau_dat = tau_series.values
             coeff, err = pearsonr(tau_dat, cd_vec)
-            print("Rad: {} (R: {:.4f})".format(r, coeff))
+            logger.info("Rad: {} (R: {:.4f})".format(r, coeff))
             coeffs.append(coeff)
             coeffs_err.append(err)
             # and append correlation coefficient to results
@@ -1204,7 +1205,7 @@ class DoasFOVEngine(object):
 #                              % (val, self._allowed_polyorders))
 #         self._polyorder = val
 #         if isinstance(self._poly, poly1d):
-#             warn("Polynomial order was changed and changes were not yet "
+#             logger.warning("Polynomial order was changed and changes were not yet "
 #                  "applied. Please call "
 #                  "fit_calib_polynomial to retrieve the calibration "
 #                  "polynomial for the new settings")
@@ -1244,7 +1245,7 @@ class DoasFOVEngine(object):
 #     def slope(self):
 #         """Slope of current calib curve"""
 #         if self.polyorder > 1:
-#             warn("Order of calibration polynomial > 1: use value of slope "
+#             logger.warning("Order of calibration polynomial > 1: use value of slope "
 #                  "with care (i.e. also check curvature coefficients of "
 #                  "polynomial")
 #
@@ -1254,7 +1255,7 @@ class DoasFOVEngine(object):
 #     def slope_err(self):
 #         """Slope error of current calib curve"""
 #         if self.polyorder > 1:
-#             warn("Order of calibration polynomial > 1: use slope error with "
+#             logger.warning("Order of calibration polynomial > 1: use slope error with "
 #                  "care")
 #         return sqrt(self.cov[-2][-2])
 #
@@ -1371,11 +1372,11 @@ class DoasFOVEngine(object):
 #         yerr_abs = True
 #         if weighted:
 #             if not len(self.cd_vec) == len(self.cd_vec_err):
-#                 warn("Could not perform weighted calibration fit: "
+#                 logger.warning("Could not perform weighted calibration fit: "
 #                      "Length mismatch between DOAS data vector"
 #                      " and corresponding error vector")
 #             elif sum(self.cd_vec_err) == 0:
-#                 warn("Could not performed weighted calibration fit: "
+#                 logger.warning("Could not performed weighted calibration fit: "
 #                      "Values of DOAS fit errors are 0. Do you have pydoas "
 #                      "installed?")
 #             else:
@@ -1387,7 +1388,7 @@ class DoasFOVEngine(object):
 #                         yerr_abs = False
 #                     #ws = ws / max(ws)
 #                 except:
-#                     warn("Failed to calculate weights")
+#                     logger.warning("Failed to calculate weights")
 #         tau_vals = self.tau_vec
 #         cds = self.cd_vec / 10**exp
 #
@@ -1461,7 +1462,7 @@ class DoasFOVEngine(object):
 #                                        cy_rel=rd["cy_rel"],
 #                                        rad_rel=rd["rad_rel"])
 #             except:
-#                 warn("Position of FOV (pearson method) not available")
+#                 logger.warning("Position of FOV (pearson method) not available")
 #
 #         elif self.fov.method == "ifr":
 #             ifr_res = self.fov.result_ifr["popt"]
@@ -1470,7 +1471,7 @@ class DoasFOVEngine(object):
 #             hdu_cim = fits.ImageHDU(data = self.fov.corr_img.img)
 #         except:
 #             hdu_cim = fits.ImageHDU()
-#             warn("FOV search correlation image not available")
+#             logger.warning("FOV search correlation image not available")
 #
 #         tstamps = [x.strftime("%Y%m%d%H%M%S%f") for x in self.time_stamps]
 #         col1 = fits.Column(name="time_stamps", format="25A", array=tstamps)
@@ -1601,7 +1602,7 @@ class DoasFOVEngine(object):
 #                 cds -= self.y_offset
 #                 cds_poly -= self.y_offset
 #             except:
-#                 warn("Failed to subtract y offset")
+#                 logger.warning("Failed to subtract y offset")
 #
 #         ax.plot(self.tau_vec, cds, ls="", marker=".",
 #                 label="Data %s" %add_label_str, **kwargs)
@@ -1609,7 +1610,7 @@ class DoasFOVEngine(object):
 #             ax.errorbar(self.tau_vec, cds, yerr=self.cd_vec_err,
 #                         marker="None", ls=" ", c="#b3b3b3")
 #         except:
-#             warn("No DOAS-CD errors available")
+#             logger.warning("No DOAS-CD errors available")
 #         try:
 #             ax.plot(x, cds_poly, ls="-", marker="",
 #                     label="Fit result", **kwargs)
@@ -1651,7 +1652,7 @@ class DoasFOVEngine(object):
 #             try:
 #                 cds_poly -= self.y_offset
 #             except:
-#                 warn("Failed to subtract y offset")
+#                 logger.warning("Failed to subtract y offset")
 #
 #         try:
 #             ax.plot(x, cds_poly, ls="-", marker="",
@@ -1716,7 +1717,7 @@ class DoasFOVEngine(object):
 #             try:
 #                 value = value.duplicate()
 #             except MemoryError:
-#                 warn("Stack cannot be duplicated, applying calibration to "
+#                 logger.warning("Stack cannot be duplicated, applying calibration to "
 #                 "input stack")
 #             value.stack = self.poly(value.stack) - self.y_offset
 #             value.img_prep["gascalib"] = True

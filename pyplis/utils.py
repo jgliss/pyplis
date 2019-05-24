@@ -23,7 +23,7 @@ from numpy import (vstack, asarray, ndim, round, hypot, linspace, sum, zeros,
 
 from numpy.linalg import norm
 from scipy.ndimage import map_coordinates
-from warnings import warn
+
 
 from matplotlib.pyplot import subplot, subplots, tight_layout, draw
 from matplotlib.patches import Polygon, Rectangle
@@ -32,6 +32,7 @@ from pandas import Series
 from cv2 import cvtColor, COLOR_BGR2GRAY, fillPoly
 from os.path import exists, basename
 
+from pyplis import logger, print_log
 from .helpers import map_coordinates_sub_img, same_roi, map_roi, roi2rect
 from .glob import DEFAULT_ROI
 
@@ -62,7 +63,7 @@ def identify_camera_from_filename(filepath):
 
     """
     if not exists(filepath):
-        warn("Invalid file path")
+        logger.warning("Invalid file path")
     cam_id = None
     all_ids = get_cam_ids()
     max_match_num = 0
@@ -166,7 +167,7 @@ class LineOnImage(object):
                 self.x0 = val[0]
                 self.y0 = val[1]
         except BaseException:
-            warn("Start coordinates could not be set")
+            logger.warning("Start coordinates could not be set")
 
     @property
     def stop(self):
@@ -180,7 +181,7 @@ class LineOnImage(object):
                 self.x1 = val[0]
                 self.y1 = val[1]
         except BaseException:
-            warn("Stop coordinates could not be set")
+            logger.warning("Stop coordinates could not be set")
 
     @property
     def center_pix(self):
@@ -237,7 +238,7 @@ class LineOnImage(object):
     @property
     def pyrlevel(self):
         """Pyramid level at which line coords are defined."""
-        warn("This method was renamed in version 0.10. "
+        logger.warning("This method was renamed in version 0.10. "
              "Please use pyrlevel_def")
         return self._pyrlevel_def
 
@@ -251,7 +252,7 @@ class LineOnImage(object):
     @property
     def roi_abs(self):
         """Return current ROI (in absolute detector coordinates)."""
-        warn("This method was renamed in version 0.10. Please use roi_abs_def")
+        logger.warning("This method was renamed in version 0.10. Please use roi_abs_def")
         return self._roi_abs_def
 
     @roi_abs.setter
@@ -286,7 +287,7 @@ class LineOnImage(object):
             if not self._rect_roi_rot.shape == (5, 2):
                 raise Exception
         except BaseException:
-            print("Rectangle for rotated ROI was not set and is not being "
+            logger.info("Rectangle for rotated ROI was not set and is not being "
                   "set to default depth of +/- 30 pix around line. Use "
                   "method set_rect_roi_rot to change the rectangle")
             self.set_rect_roi_rot()
@@ -317,10 +318,10 @@ class LineOnImage(object):
         if val < 0:
             raise ValueError("Velocity must be larger than 0")
         elif val > 40:
-            warn("Large value warning: input velocity exceeds 40 m/s")
+            logger.warning("Large value warning: input velocity exceeds 40 m/s")
         self._velo_glob = val
         if self._velo_glob_err is None or isnan(self._velo_glob_err):
-            warn("Global velocity error not assigned, assuming 50% of "
+            logger.warning("Global velocity error not assigned, assuming 50% of "
                  "velocity")
             self.velo_glob_err = val * 0.50
 
@@ -393,7 +394,7 @@ class LineOnImage(object):
         dx0, dy0 = other.x0 - self.x0, other.y0 - self.y0
         dx1, dy1 = other.x1 - self.x1, other.y1 - self.y1
         if dx1 != dx0 or dy1 != dy0:
-            warn("Lines are not parallel...")
+            logger.warning("Lines are not parallel...")
         return mean([norm([dx0, dy0]), norm([dx1, dy1])])
 
     def offset(self, pixel_num=20, line_id=None):
@@ -437,7 +438,7 @@ class LineOnImage(object):
         """Convert to other image preparation settings."""
         if to_pyrlevel == self.pyrlevel_def and same_roi(self.roi_abs_def,
                                                          to_roi_abs):
-            print("Same shape settings, returning current line object""")
+            logger.info("Same shape settings, returning current line object""")
             return self
         # first convert to absolute coordinates
         ((x0, x1),
@@ -489,7 +490,7 @@ class LineOnImage(object):
                              "line must exceed zero, current coords: %s"
                              % self.coords)
         if self.start[0] > self.stop[0]:
-            print("x coordinate of start point is larger than of stop point: "
+            logger.info("x coordinate of start point is larger than of stop point: "
                   "start and stop will be exchanged")
             self.start, self.stop = self.stop, self.start
 
@@ -532,10 +533,10 @@ class LineOnImage(object):
         """
         h, w = img_array.shape[:2]
         if not 0 < x < w:
-            print("x coordinate out of image")
+            logger.info("x coordinate out of image")
             return False
         if not 0 < y < h:
-            print("y coordinate out of image")
+            logger.info("y coordinate out of image")
             return False
         return True
 
@@ -586,7 +587,7 @@ class LineOnImage(object):
             pass
         vals = self.get_line_profile(input_img)
         if pix_step_length is None:
-            warn("No information about integration step lengths provided "
+            logger.warning("No information about integration step lengths provided "
                  "Integration is performed in units of pixels")
             return sum(vals)
         try:
@@ -815,11 +816,11 @@ class LineOnImage(object):
             pass
         if ndim(array) != 2:
             if ndim(array) != 3:
-                print("Error retrieving line profile, invalid dimension of "
+                logger.info("Error retrieving line profile, invalid dimension of "
                       "input array: %s" % (ndim(array)))
                 return
             if array.shape[2] != 3:
-                print("Error retrieving line profile, invalid dimension of "
+                logger.info("Error retrieving line profile, invalid dimension of "
                       "input array: %s" % (ndim(array)))
                 return
             "Input in BGR, conversion into gray image"
@@ -828,7 +829,7 @@ class LineOnImage(object):
         # Extract the values along the line, using interpolation
         zi = map_coordinates(array, self.profile_coords, order=order, **kwargs)
         if sum(isnan(zi)) != 0:
-            warn("Retrieved NaN for one or more pixels along line on input "
+            logger.warning("Retrieved NaN for one or more pixels along line on input "
                  "array")
         return zi
 
@@ -1152,7 +1153,7 @@ class CameraBaseInfo(object):
             self.load_default(cam_id)
         except Exception as e:
             if cam_id is not None:
-                warn("Failed to load camera information for cam_id %s:\n%s "
+                logger.warning("Failed to load camera information for cam_id %s:\n%s "
                      % (cam_id, repr(e)))
         type_conv = self._type_dict
         for k, v in six.iteritems(kwargs):
@@ -1186,7 +1187,7 @@ class CameraBaseInfo(object):
         """Check number of sub strings for specific access values after split.
         """
         if not self.delim:
-            warn("Cannot init filename access info in Camera. Delimiter is "
+            logger.warning("Cannot init filename access info in Camera. Delimiter is "
                  "unspecified.")
             return False
         self._time_info_subnum = len(self.time_info_str.split(self.delim))
@@ -1378,7 +1379,7 @@ class CameraBaseInfo(object):
                                            center_wavelength=wl)
                                 filters.append(f)
                             except BaseException:
-                                warn("Failed to convert %s into Filter"
+                                logger.warning("Failed to convert %s into Filter"
                                      " class in Camera" % f)
 
                     elif key == "dark_info":
@@ -1394,7 +1395,7 @@ class CameraBaseInfo(object):
                                                    read_gain=rg)
                                 dark_info.append(i)
                             except BaseException:
-                                warn("Failed to convert %s into DarkOffsetInfo"
+                                logger.warning("Failed to convert %s into DarkOffsetInfo"
                                      " class in Camera" % f)
                     else:
                         self[key] = val
@@ -1635,7 +1636,7 @@ class Filter(object):
             try:
                 self.trans_curve = Series(data, wavelengths)
             except BaseException:
-                print("Failed to set transmission curve in Filter %s" %
+                logger.info("Failed to set transmission curve in Filter %s" %
                       self.id)
 
     def __str__(self):
@@ -1651,7 +1652,7 @@ class Filter(object):
 
     def print_specs(self):
         """Print __str__."""
-        print(self.__str__())
+        logger.info(self.__str__())
 
 
 class DarkOffsetInfo(object):
