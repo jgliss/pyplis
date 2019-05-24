@@ -51,14 +51,10 @@ from astropy.io import fits
 from cv2 import resize
 from os.path import basename
 from datetime import datetime, timedelta
-from .helpers import matlab_datenum_to_datetime
-
 from re import sub
 
-try:
-    from PIL.Image import open as open_pil
-except BaseException:
-    warn("Python Imaging library PIL could not be imported")
+from pyplis import PILAVAILABLE, print_log, logger
+from .helpers import matlab_datenum_to_datetime
 
 
 def load_ecII_fits(file_path, meta={}, **kwargs):
@@ -132,12 +128,13 @@ def load_hd_new(file_path, meta={}, **kwargs):
         - ndarray, image data
         - dict, dictionary containing meta information
     """
-    try:
-        read = open_pil(file_path)
+    if PILAVAILABLE:
+        from PIL.Image import open
+        read = open(file_path)
         meta["texp"] = float(read.tag_v2[270].split(" ")[0].split("s")[0])
         img = asarray(read)
-    except:
-        warn("Python Imaging Library (PIL) could not be imported. Using "
+    else:
+        print_log.warn("Python Imaging Library (PIL) could not be imported. Using "
              "opencv method for image import. Cannot import exposure time "
              "info from tiff header...please install PIL")
         img = imread(file_path, -1)
