@@ -35,15 +35,16 @@ def _init_logger():
     # http://eric.themoritzfamily.com/learning-python-logging.html
     logger = logging.getLogger('pyplis')
 
-    default_formatter = logging.Formatter( \
-        "%(asctime)s:%(levelname)s: %(message)s")
+    fmt = "%(filename)s(l%(lineno)s,%(funcName)s()): %(message)s"
+    #fmt = "%(funcName)s():%(lineno)i: %(message)s"
+    default_formatter = logging.Formatter(fmt)
 
     console_handler = logging.StreamHandler()
     console_handler.setFormatter(default_formatter)
 
     logger.addHandler(console_handler)
 
-    logger.setLevel(logging.CRITICAL)
+    logger.setLevel(logging.WARNING)
 
     print_log = logging.getLogger('pyplis_print')
 
@@ -54,6 +55,34 @@ def _init_logger():
 
     print_log.setLevel(logging.INFO)
     return (logger, print_log)
+
+def _get_loglevels():
+    import logging
+    return dict(critical=logging.CRITICAL,
+                exception=logging.ERROR,
+                error=logging.ERROR,
+                warn=logging.WARNING,
+                warning=logging.WARNING,
+                info=logging.INFO,
+                debug=logging.DEBUG)
+
+def change_loglevel(logger, level, update_fmt=False, fmt_debug=True):
+    LOG_LEVELS = _get_loglevels()
+    if level in LOG_LEVELS:
+        logger.setLevel(LOG_LEVELS[level])
+    else:
+        try:
+            logger.setLevel(level)
+        except Exception as e:
+            raise ValueError('Could not update loglevel, invalid input. Error: {}'.format(repr(e)))
+    if update_fmt:
+        import logging
+        if fmt_debug:
+            fmt = logging.Formatter("%(filename)s(l%(lineno)s,%(funcName)s()): %(message)s")
+        else:
+            fmt = logging.Formatter("%(message)s")
+        for handler in logger.handlers:
+            handler.setFormatter(fmt)
 
 def check_requirements():
     try:
