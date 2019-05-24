@@ -840,9 +840,9 @@ class PlumeBackgroundModel(object):
 
     def print_mode_info(self):
         """Print information about the different correction modes."""
-        logger.info("Available modes for automatic plume background retrieval")
+        print_log.info("Available modes for automatic plume background retrieval")
         for k, v in six.iteritems(self.mode_info_dict):
-            logger.info("Mode %s: %s" % (k, v))
+            print_log.info("Mode %s: %s" % (k, v))
 
     def _check_rect(self, rect, img):
         """Check if rect is not None and if it is within image borders.

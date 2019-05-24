@@ -102,7 +102,7 @@ def get_all_files_in_dir(directory, file_type=None, include_sub_dirs=False):
     p = directory
     if p is None or not exists(p):
         message = ('Error: path %s does not exist' % p)
-        logger.info(message)
+        logger.warning(message)
         return []
     use_all_types = False
     if not isinstance(file_type, str):
@@ -173,7 +173,7 @@ def download_test_data(save_path=None):
                   "file _paths.txt: %s" % save_path)
             f.close()
 
-    logger.info("installing test data at %s" % save_path)
+    print_log.info("installing test data at %s" % save_path)
 
     filename = mktemp('.zip')
 
@@ -193,15 +193,15 @@ def download_test_data(save_path=None):
         urlretrieve(url, filename, reporthook=dl_progress)
         pbar.finish()
     else:
-        logger.info("Downloading Pyplis testdata (this can take a while, install"
+        print_log.info("Downloading Pyplis testdata (this can take a while, install"
               "Progressbar package if you want to receive download info")
         urlretrieve(url, filename)
     thefile = ZipFile(filename)
-    logger.info("Extracting data at: %s (this may take a while)" % save_path)
+    print_log.info("Extracting data at: %s (this may take a while)" % save_path)
     thefile.extractall(save_path)
     thefile.close()
     remove(filename)
-    logger.info("Download successfully finished, deleted temporary data file"
+    print_log.info("Download successfully finished, deleted temporary data file"
           "at: %s" % filename)
 
 
@@ -211,7 +211,7 @@ def find_test_data():
     folder_name = "pyplis_etna_testdata"
     for data_path in dirs:
         if folder_name in listdir(data_path):
-            logger.info("Found test data at location: %s" % data_path)
+            print_log.info("Found test data at location: %s" % data_path)
             return join(data_path, folder_name)
         try:
             with open(join(data_path, "_paths.txt"), "r") as f:
@@ -219,7 +219,7 @@ def find_test_data():
                 for line in lines:
                     p = line.split("\n")[0]
                     if exists(p) and folder_name in listdir(p):
-                        logger.info("Found test data at default location: %s" % p)
+                        print_log.info("Found test data at default location: %s" % p)
                         f.close()
                         return join(p, folder_name)
         except:
@@ -264,11 +264,11 @@ def set_test_data_path(save_path):
                           "does not exist: %s" % save_path)
         with open(fp, "a") as f:
             f.write("\n" + save_path + "\n")
-            logger.info("Adding new path for test data location in "
+            print_log.info("Adding new path for test data location in "
                   "file _paths.txt: %s" % save_path)
             f.close()
         if "pyplis_etna_testdata" not in listdir(save_path):
-            logger.info("WARNING: test data folder (name: pyplis_etna_testdata) "
+            logger.warning("WARNING: test data folder (name: pyplis_etna_testdata) "
                   "could not be  found at specified location, please download "
                   "test data, unzip and save at: %s" % save_path)
     except:
@@ -289,8 +289,7 @@ def _load_cam_info(cam_id, filepath):
             try:
                 line = ll.decode('utf-8').rstrip()
             except:
-                logger.info(ll)
-                raise Exception
+                raise Exception(ll)
             if line:
                 if "END" in line and found:
                     dat["default_filters"] = filters
@@ -419,7 +418,7 @@ def save_new_default_camera(info_dict):
     copy2(cam_file_temp, cam_file)
     remove(cam_file_temp)
 
-    logger.info("Successfully added new default camera %s to database at %s"
+    print_log.info("Successfully added new default camera %s to database at %s"
           % (info_dict["cam_id"], cam_file))
 
 
@@ -449,7 +448,7 @@ def save_default_source(info_dict):
     copy2(source_file_temp, path)
     remove(source_file_temp)
 
-    logger.info("Successfully added new default source %s to database file at %s"
+    print_log.info("Successfully added new default source %s to database file at %s"
           % (info_dict["name"], path))
 
 
@@ -541,7 +540,7 @@ def get_source_info(source_id, try_online=True):
                 if source_id in [x.strip()
                                  for x in spl[1].split("#")[0].split(',')]:
                     found = 1
-    logger.info("Source info for source %s could not be found" % source_id)
+    logger.warning("Source info for source %s could not be found" % source_id)
     if try_online:
         try:
             return get_source_info_online(source_id)
@@ -627,7 +626,7 @@ def get_icon(name, color=None):
             fname = basename(file).split(".")[0]
             if fname == name:
                 return base_path + file
-    logger.info("Failed to load icon at: " + _LIBDIR)
+    logger.warning("Failed to load icon at: " + _LIBDIR)
     return False
 
 if __name__ == '__main__':

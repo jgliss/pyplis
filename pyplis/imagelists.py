@@ -589,7 +589,7 @@ class BaseImgList(object):
         self.files.extend(files)
         self.init_filelist(at_index=self.index)
         if load and self.data_available:
-            logger.info("Added %d files list %s, load %s" % (len(files),
+            logger.info("Added %d files in list %s, load %s" % (len(files),
                                                        self.list_id, load))
             self.load()
 
@@ -643,7 +643,7 @@ class BaseImgList(object):
 
         """
         if not self._auto_reload:
-            logger.info("Automatic image reload deactivated in image list %s"
+            print_log.info("Automatic image reload deactivated in image list %s"
                   % self.list_id)
             return False
         try:
@@ -1080,14 +1080,14 @@ class BaseImgList(object):
             exp = 1
         for k in range(num):
             if k % exp == 0:
-                logger.info("Building img-stack from list %s, progress: (%s | %s)"
+                print_log.info("Building img-stack from list %s, progress: (%s | %s)"
                       % (lid, k, num - 1))
             img = self.loaded_images["this"]
             append = True
             if ref_check:
                 sub_val = img.crop(roi_abs=ref_check_roi_abs, new_img=1).mean()
                 if not ref_check_min_val <= sub_val <= ref_check_max_val:
-                    logger.info("Exclude image no. %d from stack, got value=%.2f in "
+                    logger.warning("Exclude image no. %d from stack, got value=%.2f in "
                           "ref check ROI (out of specified range)"
                           % (k, sub_val))
                 append = False
@@ -1100,7 +1100,7 @@ class BaseImgList(object):
         stack.texps = asarray(stack.texps)
         stack.roi_abs = self._roi_abs
 
-        logger.info("Img stack calculation finished, rolling back to intial list"
+        print_log.info("Img stack calculation finished, rolling back to intial list"
               "state:\npyrlevel: %d\ncrop modus: %s\nroi (abs coords): %s "
               % (_pyrlevel, _crop, _roi))
         self.auto_reload = False
@@ -1220,7 +1220,7 @@ class BaseImgList(object):
         for k in range(num):
             try:
                 if k % pnum == 0:
-                    logger.info("Calc pixel mean t-series in list %s (%d | %d)"
+                    print_log.info("Calc pixel mean t-series in list %s (%d | %d)"
                           % (lid, (k + 1), num))
             except BaseException:
                 pass
@@ -1299,7 +1299,7 @@ class BaseImgList(object):
         for k in range(num):
             try:
                 if k % pnum == 0:
-                    logger.info("Calc pixel mean t-series in list %s (%d | %d)"
+                    print_log.info("Calc pixel mean t-series in list %s (%d | %d)"
                           % (lid, (k + 1), num))
             except BaseException:
                 pass
@@ -1324,10 +1324,10 @@ class BaseImgList(object):
     def edit_info(self):
         """Print the current image preparation settings."""
         d = self.current_img().edit_log
-        logger.info("\nImgList %s, image edit info\n----------------------------"
+        print_log.info("\nImgList %s, image edit info\n----------------------------"
               % self.list_id)
         for key, val in six.iteritems(d):
-            logger.info("%s: %s" % (key, val))
+            print_log.info("%s: %s" % (key, val))
 
     """
     Functions related to image editing and edit management
@@ -1571,7 +1571,7 @@ class BaseImgList(object):
         :param str key: image id (e.g. this)
         """
         if not self.edit_active:
-            logger.info("Edit not active in img_list " + self.list_id + ": no image "
+            logger.warning("Edit not active in img_list " + self.list_id + ": no image "
                   "preparation will be performed")
             return
         img = self.loaded_images[key]
@@ -1611,7 +1611,7 @@ class BaseImgList(object):
         try:
             return self.files[0]
         except IndexError:
-            logger.info("Filelist empty...")
+            logger.warning("Filelist empty...")
         except BaseException:
             raise
 
@@ -1620,7 +1620,7 @@ class BaseImgList(object):
         try:
             return self.files[self.nof - 1]
         except IndexError:
-            logger.info("Filelist empty...")
+            logger.warning("Filelist empty...")
         except:
             raise
 
@@ -1638,7 +1638,7 @@ class BaseImgList(object):
             return s
 
         except Exception as e:
-            logger.info(repr(e))
+            logger.warning(repr(e))
             return "Creating img header failed..."
 
     def _get_and_set_geometry_info(self):
@@ -1762,8 +1762,7 @@ class AutoDilcorrSettings(object):
         self.bg_model = PlumeBackgroundModel(mode=99)
 
     def __str__(self):
-        for k, v in six.iteritems(self.__dict__):
-            logger.info("%s: %s" % (k, v))
+        return self.__dict__.__str__()
 
 
 class _LinkedLists:
@@ -2329,7 +2328,7 @@ class ImgList(BaseImgList):
             self.bg_model.set_missing_ref_areas(cim)
             if self.bg_model.mode == 0:
                 logger.info("Background correction mode is 0, initiating "
-                      "settings for poly surface fit")
+                            "settings for poly surface fit")
                 # self.calc_sky_background_mask()
                 try:
                     self.calc_sky_background_mask()
@@ -2668,7 +2667,7 @@ class ImgList(BaseImgList):
 
         """
         if not isinstance(bg_img, Img):
-            logger.info("Could not set background image in ImgList %s: "
+            logger.warning("Could not set background image in ImgList %s: "
                   ": wrong input type, need Img object" % self.list_id)
             return False
         vc_raw = self._this_raw_fromfile().is_vigncorr
@@ -2699,12 +2698,12 @@ class ImgList(BaseImgList):
                 if not self.bg_img.is_shifted:
                     self.bg_img.shift(dx, dy)
             except:
-                logger.info("No BG img available")
+                logger.warning("No BG img available")
             try:
                 if not self.vign_mask.is_shifted:
                     self.vign_mask.shift(dx, dy)
             except:
-                logger.info("No vignetting mask available")
+                logger.warning("No vignetting mask available")
         else:
             try:
                 if self.bg_img.is_shifted:
@@ -2921,7 +2920,7 @@ class ImgList(BaseImgList):
                                  offsnum))
                         info["list"].goto_img(offsnum)
         except Exception:
-            logger.info("Failed to update index of dark and offset lists")
+            logger.warning("Failed to update index of dark and offset lists")
             return False
         return updated
 
@@ -2966,7 +2965,7 @@ class ImgList(BaseImgList):
         :param str list_id: string id of linked list
         """
         if list_id not in self.linked_lists.keys():
-            logger.info("Error: no linked list found with ID " + str(list_id))
+            logger.warning("Error: no linked list found with ID " + str(list_id))
             return 0
         del self.linked_lists[list_id]
         del self._linked_indices[list_id]
@@ -3059,7 +3058,7 @@ class ImgList(BaseImgList):
         """Try load current and next image."""
         self.change_index_linked_lists()  # based on current index in this list
         if not super(ImgList, self).load():
-            logger.info("Image load aborted...")
+            logger.warning("Image load aborted...")
             return False
         if self.nof > 1:
             next_img = self._load_image(self.next_index)
@@ -3085,7 +3084,7 @@ class ImgList(BaseImgList):
     def goto_next(self):
         """Load next image in list."""
         if self.nof < 2 or not self._auto_reload:
-            logger.info("Could not load next image, number of files in list: " +
+            logger.warning("Could not load next image, number of files in list: " +
                   str(self.nof))
             return False
 
@@ -4102,7 +4101,7 @@ class ImgListLayered(ImgList):
 
         """
         if self.fitsfiles == []:
-            logger.info("ImgListLayered was intialised without providing the "
+            logger.warning("ImgListLayered was intialised without providing the "
                   "fitsfile (e.g. only by meta file). self.get_img_meta_all "
                   "will return the existing metaData.")
             return self.metaData

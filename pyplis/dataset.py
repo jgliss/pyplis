@@ -104,7 +104,7 @@ class Dataset(object):
             self.init_image_lists()
         else:
             self.create_lists_default()
-        logger.info("DATASET INITIATED")
+        logger.info("DATASET INITIALISED")
 
     @property
     def camera(self):
@@ -148,7 +148,7 @@ class Dataset(object):
     @USE_ALL_FILES.setter
     def USE_ALL_FILES(self, val):
         self.setup.USE_ALL_FILES = val
-        logger.info("Option USE_ALL_FILES was updated in Dataset, please call class"
+        print_log.info("Option USE_ALL_FILES was updated in Dataset, please call class"
               " method ``init_image_lists`` in order to apply the changes")
 
     @property
@@ -159,7 +159,7 @@ class Dataset(object):
     @USE_ALL_FILE_TYPES.setter
     def USE_ALL_FILE_TYPES(self, val):
         self.setup.USE_ALL_FILE_TYPES = val
-        logger.info("Option USE_ALL_FILE_TYPES was updated in Dataset, please call "
+        print_log.info("Option USE_ALL_FILE_TYPES was updated in Dataset, please call "
               "class method ``init_image_lists`` in order "
               "to apply the changes")
 
@@ -171,7 +171,7 @@ class Dataset(object):
     @INCLUDE_SUB_DIRS.setter
     def INCLUDE_SUB_DIRS(self, val):
         self.setup.INCLUDE_SUB_DIRS = val
-        logger.info("Option INCLUDE_SUB_DIRS was updated in Dataset, please call "
+        print_log.info("Option INCLUDE_SUB_DIRS was updated in Dataset, please call "
               "class method ``init_image_lists`` to apply the changes")
 
     @property
@@ -182,7 +182,7 @@ class Dataset(object):
     @LINK_OFF_TO_ON.setter
     def LINK_OFF_TO_ON(self, val):
         self.setup.LINK_OFF_TO_ON = val
-        logger.info("Option INCLUDE_SUB_DIRS was updated in Dataset, please call "
+        print_log.info("Option INCLUDE_SUB_DIRS was updated in Dataset, please call "
               "class method ``init_image_lists`` in order "
               "to apply the changes")
 
@@ -194,7 +194,7 @@ class Dataset(object):
     @start.setter
     def start(self, val):
         self.setup.start = val
-        logger.info("Start time stamp was updated in Dataset, please call class "
+        print_log.info("Start time stamp was updated in Dataset, please call class "
               "method ``init_image_lists`` in order to apply the changes")
 
     @property
@@ -205,7 +205,7 @@ class Dataset(object):
     @stop.setter
     def stop(self, val):
         self.setup.stop = val
-        logger.info("Stop time stamp was updated in Dataset, please call class "
+        print_log.info("Stop time stamp was updated in Dataset, please call class "
               "method ``init_image_lists`` in order to apply the changes")
 
     @property
@@ -350,7 +350,7 @@ class Dataset(object):
         if not bool(self.camera.dark_info):
             msg = ("Warning: dark image lists could not be initiated, no "
                    "dark image file information available in self.camera")
-            logger.info(msg)
+            logger.warning(msg)
             return 0
 
         for item in self.camera.dark_info:
@@ -402,7 +402,7 @@ class Dataset(object):
         #: Set option to use all files in case acquisition time stamps cannot
         #: be accessed from filename
         if not flags["start_acq"]:
-            logger.info("Acquisition time access from filename not possible, "
+            logger.warning("Acquisition time access from filename not possible, "
                   "using all files")
             self.setup.options["USE_ALL_FILES"] = True
 
@@ -420,7 +420,7 @@ class Dataset(object):
             else:
                 paths = paths_temp
         if self.setup.ON_OFF_SAME_FILE:
-            logger.info("Option ON_OFF_SAME_FILE is active: using same file paths "
+            logger.warning("Option ON_OFF_SAME_FILE is active: using same file paths "
                   "in default on and offband list. Please note that no "
                   "further file separation is applied (e.g. separation of "
                   "dark images)")
@@ -450,7 +450,7 @@ class Dataset(object):
                         get_img_meta_from_filename(p)
                     self._lists_intern[meas_type][filter_id].files.append(p)
                 except:
-                    logger.info("File %s could not be added..." % p)
+                    logger.warning("File %s could not be added..." % p)
 
             for meas_type, sub_dict in six.iteritems(self._lists_intern):
                 for filter_id, lst in six.iteritems(sub_dict):
@@ -489,14 +489,14 @@ class Dataset(object):
         p = self.base_dir
         ftype = self.file_type
         if not isinstance(ftype, str):
-            logger.info("file_type not specified in Dataset..."
+            logger.warning("file_type not specified in Dataset..."
                   "Using all files and file_types")
             self.setup.options["USE_ALL_FILES"] = True
             self.setup.options["USE_ALL_FILE_TYPES"] = True
 
         if p is None or not exists(p):
             message = ('Error: path %s does not exist' % p)
-            logger.info(message)
+            logger.warning(message)
             return []
 
         if not self.INCLUDE_SUB_DIRS:
@@ -553,7 +553,7 @@ class Dataset(object):
         """
         err = self.camera.get_img_meta_from_filename(filepath)[4]
         for item in err:
-            logger.info(item)
+            logger.warning(item)
         return self.camera._fname_access_flags
 
     def change_img_base_dir(self, img_dir):
@@ -564,7 +564,7 @@ class Dataset(object):
         if not exists(img_dir):
             msg = ("Could not update base_dir, input path %s does not "
                    "exist" % img_dir)
-            logger.info(msg)
+            logger.warning(msg)
             self.warnings.append(msg)
             return 0
         self.setup.base_dir = img_dir

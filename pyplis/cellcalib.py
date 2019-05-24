@@ -195,7 +195,7 @@ class CellSearchInfo(object):
                 return True
             return False
         except IndexError as e:
-            logger.info(repr(e))
+            logger.warning(repr(e))
             return False
         except BaseException:
             raise
@@ -1154,7 +1154,7 @@ class CellCalibEngine(Dataset):
 
         for calib_id, stack in six.iteritems(self.tau_stacks):
             if any([x is None for x in [pos_x_abs, pos_y_abs]]):
-                logger.info("Using image center coordinates for retrieval of cell "
+                logger.warning("Using image center coordinates for retrieval of cell "
                       "calibration polynomial")
                 h, w = stack.shape[1:]
                 pos_x_abs, pos_y_abs = int(w / 2.0), int(h / 2.0)
@@ -1274,7 +1274,7 @@ class CellCalibEngine(Dataset):
             if not isnum(pos_x_abs) * isnum(pos_y_abs) == 1:
                 raise ValueError
         except:
-            logger.info("Using image center coordinate for normalisation position "
+            logger.warning("Using image center coordinate for normalisation position "
                   "of sensitivity correction mask")
 
             h, w = stack.shape[1:]
