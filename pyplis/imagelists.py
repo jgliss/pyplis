@@ -20,12 +20,11 @@
 Image list objects (e.g. :class:`BaseImgList`, :class:`ImgList`,
 :class:`DarkImgList`, :class:`CellImgList`) contain a list of image file paths
 and are central for the data analysis. Images are loaded as :class:`Img`
-objects and are loaded and processed itertatively. T
-ypically one list contains all images of a certain type (e.g. onband, offband,
-see :class:`Dataset` object). :class:`ImgList` objects (inherited
-from :class:`BaseImgList`) contain powerful preprocessing modes (e.g. load
-images as dark corrected and calibrated images, compute optical flow between
-current and next image).
+objects and are loaded and processed iteratively. Typically one list contains all
+images of a certain type (e.g. onband, offband, see :class:`Dataset` object).
+:class:`ImgList` objects (inherited from :class:`BaseImgList`) contain powerful
+pre-processing modes (e.g. load images as dark corrected and calibrated images,
+compute optical flow between current and next image).
 """
 from __future__ import (absolute_import, division)
 from numpy import (asarray, zeros, argmin, arange, ndarray, float32, isnan,
@@ -81,13 +80,13 @@ class BaseImgList(object):
 
     Parameters
     ----------
-    files : list
+    files : list, optional
         list with image file paths
-    list_id : str
+    list_id : str, optional
         a string used to identify this list (e.g. "second_onband")
-    list_type : str
+    list_type : str, optional
         type of images in list (please use "on" or "off")
-    camera : Camera
+    camera : Camera, optional
         camera specifications
     init : bool
         if True, list will be initiated and files loaded (given that image
@@ -95,12 +94,10 @@ class BaseImgList(object):
     **img_prep_settings
         additional keyword args specifying image preparation settings applied
         on image load
-
     """
 
-    def __init__(self, files=[], list_id=None, list_type=None,
+    def __init__(self, files=None, list_id=None, list_type=None,
                  camera=None, geometry=None, init=True, **img_prep_settings):
-
         # this list will be filled with filepaths
         self.files = []
         # id of this list
@@ -581,7 +578,9 @@ class BaseImgList(object):
             success / failed
 
         """
-        if isinstance(files, str):
+        if files is None:
+            files = []
+        elif isinstance(files, str):
             files = [files]
         if not isinstance(files, list):
             raise TypeError("Error: file paths could not be added to image "
@@ -1713,7 +1712,7 @@ class DarkImgList(BaseImgList):
     :attr:`edit_active`.
     """
 
-    def __init__(self, files=[], list_id=None, list_type=None, read_gain=0,
+    def __init__(self, files=None, list_id=None, list_type=None, read_gain=0,
                  camera=None, init=True):
 
         super(DarkImgList, self).__init__(files, list_id, list_type, camera,
@@ -1831,7 +1830,7 @@ class ImgList(BaseImgList):
 
     """
 
-    def __init__(self, files=[], list_id=None, list_type=None, camera=None,
+    def __init__(self, files=None, list_id=None, list_type=None, camera=None,
                  geometry=None, init=True, **dilcorr_settings):
 
         super(ImgList, self).__init__(files, list_id, list_type, camera,
@@ -3912,7 +3911,7 @@ class CellImgList(ImgList):
     density) in this cell.
     """
 
-    def __init__(self, files=[], list_id=None, list_type=None, camera=None,
+    def __init__(self, files=None, list_id=None, list_type=None, camera=None,
                  geometry=None, cell_id="", gas_cd=0.0, gas_cd_err=0.0):
 
         super(CellImgList, self).__init__(files, list_id, list_type, camera,
@@ -3965,9 +3964,11 @@ class ImgListLayered(ImgList):
 
     """
 
-    def __init__(self, files=[], meta=None, list_id=None, list_type=None,
+    def __init__(self, files=None, meta=None, list_id=None, list_type=None,
                  camera=None, geometry=None, init=True):
         # uses the init method from ImgList but does not load the files!
+        if files is None:
+            files = []
         super(ImgListLayered, self).__init__(files, list_id, list_type, camera,
                                              geometry, init=False)
 
