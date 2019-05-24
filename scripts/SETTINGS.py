@@ -29,11 +29,11 @@ from pyplis import __version__, LineOnImage
 rcParams.update({'figure.autolayout': True})
 rcParams.update({'font.size': 13})
 
-# if True, some of the actual results of the scripts are verified
+# if True, some of the results of the scripts are verified
 TESTMODE = 1
 
-# the pyplis version for which these scripts
-SCRIPTS_VERSION = "1.3"
+# the pyplis version for which these scripts correspond to
+SCRIPTS_VERSION = "1.4"
 
 SAVEFIGS = 1  # save plots from this script in SAVE_DIR
 DPI = 150  # pixel resolution for saving
