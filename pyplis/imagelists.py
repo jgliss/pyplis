@@ -440,7 +440,7 @@ class BaseImgList(object):
         if val < 0:
             raise ValueError("Negative smoothing kernel does not make sense..")
         elif val > 10:
-            logger.warning("Activate gaussian blurring with kernel size exceeding 10, "
+            print_log.warning("Activate gaussian blurring with kernel size exceeding 10, "
                  "this might significantly slow down things..")
         self.img_prep["blurring"] = val
         self.load()
@@ -659,7 +659,7 @@ class BaseImgList(object):
             self._apply_edit("this")
 
         except IOError:
-            logger.warning("Invalid file encountered at list index %s, file will"
+            print_log.warning("Invalid file encountered at list index %s, file will"
                  " be removed from list" % self.index)
             self.pop()
             if self.nof == 0:
@@ -679,7 +679,7 @@ class BaseImgList(object):
     def goto_next(self):
         """Goto next index in list."""
         if self.nof < 2:
-            logger.warning("Only one image available, no index change or "
+            print_log.warning("Only one image available, no index change or "
                  "reload performed")
             return self.this
         self.iter_indices(to_index=self.next_index)
@@ -689,7 +689,7 @@ class BaseImgList(object):
     def goto_prev(self):
         """Load previous image in list."""
         if self.nof < 2:
-            logger.warning("Only one image available, no index change or "
+            print_log.warning("Only one image available, no index change or "
                  "reload performed")
             return self.this
         self.iter_indices(to_index=self.prev_index)
@@ -904,7 +904,7 @@ class BaseImgList(object):
         try:
             if times[0].date() == date(1900, 1, 1):
                 d = self.this.meta["start_acq"].date()
-                logger.warning("Warning accessing acq. time stamps from file names in "
+                print_log.warning("Warning accessing acq. time stamps from file names in "
                      "ImgList: date information could not be accessed, using "
                      "date of currently loaded image meta info: %s" % d)
                 times = asarray([datetime(d.year, d.month, d.day, x.hour,
@@ -1162,7 +1162,7 @@ class BaseImgList(object):
                 self.goto_next()
                 added += 1
             except BaseException:
-                logger.warning("Failed to add image at index %d" % k)
+                print_log.warning("Failed to add image at index %d" % k)
         img.img = img.img / added
         img.meta["stop_acq"] = self.current_time()
         if len(texps) == added:
@@ -1557,7 +1557,7 @@ class BaseImgList(object):
         try:
             meta = self.get_img_meta_from_filename(file_path)
         except:
-            logger.warning("Failed to retrieve image meta information from file path %s"
+            print_log.warning("Failed to retrieve image meta information from file path %s"
                  % file_path)
             meta = {}
         meta["filter_id"] = self.list_id
@@ -1608,21 +1608,15 @@ class BaseImgList(object):
 
     def _first_file(self):
         """Get first file path of image list."""
-        try:
-            return self.files[0]
-        except IndexError:
-            logger.warning("Filelist empty...")
-        except BaseException:
-            raise
+        if not bool(self.files):
+            raise IndexError('ImgList is empty...')
+        return self.files[0]
 
     def _last_file(self):
         """Get last file path of image list."""
-        try:
-            return self.files[self.nof - 1]
-        except IndexError:
-            logger.warning("Filelist empty...")
-        except:
-            raise
+        if not bool(self.files):
+            raise IndexError('ImgList is empty...')
+        return self.files[self.nof - 1]
 
     def _make_header(self):
         """Make header for current image (based on image meta information)."""
@@ -1922,13 +1916,10 @@ class ImgList(BaseImgList):
 
     @darkcorr_opt.setter
     def darkcorr_opt(self, val):
-        try:
-            val = int(val)
-            if val not in [0, 1, 2]:
-                raise ValueError
-            self._dark_corr_opt = val
-        except BaseException:
-            logger.warning("Failed to update dark correction option")
+        val = int(val)
+        if val not in [0, 1, 2]:
+            raise ValueError
+        self._dark_corr_opt = val
 
     @property
     def darkcorr_mode(self):
