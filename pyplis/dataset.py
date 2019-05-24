@@ -350,7 +350,7 @@ class Dataset(object):
         if not bool(self.camera.dark_info):
             msg = ("Warning: dark image lists could not be initiated, no "
                    "dark image file information available in self.camera")
-            logger.warning(msg)
+            print_log.warning(msg)
             return 0
 
         for item in self.camera.dark_info:
@@ -375,7 +375,7 @@ class Dataset(object):
             s = ("Warning: image base directory does not exist, method "
                  "init_image_lists aborted in Dataset")
             warnings.append(s)
-            logger.warning(s)
+            print_log.warning(s)
             return False
         #: load all file paths
         paths = self.get_all_filepaths()
@@ -385,7 +385,7 @@ class Dataset(object):
             s = ("Warning: lists could not be initiated, no valid files found "
                  "method init_image_lists aborted in Dataset")
             warnings.append(s)
-            logger.warning(s)
+            print_log.warning(s)
             return False
         # check which image meta information can be accessed from first file in
         # list (updates ``_fname_access_flags`` in :class:`Camera`)
@@ -402,7 +402,7 @@ class Dataset(object):
         #: Set option to use all files in case acquisition time stamps cannot
         #: be accessed from filename
         if not flags["start_acq"]:
-            logger.warning("Acquisition time access from filename not possible, "
+            print_log.warning("Acquisition time access from filename not possible, "
                   "using all files")
             self.setup.options["USE_ALL_FILES"] = True
 
@@ -600,7 +600,7 @@ class Dataset(object):
             paths = self._find_files_ival_datetime(all_paths)
 
         if not bool(paths):
-            logger.warning("Error: no files could be found in specified time "
+            print_log.warning("Error: no files could be found in specified time "
                  "interval %s - %s" % (self.start, self.stop))
             self.USE_ALL_FILES = True
         else:

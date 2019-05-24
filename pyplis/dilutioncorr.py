@@ -232,7 +232,7 @@ class DilutionCorr(object):
                 dists.extend(self._dists_lines[line_id][mask])
                 rads.extend(l.get_line_profile(img)[::skip][mask])
             else:
-                logger.warning("Distances to line %s not available, please apply "
+                print_log.warning("Distances to line %s not available, please apply "
                      "distance retrieval first using class method "
                      "det_topo_dists_line")
         for x, y, dist in self._add_points:

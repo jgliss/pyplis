@@ -113,7 +113,7 @@ def load_hd_custom(file_path, meta={}, **kwargs):
                                               '%Y%m%d%H%M%S%f')
     except BaseException:
         raise
-        logger.warning("Failed to read image meta data from text file (cam_id: hd)")
+        print_log.warning("Failed to read image meta data from text file (cam_id: hd)")
     return (img, meta)
 
 
@@ -135,7 +135,7 @@ def load_hd_new(file_path, meta={}, **kwargs):
         meta["texp"] = float(read.tag_v2[270].split(" ")[0].split("s")[0])
         img = asarray(read)
     else:
-        print_log.logger.warning("Python Imaging Library (PIL) could not be imported. Using "
+        print_log.warning("Python Imaging Library (PIL) could not be imported. Using "
              "opencv method for image import. Cannot import exposure time "
              "info from tiff header...please install PIL")
         img = imread(file_path, -1)
@@ -183,7 +183,7 @@ def load_usgs_multifits(file_path, meta={}):
     img = None
     if "filter_id" not in meta:
         logger.warning("filter_id (i.e. on or off) in input arg meta not specified."
-             "Using default filer_id=on")
+             "Using default filter_id=on")
         meta["filter_id"] = "on"
     try:
         f = fits.open(file_path)
@@ -196,7 +196,7 @@ def load_usgs_multifits(file_path, meta={}):
             meta["texp"] = h["EXPTIME"] * h["NUMEXP"] / 1000
             meta["bit_depth"] = h["BITDEPTH"]
         except BaseException:
-            logger.warning("Failed to import image specific meta information from image "
+            print_log.warning("Failed to import image specific meta information from image "
                  "HDU")
         h = f[0].header
         try:
@@ -206,7 +206,7 @@ def load_usgs_multifits(file_path, meta={}):
             meta["elev"] = h["ELEVANGL"]
             meta["azim"] = h["AZMTANGL"]
         except BaseException:
-            logger.warning("Failed to import camera specific meta information from "
+            print_log.warning("Failed to import camera specific meta information from "
                  "primary HDU of FITS file...")
         img = hdu.data
         f.close()
@@ -220,7 +220,7 @@ def load_usgs_multifits_uncompr(file_path, meta={}):
     img = None
     if "filter_id" not in meta:
         logger.warning("filter_id (i.e. on or off) in input arg meta not specified."
-             "Using default filer_id=on")
+             "Using default filter_id=on")
         meta["filter_id"] = "on"
     try:
         f = fits.open(file_path)
@@ -233,7 +233,7 @@ def load_usgs_multifits_uncompr(file_path, meta={}):
             meta["texp"] = h["EXPTIME"] * h["NUMEXP"] / 1000
             meta["bit_depth"] = h["BITDEPTH"]
         except:
-            logger.warning("Failed to import image specific meta information from image "
+            print_log.warning("Failed to import image specific meta information from image "
                  "HDU")
         h = f[0].header
         try:
@@ -243,7 +243,7 @@ def load_usgs_multifits_uncompr(file_path, meta={}):
             meta["elev"] = h["ELEVANGL"]
             meta["azim"] = h["AZMTANGL"]
         except:
-            logger.warning("Failed to import camera specific meta information from "
+            print_log.warning("Failed to import camera specific meta information from "
                  "primary HDU of FITS file...")
         img = hdu.data
         f.close()
@@ -342,7 +342,7 @@ def load_comtessa(file_path, meta={}):
     except:
         img_hdu = 0
         meta['fits_idx'] = 0
-        logger.warning("Loading of comtessa fits file without providing the image index "
+        print_log.warning("Loading of comtessa fits file without providing the image index "
              "of desired image within the file. Image index was set to 0. "
              "Provide the image index via the meta = {'fits_idx':0} keyword.")
     # Load the image

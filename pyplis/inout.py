@@ -540,7 +540,7 @@ def get_source_info(source_id, try_online=True):
                 if source_id in [x.strip()
                                  for x in spl[1].split("#")[0].split(',')]:
                     found = 1
-    logger.warning("Source info for source %s could not be found" % source_id)
+    print_log.warning("Source info for source %s could not be found" % source_id)
     if try_online:
         try:
             return get_source_info_online(source_id)

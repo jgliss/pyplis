@@ -936,7 +936,7 @@ class BaseImgList(object):
                  "the corresponding image")
         elif (any([x is None for x in times]) or
               any([x is None for x in times_lst])):
-            logger.warning("Image acquisition times could not be accessed from file "
+            print_log.warning("Image acquisition times could not be accessed from file "
                  "names, assigning by indices")
             lst_idx = arange(lst.nof)
             for k in range(self.nof):
@@ -1087,7 +1087,7 @@ class BaseImgList(object):
             if ref_check:
                 sub_val = img.crop(roi_abs=ref_check_roi_abs, new_img=1).mean()
                 if not ref_check_min_val <= sub_val <= ref_check_max_val:
-                    logger.warning("Exclude image no. %d from stack, got value=%.2f in "
+                    print_log.warning("Exclude image no. %d from stack, got value=%.2f in "
                           "ref check ROI (out of specified range)"
                           % (k, sub_val))
                 append = False
@@ -2154,7 +2154,7 @@ class ImgList(BaseImgList):
     def calib_data(self):
         """Get set object to perform calibration."""
         if not isinstance(self._calib_data, CalibData):
-            logger.warning("No calibration data available in imglist %s" % self.list_id)
+            print_log.warning("No calibration data available in imglist %s" % self.list_id)
         return self._calib_data
 
     @calib_data.setter
@@ -2176,22 +2176,15 @@ class ImgList(BaseImgList):
         try:
             return self.calib_data.fov
         except BaseException:
-            logger.warning("No DOAS FOV information available")
+            raise ValueError("No DOAS FOV information available")
 
     """RESETTING AND INIT METHODS"""
-# =============================================================================
-#     def init_filelist(self):
-#         """Adding functionality to filelist init"""
-#         super(ImgList, self).init_filelist()
-# =============================================================================
-
     def init_bg_model(self, **kwargs):
         """Init clear sky reference areas in background model."""
         self.bg_model.update(**kwargs)
         self.bg_model.set_missing_ref_areas(self.current_img())
 
     """LIST MODE MANAGEMENT METHODS"""
-
     def activate_darkcorr(self, value=True):
         """Activate or deactivate dark and offset correction of images.
 
@@ -2212,7 +2205,7 @@ class ImgList(BaseImgList):
                                "image file was already dark corrected")
         if value:
             if self.this.edit_log["darkcorr"]:
-                logger.warning("Cannot activate dark correction in image list %s: "
+                print_log.warning("Cannot activate dark correction in image list %s: "
                      "current image is already corrected for dark current"
                      % self.list_id)
                 return
@@ -2239,16 +2232,9 @@ class ImgList(BaseImgList):
         """
         if value is self.vigncorr_mode:  # do nothing
             return
-# =============================================================================
-#         elif self.which_bg == "list":
-#             raise AttributeError("Feature not yet available: vigncorr mode "
-#                                  "cannot be activated if bg-img access mode "
-#                                  "is set to <list>. Please update using "
-#                                  "attr. which_bg='img'.")
-# =============================================================================
         elif value:
             if self.this.edit_log["vigncorr"]:
-                logger.warning("Cannot activate vignetting correction in image list %s: "
+                print_log.warning("Cannot activate vignetting correction in image list %s: "
                      "current image is already corrected for vignetting"
                      % self.list_id)
                 return
@@ -2310,7 +2296,7 @@ class ImgList(BaseImgList):
             return
         if value:
             if self.this.edit_log["is_tau"]:
-                logger.warning("Cannot activate tau mode in image list %s: "
+                print_log.warning("Cannot activate tau mode in image list %s: "
                      "current image is already a tau image"
                      % self.list_id)
                 return
@@ -2323,11 +2309,10 @@ class ImgList(BaseImgList):
                 # self.calc_sky_background_mask()
                 try:
                     self.calc_sky_background_mask()
-                except BaseException:
-                    logger.warning("Background access mask could not be retrieved for "
-                         "PolySurfaceFit in background model of image list %s"
-                         % self.list_id)
-
+                except Exception as e:
+                    raise ValueError('Could not activate tau mode in BG model '
+                                     'mode 0: Failed to compute sky background '
+                                     'mask: Error: {}'.repr(e))
             else:
                 if not self.has_bg_img():
                     raise AttributeError(
@@ -2432,10 +2417,10 @@ class ImgList(BaseImgList):
         if value:
             if not self.aa_mode:
                 self._list_modes["aa"] = True
-                logger.warning("List is not in AA mode")
+                print_log.warning("List is not in AA mode")
 
             if not self.sensitivity_corr_mode:
-                logger.warning("AA sensitivity correction mode is deactivated. This "
+                print_log.warning("AA sensitivity correction mode is deactivated. This "
                      "may yield erroneous results at the image edges")
             try:
                 self.calib_data(self.current_img())
@@ -2467,9 +2452,9 @@ class ImgList(BaseImgList):
                                              img_check_plumemask=False)[2]
             except Exception as e:
                 raise AttributeError("Failed to activate dilution correction "
-                                     "in list %s. Traceback:\n%s"
-                                     % (self.list_id, format_exc(e)))
-            # now make sure that in case and off-band list is assigned, it can
+                                     "mode in list {}. Error: {}"
+                                     .format(self.list_id, repr(e)))
+            # now make sure that in case an off-band list is assigned, it can
             # also be used to perform a dilution correction (i.e. bg_model
             # ready)
             if self.list_type == "on":
@@ -2485,9 +2470,13 @@ class ImgList(BaseImgList):
                 except AttributeError:
                     pass
                 except Exception as e:
-                    logger.warning("Failed to apply dilution correction in linked "
-                         "offband list %s. Traceback:\n%s"
-                         % (lid, format_exc(e)))
+                    msg = ("Failed to apply dilution correction "
+                            " in linked offband list {}. Error: {}"
+                            .format(lid, repr(e)))
+                    if self.aa_mode:
+                        raise ValueError(msg)
+                    else:
+                        print_log.warning(msg)
 
         self._list_modes["dilcorr"] = value
         self.load()
@@ -2595,7 +2584,7 @@ class ImgList(BaseImgList):
         try:
             texp_ratio = texp / dark.meta["texp"]
             if not 0.8 <= texp_ratio <= 1.2:
-                logger.warning("Exposure time of current dark image in list %s "
+                print_log.warning("Exposure time of current dark image in list %s "
                      "deviates by more than 20% from list image %s "
                      "(current list index: %d)"
                      % (self.list_id, key, self.cfn))
@@ -2658,7 +2647,7 @@ class ImgList(BaseImgList):
 
         """
         if not isinstance(bg_img, Img):
-            logger.warning("Could not set background image in ImgList %s: "
+            print_log.warning("Could not set background image in ImgList %s: "
                   ": wrong input type, need Img object" % self.list_id)
             return False
         vc_raw = self._this_raw_fromfile().is_vigncorr
@@ -2688,12 +2677,12 @@ class ImgList(BaseImgList):
             try:
                 if not self.bg_img.is_shifted:
                     self.bg_img.shift(dx, dy)
-            except:
+            except AttributeError:
                 logger.warning("No BG img available")
             try:
                 if not self.vign_mask.is_shifted:
                     self.vign_mask.shift(dx, dy)
-            except:
+            except AttributeError:
                 logger.warning("No vignetting mask available")
         else:
             try:
@@ -2767,7 +2756,7 @@ class ImgList(BaseImgList):
         if self.cfn == self.nof - 1:
             self.optflow.reset_flow()
             raise IndexError("Optical flow images cannot be set in ImgList %s:"
-                             " reached last image ..." % self.list_id)
+                             " print_log.warning( image ..." % self.list_id)
 
         self.optflow.set_images(self.loaded_images["this"],
                                 self.loaded_images["next"])
@@ -2905,13 +2894,13 @@ class ImgList(BaseImgList):
                 for read_gain, info in six.iteritems(self.offset_lists):
                     offsnum = info["idx"][num]
                     if offsnum != info["list"].index:
-                        logger.info("Offset image index (read_gain %s) was changed "
-                              "in list %s from %s to %s"
-                              % (read_gain, self.list_id, info["list"].index,
-                                 offsnum))
+                        logger.info("Offset image index (read_gain {}) was changed "
+                                    "in list %s from {} to {}"
+                                    .format(read_gain, self.list_id, info["list"].index,
+                                    offsnum))
                         info["list"].goto_img(offsnum)
         except Exception:
-            logger.warning("Failed to update index of dark and offset lists")
+            print_log.warning("Failed to update index of dark and offset lists")
             return False
         return updated
 
@@ -2956,7 +2945,7 @@ class ImgList(BaseImgList):
         :param str list_id: string id of linked list
         """
         if list_id not in self.linked_lists.keys():
-            logger.warning("Error: no linked list found with ID " + str(list_id))
+            print_log.warning("Error: no linked list found with ID " + str(list_id))
             return 0
         del self.linked_lists[list_id]
         del self._linked_indices[list_id]
@@ -2979,7 +2968,7 @@ class ImgList(BaseImgList):
             if texp == 0 or isnan(texp):
                 raise ValueError
         except BaseException:
-            logger.warning("Exposure time could not be accessed in ImgList %s"
+            print_log.warning("Exposure time could not be accessed in ImgList %s"
                  % self.list_id)
 
         warnings = []
@@ -3049,7 +3038,7 @@ class ImgList(BaseImgList):
         """Try load current and next image."""
         self.change_index_linked_lists()  # based on current index in this list
         if not super(ImgList, self).load():
-            logger.warning("Image load aborted...")
+            print_log.warning("Image load aborted...")
             return False
         if self.nof > 1:
             next_img = self._load_image(self.next_index)
@@ -3057,7 +3046,7 @@ class ImgList(BaseImgList):
             self._load_edit["next"].update(next_img.edit_log)
             self._apply_edit("next")
         else:
-            logger.warning("Image list contains only one image. Setting this image both "
+            print_log.warning("Image list contains only one image. Setting this image both "
                  "in <this> and <next> attr.")
             self.loaded_images["next"] = self.loaded_images["this"]
             self._load_edit["next"].update(self._load_edit["this"])
@@ -3067,7 +3056,7 @@ class ImgList(BaseImgList):
                 self.set_flow_images()
                 self.optflow.calc_flow()
             except IndexError:
-                logger.warning("Reached last index in image list, optflow_mode will be "
+                print_log.warning("Reached last index in image list, optflow_mode will be "
                      "deactivated")
                 self.optflow_mode = 0
         return True
@@ -3101,7 +3090,7 @@ class ImgList(BaseImgList):
                 self.set_flow_images()
                 self.optflow.calc_flow()
             except IndexError:
-                logger.warning("Reached last index in image list, optflow_mode will be "
+                print_log.warning("Reached last index in image list, optflow_mode will be "
                      "deactivated")
                 self.optflow_mode = 0
         return True
@@ -3258,8 +3247,7 @@ class ImgList(BaseImgList):
             2D-numpy boolean numpy array specifying sky background pixels
 
         """
-        return self.bg_model.\
-            calc_sky_background_mask(self.this,
+        return self.bg_model.calc_sky_background_mask(self.this,
                                      self.loaded_images["next"],
                                      lower_thresh,
                                      apply_movement_search,
@@ -3757,7 +3745,7 @@ class ImgList(BaseImgList):
                 off_list = self.get_off_list()
                 off_img = off_list.loaded_images[key].to_pyrlevel(img.pyrlevel)
                 if off_img.is_vigncorr:
-                    logger.warning("List %s is in AA mode: it appears that "
+                    print_log.warning("List %s is in AA mode: it appears that "
                          "vigncorr_mode is active in either or both of the "
                          "lists %s and %s. You might want to consider to turn "
                          "off vigncorr_mode as this is irrelevant for the "
@@ -3825,7 +3813,7 @@ class ImgList(BaseImgList):
                 off_list = self.get_off_list()
                 off_img = off_list.loaded_images[key].to_pyrlevel(img.pyrlevel)
                 if off_img.is_vigncorr:
-                    logger.warning("List %s is in AA mode: it appears that "
+                    print_log.warning("List %s is in AA mode: it appears that "
                          "vigncorr_mode is active in either or both of the "
                          "lists %s and %s. You might want to consider to turn "
                          "off vigncorr_mode as this is irrelevant for the "
@@ -4001,7 +3989,7 @@ class ImgListLayered(ImgList):
             ``texp``
 
         """
-        logger.warning('This method does not make a lot of sense for the ImgListLayered!'
+        print_log.warning('This method does not make a lot of sense for the ImgListLayered!'
              ' Returns the meta data of the first image in file_path.'
              ' Use metaData attribute to access meta information instead.')
 
@@ -4123,12 +4111,15 @@ class ImgListLayered(ImgList):
         meta = {}
         meta["fits_idx"] = img_hdu
         meta["filter_id"] = self.list_id
-        try:
-            image = Img(input=img_file,
-                        import_method=self.camera.image_import_method,
-                        **meta)
-        except:
-            logger.warning('Could not load image with self.camera.image_import_method.')
+
+        # Comment jgliss (24.5.19): removed try/except block that would just give warning
+        # but would then throw error anyways because `image` is not initialised...
+        # Developers: please only insert try / except blocks where you can actually
+        # catch the exception, everything else may lead to silent and hard to debug
+        # errors.
+        image = Img(input=img_file,
+                    import_method=self.camera.image_import_method,
+                    **meta)
         return image
 
 # OLD version of ImgList before major changes (stamp: 3/3/2018)

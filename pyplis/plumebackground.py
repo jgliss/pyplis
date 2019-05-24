@@ -195,7 +195,7 @@ class PlumeBackgroundModel(object):
         This is the previous name of the method
         :func:`set_missing_ref_areas`
         """
-        logger.warning("Please use new name of method: set_missing_ref_areas",
+        print_log.warning("Please use new name of method: set_missing_ref_areas",
              DeprecationWarning)
         self.set_missing_ref_areas(plume_img)
 
@@ -344,7 +344,7 @@ class PlumeBackgroundModel(object):
                 mask = self._init_bgsurf_mask(plume)
         pyrlevel_rel = pyrlevel - plume.pyrlevel
         if pyrlevel_rel < 0:
-            logger.warning("Pyramid level of input image (%d) is larger than desired "
+            print_log.warning("Pyramid level of input image (%d) is larger than desired "
                  "pyramid level for computation of surface fit (%d). Using "
                  "the current pyrlevel %d of input image" % (plume.pyrlevel,
                                                              pyrlevel))

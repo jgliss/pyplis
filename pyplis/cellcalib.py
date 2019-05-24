@@ -1064,7 +1064,7 @@ class CellCalibEngine(Dataset):
                                                             "start_acq"])
                 offset = bg_mean - bg_mean_now
             except BaseException:
-                logger.warning("Warning in tau image stack calculation for filter "
+                print_log.warning("Warning in tau image stack calculation for filter "
                      " %s: Time series data for background list (background "
                      "poly) is not available. Calculating tau image for cell "
                      " image  %s, %s based on unchanged background image "
@@ -1170,7 +1170,7 @@ class CellCalibEngine(Dataset):
             try:
                 c.fit_calib_data()
             except:
-                logger.warning("Failed to fit calibration data for calib_id %s"
+                print_log.warning("Failed to fit calibration data for calib_id %s"
                      % calib_id)
             self.calib_data[calib_id] = c
 
@@ -1274,7 +1274,7 @@ class CellCalibEngine(Dataset):
             if not isnum(pos_x_abs) * isnum(pos_y_abs) == 1:
                 raise ValueError
         except:
-            logger.warning("Using image center coordinate for normalisation position "
+            print_log.warning("Using image center coordinate for normalisation position "
                   "of sensitivity correction mask")
 
             h, w = stack.shape[1:]
@@ -1287,7 +1287,7 @@ class CellCalibEngine(Dataset):
             cell_img = PolySurfaceFit(cell_img,
                                       pyrlevel=surface_fit_pyrlevel).model
         except:
-            logger.warning("2D polyfit failed while determination of sensitivity "
+            print_log.warning("2D polyfit failed while determination of sensitivity "
                  "correction mask, using original cell tau image for mask "
                  "determination")
         mean = (cell_img * fov_mask).sum() / fov_mask.sum()
