@@ -20,6 +20,7 @@ from os import listdir, unlink
 from os.path import basename, join, isfile
 from traceback import format_exc
 from SETTINGS import OPTPARSE
+from sys import exit
 from time import time
 
 paths = [f for f in listdir(".") if f[:4] == "ex0_" and f[4] != "5" and
@@ -88,3 +89,4 @@ if int(options.test):
         print("None")
 
 print("Total runtime: %.2f s" % (t1 - t0))
+exit(len(test_err_messages))
