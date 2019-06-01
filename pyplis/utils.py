@@ -81,7 +81,7 @@ def identify_camera_from_filename(filepath):
 
 
 class LineOnImage(object):
-    """Class representing a line on an image.
+    """Class representing a line on an image
 
     Main purpose is data extraction along this line on a discrete image grid.
     This is done using spline interpolation.
@@ -116,7 +116,6 @@ class LineOnImage(object):
 
 
     """
-
     def __init__(self, x0=0, y0=0, x1=1, y1=1, normal_orientation="right",
                  roi_abs_def=DEFAULT_ROI, pyrlevel_def=0, line_id="",
                  color="lime", linestyle="-"):
@@ -1567,7 +1566,6 @@ class CameraBaseInfo(object):
         """Make object callable (access item)."""
         return self.__getitem__(key)
 
-
 class Filter(object):
     """Object representing an interference filter.
 
@@ -1607,7 +1605,6 @@ class Filter(object):
         self.center_wavelength = center_wavelength
         self.trans_curve = None
         # filter peak transmission
-
         if self.id is None:
             self.id = self.type
 
@@ -1649,6 +1646,13 @@ class Filter(object):
              .format(self.id, self.type, self.acronym, self.meas_type_acro,
                      self.center_wavelength))
         return s
+    
+    def __repr__(self):
+        s = ("Filter {}; type: {}; acronym: {}; meas_type_acro: {}; "
+             "center_wavelength: {}"
+             .format(self.id, self.type, self.acronym, self.meas_type_acro,
+                     self.center_wavelength))
+        return s
 
     def print_specs(self):
         """Print __str__."""
@@ -1660,7 +1664,7 @@ class DarkOffsetInfo(object):
 
     Similar to :class:`Filter`. This object can be used to store relevant
     information of different types of dark and offset images. The attribute
-    "read_gain" is set 0 by default. For some camera types (e.g. Hamamastsu
+    "read_gain" is set 0 by default. For some camera types (e.g. Hamamatsu
     c8484 16c as used in the ECII SO2 camera), the signal can be enhancened
     with an electronic read_gain (measured in dB) on read. This can be helpful
     in low light conditions. However, it significantly increases the noise in
