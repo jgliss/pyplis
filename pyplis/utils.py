@@ -1648,7 +1648,7 @@ class Filter(object):
              "center_wavelength: {}\n"
              .format(self.id, self.type, self.acronym, self.meas_type_acro,
                      self.center_wavelength))
-        return
+        return s
 
     def print_specs(self):
         """Print __str__."""
