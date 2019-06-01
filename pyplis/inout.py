@@ -286,53 +286,54 @@ def _load_cam_info(cam_id, filepath):
         io_opts = {}
         found = 0
         for ll in f:
-            try:
-                line = ll.decode('utf-8').rstrip()
-            except:
-                raise Exception(ll)
-            if line:
-                if "END" in line and found:
-                    dat["default_filters"] = filters
-                    dat["dark_info"] = darkinfo
-                    dat["io_opts"] = io_opts
-                    return dat
-                spl = line.split(":")
-                if found:
-                    if line[0] != "#":
-                        spl = line.split(":")
-                        k = spl[0].strip()
-                        if k == "dark_info":
-                            l = [x.strip()
-                                 for x in spl[1].split("#")[0].split(',')]
-                            darkinfo.append(l)
-                        elif k == "filter":
-                            l = [x.strip()
-                                 for x in spl[1].split("#")[0].split(',')]
-                            filters.append(l)
-                        elif k == "io_opts":
-                            l = [x.strip()
-                                 for x in split("=|,", spl[1].split("#")[0])]
-                            keys, vals = l[::2], l[1::2]
-                            if len(keys) == len(vals):
-                                for i in range(len(keys)):
-                                    io_opts[keys[i]] = bool(int(vals[i]))
-                        elif k == "reg_shift_off":
-                            try:
-                                l = [float(x.strip()) for x in
-                                     spl[1].split("#")[0].split(',')]
-                                dat["reg_shift_off"] = l
-                            except:
-                                pass
-                        else:
-                            data_str = spl[1].split("#")[0].strip()
-                            if any([data_str == x for x in ["''", '""']]):
-                                data_str = ""
-                            dat[k] = data_str
-                if spl[0] == "cam_ids":
-                    l = [x.strip() for x in spl[1].split("#")[0].split(',')]
-                    if cam_id in l:
-                        found = 1
-                        dat["cam_ids"] = l
+            line = ll.decode('utf-8').rstrip()
+
+            if not line:
+                continue
+            if "END" in line and found:
+                dat["default_filters"] = filters
+                dat["dark_info"] = darkinfo
+                dat["io_opts"] = io_opts
+                return dat
+            spl = line.split(":")
+            if len(spl) == 1:
+                continue
+            if found:
+                if line[0] == "#":
+                    continue
+                k = spl[0].strip()
+                if k == "dark_info":
+                    l = [x.strip()
+                         for x in spl[1].split("#")[0].split(',')]
+                    darkinfo.append(l)
+                elif k == "filter":
+                    l = [x.strip()
+                         for x in spl[1].split("#")[0].split(',')]
+                    filters.append(l)
+                elif k == "io_opts":
+                    l = [x.strip()
+                         for x in split("=|,", spl[1].split("#")[0])]
+                    keys, vals = l[::2], l[1::2]
+                    if len(keys) == len(vals):
+                        for i in range(len(keys)):
+                            io_opts[keys[i]] = bool(int(vals[i]))
+                elif k == "reg_shift_off":
+                    try:
+                        l = [float(x.strip()) for x in
+                             spl[1].split("#")[0].split(',')]
+                        dat["reg_shift_off"] = l
+                    except:
+                        pass
+                else:
+                    data_str = spl[1].split("#")[0].strip()
+                    if any([data_str == x for x in ["''", '""']]):
+                        data_str = ""
+                    dat[k] = data_str
+            if spl[0] == "cam_ids":
+                l = [x.strip() for x in spl[1].split("#")[0].split(',')]
+                if cam_id in l:
+                    found = 1
+                    dat["cam_ids"] = l
     raise IOError("Camera info for cam_id %s could not be found" % cam_id)
 
 
