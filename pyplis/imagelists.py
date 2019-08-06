@@ -3691,7 +3691,8 @@ class ImgList(BaseImgList):
             df = pd.read_csv(file_path, **kwargs)
             s = df[header_id]
         except BaseException:
-            s = pd.read_csv(file_path, header=None, index_col=0, squeeze=True, parse_dates=True, **kwargs)
+            s = pd.read_csv(file_path, header=None, index_col=0, squeeze=True,
+                            parse_dates=True, **kwargs)
         self.ext_coeffs = s
         return self.ext_coeffs
 

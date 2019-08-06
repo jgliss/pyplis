@@ -41,5 +41,6 @@ class MetaAccessError(Exception):
     """Pass."""
     pass
 
+
 class DeprecationError(Exception):
     pass

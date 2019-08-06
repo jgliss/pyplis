@@ -275,6 +275,7 @@ class Source(object):
     def __call__(self, key):
         return self.__getitem__(key)
 
+
 class FilterSetup(object):
     """A collection of :class:`pyplis.utils.Filter` objects.
 
@@ -300,18 +301,18 @@ class FilterSetup(object):
                  default_key_off=None, **filters):
         if filter_list is None:
             filter_list = []
-            
+
         self._filters = od()
         self.init_filters(filter_list, **filters)
-        
+
         self._default_key_on = None
         self._default_key_off = None
-      
+
     @property
     def filters(self):
-        """Dictionary containing filters (only getter, for backwards compat.)"""
+        """Dictionary containing filters (only getter, for backwards compat)"""
         return self._filters
-    
+
     @property
     def on_band(self):
         """Return default on band filter."""
@@ -334,8 +335,8 @@ class FilterSetup(object):
     def ids_on(self):
         """List with all onband filter ids."""
         return self.get_ids_on_off()[0]
-    
-    @property 
+
+    @property
     def default_key_on(self):
         """Default onband key"""
         if self._default_key_on is not None:
@@ -344,16 +345,16 @@ class FilterSetup(object):
         if len(ids_on) == 0:
             raise KeyError('No onband filter set in FilterSetup')
         return ids_on[0]
-    
+
     @default_key_on.setter
     def default_key_on(self, val):
-        if not val in self.ids_on:
+        if val not in self.ids_on:
             raise ValueError('Cannot set default key {} for onband filter. No '
                              'such filter available in FilterSetup. Choose '
                              'from; {}'.format(val, self.ids_on))
         self._default_key_on = val
-    
-    @property 
+
+    @property
     def default_key_off(self):
         """Default offband key"""
         if self._default_key_off is not None:
@@ -362,15 +363,15 @@ class FilterSetup(object):
         if len(ids_off) == 0:
             raise KeyError('No offband filter set in FilterSetup')
         return ids_off[0]
-    
+
     @default_key_off.setter
     def default_key_off(self, val):
-        if not val in self.ids_off:
-            raise ValueError('Cannot set default key {} for offband filter. No '
-                             'such filter available in FilterSetup. Choose '
-                             'from; {}'.format(val, self.ids_off))
+        if val not in self.ids_off:
+            raise ValueError('Cannot set default key {} for offband filter. No'
+                             ' such filter available in FilterSetup. Choose'
+                             ' from; {}'.format(val, self.ids_off))
         self._default_key_off = val
-        
+
     @property
     def has_on(self):
         """Check if collection contains an onband filter."""
@@ -402,7 +403,7 @@ class FilterSetup(object):
             list of :class:`pyplis.utils.Filter` objects
             specifying camera filter setup
         **filters
-            pairs of filter IDs and instances of :class:`Filter` that may be 
+            pairs of filter IDs and instances of :class:`Filter` that may be
             used instead of (or in addition to) input `filter_list`
         """
         if isinstance(filter_list, (list, ndarray)):
@@ -410,10 +411,10 @@ class FilterSetup(object):
                 self[f.id] = f
         for fid, f in six.iteritems(filters):
             self[fid] = f
-                
+
         if not bool(self._filters):
             self._filters["on"] = Filter("on")
-    
+
     def __setitem__(self, key, val):
         if not isinstance(val, Filter):
             raise ValueError('Invalid input: need instance of Filter class, '
@@ -422,13 +423,13 @@ class FilterSetup(object):
             warn('Filter with ID {} already exists in FilterSetup '
                  'and will be overwritten'.format(key))
         self._filters[key] = val
-    
+
     def __getitem__(self, key):
-        if not key in self._filters:
+        if key not in self._filters:
             raise KeyError('No such filter assigned to FilterSetup: {}. '
                            'Please choose from {}'.format(key, self._filters))
         return self._filters[key]
-        
+
     def update_filters_from_dict(self, filter_dict):
         """Add filter objects from a dictionary.
 
@@ -451,12 +452,13 @@ class FilterSetup(object):
         raise DeprecationError('Deprecated since v1.4.4: please use setter '
                                'methods directly for '
                                'attrs. default_key_on and default_key_off')
-        
+
     def check_default_filters(self):
         """Check if default filter keys are set."""
         raise DeprecationError('Deprecated since v1.4.4: please use setter '
                                'methods directly for '
                                'attrs. default_key_on and default_key_off')
+
     def get_ids_on_off(self):
         """Get all filters sorted by their type (On or Off).
 
@@ -496,7 +498,7 @@ class FilterSetup(object):
 
     def __len__(self):
         return len(self._filters)
-    
+
     def __call__(self, filter_id):
         """Return the filter corresponding to the input ID.
 
@@ -511,7 +513,8 @@ class FilterSetup(object):
                   % (f.id, f.type, f.acronym, f.center_wavelength))
         s += "Default Filter: %s\n" % self.default_key_on
         return s
-    
+
+
 class Camera(CameraBaseInfo):
     """Base class to specify a camera setup.
 

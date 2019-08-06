@@ -150,9 +150,9 @@ if __name__ == "__main__":
     # geom_corr.update_source_specs()
 
     geom_corr.update_wind_specs(dir=315)
-    geom_corr.draw_map_2d() # this figure is only displayed and not saved
+    geom_corr.draw_map_2d()  # this figure is only displayed and not saved
 
-    #recompute plume distance of CFOV pixel
+    # recompute plume distance of CFOV pixel
     plume_dist_cfov_new = geom_corr.plume_dist()[0][0]
 
     print("Comparison of plume distances after change of wind direction:\n"

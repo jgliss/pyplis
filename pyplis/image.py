@@ -57,6 +57,7 @@ from .exceptions import ImgMetaError
 from .optimisation import PolySurfaceFit
 from .utils import LineOnImage
 
+
 class Img(object):
     """Image base class.
 
@@ -110,29 +111,29 @@ class Img(object):
 
     The default data accuracy is 32 bit floating point and can be changed
     on initiation (see :func:`__init__`).
-    
+
     Parameters
     ----------
     input
         image data input (e.g. file path to an image type which
         can be read or numpy array)
-    import_method 
-        custom image load method, must return tuple containing image 
+    import_method
+        custom image load method, must return tuple containing image
         data (2D ndarray) and dictionary containing
         meta information (can be empty if read routine does not import
         any meta information)
     dtype
         datatype for image data (float32)
     **meta_info
-        keyword args specifying meta data (only valid metadata is stored, 
+        keyword args specifying meta data (only valid metadata is stored,
         for valid keys see :attr:`meta`)
-    
+
     Attributes
     ----------
     dtype
         data type of image numpy array
     vign_mask : ndarray, optional
-        vignetting mask used to correct for vignetting (is set 
+        vignetting mask used to correct for vignetting (is set
         in :func:`correct_vignetting`)
     import_method : callable, optional
         custom method used to import image data
@@ -144,7 +145,7 @@ class Img(object):
 
     _FITSEXT = [".fits", ".fit", ".fts"]
 
-    def __init__(self, input=None, import_method=None, dtype=None, 
+    def __init__(self, input=None, import_method=None, dtype=None,
                  **meta_info):
 
         if isinstance(input, Img):
