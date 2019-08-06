@@ -19,28 +19,35 @@
 
 class CellSearchError(Exception):
     """Pass."""
+
     pass
 
 
 class FileNameInfoAccessError(Exception):
     """Pass."""
+
     pass
 
 
 class ImgMetaError(Exception):
     """Pass."""
+
     pass
 
 
 class ImgModifiedError(Exception):
     """Pass."""
+
     pass
 
 
 class MetaAccessError(Exception):
     """Pass."""
+
     pass
 
 
 class DeprecationError(Exception):
+    """Pass."""
+
     pass

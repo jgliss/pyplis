@@ -31,13 +31,14 @@ install:
   - python setup.py install
 
   # dev dependencies
-  - conda install flake8
+  - conda install flake8 pydocstyle
 
 # set the operating systems to be tested
 
 script:
    - py.test
    - flake8
+   - pydocstyle
    - cd scripts
    - python RUN_INTRO_SCRIPTS.py
    - python RUN_EXAMPLE_SCRIPTS.py

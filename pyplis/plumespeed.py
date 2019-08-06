@@ -3678,7 +3678,7 @@ def find_movement(first_img, next_img, pyrlevel=2, num_contrast_ivals=8,
                   apply_erosion=True, erosion_kernel_size=20,
                   apply_dilation=True, dilation_kernel_size=20,
                   verbose=False, **optflow_settings):
-    """Search for movement using an iterative optical flow algorithm.
+    u"""Search for movement using an iterative optical flow algorithm.
 
     This algorithm searches for pixels containing movement between two
     consecutive images. This is done by using an optical flow algorithm

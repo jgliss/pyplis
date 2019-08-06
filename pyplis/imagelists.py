@@ -1800,7 +1800,7 @@ class _LinkedLists:
 
 
 class ImgList(BaseImgList):
-    """Image list object with expanded functionality (cf. :class:`BaseImgList`).
+    u"""Image list object with expanded functionality (cf. :class:`BaseImgList`).
 
     Additional features:
 
@@ -3684,8 +3684,8 @@ class ImgList(BaseImgList):
 
         Todo
         ----
-
         This is a Beta version, insert try / except block after testing
+
         """
         try:
             df = pd.read_csv(file_path, **kwargs)

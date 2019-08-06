@@ -310,7 +310,7 @@ class FilterSetup(object):
 
     @property
     def filters(self):
-        """Dictionary containing filters (only getter, for backwards compat)"""
+        """Get dict containing filters (only getter, for backwards compat)."""
         return self._filters
 
     @property
@@ -338,7 +338,7 @@ class FilterSetup(object):
 
     @property
     def default_key_on(self):
-        """Default onband key"""
+        """Return default onband key."""
         if self._default_key_on is not None:
             return self._default_key_on
         ids_on = self.ids_on
@@ -356,7 +356,7 @@ class FilterSetup(object):
 
     @property
     def default_key_off(self):
-        """Default offband key"""
+        """Return default offband key."""
         if self._default_key_off is not None:
             return self._default_key_off
         ids_off = self.ids_off
@@ -405,6 +405,7 @@ class FilterSetup(object):
         **filters
             pairs of filter IDs and instances of :class:`Filter` that may be
             used instead of (or in addition to) input `filter_list`
+
         """
         if isinstance(filter_list, (list, ndarray)):
             for f in filter_list:
@@ -447,8 +448,7 @@ class FilterSetup(object):
 
     def set_default_filter_keys(self, default_key_on=None,
                                 default_key_off=None):
-        """Deprecated
-        """
+        """Deprecated."""
         raise DeprecationError('Deprecated since v1.4.4: please use setter '
                                'methods directly for '
                                'attrs. default_key_on and default_key_off')

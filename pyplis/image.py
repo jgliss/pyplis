@@ -141,6 +141,7 @@ class Img(object):
         dictionary containing information about editing status
     meta : dict
         dictionary containing meta information.
+
     """
 
     _FITSEXT = [".fits", ".fit", ".fts"]
