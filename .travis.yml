@@ -21,18 +21,19 @@ install:
   - hash -r
   - conda config --set always_yes yes --set changeps1 no
   - conda update -q conda
-  - conda config --add channels conda-forge 
+  - conda config --add channels conda-forge
   # Useful for debugging any issues with conda
   - conda info -a
 
   # Replace dep1 dep2 ... with your dependencies
-  - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION numpy scipy pandas astropy matplotlib basemap opencv geonum pydoas six
+  - conda env create -n test-environment -f pyplis_env.yml python=$TRAVIS_PYTHON_VERSION
   - source activate test-environment
   - python setup.py install
 
 # set the operating systems to be tested
-  
+
 script:
    - py.test
-   
-
+   - cd scripts
+   - python RUN_INTRO_SCRIPTS.py
+   - python RUN_EXAMPLE_SCRIPTS.py
