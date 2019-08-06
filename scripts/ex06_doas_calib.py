@@ -183,7 +183,7 @@ def get_stack(reload_stack=RELOAD_STACK, stack_path=STACK_PATH,
 def test_calib_pears_init(calib):
     calib.fit_calib_data(polyorder=1)
     cc = pyplis.helpers.get_img_maximum(calib.fov.corr_img.img)
-    npt.assert_allclose(cc, (124, 159), atol=1)
+    assert cc == (124, 159), cc
 
     pyrl = calib.fov.pyrlevel
     assert pyrl == 2, pyrl
@@ -196,7 +196,7 @@ def test_calib_pears_init(calib):
     (fov_x, fov_y) = calib.fov.pixel_position_center(abs_coords=True)
 
     npt.assert_allclose([fov_ext, fov_x, fov_y],
-                        [res_dict['rad_rel'] * 2**pyrl, 636, 496], atol=5)
+                        [res_dict['rad_rel'] * 2**pyrl, 636, 496], atol=1)
 
     npt.assert_allclose(calib.calib_coeffs,
                         [8.58e+18, 2.71e+17], rtol=1e-1)
@@ -204,7 +204,7 @@ def test_calib_pears_init(calib):
 
 def test_calib_pears_fine(calib):
     cc = pyplis.helpers.get_img_maximum(calib.fov.corr_img.img)
-    npt.assert_allclose((186, 180), cc, atol=10)
+    npt.assert_allclose((186, 180), cc, atol=1)
 
     pyrl = calib.fov.pyrlevel
     assert pyrl == 0, pyrl
@@ -225,21 +225,21 @@ def test_calib_pears_fine(calib):
 
 def test_calib_ifr(calib):
     cc = pyplis.helpers.get_img_maximum(calib.fov.corr_img.img)
-    npt.assert_allclose(cc, (123, 157), atol=1)
+    npt.assert_allclose((123, 157), cc, atol=1)
 
     pyrl = calib.fov.pyrlevel
     assert pyrl == 2, pyrl
     npt.assert_allclose(calib.fov.result_ifr['popt'][1:5],
-                        [158.6, 122.9, 15.4, 1.5], rtol=.3)
+                        [158.6, 122.9, 15.4, 1.5], rtol=1e-1)
 
     (fov_x, fov_y) = calib.fov.pixel_position_center(abs_coords=True)
 
     npt.assert_allclose([fov_x, fov_y, calib_ifr.fov.sigma_x_abs,
                          calib_ifr.fov.sigma_y_abs],
-                        [635, 492, 61.5, 41.6], atol=5)
+                        [635, 492, 61.5, 41.6], atol=2)
 
     npt.assert_allclose(calib.calib_coeffs,
-                        [9.38e+18, 1.75e+17], rtol=.5)
+                        [9.38e+18, 1.75e+17], rtol=1e-1)
 
 
 # SCRIPT MAIN FUNCTION
