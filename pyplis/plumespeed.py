@@ -37,6 +37,7 @@ from os import getcwd
 from six.moves import xrange
 import six
 
+import pandas as pd
 from pandas import Series, DataFrame
 
 from cv2 import calcOpticalFlowFarneback, OPTFLOW_FARNEBACK_GAUSSIAN,\
@@ -1820,7 +1821,7 @@ class LocalPlumeProperties(object):
         self.to_pandas_dataframe().to_csv(path)
 
     def load_txt(self, path):
-        df = DataFrame.from_csv(path)
+        df = pd.read_csv(path)
         return self.from_pandas_dataframe(df)
 
     def __setitem__(self, key, val):
