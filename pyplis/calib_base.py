@@ -194,6 +194,7 @@ class CalibData(object):
                                  "Please check and update class attribute "
                                  "calib_fun first...")
         if self._calib_coeffs is not None and len(self._calib_coeffs) > 0:
+
                 logger.warning("Resetting calibration coefficients manually. This may introduce "
                      "analysis errors. It is recommended to use the method "
                      "fit_calib_data instead")

@@ -786,7 +786,7 @@ class CellCalibEngine(Dataset):
 
         """
         # check input list ID and set default if invalid
-        if not filter_id in self.lists_access_info:
+        if filter_id not in self.lists_access_info:
             filter_id = self.filters.default_key_on
         # the info about columns in the cells
         cell_info = self._cell_info_auto_search

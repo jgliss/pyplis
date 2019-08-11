@@ -34,6 +34,7 @@ from .imagelists import ImgList
 from .plumespeed import LocalPlumeProperties
 from .helpers import check_roi, exponent, roi2rect, map_roi
 import six
+import pandas as pd
 from pandas import Series, DataFrame
 try:
     from scipy.constants import N_A
@@ -742,7 +743,7 @@ class EmissionRates(object):
             loaded result data class
 
         """
-        df = DataFrame.from_csv(path)
+        df = pd.read_csv(path)
         return self.from_pandas_dataframe(df)
 
     def __add__(self, other):

@@ -19,6 +19,7 @@ from __future__ import (absolute_import, division)
 from os import listdir, unlink
 from os.path import basename, join, isfile
 from time import time
+from sys import exit
 from SETTINGS import OPTPARSE
 
 (options, args) = OPTPARSE.parse_args()
@@ -87,3 +88,4 @@ if int(options.test):
         print("None")
 
 print("Total runtime: %.2f s" % (t1 - t0))
+exit(len(test_err_messages))

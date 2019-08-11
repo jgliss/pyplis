@@ -1417,7 +1417,7 @@ class MeasGeometry(object):
 
         """
         if ax is None:
-            from mpl_toolkits.mplot3d import Axes3D
+            from mpl_toolkits.mplot3d import Axes3D  # noqa: F401
             fig = figure(figsize=(14, 8))
             ax = fig.add_subplot(1, 1, 1, projection='3d')
         s = self.geo_setup
@@ -1720,7 +1720,7 @@ class MeasGeometry(object):
 #         if colnum%2 == 0: #even number of pixels
 #             offs = -daz/2.0
 # =============================================================================
-        angles_rel = linspace(-colnum/2, colnum/2, colnum) * daz
+        angles_rel = linspace(-colnum / 2, colnum / 2, colnum) * daz
         return self.cam_azim + angles_rel + offs
 
     def col_to_az(self, colnum):

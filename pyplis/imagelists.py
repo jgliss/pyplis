@@ -32,6 +32,7 @@ from numpy import (asarray, zeros, argmin, arange, ndarray, float32, isnan,
 from numpy.ma import nomask
 from datetime import timedelta, datetime, date
 
+import pandas as pd
 from pandas import Series, DataFrame
 from matplotlib.pyplot import figure, draw, ion, ioff, close
 from copy import deepcopy
@@ -1791,7 +1792,7 @@ class _LinkedLists:
 
 
 class ImgList(BaseImgList):
-    """Image list object with expanded functionality (cf. :class:`BaseImgList`).
+    u"""Image list object with expanded functionality (cf. :class:`BaseImgList`).
 
     Additional features:
 
@@ -3642,7 +3643,7 @@ class ImgList(BaseImgList):
 
         The text file requires datetime information in the first column and
         a header which can be used to identify the column. The import is
-        performed using :func:`pandas.DataFrame.from_csv`
+        performed using :func:`pandas.read_csv`
 
         Parameters
         ----------
@@ -3651,7 +3652,7 @@ class ImgList(BaseImgList):
         header_id : str
           header string for column containing ext. coeffs
         **kwargs :
-          additionald keyword args passed to :func:`pandas.DataFrame.from_csv`
+          additionald keyword args passed to :func:`pandas.read_csv`
 
         Returns
         -------
@@ -3660,15 +3661,15 @@ class ImgList(BaseImgList):
 
         Todo
         ----
-
         This is a Beta version, insert try / except block after testing
 
         """
         try:
-            df = DataFrame.from_csv(file_path, **kwargs)
+            df = pd.read_csv(file_path, **kwargs)
             s = df[header_id]
         except BaseException:
-            s = Series.from_csv(file_path, **kwargs)
+            s = pd.read_csv(file_path, header=None, index_col=0, squeeze=True,
+                            parse_dates=True, **kwargs)
         self.ext_coeffs = s
         return self.ext_coeffs
 

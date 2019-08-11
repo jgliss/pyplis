@@ -67,6 +67,7 @@ def bg_img_on():
 def bg_img_off():
     return pyplis.Img(BG_FILE_OFF, FUN).to_pyrlevel(0)
 
+
 def _make_setup():
     cam_id = "ecII"
 
@@ -82,15 +83,15 @@ def _make_setup():
 
     # camera location and viewing direction (altitude will be retrieved
     # automatically)
-    geom_cam = {"lon"           :   15.1129,
-                "lat"           :   37.73122,
-                'altitude'      :   800,
-                "elev"          :   20.0,
-                "elev_err"      :   5.0,
-                "azim"          :   270.0,
-                "azim_err"      :   10.0,
-                "alt_offset"    :   15.0,
-                "focal_length"  :   25e-3}
+    geom_cam = {"lon"           :   15.1129,   # noqa: E241 E203
+                "lat"           :   37.73122,  # noqa: E241 E203
+                'altitude'      :   800,       # noqa: E241 E203
+                "elev"          :   20.0,      # noqa: E241 E203
+                "elev_err"      :   5.0,       # noqa: E241 E203
+                "azim"          :   270.0,     # noqa: E241 E203
+                "azim_err"      :   10.0,      # noqa: E241 E203
+                "alt_offset"    :   15.0,      # noqa: E241 E203
+                "focal_length"  :   25e-3}     # noqa: E241 E203
 
     # the camera filter setup
     filters = [pyplis.Filter(type="on", acronym="F01"),
@@ -104,7 +105,8 @@ def _make_setup():
                             wind_info=wind_info,
                             cell_info_dict=CALIB_CELLS,
                             auto_topo_access=False)
-    
+
+
 @pytest.fixture(scope="function")
 def setup():
     return _make_setup()
@@ -127,6 +129,7 @@ def plume_dataset(setup):
     # Create analysis object (from BaseSetup)
     # The dataset takes care of finding all vali
     return pyplis.Dataset(setup)
+
 
 @pytest.fixture(scope="function")
 def aa_image_list(plume_dataset, bg_img_on, bg_img_off, viewing_direction):
@@ -190,16 +193,18 @@ def line():
     return pyplis.LineOnImage(630, 780, 1000, 350, pyrlevel_def=0,
                               normal_orientation="left")
 
+
 @pytest.fixture(scope="function")
 def geometry(plume_dataset):
     return plume_dataset.meas_geometry
+
 
 @pytest.fixture(scope="function")
 def viewing_direction(geometry):
     """Find viewing direction of camera based on MeasGeometry."""
     from geonum import GeoPoint
     # Position of SE crater in the image (x, y)
-    se_crater_img_pos = [720, 570] #[806, 736] (changed on 12/5/19)
+    se_crater_img_pos = [720, 570]  # [806, 736] (changed on 12/5/19)
     # Geographic position of SE crater (extracted from Google Earth)
     # The GeoPoint object (geonum library) automatically retrieves the altitude
     # using SRTM data
@@ -235,10 +240,11 @@ def test_setup(setup):
 
 def test_dataset(plume_dataset):
     """Test certain properties of the dataset object."""
-    keys = list(plume_dataset.img_lists_with_data.keys())
-    vals_exact = [plume_dataset.img_lists["on"].nof + plume_dataset.img_lists["off"].nof,
-                  sum(plume_dataset.current_image("on").shape),
-                  keys[0], keys[1], plume_dataset.cam_id]
+    ds = plume_dataset
+    keys = list(ds.img_lists_with_data.keys())
+    vals_exact = [ds.img_lists["on"].nof + ds.img_lists["off"].nof,
+                  sum(ds.current_image("on").shape),
+                  keys[0], keys[1], ds.cam_id]
 
     nominal_exact = [178, 2368, "on", "off", "ecII"]
 
@@ -247,11 +253,10 @@ def test_dataset(plume_dataset):
 
 def test_find_viewdir(viewing_direction):
     """Correct viewing direction using location of Etna SE crater."""
-
-    vals = [viewing_direction.cam_azim, viewing_direction.cam_azim_err, 
+    vals = [viewing_direction.cam_azim, viewing_direction.cam_azim_err,
             viewing_direction.cam_elev, viewing_direction.cam_elev_err]
     npt.assert_allclose(actual=vals,
-                        desired=[280.21752138146036, 1.0656706289128692, 
+                        desired=[280.21752138146036, 1.0656706289128692,
                                  13.72632050624192, 1.0656684171601736],
                         rtol=1e-7)
 
@@ -274,8 +279,8 @@ def test_line(line):
     l1 = line.convert(1, [100, 100, 1200, 1024])
 
     # compute values to be tested
-    vals = [line.length(), line.normal_theta, n1, n2, l1.length() / line.length(),
-            sum(l1.roi_def)]
+    vals = [line.length(), line.normal_theta, n1, n2,
+            l1.length() / line.length(), sum(l1.roi_def)]
     # set nominal values
     nominal = [567, 310.710846671181, -0.7580108737829234, -0.6522419146504225,
                0.5008818342151675, 1212]
@@ -320,7 +325,6 @@ def test_optflow(plume_img, plume_img_next, line):
 
 def test_auto_cellcalib(calib_dataset):
     """Test if automatic cell calibration works."""
-
     calib_dataset.find_and_assign_cells_all_filter_lists()
     keys = ["on", "off"]
     nominal = [6., 845.50291, 354.502678, 3., 3.]

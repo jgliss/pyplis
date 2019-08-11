@@ -762,15 +762,14 @@ class DoasFOVEngine(object):
         self.update_search_settings(**settings)
         try:
             extend = self.calib_data.fov.pixel_extend(abs_coords=True)
-            (pos_x, 
-             pos_y) = self.calib_data.fov.pixel_position_center(abs_coords=True)
+            (pos_x, pos_y) = self.calib_data.fov.pixel_position_center(abs_coords=True)  # noqa: E501
 
             self.img_stack = None  # make space for new stack
             # create ROI around center position of FOV
             roi = [pos_x - extend_fac * extend, pos_y - extend_fac * extend,
                    pos_x + extend_fac * extend, pos_y + extend_fac * extend]
 
-            self.img_stack = stack = img_list.make_stack(pyrlevel=0, 
+            self.img_stack = stack = img_list.make_stack(pyrlevel=0,
                                                          roi_abs=roi)
             s = DoasFOVEngine(stack, self.doas_series, **self._settings)
             calib = s.perform_fov_search()
@@ -940,11 +939,13 @@ class DoasFOVEngine(object):
             raise Exception("Could not access correlation image")
         if self.method == "pearson":
             cy, cx = get_img_maximum(self.calib_data.fov.corr_img.img)
+
             logger.info("Start radius search in stack around x/y: %s/%s" % (cx, cy))
             (radius, 
              corr_curve, 
              tau_vec, 
              cd_vec, 
+
              fov_mask) = self.fov_radius_search(cx, cy)
 
             if not radius > 0:
@@ -1027,7 +1028,7 @@ class DoasFOVEngine(object):
         # loop over all radii, get tauSeries at each, (merge) and determine
         # correlation coefficient
         for r in radii:
-            
+
             # now get mean values of all images in stack in circular ROI around
             # CFOV
             tau_series, m = stack.get_time_series(cx, cy, radius=r)

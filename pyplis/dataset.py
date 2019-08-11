@@ -409,9 +409,8 @@ class Dataset(object):
         #: Separate the current list based on specified time stamps
         if not self.setup.options["USE_ALL_FILES"]:
             paths_temp = self.extract_files_time_ival(paths)
-            if not bool(
-                    paths_temp):  # check if any files were found in specified
-                    #               t-window
+            if not bool(paths_temp):
+                # check if any files were found in specified t-window
                 s = ("No images found in specified time interval "
                      "%s - %s, mode was changed to: USE_ALL_FILES=True"
                      % (self.start, self.stop))

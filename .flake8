@@ -1,0 +1,22 @@
+[flake8]
+exclude = docs, build, ./pyplis/__init__.py, setup.py, pyplis.egg-info, changelog, dist, env, my_pyplis, _private, .idea, .pytest_cache, scripts/DEV*
+
+ignore =
+    # H301 one import per line
+    H301,
+    # H306 imports not in alphabetical order
+    H306,
+    # E741 do not use variables named ‘l’, ‘O’, or ‘I’
+    E741,
+    # W504 line break after binary operator
+    W504,
+    # E722 do not use bare except, specify exception instead
+    E722,
+    # B001 Do not use bare `except:`, it also catches unexpected events like memory errors, interrupts, system exit, and so on.  Prefer `except Exception:`.  If you're sure what you're doing, be explicit and write `except BaseException:`.
+    B001,
+    # B006 Do not use mutable data structures for argument defaults. All calls reuse one instance of that data structure, persisting changes between them.
+    B006,
+    # B007 Loop control variable 'cell_id' not used within the loop body. If this is intended, start the name with an underscore.
+    B007,
+    # B008 Do not perform calls in argument defaults. The call is performed only once at function definition time. All calls to your function will reuse the result of that definition-time call. If this is intended, assign the function call to a module-level variable and use that variable as a default value.
+    B008
