@@ -30,15 +30,10 @@ from matplotlib.patches import Polygon, Rectangle
 
 from pandas import Series
 from cv2 import cvtColor, COLOR_BGR2GRAY, fillPoly
-from os.path import exists, basename
 
 from .helpers import map_coordinates_sub_img, same_roi, map_roi, roi2rect
 from .glob import DEFAULT_ROI
 
-from datetime import datetime as dt
-from collections import OrderedDict as od
-from .inout import get_camera_info, save_new_default_camera, get_cam_ids
-from . import custom_image_import
 import six
 
 
@@ -1031,15 +1026,13 @@ class LineOnImage(object):
         s += "Theta normal: %s\n" % self.normal_theta
         return s
 
-    """Magic methods
-    """
-
     def __str__(self):
         s = ("Line %s: [%d, %d, %d, %d], @pyrlevel %d, @ROI: %s"
              % (self.line_id, self.x0, self.y0, self.x1, self.y1,
                 self.pyrlevel_def, self.roi_abs_def))
         return s
-    
+
+
 class Filter(object):
     """Object representing an interference filter.
 

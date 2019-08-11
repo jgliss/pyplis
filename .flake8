@@ -1,5 +1,5 @@
 [flake8]
-exclude = docs, build, ./pyplis/__init__.py, setup.py, pyplis.egg-info, changelog, dist, env, my_pyplis
+exclude = docs, build, ./pyplis/__init__.py, setup.py, pyplis.egg-info, changelog, dist, env, my_pyplis, _private, .idea, .pytest_cache, scripts/DEV*
 
 ignore =
     # H301 one import per line
