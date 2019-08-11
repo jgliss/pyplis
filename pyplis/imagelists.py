@@ -1800,7 +1800,7 @@ class _LinkedLists:
 
 
 class ImgList(BaseImgList):
-    """Image list object with expanded functionality (cf. :class:`BaseImgList`).
+    u"""Image list object with expanded functionality (cf. :class:`BaseImgList`).
 
     Additional features:
 
@@ -3684,14 +3684,15 @@ class ImgList(BaseImgList):
 
         Todo
         ----
-
         This is a Beta version, insert try / except block after testing
+
         """
         try:
             df = pd.read_csv(file_path, **kwargs)
             s = df[header_id]
         except BaseException:
-            s = pd.read_csv(file_path, header=None, index_col=0, squeeze=True, parse_dates=True, **kwargs)
+            s = pd.read_csv(file_path, header=None, index_col=0, squeeze=True,
+                            parse_dates=True, **kwargs)
         self.ext_coeffs = s
         return self.ext_coeffs
 

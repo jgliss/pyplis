@@ -151,7 +151,7 @@ def load_hd_new(file_path, meta={}, **kwargs):
 
 
 def load_qsi_lmv(file_path, meta={}, **kwargs):
-    """Load images for QSI cam from LMV.
+    u"""Load images for QSI cam from LMV.
 
     Laboratoire Magmas et Volcans,
     Université Clermont Auvergne - CNRS - IRD, OPGC
@@ -256,7 +256,7 @@ def load_usgs_multifits_uncompr(file_path, meta={}):
 
 
 def _read_binary_timestamp(timestamp):
-    """Read timestamp from pco camware binary format.
+    u"""Read timestamp from pco camware binary format.
 
     This converts an (1,14)-array of pixel as given by the pco camware software
     to a valid datetime.

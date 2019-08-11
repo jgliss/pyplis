@@ -13,3 +13,4 @@ dependencies:
   - geonum
   - pydoas
   - six
+  - pyproj

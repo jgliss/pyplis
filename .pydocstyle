@@ -1,0 +1,12 @@
+[pydocstyle]
+match-dir=pyplis
+ignore = D100,D102,D103,D107,D200,D203,D213,D105,D402
+# D100 Missing docstring in public module
+# D102 Missing docstring in public method
+# D103 Missing docstring in public function
+# D107 Missing docstring in __init__
+# D200 One-line docstring should fit on one line with quotes
+# D203 1 blank line required before class docstring
+# D213 Multi-line docstring summary should start at the second line
+# D105 Missing docstring in magic method
+# D402 First line should not be the function’s “signature”

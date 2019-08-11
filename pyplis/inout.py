@@ -57,7 +57,8 @@ def data_search_dirs():
         return (usr_dir, join(__dir__, "data"), env)
     except KeyError:
         return (usr_dir, join(__dir__, "data"))
-    
+
+
 def zip_example_scripts(repo_base):
     from pyplis import __version__ as v
     vstr = ".".join(v.split(".")[:3])
@@ -629,8 +630,9 @@ def get_icon(name, color=None):
     print("Failed to load icon at: " + _LIBDIR)
     return False
 
+
 if __name__ == '__main__':
-    
+
     i1 = get_camera_info('ecII')
-    
+
     i2 = get_camera_info('usgs')
