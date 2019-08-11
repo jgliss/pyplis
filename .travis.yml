@@ -39,6 +39,3 @@ script:
    - py.test
    - flake8
    - pydocstyle
-   - cd scripts
-   - python RUN_INTRO_SCRIPTS.py
-   - python RUN_EXAMPLE_SCRIPTS.py
