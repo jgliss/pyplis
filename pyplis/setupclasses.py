@@ -39,7 +39,7 @@ from .helpers import isnum, to_datetime
 from .exceptions import MetaAccessError, DeprecationError
 from .inout import get_source_info, save_default_source
 from .utils import Filter
-from .CameraBaseInfo import CameraBaseInfo
+from .camera_base_info import CameraBaseInfo
 from .geometry import MeasGeometry
 
 

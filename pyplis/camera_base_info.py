@@ -10,7 +10,6 @@ from .inout import save_new_default_camera, get_camera_info
 import re
 import six
 
-
 class CameraBaseInfo(object):
     """Low level base class for camera specific information.
 
