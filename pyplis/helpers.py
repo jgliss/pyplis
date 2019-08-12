@@ -260,7 +260,7 @@ def get_img_maximum(img_arr, add_blur=0):
 
 
 def sub_img_to_detector_coords(img_arr, shape_orig, pyrlevel,
-                               roi_abs=[0, 0, 9999, 9999]):
+                               roi_abs=None):
     """Convert a shape manipulated image to original detecor coords.
 
     :param ndarray img_arr: the sub image array (e.g. corresponding to a
@@ -275,6 +275,8 @@ def sub_img_to_detector_coords(img_arr, shape_orig, pyrlevel,
         Regions outside the ROI are set to 0
 
     """
+    if roi_abs is None:
+        roi_abs = [0, 0, 9999, 9999]
     new_arr = zeros(shape_orig).astype(float32)
     for k in range(pyrlevel):
         img_arr = pyrUp(img_arr)
@@ -379,7 +381,7 @@ def roi2rect(roi, inverse=False):
     return (x0, y0, x0 + x1, y0 + y1)
 
 
-def map_coordinates_sub_img(pos_x_abs, pos_y_abs, roi_abs=[0, 0, 9999, 9999],
+def map_coordinates_sub_img(pos_x_abs, pos_y_abs, roi_abs=None,
                             pyrlevel=0, inverse=False):
     """Map absolute pixel coordinate to cropped and / or downscaled image.
 
@@ -392,6 +394,8 @@ def map_coordinates_sub_img(pos_x_abs, pos_y_abs, roi_abs=[0, 0, 9999, 9999],
     :param list pyrlevel: level of gauss pyramid
     :param bool inverse: if True, do inverse transformation (False)
     """
+    if roi_abs is None:
+        roi_abs = [0, 0, 9999, 9999]
     op = 2 ** pyrlevel
     x, y = asarray(pos_x_abs), asarray(pos_y_abs)
     x_offs, y_offs = roi_abs[0], roi_abs[1]

@@ -137,9 +137,15 @@ class MeasGeometry(object):
 
     """
 
-    def __init__(self, source_info={}, cam_info={}, wind_info={},
+    def __init__(self, source_info=None, cam_info=None, wind_info=None,
                  auto_topo_access=True):
 
+        if source_info is None:
+            source_info = {}
+        if cam_info is None:
+            cam_info = {}
+        if wind_info is None:
+            wind_info = {}
         self._source = od([("name", ""),
                            ("lon", nan),
                            ("lat", nan),
@@ -438,7 +444,7 @@ class MeasGeometry(object):
         self._wind["dir_err"] = self._type_dict["dir_err"](val)
         self.update_geosetup()
 
-    def update_cam_specs(self, info_dict={}, update_geosetup=True, **kwargs):
+    def update_cam_specs(self, info_dict=None, update_geosetup=True, **kwargs):
         """Update camera settings.
 
         Update dictionary containing geometrical camera information
@@ -457,6 +463,8 @@ class MeasGeometry(object):
             can be used to directly pass valid key / value pairs
 
         """
+        if info_dict is None:
+            info_dict = {}
         info_dict.update(kwargs)
         types = self._type_dict
         for key, val in six.iteritems(info_dict):
@@ -471,7 +479,7 @@ class MeasGeometry(object):
         if update_geosetup:
             self.update_geosetup()
 
-    def update_source_specs(self, info_dict={}, update_geosetup=True,
+    def update_source_specs(self, info_dict=None, update_geosetup=True,
                             **kwargs):
         """Update source settings.
 
@@ -492,6 +500,8 @@ class MeasGeometry(object):
             keywords directly
 
         """
+        if info_dict is None:
+            info_dict = {}
         info_dict.update(kwargs)
         types = self._type_dict
         for key, val in six.iteritems(info_dict):
@@ -506,7 +516,7 @@ class MeasGeometry(object):
         if update_geosetup:
             self.update_geosetup()
 
-    def update_wind_specs(self, info_dict={}, update_geosetup=True,
+    def update_wind_specs(self, info_dict=None, update_geosetup=True,
                           **kwargs):
         """Update meteorological settings.
 
@@ -527,6 +537,8 @@ class MeasGeometry(object):
             keywords directly
 
         """
+        if info_dict is None:
+            info_dict = {}
         info_dict.update(kwargs)
         types = self._type_dict
         for key, val in six.iteritems(info_dict):

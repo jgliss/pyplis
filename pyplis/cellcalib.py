@@ -354,14 +354,24 @@ class CellCalibData(CalibData):
 
     """
 
-    def __init__(self, tau_vec=[], cd_vec=[], cd_vec_err=[], time_stamps=[],
-                 calib_fun=None, calib_coeffs=[], senscorr_mask=None,
+    def __init__(self, tau_vec=None, cd_vec=None, cd_vec_err=None, time_stamps=None,
+                 calib_fun=None, calib_coeffs=None, senscorr_mask=None,
                  polyorder=1, calib_id="", camera=None,
                  pos_x_abs=None, pos_y_abs=None):
         super(CellCalibData, self).__init__(tau_vec, cd_vec, cd_vec_err,
                                             time_stamps, calib_fun,
                                             calib_coeffs, senscorr_mask,
                                             polyorder, calib_id, camera)
+        if tau_vec is None:
+            tau_vec = []
+        if cd_vec is None:
+            cd_vec = []
+        if cd_vec_err is None:
+            cd_vec_err = []
+        if time_stamps is None:
+            time_stamps = []
+        if calib_coeffs is None:
+            calib_coeffs = []
         self.type = "cell"
         self.pos_x_abs = pos_x_abs
         self.pos_y_abs = pos_y_abs

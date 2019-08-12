@@ -865,12 +865,14 @@ class Dataset(object):
 
         return dark_list
 
-    def find_master_darks(self, dark_ids=[]):
+    def find_master_darks(self, dark_ids=None):
         """Search master dark image for dark image lists.
 
         Search a master dark image for all dark image lists that do not
         contain images.
         """
+        if dark_ids is None:
+            dark_ids = []
         logger.info("\nCHECKING DARK IMAGE LISTS IN DATASET")
         flags = self.camera._fname_access_flags
         if not (flags["filter_id"] and flags["meas_type"]):

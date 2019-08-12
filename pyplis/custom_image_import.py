@@ -58,8 +58,10 @@ from pyplis import PILAVAILABLE, print_log, logger
 from .helpers import matlab_datenum_to_datetime
 
 
-def load_ecII_fits(file_path, meta={}, **kwargs):
+def load_ecII_fits(file_path, meta=None, **kwargs):
     """Load NILU ECII camera FITS file and import meta information."""
+    if meta is None:
+        meta = {}
     hdu = fits.open(file_path)
     ec2header = hdu[0].header
     img = hdu[0].data
@@ -79,7 +81,7 @@ def load_ecII_fits(file_path, meta={}, **kwargs):
     return (img, meta)
 
 
-def load_hd_custom(file_path, meta={}, **kwargs):
+def load_hd_custom(file_path, meta=None, **kwargs):
     """Load image from HD custom camera.
 
     The camera specs can be found in
@@ -97,6 +99,8 @@ def load_hd_custom(file_path, meta={}, **kwargs):
         - dict, dictionary containing meta information
 
     """
+    if meta is None:
+        meta = {}
     im = imread(file_path, -1)  # [1::, 1::]
     img = flipud(swapaxes(resize(im, (1024, 1024)), 0, 1))
     try:
@@ -117,7 +121,7 @@ def load_hd_custom(file_path, meta={}, **kwargs):
     return (img, meta)
 
 
-def load_hd_new(file_path, meta={}, **kwargs):
+def load_hd_new(file_path, meta=None, **kwargs):
     """Load new format from Heidelberg group.
 
     This format contains IPTC information
@@ -129,6 +133,8 @@ def load_hd_new(file_path, meta={}, **kwargs):
         - ndarray, image data
         - dict, dictionary containing meta information
     """
+    if meta is None:
+        meta = {}
     if PILAVAILABLE:
         from PIL.Image import open
         read = open(file_path)
@@ -148,7 +154,7 @@ def load_hd_new(file_path, meta={}, **kwargs):
     return (img, meta)
 
 
-def load_qsi_lmv(file_path, meta={}, **kwargs):
+def load_qsi_lmv(file_path, meta=None, **kwargs):
     u"""Load images for QSI cam from LMV.
 
     Laboratoire Magmas et Volcans,
@@ -173,13 +179,17 @@ def load_qsi_lmv(file_path, meta={}, **kwargs):
             - dict, dictionary containing meta information
 
     """
+    if meta is None:
+        meta = {}
     img = imread(file_path, -1)
     # img = asarray(im)[::-1, 0::] #flip
     img = rot90(rot90(img))
     return (img, meta)
 
 
-def load_usgs_multifits(file_path, meta={}):
+def load_usgs_multifits(file_path, meta=None):
+    if meta is None:
+        meta = {}
     img = None
     if "filter_id" not in meta:
         logger.warning("filter_id (i.e. on or off) in input arg meta not specified."
@@ -216,7 +226,9 @@ def load_usgs_multifits(file_path, meta={}):
     return (img, meta)
 
 
-def load_usgs_multifits_uncompr(file_path, meta={}):
+def load_usgs_multifits_uncompr(file_path, meta=None):
+    if meta is None:
+        meta = {}
     img = None
     if "filter_id" not in meta:
         logger.warning("filter_id (i.e. on or off) in input arg meta not specified."
@@ -302,7 +314,7 @@ def _read_binary_timestamp(timestamp):
     return endtime
 
 
-def load_comtessa(file_path, meta={}):
+def load_comtessa(file_path, meta=None):
     """Load image from a multi-layered fits file (several images in one file).
 
     Meta data is available only inside the header.
@@ -336,6 +348,8 @@ def load_comtessa(file_path, meta={}):
         dictionary containing meta information
 
     """
+    if meta is None:
+        meta = {}
     hdulist = fits.open(file_path)
     try:
         img_hdu = meta['fits_idx']

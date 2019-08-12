@@ -1175,7 +1175,7 @@ def plot_sky_reference_areas(plume_img, settings_dict, ax=None):
 
 
 def find_sky_background(plume_img, next_img=None,
-                        bgmodel_settings_dict={},
+                        bgmodel_settings_dict=None,
                         lower_thresh=None,
                         apply_movement_search=True,
                         **settings_movement_search):
@@ -1233,6 +1233,8 @@ def find_sky_background(plume_img, next_img=None,
         2D-numpy boolean numpy array specifying sky background pixels
 
     """
+    if bgmodel_settings_dict is None:
+        bgmodel_settings_dict = {}
     if not isinstance(plume_img, Img):
         raise ValueError("Invalid input for parameter plume_img: need"
                          "Img object, got %s" % type(plume_img))

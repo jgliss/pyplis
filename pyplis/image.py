@@ -1523,7 +1523,9 @@ class ProfileTimeSeriesImg(Img):
     """
 
     def __init__(self, img_data=None, time_stamps=asarray([]), img_id="",
-                 dtype=float32, profile_info_dict={}, **meta_info):
+                 dtype=float32, profile_info_dict=None, **meta_info):
+        if profile_info_dict is None:
+            profile_info_dict = {}
         self.img_id = img_id
         self.time_stamps = asarray(time_stamps)
         self.profile_info = {}

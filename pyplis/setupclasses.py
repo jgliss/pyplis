@@ -77,7 +77,9 @@ class Source(object):
 
     """
 
-    def __init__(self, name="", info_dict={}, **kwargs):
+    def __init__(self, name="", info_dict=None, **kwargs):
+        if info_dict is None:
+            info_dict = {}
         self.name = name
         self.lon = nan
         self.lat = nan
@@ -567,9 +569,11 @@ class Camera(CameraBaseInfo):
 
     """
 
-    def __init__(self, cam_id=None, filter_list=[], default_filter_on=None,
+    def __init__(self, cam_id=None, filter_list=None, default_filter_on=None,
                  default_filter_off=None, ser_no=9999, **geom_info):
 
+        if filter_list is None:
+            filter_list = []
         if cam_id is not None:
             if not isinstance(cam_id, str):
                 raise TypeError("Camera initialisation: cam_id argument has "
@@ -888,7 +892,11 @@ class FormSetup(object):
     """Setup class for all forms (lines, rectangles etc.) used for evaluation.
     """
 
-    def __init__(self, line_dict={}, rect_dict={}):
+    def __init__(self, line_dict=None, rect_dict=None):
+        if line_dict is None:
+            line_dict = {}
+        if rect_dict is None:
+            rect_dict = {}
         self.id = "forms"
         self.lines = LineCollection(line_dict)
         self.rects = RectCollection(rect_dict)
@@ -1202,11 +1210,17 @@ class MeasSetup(BaseSetup):
     """
 
     def __init__(self, base_dir=None, start=None, stop=None, camera=None,
-                 source=None, wind_info=None, cell_info_dict={}, rects={},
-                 lines={}, auto_topo_access=True, **opts):
+                 source=None, wind_info=None, cell_info_dict=None, rects=None,
+                 lines=None, auto_topo_access=True, **opts):
 
         super(MeasSetup, self).__init__(base_dir, start, stop, **opts)
 
+        if cell_info_dict is None:
+            cell_info_dict = {}
+        if rects is None:
+            rects = {}
+        if lines is None:
+            lines = {}
         if not isinstance(camera, Camera):
             camera = Camera()
         if not isinstance(source, Source):

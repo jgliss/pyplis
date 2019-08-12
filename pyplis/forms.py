@@ -33,8 +33,10 @@ class FormCollectionBase(object):
     dictionaries
     """
 
-    def __init__(self, forms_dict={}):
+    def __init__(self, forms_dict=None):
         """Class initialisation."""
+        if forms_dict is None:
+            forms_dict = {}
         self._forms = od()
         self.id_count = 0
 
@@ -204,16 +206,20 @@ class FormCollectionBase(object):
 class LineCollection(FormCollectionBase):
     """Class specifying line objects on images."""
 
-    def __init__(self, forms_dict={}):
+    def __init__(self, forms_dict=None):
         super(LineCollection, self).__init__(forms_dict)
+        if forms_dict is None:
+            forms_dict = {}
         self.type = "line"
 
 
 class RectCollection(FormCollectionBase):
     """Class specifying rectangle objects on images."""
 
-    def __init__(self, forms_dict={}):
+    def __init__(self, forms_dict=None):
         super(RectCollection, self).__init__(forms_dict)
+        if forms_dict is None:
+            forms_dict = {}
         self.type = "rect"
 
     def add(self, x0, y0, x1, y1, id=None):

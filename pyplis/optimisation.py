@@ -412,8 +412,8 @@ class MultiGaussFit(object):
             self.y = self.data - self.offset
             self.init_gauss_bounds_auto()
 
-    def set_gauss_bounds(self, amp_range=[0, inf], mu_range=[-inf, inf],
-                         sigma_range=[-inf, inf]):
+    def set_gauss_bounds(self, amp_range=None, mu_range=None,
+                         sigma_range=None):
         """Manually set boundaries for gauss parameters.
 
         Parameters
@@ -426,6 +426,12 @@ class MultiGaussFit(object):
             accepted range of standard deveiations, defaults to ``[-inf, inf]``
 
         """
+        if amp_range is None:
+            amp_range = [0, inf]
+        if mu_range is None:
+            mu_range = [-inf, inf]
+        if sigma_range is None:
+            sigma_range = [-inf, inf]
         self.gauss_bounds["amp"] = amp_range
         self.gauss_bounds["mu"] = mu_range
         self.gauss_bounds["sigma"] = sigma_range
@@ -624,7 +630,7 @@ class MultiGaussFit(object):
             # print "Fit failed with exception: %s" %repr(e)
             return False
 
-    def opt_iter(self, add_params=[]):
+    def opt_iter(self, add_params=None):
         """Search additional peaks in residual and apply fit.
 
         Extends current optimisation parameters by additional peaks (either
@@ -644,6 +650,8 @@ class MultiGaussFit(object):
             - True: Optimisation was successful
 
         """
+        if add_params is None:
+            add_params = []
         guess = list(self.params)
         guess.extend(add_params)
         if not self.do_fit(self.index, self.y, guess):

@@ -3098,7 +3098,7 @@ class ImgList(BaseImgList):
 
     """PROCESSING AND ANALYSIS METHODS"""
 
-    def optflow_histo_analysis(self, lines=[], start_idx=0, stop_idx=None,
+    def optflow_histo_analysis(self, lines=None, start_idx=0, stop_idx=None,
                                intensity_thresh=0, **optflow_settings):
         """Perform optical flow histogram analysis for list images.
 
@@ -3133,6 +3133,8 @@ class ImgList(BaseImgList):
             each of the provided input :class:`LineOnImage` objects.
 
         """
+        if lines is None:
+            lines = []
         cfn_tmp = self.cfn
         if isinstance(start_idx, datetime):
             start_idx = self.timestamp_to_index(start_idx)

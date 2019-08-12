@@ -197,7 +197,7 @@ class DilutionCorr(object):
         self._skip_pix[line_id] = self.settings["skip_pix"]
         return dists
 
-    def get_radiances(self, img, line_ids=[]):
+    def get_radiances(self, img, line_ids=None):
         """Get radiances for dilution fit along terrain lines.
 
         The data is only extracted along specified input lines. The terrain
@@ -215,6 +215,8 @@ class DilutionCorr(object):
             assigned to this class are considered
 
         """
+        if line_ids is None:
+            line_ids = []
         if not isinstance(img, Img) or not img.edit_log["vigncorr"]:
             raise ValueError("Invalid input, need Img class and Img needs to "
                              "be corrected for vignetting")
@@ -242,7 +244,7 @@ class DilutionCorr(object):
 
     def apply_dilution_fit(self, img, rad_ambient, i0_guess=None,
                            i0_min=0, i0_max=None, ext_guess=1e-4, ext_min=0,
-                           ext_max=1e-3, line_ids=[], plot=True, **kwargs):
+                           ext_max=1e-3, line_ids=None, plot=True, **kwargs):
         r"""Perform dilution correction fit to retrieve extinction coefficient.
 
         Uses :func:`dilution_corr_fit` of :mod:`optimisation` which is a
@@ -296,6 +298,8 @@ class DilutionCorr(object):
             - axes instance or None (dependent on :param:`plot`)
 
         """
+        if line_ids is None:
+            line_ids = []
         dists, rads = self.get_radiances(img, line_ids)
         fit_res = dilution_corr_fit(rads, dists, rad_ambient, i0_guess,
                                     i0_min, i0_max, ext_guess,
@@ -420,7 +424,7 @@ class DilutionCorr(object):
         return ax
 
     def get_extinction_coeffs_imglist(self, imglist, ambient_roi_abs,
-                                      darkcorr=True, line_ids=[],
+                                      darkcorr=True, line_ids=None,
                                       **fit_settings):
         """Retrieve extinction coefficients for all imags in list.
 
@@ -429,6 +433,8 @@ class DilutionCorr(object):
             Alpha version: not yet tested
 
         """
+        if line_ids is None:
+            line_ids = []
         imglist.aa_mode = False
         imglist.tau_mode = False
         imglist.auto_reload = False
@@ -462,7 +468,7 @@ class DilutionCorr(object):
     def plot_distances_3d(self, draw_cam=1, draw_source=1, draw_plume=0,
                           draw_fov=0, cmap_topo="Oranges",
                           contour_color="#708090", contour_antialiased=True,
-                          contour_lw=0.2, axis_off=True, line_ids=[],
+                          contour_lw=0.2, axis_off=True, line_ids=None,
                           **kwargs):
         """Draw 3D map of scene including geopoints of distance retrievals.
 
@@ -500,6 +506,8 @@ class DilutionCorr(object):
             plotted map instance (is of type Basemap)
 
         """
+        if line_ids is None:
+            line_ids = []
         map3d = self.meas_geometry.draw_map_3d(
             draw_cam, draw_source,
             draw_plume, draw_fov,

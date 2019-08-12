@@ -111,11 +111,13 @@ class EmissionRateSettings(object):
 
     """
 
-    def __init__(self, pcs_lines=[], velo_glob=nan, velo_glob_err=nan,
+    def __init__(self, pcs_lines=None, velo_glob=nan, velo_glob_err=nan,
                  bg_roi_abs=None, ref_check_lower_lim=None,
                  ref_check_upper_lim=None, **settings):
 
         # allow input for older version attributes
+        if pcs_lines is None:
+            pcs_lines = []
         if "bg_roi" in settings and bg_roi_abs is None:
             bg_roi_abs = settings["bg_roi"]
             del settings["bg_roi"]

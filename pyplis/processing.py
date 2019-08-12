@@ -1067,7 +1067,7 @@ class PixelMeanTimeSeries(Series):
     poly_model = None
 
     def __init__(self, data, start_acq, std=None, texps=None, roi_abs=None,
-                 img_prep={}, **kwargs):
+                 img_prep=None, **kwargs):
         """Initialize pixel mean time series.
 
         :param ndarray data: data array
@@ -1086,6 +1086,8 @@ class PixelMeanTimeSeries(Series):
 
         """
         super(PixelMeanTimeSeries, self).__init__(data, start_acq, **kwargs)
+        if img_prep is None:
+            img_prep = {}
         try:
             if len(texps) == len(data):
                 self.texps = texps
