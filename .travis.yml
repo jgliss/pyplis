@@ -38,4 +38,3 @@ install:
 script:
    - py.test
    - flake8 --exit-zero
-   - pydocstyle
