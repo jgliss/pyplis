@@ -18,7 +18,7 @@
 """Pyplis module containing mathematical model functions."""
 from __future__ import (absolute_import, division)
 from numpy import exp, sin, cos
-from pyplis import logger, print_log
+from pyplis import logger
 import six
 
 # Polynomial fit functions of different order, including versions that go

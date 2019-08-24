@@ -17,12 +17,11 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 """Package initialisation."""
 from __future__ import (absolute_import, division)
-from ._init_utils import (check_requirements, _init_logger, 
+from ._init_utils import (check_requirements, _init_logger,
                           _init_supplemental, change_loglevel,
                           get_loglevel)
 
-
-PYDOASAVAILABLE, GEONUMAVAILABLE, PILAVAILABLE = check_requirements()
+PYDOASAVAILABLE, GEONUMAVAILABLE  = check_requirements()
 logger, print_log = _init_logger()
 
 __version__, __dir__ = _init_supplemental()
@@ -42,12 +41,12 @@ from .cellcalib import CellCalibData, CellCalibEngine
 from .calib_base import CalibData
 from .doascalib import DoasCalibData, DoasFOV, DoasFOVEngine
 from .plumespeed import (find_signal_correlation, OptflowFarneback,
-                        FarnebackSettings, LocalPlumeProperties,
-                        VeloCrossCorrEngine)
+                         FarnebackSettings, LocalPlumeProperties,
+                         VeloCrossCorrEngine)
 from .processing import ImgStack, PixelMeanTimeSeries
 from .dilutioncorr import DilutionCorr
 from .fluxcalc import (EmissionRateAnalysis, EmissionRates,
-                      EmissionRateSettings)
+                       EmissionRateSettings)
 from .optimisation import PolySurfaceFit, MultiGaussFit
 from . import custom_image_import
 from .inout import download_test_data, find_test_data

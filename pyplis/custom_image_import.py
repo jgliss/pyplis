@@ -53,8 +53,6 @@ from cv2 import resize
 from os.path import basename
 from datetime import datetime, timedelta
 from re import sub
-
-from pyplis import PILAVAILABLE, print_log, logger
 from .helpers import matlab_datenum_to_datetime
 
 
@@ -67,7 +65,7 @@ def load_ecII_fits(file_path, meta=None, **kwargs):
     img = hdu[0].data
     hdu.close()
     gain_info = {"LOW": 0, "HIGH": 1}
-    meta["texp"] = float(ec2header['EXP']) * 10**-6        # unit s
+    meta["texp"] = float(ec2header['EXP']) * 10 ** -6  # unit s
     meta["bit_depth"] = 12
     meta["device_id"] = 'ECII'
     meta["file_type"] = 'fts'
@@ -135,15 +133,15 @@ def load_hd_new(file_path, meta=None, **kwargs):
     """
     if meta is None:
         meta = {}
-    if PILAVAILABLE:
+    try:
         from PIL.Image import open
         read = open(file_path)
         meta["texp"] = float(read.tag_v2[270].split(" ")[0].split("s")[0])
         img = asarray(read)
-    else:
+    except ModuleNotFoundError:
         print_log.warning("Python Imaging Library (PIL) could not be imported. Using "
-             "opencv method for image import. Cannot import exposure time "
-             "info from tiff header...please install PIL")
+                          "opencv method for image import. Cannot import exposure time "
+                          "info from tiff header...please install PIL")
         img = imread(file_path, -1)
     # img = asarray(im)[::-1, 0::] #flip
     img = rot90(rot90(img))
@@ -193,7 +191,7 @@ def load_usgs_multifits(file_path, meta=None):
     img = None
     if "filter_id" not in meta:
         logger.warning("filter_id (i.e. on or off) in input arg meta not specified."
-             "Using default filter_id=on")
+                       "Using default filter_id=on")
         meta["filter_id"] = "on"
     try:
         f = fits.open(file_path)
@@ -207,7 +205,7 @@ def load_usgs_multifits(file_path, meta=None):
             meta["bit_depth"] = h["BITDEPTH"]
         except BaseException:
             print_log.warning("Failed to import image specific meta information from image "
-                 "HDU")
+                              "HDU")
         h = f[0].header
         try:
             meta["lon"] = h["LON"]
@@ -217,7 +215,7 @@ def load_usgs_multifits(file_path, meta=None):
             meta["azim"] = h["AZMTANGL"]
         except BaseException:
             print_log.warning("Failed to import camera specific meta information from "
-                 "primary HDU of FITS file...")
+                              "primary HDU of FITS file...")
         img = hdu.data
         f.close()
     except Exception as e:
@@ -232,7 +230,7 @@ def load_usgs_multifits_uncompr(file_path, meta=None):
     img = None
     if "filter_id" not in meta:
         logger.warning("filter_id (i.e. on or off) in input arg meta not specified."
-             "Using default filter_id=on")
+                       "Using default filter_id=on")
         meta["filter_id"] = "on"
     try:
         f = fits.open(file_path)
@@ -246,7 +244,7 @@ def load_usgs_multifits_uncompr(file_path, meta=None):
             meta["bit_depth"] = h["BITDEPTH"]
         except:
             print_log.warning("Failed to import image specific meta information from image "
-                 "HDU")
+                              "HDU")
         h = f[0].header
         try:
             meta["lon"] = h["LON"]
@@ -256,7 +254,7 @@ def load_usgs_multifits_uncompr(file_path, meta=None):
             meta["azim"] = h["AZMTANGL"]
         except:
             print_log.warning("Failed to import camera specific meta information from "
-                 "primary HDU of FITS file...")
+                              "primary HDU of FITS file...")
         img = hdu.data
         f.close()
     except Exception as e:
@@ -357,8 +355,8 @@ def load_comtessa(file_path, meta=None):
         img_hdu = 0
         meta['fits_idx'] = 0
         print_log.warning("Loading of comtessa fits file without providing the image index "
-             "of desired image within the file. Image index was set to 0. "
-             "Provide the image index via the meta = {'fits_idx':0} keyword.")
+                          "of desired image within the file. Image index was set to 0. "
+                          "Provide the image index via the meta = {'fits_idx':0} keyword.")
     # Load the image
     image = hdulist[img_hdu].data
     # read and replace binary time stamp

@@ -17,6 +17,7 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 """Pyplis module containing low level utilitiy methods and classes."""
 from __future__ import (absolute_import, division)
+import os
 from numpy import (vstack, asarray, ndim, round, hypot, linspace, sum, zeros,
                    complex, angle, array, cos, sin, arctan, dot, int32, pi,
                    isnan, nan, mean, ndarray)
@@ -31,11 +32,13 @@ from matplotlib.patches import Polygon, Rectangle
 from pandas import Series
 from cv2 import cvtColor, COLOR_BGR2GRAY, fillPoly
 
-from pyplis import logger, print_log
-from .helpers import map_coordinates_sub_img, same_roi, map_roi, roi2rect
+from pyplis import logger
+from .helpers import (map_coordinates_sub_img, same_roi, map_roi, roi2rect)
+from .inout import get_cam_ids
 from .glob import DEFAULT_ROI
 
 import six
+
 
 def identify_camera_from_filename(filepath):
     """Identify camera based on image filepath convention.
@@ -56,7 +59,8 @@ def identify_camera_from_filename(filepath):
         Exception is raised if no match can be found
 
     """
-    if not exists(filepath):
+    from pyplis.camera_base_info import CameraBaseInfo
+    if not os.path.exists(filepath):
         logger.warning("Invalid file path")
     cam_id = None
     all_ids = get_cam_ids()
@@ -70,7 +74,7 @@ def identify_camera_from_filename(filepath):
             cam_id = cid
     if max_match_num == 0:
         raise IOError("Camera type could not be identified based on input"
-                      "file name %s" % basename(filepath))
+                      "file name {}".format(os.path.basename(filepath)))
     return cam_id
 
 
@@ -107,8 +111,6 @@ class LineOnImage(object):
     The input coordinates correspond to relative image coordinates
     with respect to the input ROI (``roi_def``) and pyramid level
     (``pyrlevel_def``)
-
-
     """
     def __init__(self, x0=0, y0=0, x1=1, y1=1, normal_orientation="right",
                  roi_abs_def=DEFAULT_ROI, pyrlevel_def=0, line_id="",

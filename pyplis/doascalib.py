@@ -30,7 +30,7 @@ from traceback import format_exc
 
 import six
 
-from pyplis import logger, print_log
+from pyplis import logger
 from matplotlib.pyplot import subplots
 from matplotlib.patches import Circle, Ellipse
 from matplotlib.cm import RdBu
@@ -951,11 +951,10 @@ class DoasFOVEngine(object):
             cy, cx = get_img_maximum(self.calib_data.fov.corr_img.img)
 
             logger.info("Start radius search in stack around x/y: %s/%s" % (cx, cy))
-            (radius, 
-             corr_curve, 
-             tau_vec, 
-             cd_vec, 
-
+            (radius,
+             corr_curve,
+             tau_vec,
+             cd_vec,
              fov_mask) = self.fov_radius_search(cx, cy)
 
             if not radius > 0:

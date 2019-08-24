@@ -149,7 +149,7 @@ class Dataset(object):
     def USE_ALL_FILES(self, val):
         self.setup.USE_ALL_FILES = val
         print_log.info("Option USE_ALL_FILES was updated in Dataset, please call class"
-              " method ``init_image_lists`` in order to apply the changes")
+                       " method ``init_image_lists`` in order to apply the changes")
 
     @property
     def USE_ALL_FILE_TYPES(self):
@@ -160,8 +160,8 @@ class Dataset(object):
     def USE_ALL_FILE_TYPES(self, val):
         self.setup.USE_ALL_FILE_TYPES = val
         print_log.info("Option USE_ALL_FILE_TYPES was updated in Dataset, please call "
-              "class method ``init_image_lists`` in order "
-              "to apply the changes")
+                       "class method ``init_image_lists`` in order "
+                       "to apply the changes")
 
     @property
     def INCLUDE_SUB_DIRS(self):
@@ -172,7 +172,7 @@ class Dataset(object):
     def INCLUDE_SUB_DIRS(self, val):
         self.setup.INCLUDE_SUB_DIRS = val
         print_log.info("Option INCLUDE_SUB_DIRS was updated in Dataset, please call "
-              "class method ``init_image_lists`` to apply the changes")
+                       "class method ``init_image_lists`` to apply the changes")
 
     @property
     def LINK_OFF_TO_ON(self):
@@ -183,8 +183,8 @@ class Dataset(object):
     def LINK_OFF_TO_ON(self, val):
         self.setup.LINK_OFF_TO_ON = val
         print_log.info("Option INCLUDE_SUB_DIRS was updated in Dataset, please call "
-              "class method ``init_image_lists`` in order "
-              "to apply the changes")
+                       "class method ``init_image_lists`` in order "
+                       "to apply the changes")
 
     @property
     def start(self):
@@ -195,7 +195,7 @@ class Dataset(object):
     def start(self, val):
         self.setup.start = val
         print_log.info("Start time stamp was updated in Dataset, please call class "
-              "method ``init_image_lists`` in order to apply the changes")
+                       "method ``init_image_lists`` in order to apply the changes")
 
     @property
     def stop(self):
@@ -206,7 +206,7 @@ class Dataset(object):
     def stop(self, val):
         self.setup.stop = val
         print_log.info("Stop time stamp was updated in Dataset, please call class "
-              "method ``init_image_lists`` in order to apply the changes")
+                       "method ``init_image_lists`` in order to apply the changes")
 
     @property
     def file_type(self):
@@ -284,7 +284,7 @@ class Dataset(object):
             return 0
         if isinstance(input, str) and isdir(input):
             logger.info("Updating base_dir variable in self.setup with input "
-                  "directory: %s" % input)
+                        "directory: %s" % input)
             self.change_img_base_dir(input)
         elif isinstance(input, Source):
             self.setup.source = input
@@ -292,7 +292,7 @@ class Dataset(object):
             self.setup.camera = input
         elif isinstance(input, datetime):
             logger.info("Input is datetime and will be set as start time for data "
-                  "import")
+                        "import")
             self.setup.start = input
         else:
             raise TypeError("Invalid input: %s.\n Require MeasSetup or "
@@ -403,7 +403,7 @@ class Dataset(object):
         #: be accessed from filename
         if not flags["start_acq"]:
             print_log.warning("Acquisition time access from filename not possible, "
-                  "using all files")
+                              "using all files")
             self.setup.options["USE_ALL_FILES"] = True
 
         #: Separate the current list based on specified time stamps
@@ -420,9 +420,9 @@ class Dataset(object):
                 paths = paths_temp
         if self.setup.ON_OFF_SAME_FILE:
             logger.warning("Option ON_OFF_SAME_FILE is active: using same file paths "
-                  "in default on and offband list. Please note that no "
-                  "further file separation is applied (e.g. separation of "
-                  "dark images)")
+                           "in default on and offband list. Please note that no "
+                           "further file separation is applied (e.g. separation of "
+                           "dark images)")
             # the function add_files ads the file paths to the list and loads
             # the current and next images (at index 0 and 1)
             self.img_lists[self.filters.default_key_on].add_files(paths)
@@ -445,7 +445,7 @@ class Dataset(object):
             #: now perform separation by meastype and filter
             for p in paths:
                 try:
-                    _, filter_id, meas_type, _, _ = self.camera.\
+                    _, filter_id, meas_type, _, _ = self.camera. \
                         get_img_meta_from_filename(p)
                     self._lists_intern[meas_type][filter_id].files.append(p)
                 except:
@@ -460,7 +460,7 @@ class Dataset(object):
         if self.LINK_OFF_TO_ON:
             try:
                 off_list = self.get_list(self.filters.default_key_off)
-                self.get_list(self.filters.default_key_on).\
+                self.get_list(self.filters.default_key_on). \
                     link_imglist(off_list)
             except BaseException:
                 pass
@@ -489,7 +489,7 @@ class Dataset(object):
         ftype = self.file_type
         if not isinstance(ftype, str):
             logger.warning("file_type not specified in Dataset..."
-                  "Using all files and file_types")
+                           "Using all files and file_types")
             self.setup.options["USE_ALL_FILES"] = True
             self.setup.options["USE_ALL_FILE_TYPES"] = True
 
@@ -500,7 +500,7 @@ class Dataset(object):
 
         if not self.INCLUDE_SUB_DIRS:
             logger.info("Image search is only performed in specified directory "
-                  "and does not include subdirectories")
+                        "and does not include subdirectories")
             if self.USE_ALL_FILE_TYPES:
                 logger.info("Using all file types")
                 all_paths = [join(p, f) for f in listdir(p) if
@@ -600,11 +600,11 @@ class Dataset(object):
 
         if not bool(paths):
             print_log.warning("Error: no files could be found in specified time "
-                 "interval %s - %s" % (self.start, self.stop))
+                              "interval %s - %s" % (self.start, self.stop))
             self.USE_ALL_FILES = True
         else:
             logger.info("%s files of type were found in specified time interval %s "
-                  "- %s" % (len(paths), self.start, self.stop))
+                        "- %s" % (len(paths), self.start, self.stop))
         return paths
 
     def _find_files_ival_time_only(self, all_paths):
@@ -641,10 +641,10 @@ class Dataset(object):
 
         if not bool(paths):
             logger.warning("Error: no files could be found in specified time "
-                 "interval %s - %s" % (self.start, self.stop))
+                           "interval %s - %s" % (self.start, self.stop))
         else:
             logger.info("%s files of type were found in specified time interval %s "
-                  "- %s" % (len(paths), self.start, self.stop))
+                        "- %s" % (len(paths), self.start, self.stop))
         return paths
 
     def find_closest_img(self, filename, in_list, acronym, meas_type_acro):
@@ -664,7 +664,7 @@ class Dataset(object):
         idx = -1
         for k in range(len(in_list)):
             t1, f1, tp1, _, _ = get_meta(in_list[k])
-            if f1 == acronym and abs(t1 - t0).total_seconds() < del_t and\
+            if f1 == acronym and abs(t1 - t0).total_seconds() < del_t and \
                     meas_type_acro == tp1:
                 del_t = abs(t1 - t0).total_seconds()
                 idx = k
@@ -707,11 +707,11 @@ class Dataset(object):
                 *list(self.dark_lists_with_data.values()))
             return True
 
-# ==============================================================================
-#         no_dark_ids = self.check_dark_lists()
-#         if len(no_dark_ids) > 0:
-#             self.find_master_darks(no_dark_ids)
-# ==============================================================================
+        # ==============================================================================
+        #         no_dark_ids = self.check_dark_lists()
+        #         if len(no_dark_ids) > 0:
+        #             self.find_master_darks(no_dark_ids)
+        # ==============================================================================
         # loop over all image lists ...
         for filter_id, lst in six.iteritems(self.img_lists):
             # ... that contain data
@@ -721,31 +721,30 @@ class Dataset(object):
                     for dark_mtype in self.camera.dark_meas_type_acros:
                         for dark_acro in self.camera.dark_acros:
                             try:
-                                if(lst.filter.acronym in dark_acro and
-                                   lst.filter.meas_type_acro == dark_mtype
-                                   ):
-                                    dark_lst = self.\
+                                if (lst.filter.acronym in dark_acro and
+                                        lst.filter.meas_type_acro == dark_mtype):
+                                    dark_lst = self. \
                                         _lists_intern[dark_mtype][dark_acro]
                                     if isinstance(dark_lst, DarkImgList):
                                         lists[dark_lst.list_id] = dark_lst
                                         logger.info("Found dark list match for "
-                                              "image list %s, dark ID: %s"
-                                              % (lst.list_id,
-                                                 dark_lst.list_id))
+                                                    "image list %s, dark ID: %s"
+                                                    % (lst.list_id,
+                                                       dark_lst.list_id))
                             except BaseException:
                                 pass
                     for offs_mtype in self.camera.offset_meas_type_acros:
                         for offset_acro in self.camera.offset_acros:
                             try:
                                 if lst.filter.acronym in offset_acro:
-                                    offs_lst = self.\
+                                    offs_lst = self. \
                                         _lists_intern[offs_mtype][offset_acro]
                                     if isinstance(offs_lst, DarkImgList):
                                         lists[offs_lst.list_id] = offs_lst
                                         logger.info("Found offset list match for "
-                                              "image list %s: dark ID: %s"
-                                              % (lst.list_id,
-                                                 offs_lst.list_id))
+                                                    "image list %s: dark ID: %s"
+                                                    % (lst.list_id,
+                                                       offs_lst.list_id))
                             except BaseException:
                                 pass
                 if not lists:
@@ -765,10 +764,10 @@ class Dataset(object):
                         l.load()
                 if not bool(lists):
                     logger.warning("Failed to assign dark / offset lists to image "
-                         "list %s, no dark images could be found" % filter_id)
+                                   "list %s, no dark images could be found" % filter_id)
                 else:
                     logger.info("Assigning dark/offset lists %s to image list %s\n"
-                          % (list(lists.keys()), filter_id))
+                                % (list(lists.keys()), filter_id))
                     lst.link_dark_offset_lists(*list(lists.values()))
         return True
 
@@ -895,8 +894,8 @@ class Dataset(object):
             if not lst.nof > 0:
                 meas_type_acro, acronym = self.lists_access_info[dark_id]
                 logger.info("\nSearching master dark image for\nID: %s\nacronym: %s"
-                      "\nmeas_type_acro: %s" % (dark_id, acronym,
-                                                meas_type_acro))
+                            "\nmeas_type_acro: %s" % (dark_id, acronym,
+                                                      meas_type_acro))
                 try:
                     p = self.find_closest_img(f_name, all_files, acronym,
                                               meas_type_acro)
@@ -1007,21 +1006,21 @@ class Dataset(object):
 
     """GUI stuff
     """
-# ==============================================================================
-#     def open_in_gui(self):
-#         """Open this dataset in GUI application"""
-#         try:
-#             import pyplis.gui as gui
-#             app=QApplication(argv)
-#
-#     #win = DispTwoImages.DispTwoImagesWidget(fileListRight=fileList)
-#             win = gui.MainApp.MainApp(self)
-#             win.show()
-#             app.exec_() #run main loop
-#         except:
-#             print ("Error: could not open pyplis GUI")
-#             raise
-# ==============================================================================
+    # ==============================================================================
+    #     def open_in_gui(self):
+    #         """Open this dataset in GUI application"""
+    #         try:
+    #             import pyplis.gui as gui
+    #             app=QApplication(argv)
+    #
+    #     #win = DispTwoImages.DispTwoImagesWidget(fileListRight=fileList)
+    #             win = gui.MainApp.MainApp(self)
+    #             win.show()
+    #             app.exec_() #run main loop
+    #         except:
+    #             print ("Error: could not open pyplis GUI")
+    #             raise
+    # ==============================================================================
 
     """
     Plotting etc.
@@ -1106,13 +1105,14 @@ class Dataset(object):
 
         def fmt(num):
             return '{:.1e}'.format(num)
+
         for list_id in [on_id, off_id]:
             try:
                 l = self.get_list(list_id)
                 lists[list_id] = l
                 if not l.bg_model.ready_2_go():
                     logger.info("Tau preview could not be plotted, bg model is not "
-                          " ready for filter: %s" % list_id)
+                                " ready for filter: %s" % list_id)
                     return 0
                 if not l.tau_mode:
                     tm[list_id] = 0

@@ -19,8 +19,9 @@
 """
 from __future__ import (absolute_import, division)
 
-from numpy import dot, sqrt, mean, nan, isnan, asarray, nanmean, nanmax,\
-    nanmin, sum, arctan2, rad2deg, logical_and, ones, arange, nanstd
+from numpy import (dot, sqrt, mean, nan, isnan, asarray, nanmean, nanmax,
+                   nanmin, sum, arctan2, rad2deg, logical_and, ones, arange,
+                   nanstd)
 from matplotlib.dates import DateFormatter
 from collections import OrderedDict as od
 from matplotlib.pyplot import subplots, rcParams, Rectangle
@@ -28,7 +29,7 @@ from os.path import join, isdir
 from os import getcwd
 from traceback import format_exc
 
-from pyplis import logger, print_log
+from pyplis import logger
 from .utils import LineOnImage
 from .imagelists import ImgList
 from .plumespeed import LocalPlumeProperties

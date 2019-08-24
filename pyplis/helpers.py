@@ -28,13 +28,13 @@ from numpy import (mod, linspace, hstack, vectorize, uint8, cast, asarray,
 from scipy.ndimage.filters import gaussian_filter
 from cv2 import pyrUp
 import six
-from pyplis import logger, print_log
+from pyplis import logger
+
+time_delta_to_seconds = vectorize(lambda x: x.total_seconds())
+
 
 def exponent(num):
     return int(floor(log10(abs(num))))
-
-
-time_delta_to_seconds = vectorize(lambda x: x.total_seconds())
 
 
 def matlab_datenum_to_datetime(num):

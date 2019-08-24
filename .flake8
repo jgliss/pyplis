@@ -1,7 +1,9 @@
 [flake8]
 exclude = docs, build, ./pyplis/__init__.py, setup.py, pyplis.egg-info, changelog, dist, env, my_pyplis, _private, .idea, .pytest_cache, scripts/DEV*
-
+max-line-length = 100
 ignore =
+    # Underindented continuation line (added by jgliss)
+    E128,
     # H301 one import per line
     H301,
     # H306 imports not in alphabetical order

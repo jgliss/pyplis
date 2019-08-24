@@ -51,7 +51,7 @@ from collections import OrderedDict as od
 from traceback import format_exc
 from copy import deepcopy
 
-from pyplis import logger, print_log
+from pyplis import logger
 from .glob import DEFAULT_ROI
 from .helpers import bytescale, map_roi, check_roi
 from .exceptions import ImgMetaError

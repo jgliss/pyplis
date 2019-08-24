@@ -234,7 +234,7 @@ class CellSearchInfo(object):
                                   "image list for cell %s"
                                   % (self.filter_id, self.add_id))
         logger.info("Succesfully created image list %s for cell with ID %s from "
-              "cell search results" % (self.filter_id, self.add_id))
+                    "cell search results" % (self.filter_id, self.add_id))
         return lst
 
     @property
@@ -821,7 +821,7 @@ class CellCalibEngine(Dataset):
             cell_id = s1[k]
             gas_cd, gas_cd_err = cell_info[s1[k]][0], cell_info[s1[k]][1]
             logger.info("Search key: %s\nDel I: %s\nCell abbr: %s\nGasCol %s +/- %s"
-                  % (s0[k], offs_dict[s0[k]], cell_id, gas_cd, gas_cd_err))
+                        % (s0[k], offs_dict[s0[k]], cell_id, gas_cd, gas_cd_err))
             # now add gas column to corresponding list in search result object
             for filter_id in filter_ids:
                 res[filter_id][s0[k]].img_list.update_cell_info(cell_id,
@@ -1070,17 +1070,17 @@ class CellCalibEngine(Dataset):
             lst.darkcorr_mode = darkcorr
             cell_img = lst.current_img()
             try:
-                bg_mean_now = bg_mean_tseries.get_poly_vals(cell_img.meta[
-                                                            "start_acq"])
+                bg_mean_now = \
+                    bg_mean_tseries.get_poly_vals(cell_img.meta["start_acq"])
                 offset = bg_mean - bg_mean_now
             except BaseException:
                 print_log.warning("Warning in tau image stack calculation for filter "
-                     " %s: Time series data for background list (background "
-                     "poly) is not available. Calculating tau image for cell "
-                     " image  %s, %s based on unchanged background image "
-                     " recorded at %s"
-                     % (filter_id, cell_id, cell_img.meta["start_acq"],
-                        bg_img.meta["start_acq"]))
+                                  " %s: Time series data for background list (background "
+                                  "poly) is not available. Calculating tau image for cell "
+                                  " image  %s, %s based on unchanged background image "
+                                  " recorded at %s"
+                                  % (filter_id, cell_id, cell_img.meta["start_acq"],
+                                     bg_img.meta["start_acq"]))
 
                 offset = 0.0
 
@@ -1165,7 +1165,7 @@ class CellCalibEngine(Dataset):
         for calib_id, stack in six.iteritems(self.tau_stacks):
             if any([x is None for x in [pos_x_abs, pos_y_abs]]):
                 logger.warning("Using image center coordinates for retrieval of cell "
-                      "calibration polynomial")
+                               "calibration polynomial")
                 h, w = stack.shape[1:]
                 pos_x_abs, pos_y_abs = int(w / 2.0), int(h / 2.0)
             tau_series = stack.get_time_series(pos_x=pos_x_abs,
@@ -1181,7 +1181,7 @@ class CellCalibEngine(Dataset):
                 c.fit_calib_data()
             except:
                 print_log.warning("Failed to fit calibration data for calib_id %s"
-                     % calib_id)
+                                  % calib_id)
             self.calib_data[calib_id] = c
 
     def get_sensitivity_corr_mask(self, calib_id="aa", pos_x_abs=None,
@@ -1285,7 +1285,7 @@ class CellCalibEngine(Dataset):
                 raise ValueError
         except:
             print_log.warning("Using image center coordinate for normalisation position "
-                  "of sensitivity correction mask")
+                              "of sensitivity correction mask")
 
             h, w = stack.shape[1:]
             pos_x_abs, pos_y_abs = int(w / 2.0), int(h / 2.0)
@@ -1298,15 +1298,15 @@ class CellCalibEngine(Dataset):
                                       pyrlevel=surface_fit_pyrlevel).model
         except:
             print_log.warning("2D polyfit failed while determination of sensitivity "
-                 "correction mask, using original cell tau image for mask "
-                 "determination")
+                              "correction mask, using original cell tau image for mask "
+                              "determination")
         mean = (cell_img * fov_mask).sum() / fov_mask.sum()
         mask = Img(cell_img / mean)
         if calib_id in self.calib_data:
             c = self.calib_data[calib_id]
             if c.pos_x_abs == pos_x_abs and c.pos_y_abs == pos_y_abs:
                 logger.info("Assigning sensitivity correction for calibration ID "
-                      "%s to corresponding CellCalibData object" % calib_id)
+                            "%s to corresponding CellCalibData object" % calib_id)
                 c.senscorr_mask = mask
         return mask
 
@@ -1383,7 +1383,7 @@ class CellCalibEngine(Dataset):
         ts_all = self.pix_mean_tseries[("%s_auto_search" % filter_id)]
         # get cell search results
         res = self.search_results
-        if filter_id not in res.cell_info or\
+        if filter_id not in res.cell_info or \
                 len(res.cell_info[filter_id]) < 1:
             logger.info("Error plotting cell search results: no results found...")
             return 0
@@ -1409,7 +1409,7 @@ class CellCalibEngine(Dataset):
         for cell in info.values():
             lbl = (r"Cell %s: $S_{%s}$=%.2e cm$^{-2}$"
                    % (cell.img_list.cell_id, SPECIES_ID,
-                       cell.img_list.gas_cd))
+                      cell.img_list.gas_cd))
             p = ax.plot(cell.start_acq, cell.mean_vals, ' o',
                         color=cmap(nums[k]),
                         ms=8, label=lbl, markeredgecolor="None",

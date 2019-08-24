@@ -17,12 +17,12 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 """Module containing optimisation routines."""
 from __future__ import (absolute_import, division)
-from numpy import abs, linspace, random, asarray, ndarray, where, diff,\
-    insert, argmax, average, gradient, arange, nanmean, full, inf, sqrt, pi,\
-    mod, mgrid, ndim, ones_like, ogrid, finfo, remainder, e, sum, uint8, int,\
-    histogram, nan, isnan
+from numpy import (abs, linspace, random, asarray, ndarray, where, diff,
+                   insert, argmax, average, gradient, arange, nanmean, full,
+                   inf, sqrt, pi, mod, mgrid, ndim, ones_like, ogrid, finfo,
+                   remainder, e, sum, uint8, int, histogram, nan, isnan)
 
-from warnings import catch_warnings, simplefilter, warn
+from warnings import catch_warnings, simplefilter
 from matplotlib.pyplot import subplots
 
 from astropy.modeling import models
@@ -34,22 +34,15 @@ from scipy.optimize import curve_fit, least_squares
 
 from cv2 import pyrUp, pyrDown
 from copy import deepcopy
-# from scipy.signal import find_peaks_cwt
-# from peakutils import indexes
 from traceback import format_exc
 from six.moves import xrange
 
-from pyplis import logger, print_log
-try:
-    from .model_functions import supergauss_2d, supergauss_2d_tilt,\
-        multi_gaussian_no_offset, gaussian_no_offset, gaussian,\
-        multi_gaussian_same_offset, dilutioncorr_model
-    from .helpers import mesh_from_img
-except BaseException:
-    from pyplis.model_functions import supergauss_2d, supergauss_2d_tilt,\
-        multi_gaussian_no_offset, gaussian_no_offset, gaussian,\
-        multi_gaussian_same_offset
-    from pyplis.helpers import mesh_from_img
+from pyplis import logger
+from .model_functions import (supergauss_2d, supergauss_2d_tilt,
+                              multi_gaussian_no_offset, gaussian_no_offset,
+                              gaussian, multi_gaussian_same_offset,
+                              dilutioncorr_model)
+from .helpers import mesh_from_img
 
 GAUSS_2D_PARAM_INFO = ["amplitude", "mu_x", "mu_y", "sigma", "asymmetry",
                        "shape", "offset", "tilt_theta"]

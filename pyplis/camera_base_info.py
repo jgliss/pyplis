@@ -10,6 +10,7 @@ from .inout import save_new_default_camera, get_camera_info
 import re
 import six
 
+
 class CameraBaseInfo(object):
     """Low level base class for camera specific information.
 
@@ -173,7 +174,7 @@ class CameraBaseInfo(object):
             "texp": None
         }
 
-        if("filename_regexp" not in conf):
+        if ("filename_regexp" not in conf):
             print("no filename_regexp")
             return values
 
@@ -280,6 +281,7 @@ class CameraBaseInfo(object):
                 values["texp"], warnings)
 
     """Decorators / dynamic class attributes"""
+
     @property
     def default_filter_acronyms(self):
         """Get acronyms of all default filters."""
@@ -425,6 +427,7 @@ class CameraBaseInfo(object):
     """
     Helpers, supplemental stuff...
     """
+
     @property
     def dark_acros(self):
         """Return list containing filename access acronyms for dark images."""
@@ -526,6 +529,7 @@ class CameraBaseInfo(object):
                   "read_gain: %s\n"
                   % (i.id, i.type, i.acronym, i.meas_type_acro, i.read_gain))
         return s
+
     """
     Magic methods
     """

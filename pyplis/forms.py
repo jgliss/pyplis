@@ -17,7 +17,7 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 from __future__ import (absolute_import, division)
 from collections import OrderedDict as od
-from pyplis import logger, print_log
+from pyplis import logger
 import six
 
 

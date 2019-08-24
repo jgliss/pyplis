@@ -21,7 +21,7 @@ This is the base class for storing calibration data, fitting calibration
 curves, and corresponding I/O routines (e.g storage as FITS or text file).
 """
 from __future__ import (absolute_import, division)
-from pyplis import logger, print_log
+from pyplis import logger
 from numpy import (min, asarray, zeros, linspace, ones, float64, isnan,
                    ndarray, argmax, inf)
 from inspect import getargspec
@@ -205,9 +205,10 @@ class CalibData(object):
                                  "calib_fun first...")
         if self._calib_coeffs is not None and len(self._calib_coeffs) > 0:
 
-                logger.warning("Resetting calibration coefficients manually. This may introduce "
-                     "analysis errors. It is recommended to use the method "
-                     "fit_calib_data instead")
+            logger.warning("Resetting calibration coefficients manually. "
+                           "This may introduce analysis errors. It is "
+                           "recommended to use the method fit_calib_data "
+                           "instead")
         self._calib_coeffs = val
 
     @property

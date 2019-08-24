@@ -2472,8 +2472,8 @@ class ImgList(BaseImgList):
                     pass
                 except Exception as e:
                     msg = ("Failed to apply dilution correction "
-                            " in linked offband list {}. Error: {}"
-                            .format(lid, repr(e)))
+                           "in linked offband list {}. Error: {}"
+                           .format(lid, repr(e)))
                     if self.aa_mode:
                         raise ValueError(msg)
                     else:

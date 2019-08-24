@@ -39,7 +39,7 @@ from cv2 import pyrDown, pyrUp
 from os.path import join, exists, dirname, basename, isdir, abspath
 from astropy.io import fits
 import six
-from pyplis import logger, print_log
+from pyplis import logger
 from .image import Img
 from .setupclasses import Camera
 from .helpers import to_datetime, make_circular_mask

@@ -33,7 +33,7 @@ from abc import ABCMeta
 
 import six
 
-from pyplis import logger, print_log
+from pyplis import logger
 from .forms import LineCollection, RectCollection
 from .helpers import isnum, to_datetime
 from .exceptions import MetaAccessError, DeprecationError

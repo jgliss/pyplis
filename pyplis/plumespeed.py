@@ -47,7 +47,7 @@ from cv2 import calcOpticalFlowFarneback, OPTFLOW_FARNEBACK_GAUSSIAN,\
 from .helpers import bytescale, check_roi, map_roi, roi2rect, set_ax_lim_roi,\
     nth_moment, rotate_xtick_labels
 
-from pyplis import logger, print_log
+from pyplis import logger
 from .optimisation import MultiGaussFit
 from .processing import ImgStack
 from .utils import LineOnImage

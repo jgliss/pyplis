@@ -18,9 +18,9 @@
 """Module containing functionality for all relevant geometrical calculations.
 """
 from __future__ import (absolute_import, division, print_function)
-from numpy import nan, arctan, deg2rad, linalg, sqrt, abs, array, radians,\
-    sin, cos, arcsin, tan, rad2deg, linspace, isnan, asarray, arange,\
-    argmin, newaxis
+from numpy import (nan, arctan, deg2rad, linalg, sqrt, abs, array, radians,
+                   sin, cos, arcsin, tan, rad2deg, linspace, isnan, asarray,
+                   arange, argmin, newaxis)
 from collections import OrderedDict as od
 
 from matplotlib.pyplot import figure
@@ -40,6 +40,7 @@ if GEONUMAVAILABLE:
     else:
         from geonum import GeoSetup, GeoPoint, GeoVector3D, TopoData
         from geonum.exceptions import TopoAccessError
+
 
 class MeasGeometry(object):
     """Class for calculations and management of the measurement geometry.

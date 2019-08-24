@@ -4,21 +4,18 @@ from os.path import abspath, dirname
 from pkg_resources import get_distribution
 from matplotlib import rcParams
 
+
 def _init_supplemental():
-    
     rcParams["mathtext.default"] = u"regular"
 
     return (get_distribution('pyplis').version, abspath(dirname(__file__)))
 
+
 def _init_logger():
-    ### LOGGING
-    # Note: configuration will be propagated to all child modules of
-    # pyplis, for details see
-    # http://eric.themoritzfamily.com/learning-python-logging.html
     logger = logging.getLogger('pyplis')
 
     fmt = "%(filename)s(l%(lineno)s,%(funcName)s()): %(message)s"
-    #fmt = "%(funcName)s():%(lineno)i: %(message)s"
+    # fmt = "%(funcName)s():%(lineno)i: %(message)s"
     default_formatter = logging.Formatter(fmt)
 
     console_handler = logging.StreamHandler()
@@ -38,8 +35,8 @@ def _init_logger():
     print_log.setLevel(logging.INFO)
     return (logger, print_log)
 
+
 def _get_loglevels():
-    
     return dict(critical=logging.CRITICAL,
                 exception=logging.ERROR,
                 error=logging.ERROR,
@@ -48,8 +45,10 @@ def _get_loglevels():
                 info=logging.INFO,
                 debug=logging.DEBUG)
 
+
 def get_loglevel(logger):
     return logger.getEffectiveLevel()
+
 
 def change_loglevel(logger, level, update_fmt=False, fmt_debug=True):
     LOG_LEVELS = _get_loglevels()
@@ -69,20 +68,16 @@ def change_loglevel(logger, level, update_fmt=False, fmt_debug=True):
         for handler in logger.handlers:
             handler.setFormatter(fmt)
 
+
 def check_requirements():
     try:
-        import pydoas
+        import pydoas  # noqa: F401
         PYDOASAVAILABLE = True
     except BaseException:
         PYDOASAVAILABLE = False
     try:
-        import geonum
+        import geonum  # noqa: F401
         GEONUMAVAILABLE = True
     except BaseException:
         GEONUMAVAILABLE = False
-    try:
-        from PIL.Image import open as open_pil
-        PILAVAILABLE = True
-    except BaseException:
-        PILAVAILABLE = False
-    return (PYDOASAVAILABLE, GEONUMAVAILABLE, PILAVAILABLE)
+    return (PYDOASAVAILABLE, GEONUMAVAILABLE)
