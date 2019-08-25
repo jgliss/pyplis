@@ -17,13 +17,14 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 """Pyplis module containing low level utilitiy methods and classes."""
 from __future__ import (absolute_import, division)
+import os
 from numpy import (vstack, asarray, ndim, round, hypot, linspace, sum, zeros,
                    complex, angle, array, cos, sin, arctan, dot, int32, pi,
                    isnan, nan, mean, ndarray)
 
 from numpy.linalg import norm
 from scipy.ndimage import map_coordinates
-from warnings import warn
+
 
 from matplotlib.pyplot import subplot, subplots, tight_layout, draw
 from matplotlib.patches import Polygon, Rectangle
@@ -31,14 +32,54 @@ from matplotlib.patches import Polygon, Rectangle
 from pandas import Series
 from cv2 import cvtColor, COLOR_BGR2GRAY, fillPoly
 
-from .helpers import map_coordinates_sub_img, same_roi, map_roi, roi2rect
+from pyplis import logger
+from .helpers import (map_coordinates_sub_img, same_roi, map_roi, roi2rect)
+from .inout import get_cam_ids
 from .glob import DEFAULT_ROI
 
 import six
 
 
+def identify_camera_from_filename(filepath):
+    """Identify camera based on image filepath convention.
+
+    Parameters
+    ----------
+    filepath : str
+        valid image file path
+
+    Returns
+    -------
+    str
+       ID of Camera that matches best
+
+    Raises
+    ------
+    IOError
+        Exception is raised if no match can be found
+
+    """
+    from pyplis.camera_base_info import CameraBaseInfo
+    if not os.path.exists(filepath):
+        logger.warning("Invalid file path")
+    cam_id = None
+    all_ids = get_cam_ids()
+    max_match_num = 0
+    for cid in all_ids:
+        cam = CameraBaseInfo(cid)
+        cam.get_img_meta_from_filename(filepath)
+        matches = sum(list(cam._fname_access_flags.values()))
+        if matches > max_match_num:
+            max_match_num = matches
+            cam_id = cid
+    if max_match_num == 0:
+        raise IOError("Camera type could not be identified based on input"
+                      "file name {}".format(os.path.basename(filepath)))
+    return cam_id
+
+
 class LineOnImage(object):
-    """Class representing a line on an image.
+    """Class representing a line on an image
 
     Main purpose is data extraction along this line on a discrete image grid.
     This is done using spline interpolation.
@@ -70,10 +111,7 @@ class LineOnImage(object):
     The input coordinates correspond to relative image coordinates
     with respect to the input ROI (``roi_def``) and pyramid level
     (``pyrlevel_def``)
-
-
     """
-
     def __init__(self, x0=0, y0=0, x1=1, y1=1, normal_orientation="right",
                  roi_abs_def=DEFAULT_ROI, pyrlevel_def=0, line_id="",
                  color="lime", linestyle="-"):
@@ -124,7 +162,7 @@ class LineOnImage(object):
                 self.x0 = val[0]
                 self.y0 = val[1]
         except BaseException:
-            warn("Start coordinates could not be set")
+            logger.warning("Start coordinates could not be set")
 
     @property
     def stop(self):
@@ -138,7 +176,7 @@ class LineOnImage(object):
                 self.x1 = val[0]
                 self.y1 = val[1]
         except BaseException:
-            warn("Stop coordinates could not be set")
+            logger.warning("Stop coordinates could not be set")
 
     @property
     def center_pix(self):
@@ -195,7 +233,7 @@ class LineOnImage(object):
     @property
     def pyrlevel(self):
         """Pyramid level at which line coords are defined."""
-        warn("This method was renamed in version 0.10. "
+        logger.warning("This method was renamed in version 0.10. "
              "Please use pyrlevel_def")
         return self._pyrlevel_def
 
@@ -209,7 +247,7 @@ class LineOnImage(object):
     @property
     def roi_abs(self):
         """Return current ROI (in absolute detector coordinates)."""
-        warn("This method was renamed in version 0.10. Please use roi_abs_def")
+        logger.warning("This method was renamed in version 0.10. Please use roi_abs_def")
         return self._roi_abs_def
 
     @roi_abs.setter
@@ -244,7 +282,7 @@ class LineOnImage(object):
             if not self._rect_roi_rot.shape == (5, 2):
                 raise Exception
         except BaseException:
-            print("Rectangle for rotated ROI was not set and is not being "
+            logger.info("Rectangle for rotated ROI was not set and is not being "
                   "set to default depth of +/- 30 pix around line. Use "
                   "method set_rect_roi_rot to change the rectangle")
             self.set_rect_roi_rot()
@@ -275,10 +313,10 @@ class LineOnImage(object):
         if val < 0:
             raise ValueError("Velocity must be larger than 0")
         elif val > 40:
-            warn("Large value warning: input velocity exceeds 40 m/s")
+            logger.warning("Large value warning: input velocity exceeds 40 m/s")
         self._velo_glob = val
         if self._velo_glob_err is None or isnan(self._velo_glob_err):
-            warn("Global velocity error not assigned, assuming 50% of "
+            logger.warning("Global velocity error not assigned, assuming 50% of "
                  "velocity")
             self.velo_glob_err = val * 0.50
 
@@ -351,7 +389,7 @@ class LineOnImage(object):
         dx0, dy0 = other.x0 - self.x0, other.y0 - self.y0
         dx1, dy1 = other.x1 - self.x1, other.y1 - self.y1
         if dx1 != dx0 or dy1 != dy0:
-            warn("Lines are not parallel...")
+            logger.warning("Lines are not parallel...")
         return mean([norm([dx0, dy0]), norm([dx1, dy1])])
 
     def offset(self, pixel_num=20, line_id=None):
@@ -395,7 +433,7 @@ class LineOnImage(object):
         """Convert to other image preparation settings."""
         if to_pyrlevel == self.pyrlevel_def and same_roi(self.roi_abs_def,
                                                          to_roi_abs):
-            print("Same shape settings, returning current line object""")
+            logger.info("Same shape settings, returning current line object""")
             return self
         # first convert to absolute coordinates
         ((x0, x1),
@@ -447,7 +485,7 @@ class LineOnImage(object):
                              "line must exceed zero, current coords: %s"
                              % self.coords)
         if self.start[0] > self.stop[0]:
-            print("x coordinate of start point is larger than of stop point: "
+            logger.info("x coordinate of start point is larger than of stop point: "
                   "start and stop will be exchanged")
             self.start, self.stop = self.stop, self.start
 
@@ -490,10 +528,10 @@ class LineOnImage(object):
         """
         h, w = img_array.shape[:2]
         if not 0 < x < w:
-            print("x coordinate out of image")
+            logger.info("x coordinate out of image")
             return False
         if not 0 < y < h:
-            print("y coordinate out of image")
+            logger.info("y coordinate out of image")
             return False
         return True
 
@@ -544,7 +582,7 @@ class LineOnImage(object):
             pass
         vals = self.get_line_profile(input_img)
         if pix_step_length is None:
-            warn("No information about integration step lengths provided "
+            logger.warning("No information about integration step lengths provided "
                  "Integration is performed in units of pixels")
             return sum(vals)
         try:
@@ -773,11 +811,11 @@ class LineOnImage(object):
             pass
         if ndim(array) != 2:
             if ndim(array) != 3:
-                print("Error retrieving line profile, invalid dimension of "
+                logger.info("Error retrieving line profile, invalid dimension of "
                       "input array: %s" % (ndim(array)))
                 return
             if array.shape[2] != 3:
-                print("Error retrieving line profile, invalid dimension of "
+                logger.info("Error retrieving line profile, invalid dimension of "
                       "input array: %s" % (ndim(array)))
                 return
             "Input in BGR, conversion into gray image"
@@ -786,7 +824,7 @@ class LineOnImage(object):
         # Extract the values along the line, using interpolation
         zi = map_coordinates(array, self.profile_coords, order=order, **kwargs)
         if sum(isnan(zi)) != 0:
-            warn("Retrieved NaN for one or more pixels along line on input "
+            logger.warning("Retrieved NaN for one or more pixels along line on input "
                  "array")
         return zi
 
@@ -1072,7 +1110,6 @@ class Filter(object):
         self.center_wavelength = center_wavelength
         self.trans_curve = None
         # filter peak transmission
-
         if self.id is None:
             self.id = self.type
 
@@ -1101,7 +1138,7 @@ class Filter(object):
             try:
                 self.trans_curve = Series(data, wavelengths)
             except BaseException:
-                print("Failed to set transmission curve in Filter %s" %
+                logger.info("Failed to set transmission curve in Filter %s" %
                       self.id)
 
     def __str__(self):
@@ -1115,9 +1152,16 @@ class Filter(object):
                      self.center_wavelength))
         return s
 
+    def __repr__(self):
+        s = ("Filter {}; type: {}; acronym: {}; meas_type_acro: {}; "
+             "center_wavelength: {}"
+             .format(self.id, self.type, self.acronym, self.meas_type_acro,
+                     self.center_wavelength))
+        return s
+
     def print_specs(self):
         """Print __str__."""
-        print(self.__str__())
+        logger.info(self.__str__())
 
 
 class DarkOffsetInfo(object):
@@ -1125,7 +1169,7 @@ class DarkOffsetInfo(object):
 
     Similar to :class:`Filter`. This object can be used to store relevant
     information of different types of dark and offset images. The attribute
-    "read_gain" is set 0 by default. For some camera types (e.g. Hamamastsu
+    "read_gain" is set 0 by default. For some camera types (e.g. Hamamatsu
     c8484 16c as used in the ECII SO2 camera), the signal can be enhancened
     with an electronic read_gain (measured in dB) on read. This can be helpful
     in low light conditions. However, it significantly increases the noise in

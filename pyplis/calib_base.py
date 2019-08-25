@@ -21,6 +21,7 @@ This is the base class for storing calibration data, fitting calibration
 curves, and corresponding I/O routines (e.g storage as FITS or text file).
 """
 from __future__ import (absolute_import, division)
+from pyplis import logger
 from numpy import (min, asarray, zeros, linspace, ones, float64, isnan,
                    ndarray, argmax, inf)
 from inspect import getargspec
@@ -30,7 +31,7 @@ from datetime import datetime
 from pandas import Series
 from astropy.io import fits
 from os.path import join, exists, isdir, abspath, basename, dirname
-from warnings import warn
+
 
 from matplotlib.pyplot import subplots
 
@@ -86,10 +87,20 @@ class CalibData(object):
 
     """
 
-    def __init__(self, tau_vec=[], cd_vec=[], cd_vec_err=[], time_stamps=[],
-                 calib_fun=None, calib_coeffs=[], senscorr_mask=None,
+    def __init__(self, tau_vec=None, cd_vec=None, cd_vec_err=None, time_stamps=None,
+                 calib_fun=None, calib_coeffs=None, senscorr_mask=None,
                  polyorder=1, calib_id="", camera=None):
         # type of calibration performed (e.g. "doas", "cell")
+        if tau_vec is None:
+            tau_vec = []
+        if cd_vec is None:
+            cd_vec = []
+        if cd_vec_err is None:
+            cd_vec_err = []
+        if time_stamps is None:
+            time_stamps = []
+        if calib_coeffs is None:
+            calib_coeffs = []
         self.type = "base"
         # ID specifying image OD type (e.g. "on", "off", "aa")
         self.calib_id = calib_id
@@ -129,7 +140,7 @@ class CalibData(object):
                 senscorr_mask = ones((self.camera.pixnum_y,
                                       self.camera.pixnum_x))
             except BaseException:
-                warn("Could not retrieve image dimensions from camera "
+                logger.warning("Could not retrieve image dimensions from camera "
                      "(probably since no camera was provided on input). "
                      "Initiating attribute senscorr_mask with ones and "
                      "shape=(10, 10)")
@@ -193,9 +204,11 @@ class CalibData(object):
                                  "Please check and update class attribute "
                                  "calib_fun first...")
         if self._calib_coeffs is not None and len(self._calib_coeffs) > 0:
-            warn("Resetting calibration coefficients manually. This may "
-                 "introduce analysis errors. It is recommended to use the "
-                 "method fit_calib_data instead")
+
+            logger.warning("Resetting calibration coefficients manually. "
+                           "This may introduce analysis errors. It is "
+                           "recommended to use the method fit_calib_data "
+                           "instead")
         self._calib_coeffs = val
 
     @property
@@ -219,8 +232,8 @@ class CalibData(object):
         if not callable(val):
             raise ValueError("Need a callable object (e.g. lambda function)")
         args = getargspec(val).args
-        print("Setting optimisation function in CalibData class. "
-              "Argspec: %s" % args)
+        logger.info("Setting optimisation function in CalibData class. "
+                    "Argspec: %s" % args)
         self._calib_fun = val
 
     @property
@@ -333,7 +346,7 @@ class CalibData(object):
         except BaseException:
             sd = True
         if sd:
-            print("Input bounds invalid, initiating default")
+            logger.info("Input bounds invalid, initiating default")
             bounds = (-ones(nargs) * inf, ones(nargs) * inf)
         return bounds
 
@@ -412,11 +425,11 @@ class CalibData(object):
         yerr_abs = True
         if weighted:
             if not len(self.cd_vec) == len(self.cd_vec_err):
-                warn("Could not perform weighted calibration fit: "
+                logger.warning("Could not perform weighted calibration fit: "
                      "Length mismatch between CD data vector "
                      "and corresponding error vector")
             elif sum(self.cd_vec_err) == 0:
-                warn("Could not perform weighted calibration fit: "
+                logger.warning("Could not perform weighted calibration fit: "
                      "Values of DOAS fit errors are 0. Do you have pydoas "
                      "installed?")
             else:
@@ -429,7 +442,7 @@ class CalibData(object):
                         yerr_abs = False
                     # ws = ws / max(ws)
                 except BaseException:
-                    warn("Failed to calculate weights")
+                    logger.warning("Failed to calculate weights")
         tau_vals = self.tau_vec
         if normalise_cds and callable(self._calib_fun):
             raise ValueError("Cannot use option normalise_cds with custom "
@@ -596,7 +609,7 @@ class CalibData(object):
             if k in self.senscorr_mask.edit_log:
                 self.senscorr_mask.edit_log[k] = val
         if self.senscorr_mask.is_cropped:
-            warn("Imported sensitivity correction mask is flagged as cropped "
+            logger.warning("Imported sensitivity correction mask is flagged as cropped "
                  "and might not work on uncropped images")
         ctable = hdu[1]
         try:
@@ -604,21 +617,21 @@ class CalibData(object):
             self.time_stamps = [datetime.strptime(x, "%Y%m%d%H%M%S%f")
                                 for x in times]
         except BaseException:
-            warn("Failed to import vector containing calib time stamps from "
+            logger.warning("Failed to import vector containing calib time stamps from "
                  "FITS")
         try:
             self.tau_vec = ctable.data["tau_vec"].byteswap().newbyteorder()
         except BaseException:
-            warn("Failed to import calibration tau vector from FITS")
+            logger.warning("Failed to import calibration tau vector from FITS")
         try:
             self.cd_vec = ctable.data["cd_vec"].byteswap().newbyteorder()
         except BaseException:
-            warn("Failed to import CD vector from FITS")
+            logger.warning("Failed to import CD vector from FITS")
         try:
             self.cd_vec_err = ctable.data["cd_vec_err"].byteswap(
             ).newbyteorder()
         except BaseException:
-            warn("Failed to import CD uncertainty vector from FITS")
+            logger.warning("Failed to import CD uncertainty vector from FITS")
         if self.type == "base":
             hdu.close()
             hdu = None
@@ -652,13 +665,13 @@ class CalibData(object):
             ax.errorbar(self.tau_vec, cds, yerr=self.cd_vec_err,
                         marker="None", ls=" ", c="#b3b3b3")
         except BaseException:
-            warn("No CD errors available")
+            logger.warning("No CD errors available")
         try:
             cds_calib = self.calib_fun(x, *self.calib_coeffs)
             ax.plot(x, cds_calib, ls="-", marker="",
                     label="Fit result", **kwargs)
         except TypeError:
-            print("Calibration poly probably not fitted")
+            logger.info("Calibration poly probably not fitted")
 
         ax.set_title("Calibration data, ID: %s" % self.calib_id)
         ax.set_ylabel(r"$S_{%s}$ [cm$^{-2}$]" % SPECIES_ID)
@@ -690,7 +703,7 @@ class CalibData(object):
         taumin, taumax = self.tau_range
         x = linspace(taumin, taumax, 100)
         if self.calib_coeffs is None:
-            warn("Calibration function not yet fitted, applying default fit"
+            logger.warning("Calibration function not yet fitted, applying default fit"
                  "(1. order polynomial)")
             self.fit_calib_data()
         cds_poly = self.calib_fun(x, *self.calib_coeffs)
@@ -698,14 +711,14 @@ class CalibData(object):
             try:
                 cds_poly -= self.y_offset
             except BaseException:
-                warn("Failed to subtract y offset")
+                logger.warning("Failed to subtract y offset")
 
         try:
             ax.plot(x, cds_poly, ls="-", marker="",
                     label="Fit result %s" % add_label_str, **kwargs)
 
         except TypeError:
-            print("Calibration poly probably not fitted")
+            logger.info("Calibration poly probably not fitted")
 
         ax.grid()
         ax.legend(loc='best', fancybox=True, framealpha=0.7)

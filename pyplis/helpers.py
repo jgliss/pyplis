@@ -20,7 +20,7 @@ from __future__ import (absolute_import, division)
 import matplotlib.cm as colormaps
 import matplotlib.colors as colors
 from datetime import datetime, time, date, timedelta
-from warnings import warn
+
 from matplotlib.pyplot import draw
 from numpy import (mod, linspace, hstack, vectorize, uint8, cast, asarray,
                    log2, unravel_index, nanargmax, meshgrid, int, floor, log10,
@@ -28,13 +28,13 @@ from numpy import (mod, linspace, hstack, vectorize, uint8, cast, asarray,
 from scipy.ndimage.filters import gaussian_filter
 from cv2 import pyrUp
 import six
+from pyplis import logger
+
+time_delta_to_seconds = vectorize(lambda x: x.total_seconds())
 
 
 def exponent(num):
     return int(floor(log10(abs(num))))
-
-
-time_delta_to_seconds = vectorize(lambda x: x.total_seconds())
 
 
 def matlab_datenum_to_datetime(num):
@@ -172,10 +172,10 @@ def closest_index(time_stamp, time_stamps):
 
     """
     if time_stamp < time_stamps[0]:
-        warn("Time stamp is earlier than first time stamp in array")
+        logger.warning("Time stamp is earlier than first time stamp in array")
         return 0
     elif time_stamp > time_stamps[-1]:
-        warn("Time stamp is later than last time stamp in array")
+        logger.warning("Time stamp is later than last time stamp in array")
         return len(time_stamps) - 1
     return argmin([abs((time_stamp - x).total_seconds()) for x in time_stamps])
 
@@ -260,7 +260,7 @@ def get_img_maximum(img_arr, add_blur=0):
 
 
 def sub_img_to_detector_coords(img_arr, shape_orig, pyrlevel,
-                               roi_abs=[0, 0, 9999, 9999]):
+                               roi_abs=None):
     """Convert a shape manipulated image to original detecor coords.
 
     :param ndarray img_arr: the sub image array (e.g. corresponding to a
@@ -275,6 +275,8 @@ def sub_img_to_detector_coords(img_arr, shape_orig, pyrlevel,
         Regions outside the ROI are set to 0
 
     """
+    if roi_abs is None:
+        roi_abs = [0, 0, 9999, 9999]
     new_arr = zeros(shape_orig).astype(float32)
     for k in range(pyrlevel):
         img_arr = pyrUp(img_arr)
@@ -379,7 +381,7 @@ def roi2rect(roi, inverse=False):
     return (x0, y0, x0 + x1, y0 + y1)
 
 
-def map_coordinates_sub_img(pos_x_abs, pos_y_abs, roi_abs=[0, 0, 9999, 9999],
+def map_coordinates_sub_img(pos_x_abs, pos_y_abs, roi_abs=None,
                             pyrlevel=0, inverse=False):
     """Map absolute pixel coordinate to cropped and / or downscaled image.
 
@@ -392,6 +394,8 @@ def map_coordinates_sub_img(pos_x_abs, pos_y_abs, roi_abs=[0, 0, 9999, 9999],
     :param list pyrlevel: level of gauss pyramid
     :param bool inverse: if True, do inverse transformation (False)
     """
+    if roi_abs is None:
+        roi_abs = [0, 0, 9999, 9999]
     op = 2 ** pyrlevel
     x, y = asarray(pos_x_abs), asarray(pos_y_abs)
     x_offs, y_offs = roi_abs[0], roi_abs[1]
@@ -476,7 +480,7 @@ def shifted_color_map(vmin, vmax, cmap=None):
 def _print_list(lst):
     """Print a list rowwise."""
     for item in lst:
-        print(item)
+        logger.info(item)
 
 
 def rotate_xtick_labels(ax, deg=30, ha="right"):
@@ -580,5 +584,5 @@ if __name__ == "__main__":
     crop = arr[roi[1]:roi[3], roi[0]:roi[2]]
     for k in range(pyrlevel):
         crop = pyrDown(crop)
-    print(crop.shape)
-    print(subimg_shape(roi=roi, pyrlevel=pyrlevel))
+    logger.info(crop.shape)
+    logger.info(subimg_shape(roi=roi, pyrlevel=pyrlevel))

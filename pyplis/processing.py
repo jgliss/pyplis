@@ -27,7 +27,7 @@ from numpy import (vstack, empty, ones, asarray, sum, dstack, float32, zeros,
                    delete, hstack)
 
 from scipy.ndimage.filters import gaussian_filter1d, median_filter
-from warnings import warn
+
 
 from copy import deepcopy
 from datetime import datetime, timedelta
@@ -39,7 +39,7 @@ from cv2 import pyrDown, pyrUp
 from os.path import join, exists, dirname, basename, isdir, abspath
 from astropy.io import fits
 import six
-
+from pyplis import logger
 from .image import Img
 from .setupclasses import Camera
 from .helpers import to_datetime, make_circular_mask
@@ -480,7 +480,7 @@ class ImgStack(object):
             try:
                 return self._merge_tseries_average(time_series, **kwargs)
             except BaseException:
-                print("Failed to merge data using method average, trying "
+                logger.info("Failed to merge data using method average, trying "
                       "method nearest instead")
                 method = "nearest"
         if method == "nearest":
@@ -505,7 +505,7 @@ class ImgStack(object):
         spec_idxs_final = []
         del_ts_abs = []
         for idx in range(min(nearest_idxs), max(nearest_idxs) + 1):
-            print("Current tseries index %s" % idx)
+            logger.info("Current tseries index %s" % idx)
             matches = where(nearest_idxs == idx)[0]
             if len(matches) > 0:
                 del_ts_temp = del_ts[matches]
@@ -569,7 +569,7 @@ class ImgStack(object):
 
         for i in range(h):
             for j in range(w):
-                print("Stack interpolation active...: current img row (y):"
+                logger.info("Stack interpolation active...: current img row (y):"
                       "%s (%s)" % (i, j))
                 # get series from stack at current pixel
                 series_stack = Series(stack[:, i, j], time_stamps)
@@ -591,7 +591,7 @@ class ImgStack(object):
         try:
             new_series.fit_errs = df0[2].values
         except BaseException:
-            print("Failed to access / process errors on time series data")
+            logger.info("Failed to access / process errors on time series data")
         return (stack_obj, new_series)
 
     def _merge_tseries_average(self, time_series):
@@ -909,22 +909,22 @@ class ImgStack(object):
             self.start_acq = asarray([datetime.strptime(x, "%Y%m%d%H%M%S%f")
                                       for x in times])
         except BaseException:
-            warn("Failed to import acquisition times")
+            logger.warning("Failed to import acquisition times")
         try:
             self.texps = asarray(
                 hdu[1].data["texps"].byteswap().newbyteorder())
         except BaseException:
-            warn("Failed to import exposure times")
+            logger.warning("Failed to import exposure times")
         try:
             self._access_mask = asarray(hdu[1].data["_access_mask"].
                                         byteswap().newbyteorder())
         except BaseException:
-            warn("Failed to import data access mask")
+            logger.warning("Failed to import data access mask")
         try:
             self.add_data = asarray(hdu[1].data["add_data"].byteswap().
                                     newbyteorder())
         except BaseException:
-            warn("Failed to import data additional data")
+            logger.warning("Failed to import data additional data")
         self.roi_abs = hdu[2].data["roi_abs"].byteswap().\
             newbyteorder()
         self._format_check()
@@ -946,8 +946,8 @@ class ImgStack(object):
                             self.stop.strftime("%H%M")))
         else:
             save_name = save_name.split(".")[0] + ".fts"
-        print("DIR: %s" % save_dir)
-        print("Name: %s" % save_name)
+        logger.info("DIR: %s" % save_dir)
+        logger.info("Name: %s" % save_name)
         hdu = fits.PrimaryHDU()
         start_acq_str = [x.strftime("%Y%m%d%H%M%S%f") for x in self.start_acq]
         col1 = fits.Column(name="start_acq", format="25A", array=start_acq_str)
@@ -968,13 +968,13 @@ class ImgStack(object):
         hdulist = fits.HDUList([hdu, arrays, roi_abs])
         path = join(save_dir, save_name)
         if exists(path):
-            print("Stack already exists at %s and will be overwritten"
+            logger.info("Stack already exists at %s and will be overwritten"
                   % path)
 
         try:
             hdulist.writeto(path, clobber=overwrite_existing)
         except BaseException:
-            warn("Failed to save stack to FITS File "
+            logger.warning("Failed to save stack to FITS File "
                  "(check previous warnings)")
 
     """Magic methods"""
@@ -1039,7 +1039,7 @@ def find_registration_shift_optflow(on_img, off_img,
     if not on_img.shape == off_img.shape:
         raise ValueError("Shape mismatch between input images")
     if on_img.pyrlevel != 0:
-        warn("Input images are at pyramid level %d and registration shift "
+        logger.warning("Input images are at pyramid level %d and registration shift "
              "will be computed for this pyramid level")
     # from pyplis import OptflowFarneback
     # flow = OptflowFarneback(on_img, off_img, **flow_settings)
@@ -1067,7 +1067,7 @@ class PixelMeanTimeSeries(Series):
     poly_model = None
 
     def __init__(self, data, start_acq, std=None, texps=None, roi_abs=None,
-                 img_prep={}, **kwargs):
+                 img_prep=None, **kwargs):
         """Initialize pixel mean time series.
 
         :param ndarray data: data array
@@ -1086,6 +1086,8 @@ class PixelMeanTimeSeries(Series):
 
         """
         super(PixelMeanTimeSeries, self).__init__(data, start_acq, **kwargs)
+        if img_prep is None:
+            img_prep = {}
         try:
             if len(texps) == len(data):
                 self.texps = texps
@@ -1131,7 +1133,7 @@ class PixelMeanTimeSeries(Series):
                                        self.img_prep)
 
         except Exception as e:
-            print("Failed to normalise data bases on exposure times:\n%s\n\n"
+            logger.info("Failed to normalise data bases on exposure times:\n%s\n\n"
                   % repr(e))
 
     def fit_polynomial(self, order=2):
@@ -1147,7 +1149,7 @@ class PixelMeanTimeSeries(Series):
             raise ValueError("Could not fit polynomial to PixelMeanTimeSeries"
                              " object: only one data point available")
         elif num == 2:
-            warn("PixelMeanTimeSeries object only contains 2 data points, "
+            logger.warning("PixelMeanTimeSeries object only contains 2 data points, "
                  "setting polyfit order to one (default is 2)")
             order = 1
         x = [date2num(idx) for idx in s.index]
@@ -1276,7 +1278,7 @@ class PixelMeanTimeSeries(Series):
 
             return ax
         except Exception as e:
-            print(repr(e))
+            logger.info(repr(e))
             fig, ax = subplots(1, 1)
             ax.text(.1, .1, "Plot of PixelMeanTimeSeries failed...")
             fig.canvas.draw()
@@ -1284,9 +1286,9 @@ class PixelMeanTimeSeries(Series):
 
     def __setitem__(self, key, value):
         """Update class item."""
-        print("%s : %s" % (key, value))
+        logger.info("%s : %s" % (key, value))
         if key in self.__dict__:
-            print("Writing...")
+            logger.info("Writing...")
             self.__dict__[key] = value
 
     def __call__(self, normalised=False):

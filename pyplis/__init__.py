@@ -17,34 +17,18 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 """Package initialisation."""
 from __future__ import (absolute_import, division)
-from os.path import abspath, dirname
-from pkg_resources import get_distribution
-from matplotlib import rcParams
+from ._init_utils import (check_requirements, _init_logger,
+                          _init_supplemental, change_loglevel,
+                          get_loglevel)
 
-rcParams["mathtext.default"] = u"regular"
+PYDOASAVAILABLE, GEONUMAVAILABLE  = check_requirements()
+logger, print_log = _init_logger()
 
-__dir__ = abspath(dirname(__file__))
-__version__ = get_distribution('pyplis').version
+__version__, __dir__ = _init_supplemental()
 _LIBDIR = __dir__  # from older version
-# =============================================================================
-#
-# URL_TESTDATA = ("https://folk.nilu.no/~gliss/pyplis_testdata/"
-#                 "pyplis_etna_testdata.zip")
-# =============================================================================
 
 URL_TESTDATA = ("https://folk.nilu.no/~arve/pyplis/"
                 "pyplis_etna_testdata.zip")
-try:
-    import pydoas
-    PYDOASAVAILABLE = True
-except BaseException:
-    PYDOASAVAILABLE = False
-
-try:
-    import geonum
-    GEONUMAVAILABLE = 1
-except BaseException:
-    GEONUMAVAILABLE = 0
 
 from .setupclasses import MeasSetup, Camera, Source
 from .geometry import MeasGeometry
@@ -57,21 +41,12 @@ from .cellcalib import CellCalibData, CellCalibEngine
 from .calib_base import CalibData
 from .doascalib import DoasCalibData, DoasFOV, DoasFOVEngine
 from .plumespeed import (find_signal_correlation, OptflowFarneback,
-                        FarnebackSettings, LocalPlumeProperties,
-                        VeloCrossCorrEngine)
+                         FarnebackSettings, LocalPlumeProperties,
+                         VeloCrossCorrEngine)
 from .processing import ImgStack, PixelMeanTimeSeries
 from .dilutioncorr import DilutionCorr
 from .fluxcalc import (EmissionRateAnalysis, EmissionRates,
-                      EmissionRateSettings)
+                       EmissionRateSettings)
 from .optimisation import PolySurfaceFit, MultiGaussFit
 from . import custom_image_import
 from .inout import download_test_data, find_test_data
-# ==============================================================================
-# import model_functions
-# import helpers
-# import exceptions
-# import glob
-# ==============================================================================
-
-
-# import gui_features as gui_features

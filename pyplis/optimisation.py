@@ -17,12 +17,12 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 """Module containing optimisation routines."""
 from __future__ import (absolute_import, division)
-from numpy import abs, linspace, random, asarray, ndarray, where, diff,\
-    insert, argmax, average, gradient, arange, nanmean, full, inf, sqrt, pi,\
-    mod, mgrid, ndim, ones_like, ogrid, finfo, remainder, e, sum, uint8, int,\
-    histogram, nan, isnan
+from numpy import (abs, linspace, random, asarray, ndarray, where, diff,
+                   insert, argmax, average, gradient, arange, nanmean, full,
+                   inf, sqrt, pi, mod, mgrid, ndim, ones_like, ogrid, finfo,
+                   remainder, e, sum, uint8, int, histogram, nan, isnan)
 
-from warnings import catch_warnings, simplefilter, warn
+from warnings import catch_warnings, simplefilter
 from matplotlib.pyplot import subplots
 
 from astropy.modeling import models
@@ -34,21 +34,15 @@ from scipy.optimize import curve_fit, least_squares
 
 from cv2 import pyrUp, pyrDown
 from copy import deepcopy
-# from scipy.signal import find_peaks_cwt
-# from peakutils import indexes
 from traceback import format_exc
 from six.moves import xrange
 
-try:
-    from .model_functions import supergauss_2d, supergauss_2d_tilt,\
-        multi_gaussian_no_offset, gaussian_no_offset, gaussian,\
-        multi_gaussian_same_offset, dilutioncorr_model
-    from .helpers import mesh_from_img
-except BaseException:
-    from pyplis.model_functions import supergauss_2d, supergauss_2d_tilt,\
-        multi_gaussian_no_offset, gaussian_no_offset, gaussian,\
-        multi_gaussian_same_offset
-    from pyplis.helpers import mesh_from_img
+from pyplis import logger
+from .model_functions import (supergauss_2d, supergauss_2d_tilt,
+                              multi_gaussian_no_offset, gaussian_no_offset,
+                              gaussian, multi_gaussian_same_offset,
+                              dilutioncorr_model)
+from .helpers import mesh_from_img
 
 GAUSS_2D_PARAM_INFO = ["amplitude", "mu_x", "mu_y", "sigma", "asymmetry",
                        "shape", "offset", "tilt_theta"]
@@ -72,17 +66,17 @@ def dilution_corr_fit(rads, dists, rad_ambient, i0_guess=None,
     :param float ext_max: maximum value for atm. extinction coefficient
     """
     if i0_guess is None:
-        print("No input for i0 guess, assuming albedo of 5%")
+        logger.info("No input for i0 guess, assuming albedo of 5%")
         i0_guess = rad_ambient * 0.05
     if i0_max is None:
-        print("No input for i0 max, assuming maximum albedo of 50%")
+        logger.info("No input for i0 max, assuming maximum albedo of 50%")
         i0_max = rad_ambient * 0.5
     guess = [i0_guess, ext_guess]
     lower = [i0_min, ext_min]
     upper = [i0_max, ext_max]
     bounds = (lower, upper)
-    print(lower)
-    print(upper)
+    logger.info(lower)
+    logger.info(upper)
 
     def errfun(p, x, y):
         return (dilutioncorr_model(x, rad_ambient, *p) - y)**2
@@ -124,16 +118,16 @@ def gauss_fit_2d(img_arr, cx, cy, g2d_asym=True, g2d_super_gauss=True,
     xgrid, ygrid = mesh_from_img(img_arr)
     amp = img_arr[cy, cx]
     # constrain fit, if requested
-    print("2D Gauss fit")
+    logger.info("2D Gauss fit")
     if g2d_asym:
-        print("g2d_asym active")
+        logger.info("g2d_asym active")
         asym_lb = -inf
         asym_ub = inf
     else:
         asym_lb = 1 - finfo(float).eps
         asym_ub = 1 + finfo(float).eps
     if g2d_super_gauss:
-        print("g2d_super_gauss active")
+        logger.info("g2d_super_gauss active")
         shape_lb = -inf
         shape_ub = inf
     else:
@@ -142,7 +136,7 @@ def gauss_fit_2d(img_arr, cx, cy, g2d_asym=True, g2d_super_gauss=True,
     if g2d_tilt and not g2d_asym:
         raise ValueError("With tilt and without asymmetry makes no sense")
     if g2d_tilt:
-        print("g2d_tilt active")
+        logger.info("g2d_tilt active")
         guess = [amp, cx, cy, 20, 1, 1, 0, 0]
 
         lb = [-inf, -inf, -inf, -inf, asym_lb, shape_lb, -inf, -inf]
@@ -172,7 +166,7 @@ def gauss_fit_2d(img_arr, cx, cy, g2d_asym=True, g2d_super_gauss=True,
     # eventually crop FOV distribution (makes it more robust against outliers
     # (eg. mountan ridge))
     if g2d_crop:
-        print("g2d_crop active")
+        logger.info("g2d_crop active")
         # set outside (1/e amplitude) datapoints = 0
         result_img[result_img < popt[0] / e] = 0
     # reshape fov_mask as matrix instead of vector required for fitting
@@ -411,8 +405,8 @@ class MultiGaussFit(object):
             self.y = self.data - self.offset
             self.init_gauss_bounds_auto()
 
-    def set_gauss_bounds(self, amp_range=[0, inf], mu_range=[-inf, inf],
-                         sigma_range=[-inf, inf]):
+    def set_gauss_bounds(self, amp_range=None, mu_range=None,
+                         sigma_range=None):
         """Manually set boundaries for gauss parameters.
 
         Parameters
@@ -425,6 +419,12 @@ class MultiGaussFit(object):
             accepted range of standard deveiations, defaults to ``[-inf, inf]``
 
         """
+        if amp_range is None:
+            amp_range = [0, inf]
+        if mu_range is None:
+            mu_range = [-inf, inf]
+        if sigma_range is None:
+            sigma_range = [-inf, inf]
         self.gauss_bounds["amp"] = amp_range
         self.gauss_bounds["mu"] = mu_range
         self.gauss_bounds["sigma"] = sigma_range
@@ -488,7 +488,7 @@ class MultiGaussFit(object):
                     cut_low = 0
                 cut_high = ind + 3 * w
                 dat[cut_low: cut_high] = 0
-        warn("Peak search in residual aborted: reached maxmimum number of "
+        logger.warning("Peak search in residual aborted: reached maxmimum number of "
              "allowed Gaussians: %d" % self.max_num_gaussians)
         return add_params
 
@@ -533,7 +533,7 @@ class MultiGaussFit(object):
         w = nanmean(lr_arr)
         if isnan(w):
             w = 3
-            warn("Width of detected peak at index %d could not be estimated"
+            logger.warning("Width of detected peak at index %d could not be estimated"
                  "assuming 3 indices")
         return int(w)
 
@@ -571,7 +571,7 @@ class MultiGaussFit(object):
 
         """
         if not mod(len(guess), 3) == 0:
-            # print("Error: length of gauss param list must be divisable "
+            # logger.info("Error: length of gauss param list must be divisable "
             #       "by three..")
             return []
         sub = [guess[x: x + 3] for x in range(0, len(guess), 3)]
@@ -623,7 +623,7 @@ class MultiGaussFit(object):
             # print "Fit failed with exception: %s" %repr(e)
             return False
 
-    def opt_iter(self, add_params=[]):
+    def opt_iter(self, add_params=None):
         """Search additional peaks in residual and apply fit.
 
         Extends current optimisation parameters by additional peaks (either
@@ -643,6 +643,8 @@ class MultiGaussFit(object):
             - True: Optimisation was successful
 
         """
+        if add_params is None:
+            add_params = []
         guess = list(self.params)
         guess.extend(add_params)
         if not self.do_fit(self.index, self.y, guess):
@@ -661,7 +663,7 @@ class MultiGaussFit(object):
                 # print ("Max num of gaussians (%d) reached "
                 # "abort optimisation" %self.max_num_gaussians)
                 self._write_opt_log(params_log, res_mus, res_stds)
-                warn("MultiGaussFit reached aborted: maximum number of "
+                logger.warning("MultiGaussFit reached aborted: maximum number of "
                      "Gaussians reached")
                 return False
             add_params = self.find_additional_peaks()
@@ -674,7 +676,7 @@ class MultiGaussFit(object):
             if not self.opt_iter(add_params):
                 # print ("Optimisation failed,  aborted at iter %d" %k)
                 self._write_opt_log(params_log, res_mus, res_stds)
-                warn("Optimisation failed in MultiGaussFit")
+                logger.warning("Optimisation failed in MultiGaussFit")
                 return False
 
             res = self.residual
@@ -684,7 +686,7 @@ class MultiGaussFit(object):
             res_stds.append(res.std())
         # print "Optimisation aborted, maximum number of iterations reached..."
         self._write_opt_log(params_log, res_mus, res_stds)
-        warn("MultiGaussFit max iter reached..")
+        logger.warning("MultiGaussFit max iter reached..")
         return False
 
     def _write_opt_log(self, params, mus, stds):
@@ -791,9 +793,9 @@ class MultiGaussFit(object):
                                                           sigma_tol_overlaps)
 
 # ==============================================================================
-#         print("Retrieved main peak parameters: %.3f +/- %.3f" %(mu, sigma))
-#         print("Gauss overlap tol.: %d" %sigma_tol_overlaps)
-#         print("No. of additional Gaussians (excluded from stats): %d"
+#         logger.info("Retrieved main peak parameters: %.3f +/- %.3f" %(mu, sigma))
+#         logger.info("Gauss overlap tol.: %d" %sigma_tol_overlaps)
+#         logger.info("No. of additional Gaussians (excluded from stats): %d"
 #               % len(add_g))
 #         for g in add_g:
 #             print g
@@ -836,7 +838,7 @@ class MultiGaussFit(object):
         max_int = ints[ind]  # value of integrated superposition
         # mu = self.gaussians()[ind][1] #mu of main peak
         # if not low < mu < high:
-        # print("Main peak of multi gauss retrieval does not "
+        # logger.info("Main peak of multi gauss retrieval does not "
         #     "match with main peak estimate from single gauss fit")
         sigmas = []
         weights = []
@@ -866,7 +868,7 @@ class MultiGaussFit(object):
         weights = ints / ints.sum()
         norm = []
         gs = self._params_to_sublist(params)
-        # print("NUM of cons. peaks for normalisation: (%d | %d)" %(len(gs),
+        # logger.info("NUM of cons. peaks for normalisation: (%d | %d)" %(len(gs),
         #       len(self.gaussians())))
         for k in range(len(gs)):
             g = gs[k]
@@ -1092,7 +1094,7 @@ class MultiGaussFit(object):
         try:
             self.noise_amp = sigma_tol * signal[mask].std()
         except BaseException:
-            warn("Using conservative estimate for noise amplitude")
+            logger.warning("Using conservative estimate for noise amplitude")
             self.noise_amp = sigma_tol * signal.std()
         return signal, mask, idxs
 
@@ -1343,7 +1345,7 @@ class MultiGaussFit(object):
 
         """
         if not self.has_data:
-            print("No data available...")
+            logger.info("No data available...")
             return 0
         fig, ax = subplots(2, 1)
         ax[0].plot(self.index, self.data, "--g", label="Signal ")
@@ -1368,7 +1370,7 @@ class MultiGaussFit(object):
 
         """
         if not self.has_data:
-            print("No data available...")
+            logger.info("No data available...")
             return 0
         if ax is None:
             fig, ax = subplots(1, 1)
@@ -1477,7 +1479,7 @@ class MultiGaussFit(object):
         :param int ind: index of gauss in ``self.params``
         """
         g = self.gaussians()[ind]
-        print(self.gauss_str(g))
+        logger.info(self.gauss_str(g))
 
     def gauss_str(self, g):
         """Return string representation of a Gaussian.
@@ -1489,7 +1491,7 @@ class MultiGaussFit(object):
 
     def info(self):
         """Print string representation."""
-        print(self.__str__())
+        logger.info(self.__str__())
 
     @property
     def has_data(self):
@@ -1595,7 +1597,7 @@ class PolySurfaceFit(object):
         except BaseException:
             pass
         if not ndim(data_arr) == 2:
-            warn("Could not set data, dimension mismatch...")
+            logger.warning("Could not set data, dimension mismatch...")
             return 0
         if mask is None or mask.shape != data_arr.shape:
             mask = ones_like(data_arr)
@@ -1716,7 +1718,7 @@ class PolySurfaceFit(object):
                 self.model = self.pyr_up(self.params(x, y), self.pyrlevel)
             return self.model
         except BaseException:
-            print(format_exc())
+            logger.info(format_exc())
             return 0
 
     def get_residual(self):
@@ -1787,7 +1789,7 @@ if __name__ == "__main__":
     max_int = ints[ind]  # value of integrated superposition
     # mu = self.gaussians()[ind][1] #mu of main peak
     # if not low < mu < high:
-    # print("Main peak of multi gauss retrieval does not "
+    # logger.info("Main peak of multi gauss retrieval does not "
     #     "match with main peak estimate from single gauss fit")
     main_peak = []
     for g in gs:
@@ -1809,8 +1811,8 @@ if __name__ == "__main__":
                              shrinkA=2, shrinkB=2), color="k", fontsize=14)
     mu2, sigma2, _, _ = f.analyse_fit_result(TOL)
 
-    print("Mu, sigma (moments ALL): %.2f, %.2f" % (mu0, sigma0))
-    print("Mu, sigma (OLD METHOD): %.2f, %.2f" % (mean_mu, mean_sigma))
-    print("Mu, sigma (moments MAIN PEAK): %.2f, %.2f" % (mu1, sigma1))
-    print("Mu, sigma (moments MAIN PEAK normalised): %.2f, %.2f" % (
+    logger.info("Mu, sigma (moments ALL): %.2f, %.2f" % (mu0, sigma0))
+    logger.info("Mu, sigma (OLD METHOD): %.2f, %.2f" % (mean_mu, mean_sigma))
+    logger.info("Mu, sigma (moments MAIN PEAK): %.2f, %.2f" % (mu1, sigma1))
+    logger.info("Mu, sigma (moments MAIN PEAK normalised): %.2f, %.2f" % (
         mu2, sigma2))

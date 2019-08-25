@@ -18,8 +18,9 @@
 """Pyplis module containing features related to cell calibration."""
 from __future__ import (absolute_import, division)
 import six
+from pyplis import logger, print_log
 from matplotlib.pyplot import subplots
-from warnings import warn
+
 from numpy import (float, log, arange, linspace, isnan, diff, mean, argmin,
                    asarray)
 from matplotlib.pyplot import Figure
@@ -194,7 +195,7 @@ class CellSearchInfo(object):
                 return True
             return False
         except IndexError as e:
-            print(repr(e))
+            logger.warning(repr(e))
             return False
         except BaseException:
             raise
@@ -232,8 +233,8 @@ class CellSearchInfo(object):
             raise CellSearchError("No suitable %s images found on creation of "
                                   "image list for cell %s"
                                   % (self.filter_id, self.add_id))
-        print("Succesfully created image list %s for cell with ID %s from "
-              "cell search results" % (self.filter_id, self.add_id))
+        logger.info("Succesfully created image list %s for cell with ID %s from "
+                    "cell search results" % (self.filter_id, self.add_id))
         return lst
 
     @property
@@ -353,14 +354,24 @@ class CellCalibData(CalibData):
 
     """
 
-    def __init__(self, tau_vec=[], cd_vec=[], cd_vec_err=[], time_stamps=[],
-                 calib_fun=None, calib_coeffs=[], senscorr_mask=None,
+    def __init__(self, tau_vec=None, cd_vec=None, cd_vec_err=None, time_stamps=None,
+                 calib_fun=None, calib_coeffs=None, senscorr_mask=None,
                  polyorder=1, calib_id="", camera=None,
                  pos_x_abs=None, pos_y_abs=None):
         super(CellCalibData, self).__init__(tau_vec, cd_vec, cd_vec_err,
                                             time_stamps, calib_fun,
                                             calib_coeffs, senscorr_mask,
                                             polyorder, calib_id, camera)
+        if tau_vec is None:
+            tau_vec = []
+        if cd_vec is None:
+            cd_vec = []
+        if cd_vec_err is None:
+            cd_vec_err = []
+        if time_stamps is None:
+            time_stamps = []
+        if calib_coeffs is None:
+            calib_coeffs = []
         self.type = "cell"
         self.pos_x_abs = pos_x_abs
         self.pos_y_abs = pos_y_abs
@@ -434,9 +445,9 @@ class CellCalibEngine(Dataset):
     """
 
     def __init__(self, setup=None, init=True):
-        print()
-        print("INIT CALIB DATASET OBJECT")
-        print()
+        logger.info('\n')
+        logger.info("INIT CALIB DATASET OBJECT")
+        logger.info('\n')
         super(CellCalibEngine, self).__init__(setup, lst_type=CellImgList,
                                               init=init)
 
@@ -458,9 +469,9 @@ class CellCalibEngine(Dataset):
 
         self.tau_stacks = od()
         self.calib_data = od()
-        print()
-        print("FILELISTS IN CALIB DATASET OBJECT INITIALISED")
-        print()
+        logger.info('\n')
+        logger.info("FILELISTS IN CALIB DATASET OBJECT INITIALISED")
+        logger.info('\n')
 
     @property
     def cell_lists_ready(self):
@@ -633,11 +644,11 @@ class CellCalibEngine(Dataset):
             last images of a dip are not considered)
 
         """
-        print()
-        print("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
-        print("++++SEARCHING CELL TIME WINDOWS ", filter_id, " ++++++++++++++")
-        print("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
-        print()
+        logger.info('\n')
+        logger.info("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
+        logger.info("++++SEARCHING CELL TIME WINDOWS ", filter_id, " ++++++++++++++")
+        logger.info("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
+        logger.info('\n')
         l = self.get_list(filter_id)
         ts = l.get_mean_value()
         ts.name = filter_id
@@ -687,7 +698,7 @@ class CellCalibEngine(Dataset):
                     raise Exception("Fatal: found cell dip within cell dip"
                                     "plotted time series...")
 
-                print("Found cell at %s, %s" % (k, x[k]))
+                logger.info("Found cell at %s, %s" % (k, x[k]))
                 on_cell = 1
                 cell_count += 1
                 cell_id = "Cell%s" % cell_count
@@ -697,7 +708,7 @@ class CellCalibEngine(Dataset):
             # cell
             elif leave_cond and on_cell:
                 # and onFilter:
-                print("Reached end of cell DIP at %s, %s" % (k, x[k]))
+                logger.info("Reached end of cell DIP at %s, %s" % (k, x[k]))
                 # result.stop = x[k]
                 on_cell = 0
                 result.mean_vals.append(y[k])
@@ -708,7 +719,7 @@ class CellCalibEngine(Dataset):
                 cell_info[result.add_id] = result
                 # onFilter=0
             elif bg_cond:
-                print("Found BG candidate at %s, %s" % (k, x[k]))
+                logger.info("Found BG candidate at %s, %s" % (k, x[k]))
                 bg_info.mean_vals.append(y[k])
                 bg_info.mean_vals_err.append(yerr[k])
                 bg_info.file_paths.append(l.files[k])
@@ -803,14 +814,14 @@ class CellCalibEngine(Dataset):
         # sort the dicionaries by column amount or intensity decrease
         s0 = sorted(offs_dict, key=offs_dict.get)
         s1 = sorted(cell_cd_dict, key=cell_cd_dict.get)
-        print("Cell search keys sorted by depth of Dip: %s" % s0)
-        print("Cell amounts sorted by depth of Dip: %s" % s1)
+        logger.info("Cell search keys sorted by depth of Dip: %s" % s0)
+        logger.info("Cell amounts sorted by depth of Dip: %s" % s1)
         filter_ids = res.keys()
         for k in range(len(s0)):
             cell_id = s1[k]
             gas_cd, gas_cd_err = cell_info[s1[k]][0], cell_info[s1[k]][1]
-            print("Search key: %s\nDel I: %s\nCell abbr: %s\nGasCol %s +/- %s"
-                  % (s0[k], offs_dict[s0[k]], cell_id, gas_cd, gas_cd_err))
+            logger.info("Search key: %s\nDel I: %s\nCell abbr: %s\nGasCol %s +/- %s"
+                        % (s0[k], offs_dict[s0[k]], cell_id, gas_cd, gas_cd_err))
             # now add gas column to corresponding list in search result object
             for filter_id in filter_ids:
                 res[filter_id][s0[k]].img_list.update_cell_info(cell_id,
@@ -1059,17 +1070,17 @@ class CellCalibEngine(Dataset):
             lst.darkcorr_mode = darkcorr
             cell_img = lst.current_img()
             try:
-                bg_mean_now = bg_mean_tseries.get_poly_vals(cell_img.meta[
-                                                            "start_acq"])
+                bg_mean_now = \
+                    bg_mean_tseries.get_poly_vals(cell_img.meta["start_acq"])
                 offset = bg_mean - bg_mean_now
             except BaseException:
-                warn("Warning in tau image stack calculation for filter "
-                     " %s: Time series data for background list (background "
-                     "poly) is not available. Calculating tau image for cell "
-                     " image  %s, %s based on unchanged background image "
-                     " recorded at %s"
-                     % (filter_id, cell_id, cell_img.meta["start_acq"],
-                        bg_img.meta["start_acq"]))
+                print_log.warning("Warning in tau image stack calculation for filter "
+                                  " %s: Time series data for background list (background "
+                                  "poly) is not available. Calculating tau image for cell "
+                                  " image  %s, %s based on unchanged background image "
+                                  " recorded at %s"
+                                  % (filter_id, cell_id, cell_img.meta["start_acq"],
+                                     bg_img.meta["start_acq"]))
 
                 offset = 0.0
 
@@ -1153,8 +1164,8 @@ class CellCalibEngine(Dataset):
 
         for calib_id, stack in six.iteritems(self.tau_stacks):
             if any([x is None for x in [pos_x_abs, pos_y_abs]]):
-                print("Using image center coordinates for retrieval of cell "
-                      "calibration polynomial")
+                logger.warning("Using image center coordinates for retrieval of cell "
+                               "calibration polynomial")
                 h, w = stack.shape[1:]
                 pos_x_abs, pos_y_abs = int(w / 2.0), int(h / 2.0)
             tau_series = stack.get_time_series(pos_x=pos_x_abs,
@@ -1169,8 +1180,8 @@ class CellCalibEngine(Dataset):
             try:
                 c.fit_calib_data()
             except:
-                warn("Failed to fit calibration data for calib_id %s"
-                     % calib_id)
+                print_log.warning("Failed to fit calibration data for calib_id %s"
+                                  % calib_id)
             self.calib_data[calib_id] = c
 
     def get_sensitivity_corr_mask(self, calib_id="aa", pos_x_abs=None,
@@ -1273,8 +1284,8 @@ class CellCalibEngine(Dataset):
             if not isnum(pos_x_abs) * isnum(pos_y_abs) == 1:
                 raise ValueError
         except:
-            print("Using image center coordinate for normalisation position "
-                  "of sensitivity correction mask")
+            print_log.warning("Using image center coordinate for normalisation position "
+                              "of sensitivity correction mask")
 
             h, w = stack.shape[1:]
             pos_x_abs, pos_y_abs = int(w / 2.0), int(h / 2.0)
@@ -1286,16 +1297,16 @@ class CellCalibEngine(Dataset):
             cell_img = PolySurfaceFit(cell_img,
                                       pyrlevel=surface_fit_pyrlevel).model
         except:
-            warn("2D polyfit failed while determination of sensitivity "
-                 "correction mask, using original cell tau image for mask "
-                 "determination")
+            print_log.warning("2D polyfit failed while determination of sensitivity "
+                              "correction mask, using original cell tau image for mask "
+                              "determination")
         mean = (cell_img * fov_mask).sum() / fov_mask.sum()
         mask = Img(cell_img / mean)
         if calib_id in self.calib_data:
             c = self.calib_data[calib_id]
             if c.pos_x_abs == pos_x_abs and c.pos_y_abs == pos_y_abs:
-                print("Assigning sensitivity correction for calibration ID "
-                      "%s to corresponding CellCalibData object" % calib_id)
+                logger.info("Assigning sensitivity correction for calibration ID "
+                            "%s to corresponding CellCalibData object" % calib_id)
                 c.senscorr_mask = mask
         return mask
 
@@ -1365,16 +1376,16 @@ class CellCalibEngine(Dataset):
         try:
             cmap = get_cmap(cell_cmap)
         except BaseException:
-            warn("Invalid input for cell_cmap, using Oranges")
+            logger.warning("Invalid input for cell_cmap, using Oranges")
             cmap = get_cmap("Oranges")
         # get stored time series (was automatically saved in
         # :func:`find_cells`)
         ts_all = self.pix_mean_tseries[("%s_auto_search" % filter_id)]
         # get cell search results
         res = self.search_results
-        if filter_id not in res.cell_info or\
+        if filter_id not in res.cell_info or \
                 len(res.cell_info[filter_id]) < 1:
-            print("Error plotting cell search results: no results found...")
+            logger.info("Error plotting cell search results: no results found...")
             return 0
         if for_app:
             fig = Figure(figsize=(14, 8))
@@ -1398,7 +1409,7 @@ class CellCalibEngine(Dataset):
         for cell in info.values():
             lbl = (r"Cell %s: $S_{%s}$=%.2e cm$^{-2}$"
                    % (cell.img_list.cell_id, SPECIES_ID,
-                       cell.img_list.gas_cd))
+                      cell.img_list.gas_cd))
             p = ax.plot(cell.start_acq, cell.mean_vals, ' o',
                         color=cmap(nums[k]),
                         ms=8, label=lbl, markeredgecolor="None",

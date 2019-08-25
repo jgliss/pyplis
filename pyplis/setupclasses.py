@@ -30,15 +30,16 @@ from copy import deepcopy
 from os.path import exists
 from numpy import nan, rad2deg, arctan, ndarray
 from abc import ABCMeta
-from warnings import warn
+
 import six
 
+from pyplis import logger
 from .forms import LineCollection, RectCollection
 from .helpers import isnum, to_datetime
 from .exceptions import MetaAccessError, DeprecationError
 from .inout import get_source_info, save_default_source
 from .utils import Filter
-from .CameraBaseInfo import CameraBaseInfo
+from .camera_base_info import CameraBaseInfo
 from .geometry import MeasGeometry
 
 
@@ -76,7 +77,9 @@ class Source(object):
 
     """
 
-    def __init__(self, name="", info_dict={}, **kwargs):
+    def __init__(self, name="", info_dict=None, **kwargs):
+        if info_dict is None:
+            info_dict = {}
         self.name = name
         self.lon = nan
         self.lat = nan
@@ -199,7 +202,7 @@ class Source(object):
             except BaseException:
                 err.append(key)
         if bool(err) > 0:
-            print("Failed to load the following source parameters\n%s" % err)
+            logger.info("Failed to load the following source parameters\n%s" % err)
 
         return self.info_available
 
@@ -240,16 +243,16 @@ class Source(object):
         elif num == 1:
             return list(res.values())[0]
         else:
-            print("\nMultiple occurences found for %s" % name)
+            logger.info("\nMultiple occurences found for %s" % name)
             ok = 0
-            print(list(res.keys()))
+            logger.info(list(res.keys()))
             while not ok:
                 try:
                     inp = input("\nEnter, key:\n")
                     return res[inp]
                 except:
-                    print(list(res.keys()))
-                    print("Retry...")
+                    logger.info(list(res.keys()))
+                    logger.info("Retry...")
 
     def _all_params(self):
         """Return list of all relevant source attributes."""
@@ -422,7 +425,7 @@ class FilterSetup(object):
             raise ValueError('Invalid input: need instance of Filter class, '
                              'got {}'.format(val))
         if key in self._filters:
-            warn('Filter with ID {} already exists in FilterSetup '
+            logger.warning('Filter with ID {} already exists in FilterSetup '
                  'and will be overwritten'.format(key))
         self._filters[key] = val
 
@@ -444,7 +447,7 @@ class FilterSetup(object):
         for f in filter_dict.values():
             if isinstance(f, Filter):
                 if f.id in self._filters:
-                    print("Filter %s was overwritten" % f.id)
+                    logger.info("Filter %s was overwritten" % f.id)
                 self._filters[f.id] = f
 
     def set_default_filter_keys(self, default_key_on=None,
@@ -494,7 +497,7 @@ class FilterSetup(object):
         for flt in self._filters.values():
             s += ("%s" % flt)
         s += "Default Filter: %s\n\n" % self.default_key_on
-        print(s)
+        logger.info(s)
         return s
 
     def __len__(self):
@@ -566,9 +569,11 @@ class Camera(CameraBaseInfo):
 
     """
 
-    def __init__(self, cam_id=None, filter_list=[], default_filter_on=None,
+    def __init__(self, cam_id=None, filter_list=None, default_filter_on=None,
                  default_filter_off=None, ser_no=9999, **geom_info):
 
+        if filter_list is None:
+            filter_list = []
         if cam_id is not None:
             if not isinstance(cam_id, str):
                 raise TypeError("Camera initialisation: cam_id argument has "
@@ -693,7 +698,7 @@ class Camera(CameraBaseInfo):
 
     def update_settings(self, **settings):
         """Call for :func:`update` (old name)."""
-        warn("Old name of method update")
+        logger.warning("Old name of method update")
         self.update(**settings)
 
     def load_default(self, cam_id):
@@ -729,7 +734,7 @@ class Camera(CameraBaseInfo):
             lon, lat = float(self.lon), float(self.lat)
             self.altitude = GeoPoint(lat, lon).altitude
         except Exception as e:
-            warn("Failed to automatically access local topography altitude"
+            logger.warning("Failed to automatically access local topography altitude"
                  " at camera position using SRTM data: %s" % repr(e))
 
     def prepare_filter_setup(self, filter_list=None, default_key_on=None,
@@ -887,7 +892,11 @@ class FormSetup(object):
     """Setup class for all forms (lines, rectangles etc.) used for evaluation.
     """
 
-    def __init__(self, line_dict={}, rect_dict={}):
+    def __init__(self, line_dict=None, rect_dict=None):
+        if line_dict is None:
+            line_dict = {}
+        if rect_dict is None:
+            rect_dict = {}
         self.id = "forms"
         self.lines = LineCollection(line_dict)
         self.rects = RectCollection(rect_dict)
@@ -946,7 +955,7 @@ class BaseSetup(object):
                            ("REG_SHIFT_OFF", False)])
 
         self.check_timestamps()
-        print(self.LINK_OFF_TO_ON)
+        logger.info(self.LINK_OFF_TO_ON)
         for k, v in six.iteritems(opts):
             if k in self.options:
                 self.options[k] = v
@@ -963,7 +972,7 @@ class BaseSetup(object):
             self.USE_ALL_FILES = False
         except BaseException:
             if val is not None:
-                warn("Input %s could not be assigned to start time in "
+                logger.warning("Input %s could not be assigned to start time in "
                      "setup" % val)
 
     @property
@@ -978,7 +987,7 @@ class BaseSetup(object):
             self.USE_ALL_FILES = False
         except BaseException:
             if val is not None:
-                warn("Input %s could not be assigned to stop time in "
+                logger.warning("Input %s could not be assigned to stop time in "
                      "setup" % val)
 
     @property
@@ -1201,11 +1210,17 @@ class MeasSetup(BaseSetup):
     """
 
     def __init__(self, base_dir=None, start=None, stop=None, camera=None,
-                 source=None, wind_info=None, cell_info_dict={}, rects={},
-                 lines={}, auto_topo_access=True, **opts):
+                 source=None, wind_info=None, cell_info_dict=None, rects=None,
+                 lines=None, auto_topo_access=True, **opts):
 
         super(MeasSetup, self).__init__(base_dir, start, stop, **opts)
 
+        if cell_info_dict is None:
+            cell_info_dict = {}
+        if rects is None:
+            rects = {}
+        if lines is None:
+            lines = {}
         if not isinstance(camera, Camera):
             camera = Camera()
         if not isinstance(source, Source):
@@ -1339,13 +1354,13 @@ class MeasSetup(BaseSetup):
         if ok:
             s += "All necessary information available\n"
 
-        print(s)
+        logger.info(s)
 
         return ok, s
 
     def update_meas_geometry(self):
         """Update the meas geometry based on current settings."""
-        print("Updating MeasGeometry in MeasSetup class")
+        logger.info("Updating MeasGeometry in MeasSetup class")
         self.meas_geometry.__init__(self.source.to_dict(),
                                     self.camera.to_dict(), self.wind_info,
                                     auto_topo_access=self.auto_topo_access)

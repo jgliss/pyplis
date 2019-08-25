@@ -44,31 +44,28 @@ Valid keys for import of image meta information:
 """
 from __future__ import (absolute_import, division)
 # from matplotlib.pyplot import imread
+from pyplis import logger, print_log
 from cv2 import imread
 from numpy import swapaxes, flipud, asarray, rot90
-from warnings import warn
+
 from astropy.io import fits
 from cv2 import resize
 from os.path import basename
 from datetime import datetime, timedelta
+from re import sub
 from .helpers import matlab_datenum_to_datetime
 
-from re import sub
 
-try:
-    from PIL.Image import open as open_pil
-except BaseException:
-    warn("Python Imaging library PIL could not be imported")
-
-
-def load_ecII_fits(file_path, meta={}, **kwargs):
+def load_ecII_fits(file_path, meta=None, **kwargs):
     """Load NILU ECII camera FITS file and import meta information."""
+    if meta is None:
+        meta = {}
     hdu = fits.open(file_path)
     ec2header = hdu[0].header
     img = hdu[0].data
     hdu.close()
     gain_info = {"LOW": 0, "HIGH": 1}
-    meta["texp"] = float(ec2header['EXP']) * 10**-6        # unit s
+    meta["texp"] = float(ec2header['EXP']) * 10 ** -6  # unit s
     meta["bit_depth"] = 12
     meta["device_id"] = 'ECII'
     meta["file_type"] = 'fts'
@@ -82,7 +79,7 @@ def load_ecII_fits(file_path, meta={}, **kwargs):
     return (img, meta)
 
 
-def load_hd_custom(file_path, meta={}, **kwargs):
+def load_hd_custom(file_path, meta=None, **kwargs):
     """Load image from HD custom camera.
 
     The camera specs can be found in
@@ -100,6 +97,8 @@ def load_hd_custom(file_path, meta={}, **kwargs):
         - dict, dictionary containing meta information
 
     """
+    if meta is None:
+        meta = {}
     im = imread(file_path, -1)  # [1::, 1::]
     img = flipud(swapaxes(resize(im, (1024, 1024)), 0, 1))
     try:
@@ -116,11 +115,11 @@ def load_hd_custom(file_path, meta={}, **kwargs):
                                               '%Y%m%d%H%M%S%f')
     except BaseException:
         raise
-        warn("Failed to read image meta data from text file (cam_id: hd)")
+        print_log.warning("Failed to read image meta data from text file (cam_id: hd)")
     return (img, meta)
 
 
-def load_hd_new(file_path, meta={}, **kwargs):
+def load_hd_new(file_path, meta=None, **kwargs):
     """Load new format from Heidelberg group.
 
     This format contains IPTC information
@@ -132,14 +131,17 @@ def load_hd_new(file_path, meta={}, **kwargs):
         - ndarray, image data
         - dict, dictionary containing meta information
     """
+    if meta is None:
+        meta = {}
     try:
-        read = open_pil(file_path)
+        from PIL.Image import open
+        read = open(file_path)
         meta["texp"] = float(read.tag_v2[270].split(" ")[0].split("s")[0])
         img = asarray(read)
-    except:
-        warn("Python Imaging Library (PIL) could not be imported. Using "
-             "opencv method for image import. Cannot import exposure time "
-             "info from tiff header...please install PIL")
+    except ModuleNotFoundError:
+        print_log.warning("Python Imaging Library (PIL) could not be imported. Using "
+                          "opencv method for image import. Cannot import exposure time "
+                          "info from tiff header...please install PIL")
         img = imread(file_path, -1)
     # img = asarray(im)[::-1, 0::] #flip
     img = rot90(rot90(img))
@@ -150,7 +152,7 @@ def load_hd_new(file_path, meta={}, **kwargs):
     return (img, meta)
 
 
-def load_qsi_lmv(file_path, meta={}, **kwargs):
+def load_qsi_lmv(file_path, meta=None, **kwargs):
     u"""Load images for QSI cam from LMV.
 
     Laboratoire Magmas et Volcans,
@@ -175,17 +177,21 @@ def load_qsi_lmv(file_path, meta={}, **kwargs):
             - dict, dictionary containing meta information
 
     """
+    if meta is None:
+        meta = {}
     img = imread(file_path, -1)
     # img = asarray(im)[::-1, 0::] #flip
     img = rot90(rot90(img))
     return (img, meta)
 
 
-def load_usgs_multifits(file_path, meta={}):
+def load_usgs_multifits(file_path, meta=None):
+    if meta is None:
+        meta = {}
     img = None
     if "filter_id" not in meta:
-        warn("filter_id (i.e. on or off) in input arg meta not specified."
-             "Using default filer_id=on")
+        logger.warning("filter_id (i.e. on or off) in input arg meta not specified."
+                       "Using default filter_id=on")
         meta["filter_id"] = "on"
     try:
         f = fits.open(file_path)
@@ -198,8 +204,8 @@ def load_usgs_multifits(file_path, meta={}):
             meta["texp"] = h["EXPTIME"] * h["NUMEXP"] / 1000
             meta["bit_depth"] = h["BITDEPTH"]
         except BaseException:
-            warn("Failed to import image specific meta information from image "
-                 "HDU")
+            print_log.warning("Failed to import image specific meta information from image "
+                              "HDU")
         h = f[0].header
         try:
             meta["lon"] = h["LON"]
@@ -208,8 +214,8 @@ def load_usgs_multifits(file_path, meta={}):
             meta["elev"] = h["ELEVANGL"]
             meta["azim"] = h["AZMTANGL"]
         except BaseException:
-            warn("Failed to import camera specific meta information from "
-                 "primary HDU of FITS file...")
+            print_log.warning("Failed to import camera specific meta information from "
+                              "primary HDU of FITS file...")
         img = hdu.data
         f.close()
     except Exception as e:
@@ -218,11 +224,13 @@ def load_usgs_multifits(file_path, meta={}):
     return (img, meta)
 
 
-def load_usgs_multifits_uncompr(file_path, meta={}):
+def load_usgs_multifits_uncompr(file_path, meta=None):
+    if meta is None:
+        meta = {}
     img = None
     if "filter_id" not in meta:
-        warn("filter_id (i.e. on or off) in input arg meta not specified."
-             "Using default filer_id=on")
+        logger.warning("filter_id (i.e. on or off) in input arg meta not specified."
+                       "Using default filter_id=on")
         meta["filter_id"] = "on"
     try:
         f = fits.open(file_path)
@@ -235,8 +243,8 @@ def load_usgs_multifits_uncompr(file_path, meta={}):
             meta["texp"] = h["EXPTIME"] * h["NUMEXP"] / 1000
             meta["bit_depth"] = h["BITDEPTH"]
         except:
-            warn("Failed to import image specific meta information from image "
-                 "HDU")
+            print_log.warning("Failed to import image specific meta information from image "
+                              "HDU")
         h = f[0].header
         try:
             meta["lon"] = h["LON"]
@@ -245,8 +253,8 @@ def load_usgs_multifits_uncompr(file_path, meta={}):
             meta["elev"] = h["ELEVANGL"]
             meta["azim"] = h["AZMTANGL"]
         except:
-            warn("Failed to import camera specific meta information from "
-                 "primary HDU of FITS file...")
+            print_log.warning("Failed to import camera specific meta information from "
+                              "primary HDU of FITS file...")
         img = hdu.data
         f.close()
     except Exception as e:
@@ -296,7 +304,7 @@ def _read_binary_timestamp(timestamp):
                       timestamp[j] - ((timestamp[j] >> 4) << 4)
                       for j in range(14)]
         except:
-            print('Failed to convert the binary timestamp.')
+            logger.info('Failed to convert the binary timestamp.')
     year = int(values[4] * 100 + values[5])
     microsecond = int(values[11] * 10000 + values[12] * 100 + values[13])
     endtime = datetime(year, values[6], values[7], values[8], values[9],
@@ -304,7 +312,7 @@ def _read_binary_timestamp(timestamp):
     return endtime
 
 
-def load_comtessa(file_path, meta={}):
+def load_comtessa(file_path, meta=None):
     """Load image from a multi-layered fits file (several images in one file).
 
     Meta data is available only inside the header.
@@ -338,15 +346,17 @@ def load_comtessa(file_path, meta={}):
         dictionary containing meta information
 
     """
+    if meta is None:
+        meta = {}
     hdulist = fits.open(file_path)
     try:
         img_hdu = meta['fits_idx']
     except:
         img_hdu = 0
         meta['fits_idx'] = 0
-        warn("Loading of comtessa fits file without providing the image index "
-             "of desired image within the file. Image index was set to 0. "
-             "Provide the image index via the meta = {'fits_idx':0} keyword.")
+        print_log.warning("Loading of comtessa fits file without providing the image index "
+                          "of desired image within the file. Image index was set to 0. "
+                          "Provide the image index via the meta = {'fits_idx':0} keyword.")
     # Load the image
     image = hdulist[img_hdu].data
     # read and replace binary time stamp

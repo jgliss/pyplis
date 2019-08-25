@@ -18,6 +18,7 @@
 """Pyplis module containing mathematical model functions."""
 from __future__ import (absolute_import, division)
 from numpy import exp, sin, cos
+from pyplis import logger
 import six
 
 # Polynomial fit functions of different order, including versions that go
@@ -75,17 +76,17 @@ class CalibFuns(object):
 
     def print_poly_info(self):
         """Print information about available polynomials."""
-        print("Available polyorders (with offset): %s"
+        logger.info("Available polyorders (with offset): %s"
               "Available polyorders (without offset): %s"
               % (list(self.polys[0].keys()), list(self.polys[1].keys())))
 
     def print_custom_funs_info(self):
         """Print information about available curtom calib functions."""
-        print("Available polyorders (with offset): %s"
+        logger.info("Available polyorders (with offset): %s"
               "Available polyorders (without offset): %s"
               % (list(self.polys[0].keys()), list(self.polys[1].keys())))
         for k, v in six.iteritems(self._custom_funs_info):
-            print("%s : %s" % (k, v))
+            logger.info("%s : %s" % (k, v))
 
     def get_custom_fun(self, key="kern2015"):
         """Return an available custom calibration function.
