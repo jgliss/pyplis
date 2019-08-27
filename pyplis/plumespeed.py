@@ -1720,7 +1720,7 @@ class LocalPlumeProperties(object):
                         **kwargs)
         ax.set_ylabel("v [%s]" % velo_unit)
         ax.grid()
-        rotate_xtick_labels(ax=ax)
+        #rotate_xtick_labels(ax=ax)
 
         return ax
 
@@ -2318,7 +2318,7 @@ class OptflowFarneback(object):
     @roi_abs.setter
     def roi_abs(self, val):
         self.settings.roi_abs = val
-        if self.auto_update_contrast:
+        if self.auto_update_contrast and self.has_images:
             self.update_contrast_range()
 
     @property
@@ -2384,11 +2384,20 @@ class OptflowFarneback(object):
         i_min = float(self.settings._contrast["i_min"])
         i_max = float(self.settings._contrast["i_max"])
         return i_min, i_max
-
+    
+    @property
+    def has_images(self):
+        """Boolean specifying whether image data is available for flow comp"""
+        if all(isinstance(x, Img) for x in self.images_input.values()):
+            return True
+        return False
+    
     def update_contrast_range(self):
         """Update contrast range using min/max vals of current images in ROI.
 
         """
+        if not self.has_images:
+            raise AttributeError('No images available...')
         img = self.images_input["this"]
         if self.settings.roi_rad_abs == DEFAULT_ROI:
             self.settings.roi_rad_abs = self.settings.roi_abs
@@ -2403,7 +2412,7 @@ class OptflowFarneback(object):
 #         print ("Updated contrast range in optflow (ROI=%s), i_min=%.1e, "
 #             "i_max=%.1e" %(roi, i_min, i_max))
 # ==============================================================================
-
+    
     def set_images(self, this_img, next_img):
         """Update the current image objects.
 
