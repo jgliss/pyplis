@@ -187,12 +187,8 @@ This program is distributed in the hope that it will be useful, but WITHOUT ANY 
 
 You should have received a copy of the GNU General Public License along with this program. If not, `see here <http://www.gnu.org/licenses/>`_.
 
-Note
-----
-The software was renamed from **piscope** to **Pyplis** on 17.02.2017
-
-.. |build-status| image:: https://travis-ci.org/jgliss/pyplis.svg?branch=master
-    :target: https://travis-ci.org/jgliss/pyplis
+.. |build-status| image:: https://github.com/jgliss/pyplis/workflows/CI/badge.svg
+   :target: https://github.com/metno/pyplis/actions
 
 .. |docs| image:: https://readthedocs.org/projects/pyplis/badge/?version=latest
     :target: https://pyplis.readthedocs.io/en/latest/?badge=latest
