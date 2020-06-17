@@ -188,7 +188,7 @@ This program is distributed in the hope that it will be useful, but WITHOUT ANY 
 You should have received a copy of the GNU General Public License along with this program. If not, `see here <http://www.gnu.org/licenses/>`_.
 
 .. |build-status| image:: https://github.com/jgliss/pyplis/workflows/CI/badge.svg
-   :target: https://github.com/metno/pyplis/actions
+   :target: https://github.com/jgliss/pyplis/actions
 
 .. |docs| image:: https://readthedocs.org/projects/pyplis/badge/?version=latest
     :target: https://pyplis.readthedocs.io/en/latest/?badge=latest
