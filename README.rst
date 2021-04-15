@@ -8,7 +8,7 @@ Contact: Jonas Gliß (jonasgliss@gmail.com)
 Help needed / Contributions more than welcome
 =============================================
 
-Since I have to maintain pyplis during my private time and since I am not working in the field of volcano remote sensing anymore, I would be very grateful for contributions from users / developers closer to the application of UV SO2 cameras. If you are interested, feel free to get in touch with me (jonasgliss@gmail.com) or go ahead and send a PR via a fork, or by creating issues (best if you tag me with @jgliss in issues and PRs). 
+Since I have to maintain pyplis during my free time and since I am not working in the field of volcano remote sensing anymore, I would be very grateful for contributions from users / developers closer to the application of UV SO2 cameras. If you are interested, feel free to get in touch with me (jonasgliss@gmail.com) or go ahead and send a PR via a fork, or by creating issues (best if you tag me with @jgliss in issues and PRs). 
 
 Cheers, Jonas
 
