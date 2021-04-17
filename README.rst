@@ -1,20 +1,16 @@
 |build-status| |docs|
 
-Pyplis is a Python toolbox originally developed for the analysis of UV SO2 camera data. The software includes a comprehensive and flexible collection of algorithms for the analysis of atmospheric imaging data and is tested for all major operating systems and python 3 as well as python 2.7.
+Pyplis is a Python toolbox originally developed for the analysis of UV SO2 camera data. The software includes a comprehensive and flexible collection of algorithms for the analysis of atmospheric imaging data and is tested for all major operating systems and python 3 as well as python 2.7 (which is not recommended to use anymore).
 
 Contact: Jonas Gliß (jonasgliss@gmail.com)
 
-News / Notifications
-====================
 
-- **Pyplis 1.4.3 is released**
+Help needed / Contributions more than welcome
+=============================================
 
-  - supports now both Python 2 and 3
-  - can be easily installed (including all requirements) via ``conda install -c conda-forge pyplis``
+Since I have to maintain pyplis during my free time and since I am not working in the field of volcano remote sensing anymore, I would be very grateful for contributions from users / developers closer to the application of UV SO2 cameras. If you are interested, feel free to get in touch with me (jonasgliss@gmail.com) or go ahead and send a PR via a fork, or by creating issues (best if you tag me with @jgliss in issues and PRs). 
 
-- **NOTE (Python 2.7 retires soon)**
-
-  If you are still using Python 2.7 (or any other Python 2 version), please consider updating your installation to Python 3, `since Python 2 is reaching its end-of-life soon <https://pythonclock.org/>`_.
+Cheers, Jonas
 
 Code documentation and more
 ===========================
@@ -199,12 +195,8 @@ This program is distributed in the hope that it will be useful, but WITHOUT ANY 
 
 You should have received a copy of the GNU General Public License along with this program. If not, `see here <http://www.gnu.org/licenses/>`_.
 
-Note
-----
-The software was renamed from **piscope** to **Pyplis** on 17.02.2017
-
-.. |build-status| image:: https://travis-ci.org/jgliss/pyplis.svg?branch=master
-    :target: https://travis-ci.org/jgliss/pyplis
+.. |build-status| image:: https://github.com/jgliss/pyplis/workflows/CI/badge.svg
+   :target: https://github.com/jgliss/pyplis/actions
 
 .. |docs| image:: https://readthedocs.org/projects/pyplis/badge/?version=latest
     :target: https://pyplis.readthedocs.io/en/latest/?badge=latest

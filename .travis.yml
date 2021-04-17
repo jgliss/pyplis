@@ -28,6 +28,7 @@ install:
   # Replace dep1 dep2 ... with your dependencies
   - conda env create -n test-environment -f pyplis_env.yml python=$TRAVIS_PYTHON_VERSION
   - source activate test-environment
+  - conda list
   - python setup.py install
 
   # dev dependencies
