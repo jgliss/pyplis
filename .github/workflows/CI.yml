@@ -6,13 +6,16 @@ on: [push, pull_request]
 
 jobs:
   build:
-    runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: [3.6, 3.7, 3.8]
-
+        python-version: [3.6, 3.7, 3.8, 3.9]
+        os: [ubuntu-latest]
+    runs-on: ${{ matrix.os }}
     steps:
     - uses: actions/checkout@v2
+    - name: Print Blaaa if Python=3.6 and os Ubuntu
+    - if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.6'
+      run: echo Blaaaaaaaaaaaaaaaaaaaa
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v2
       with:
