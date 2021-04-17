@@ -36,7 +36,6 @@ jobs:
       run: pytest --cov=pyplis/ --cov-report xml
     - name: Upload coverage to Codecov (Python 3.9, Ubuntu)
       if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.9'
-      run: echo Attempting upload to codecov using codecov-action@v1
       uses: codecov/codecov-action@v1
       with:
           file: ./coverage.xml
