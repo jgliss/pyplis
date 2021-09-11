@@ -562,6 +562,7 @@ def get_source_info_online(source_id):
            "&op_8=eq&v_8=&type_10=EXACT&query_10=None+Selected&le_2=&ge_3="
            "&le_3=&ge_2=&op_5=eq&v_5=&op_6=eq&v_6=&op_7=eq&v_7=&t=102557&s=5"
            "&d=5")
+    # url = ("https://www.ngdc.noaa.gov/hazel/view/hazards/volcano/loc-data")
     logger.info("Trying to access volcano data from URL:")
     logger.info(url)
     try:
@@ -580,6 +581,9 @@ def get_source_info_online(source_id):
            "status", "last_eruption"]
     types = [str, str, str, float, float, float, str, str, str]
     for line in data:
+        # Decode bytes to string if data is provided in bytes. (latin-1 seems to work, utf-8 sometimes throws error)
+        if isinstance(line, bytes):
+            line = line.decode('latin-1')
         lc += 1
         if first_volcano_name in line and line.split(">")[1].\
                 split("</td")[0].strip() == first_volcano_name:
