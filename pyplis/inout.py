@@ -59,90 +59,11 @@ def data_search_dirs():
     except KeyError:
         return (usr_dir, join(__dir__, "data"))
 
-
-def zip_example_scripts(repo_base):
-    from pyplis import __version__ as v
-    vstr = ".".join(v.split(".")[:3])
-    logger.info("Adding zipped version of pyplis example scripts for version %s" %
-          vstr)
-    scripts_dir = join(repo_base, "scripts")
-    if not exists(scripts_dir):
-        raise IOError("Cannot created zipped version of scripts, folder %s "
-                      "does not exist" % scripts_dir)
-    save_dir = join(scripts_dir, "old_versions")
-    if not exists(save_dir):
-        raise IOError("Cannot create zipped version of scripts, folder %s "
-                      "does not exist" % save_dir)
-    name = "scripts-%s.zip" % vstr
-    zipf = ZipFile(join(save_dir, name), 'w', ZIP_DEFLATED)
-    for fname in listdir(scripts_dir):
-        if fname.endswith("py"):
-            zipf.write(join(scripts_dir, fname))
-    zipf.close()
-
-
-def get_all_files_in_dir(directory, file_type=None, include_sub_dirs=False):
-    """Find all files in a certain directory.
-
-    Parameters
-    ----------
-    directory : str
-        path to directory
-    file_type : :obj:`str`, optional
-        specify file type (e.g. "png", "fts"). If unspecified, then all files
-        are considered
-    include_sub_dirs : bool
-        if True, also all files from all sub-directories are extracted
-
-    Returns
-    -------
-    list
-        sorted list containing paths of all files detected
-
-    """
-    p = directory
-    if p is None or not exists(p):
-        message = ('Error: path %s does not exist' % p)
-        logger.warning(message)
-        return []
-    use_all_types = False
-    if not isinstance(file_type, str):
-        use_all_types = True
-
-    if include_sub_dirs:
-        logger.info("Include files from subdirectories")
-        all_paths = []
-        if use_all_types:
-            logger.info("Using all file types")
-            for path, subdirs, files in walk(p):
-                for filename in files:
-                    all_paths.append(join(path, filename))
-        else:
-            logger.info("Using only %s files" % file_type)
-            for path, subdirs, files in walk(p):
-                for filename in files:
-                    if filename.endswith(file_type):
-                        all_paths.append(join(path, filename))
-
-    else:
-        logger.info("Exclude files from subdirectories")
-        if use_all_types:
-            logger.info("Using all file types")
-            all_paths = [join(p, f) for f in listdir(p) if isfile(join(p, f))]
-        else:
-            logger.info("Using only %s files" % file_type)
-            all_paths = [join(p, f) for f in listdir(p) if
-                         isfile(join(p, f)) and f.endswith(file_type)]
-    all_paths.sort()
-    return all_paths
-
-
 def create_temporary_copy(path):
     temp_dir = gettempdir()
     temp_path = join(temp_dir, basename(path))
     copy2(path, temp_path)
     return temp_path
-
 
 def download_test_data(save_path=None):
     """Download pyplis test data.
