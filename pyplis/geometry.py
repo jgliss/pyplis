@@ -20,7 +20,7 @@
 from __future__ import (absolute_import, division, print_function)
 from numpy import (nan, arctan, deg2rad, linalg, sqrt, abs, array, radians,
                    sin, cos, arcsin, tan, rad2deg, linspace, isnan, asarray,
-                   arange, argmin, newaxis)
+                   arange, argmin, newaxis, round)
 from collections import OrderedDict as od
 
 from matplotlib.pyplot import figure
@@ -773,7 +773,7 @@ class MeasGeometry(object):
         delx = abs(x1 - x0)
         dely = abs(y1 - y0)
 
-        l = sqrt(delx ** 2 + dely ** 2)
+        l = int(round(sqrt(delx ** 2 + dely ** 2)))
         x = linspace(x0, x1, l)
         y = linspace(y0, y1, l)
         dx = self._cam["pix_width"] * (x - self._cam["pixnum_x"] / 2)
