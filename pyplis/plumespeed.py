@@ -3580,7 +3580,7 @@ class OptflowFarneback(object):
         lines = self.calc_flow_lines(in_roi, roi_rel,
                                      extend_len_fac=extend_len_fac,
                                      include_short_vecs=include_short_vecs)
-
+        
         # tit = r"1. img"
         x0, y0, w, h = roi2rect(roi_rel)
         if not in_roi and w < disp.shape[1]:
