@@ -119,10 +119,8 @@ def download_test_data(save_dir=None):
     from pyplis import URL_TESTDATA
     url = URL_TESTDATA
 
-    dirs = data_search_dirs()
-    my_pyplis_dir = dirs[0]
     if save_dir is None:
-        save_dir = my_pyplis_dir
+        save_dir = get_my_pyplis_dir()
     if not exists(save_dir):
         raise FileNotFoundError(save_dir)
 
@@ -184,51 +182,6 @@ def find_test_data():
                   "pyplis.inout.download_test_data or"
                   "specify the local path where the test data is stored using"
                   "pyplis.inout.set_test_data_path")
-
-
-def all_test_data_paths():
-    """Return list of all search paths for test data."""
-    dirs = data_search_dirs()
-    paths = []
-    [paths.append(x) for x in dirs]
-    for data_path in dirs:
-        fp = join(data_path, "_paths.txt")
-        if exists(fp):
-            with open(join(data_path, "_paths.txt"), "r") as f:
-                lines = f.readlines()
-                for line in lines:
-                    p = line.split("\n")[0].lower()
-                    if exists(p):
-                        paths.append(p)
-    return paths
-
-
-def set_test_data_path(save_path):
-    """Set local path where test data is stored."""
-    if save_path.lower() in all_test_data_paths():
-        logger.info("Path is already in search tree")
-        return
-    dirs = data_search_dirs()
-    fp = join(dirs[0], "_paths.txt")
-    if not exists(fp):
-        fp = join(dirs[1], "_paths.txt")
-    save_path = abspath(save_path)
-    try:
-        if not exists(save_path):
-            raise IOError("Could not set test data path: specified location "
-                          "does not exist: %s" % save_path)
-        with open(fp, "a") as f:
-            f.write("\n" + save_path + "\n")
-            print_log.info("Adding new path for test data location in "
-                           "file _paths.txt: %s" % save_path)
-            f.close()
-        if "pyplis_etna_testdata" not in listdir(save_path):
-            logger.warning("WARNING: test data folder (name: pyplis_etna_testdata) "
-                           "could not be  found at specified location, please download "
-                           "test data, unzip and save at: %s" % save_path)
-    except:
-        raise
-
 
 def _load_cam_info(cam_id, filepath):
     """Load camera info from a specific cam_info file."""
