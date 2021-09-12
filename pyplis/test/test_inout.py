@@ -6,7 +6,7 @@ Email: jonasgliss@gmail.com
 License: GPLv3+
 """
 import pytest
-import os
+import os, shutil
 from pyplis import inout as mod
 
 def test_create_temporary_copy(tmpdir):
@@ -18,3 +18,23 @@ def test_create_temporary_copy(tmpdir):
     assert os.path.exists(loc)
     with open(loc) as f:
         assert f.readline() == 'bla'
+
+def test__path_registered(tmpdir):
+    path = os.path.abspath('.')
+    fpath = os.path.join(tmpdir, 'file.txt')
+    with open(fpath, 'a') as f:
+        f.write(path + '\n')
+    assert mod._path_registered(path, fpath)
+    assert mod._path_registered('.', fpath)
+    assert mod._path_registered(tmpdir, fpath) == False
+
+def test_download_testdata(tmpdir):
+
+    save_dir = mod.download_test_data(tmpdir)
+    assert os.path.exists(save_dir)
+    dataloc = os.path.join(save_dir, 'pyplis_etna_testdata')
+    assert os.path.exists(dataloc)
+
+def test_find_test_data():
+    mod.find_test_data()
+

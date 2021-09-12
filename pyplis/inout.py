@@ -17,14 +17,16 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 """Module containing all sorts of I/O-routines (e.g. test data access)."""
 from __future__ import (absolute_import, division)
-from os.path import join, basename, exists, isfile, abspath, expanduser
+from os.path import join, basename, exists, isfile, abspath, expanduser, samefile
 from os import listdir, mkdir, remove, walk
 from re import split
 
 from collections import OrderedDict as od
+
 try:
     from progressbar import (ProgressBar, Percentage, Bar,
                              RotatingMarker, ETA, FileTransferSpeed)
+
     PGBAR_AVAILABLE = True
 except BaseException:
     PGBAR_AVAILABLE = False
@@ -59,16 +61,29 @@ def data_search_dirs():
     except KeyError:
         return (usr_dir, join(__dir__, "data"))
 
+
 def create_temporary_copy(path):
     temp_dir = gettempdir()
     temp_path = join(temp_dir, basename(path))
     copy2(path, temp_path)
     return temp_path
 
-def download_test_data(save_path=None):
+def _path_registered(path, paths_txt):
+    found = False
+    with open(paths_txt, 'r') as f:
+        for line in f.readlines():
+            value = line.strip()
+            if exists(value) and samefile(path, value):
+                found = True
+    return found
+
+def download_test_data(save_dir=None):
     """Download pyplis test data.
 
-    :param save_path: location where path is supposed to be stored
+    Parameters
+    ----------
+    save_dir : str
+        location where data is supposed to be stored
 
     Code for progress bar was "stolen" `here <http://stackoverflow.com/
     questions/11143767/how-to-make-a-download-with>`_
@@ -80,22 +95,20 @@ def download_test_data(save_path=None):
     url = URL_TESTDATA
 
     dirs = data_search_dirs()
-    where = dirs[0]
-    fp = join(where, "_paths.txt")
-    if not exists(fp):
-        where = dirs[1]
-        fp = join(where, "_paths.txt")
-    if save_path is None or not exists(save_path):
-        save_path = where
-        logger.info("Save path unspecified")
-    else:
-        with open(fp, "a") as f:
-            f.write("\n" + save_path + "\n")
-            logger.info("Adding new path for test data location in "
-                  "file _paths.txt: %s" % save_path)
-            f.close()
+    my_pyplis_dir = dirs[0]
+    if save_dir is None:
+        save_dir = my_pyplis_dir
+    if not exists(save_dir):
+        raise FileNotFoundError(save_dir)
 
-    print_log.info("installing test data at %s" % save_path)
+    local_paths_info = join(dirs[1], "_paths.txt")
+    found = False
+    if not _path_registered(save_dir, local_paths_info):
+        fobj= open(local_paths_info, "a")
+        fobj.write(f"\n{save_dir}\n")
+        fobj.close()
+
+    print_log.info(f"downloading test data into {save_dir}")
 
     filename = mktemp('.zip')
 
@@ -115,16 +128,18 @@ def download_test_data(save_path=None):
         urlretrieve(url, filename, reporthook=dl_progress)
         pbar.finish()
     else:
-        print_log.info("Downloading Pyplis testdata (this can take a while, install"
-              "Progressbar package if you want to receive download info")
+        print_log.info(
+            'Downloading Pyplis testdata (this can take a while, install '
+            'Progressbar package if you want to receive download info).')
         urlretrieve(url, filename)
     thefile = ZipFile(filename)
-    print_log.info("Extracting data at: %s (this may take a while)" % save_path)
-    thefile.extractall(save_path)
+    print_log.info(f'Extracting data at: {save_dir} (this may take a while)')
+    thefile.extractall(save_dir)
     thefile.close()
     remove(filename)
-    print_log.info("Download successfully finished, deleted temporary data file"
-          "at: %s" % filename)
+    print_log.info('Download successfully finished, deleted temporary data file '
+                   'at: {}'.format(filename))
+    return save_dir
 
 
 def find_test_data():
@@ -187,12 +202,12 @@ def set_test_data_path(save_path):
         with open(fp, "a") as f:
             f.write("\n" + save_path + "\n")
             print_log.info("Adding new path for test data location in "
-                  "file _paths.txt: %s" % save_path)
+                           "file _paths.txt: %s" % save_path)
             f.close()
         if "pyplis_etna_testdata" not in listdir(save_path):
             logger.warning("WARNING: test data folder (name: pyplis_etna_testdata) "
-                  "could not be  found at specified location, please download "
-                  "test data, unzip and save at: %s" % save_path)
+                           "could not be  found at specified location, please download "
+                           "test data, unzip and save at: %s" % save_path)
     except:
         raise
 
@@ -342,7 +357,7 @@ def save_new_default_camera(info_dict):
     remove(cam_file_temp)
 
     print_log.info("Successfully added new default camera %s to database at %s"
-          % (info_dict["cam_id"], cam_file))
+                   % (info_dict["cam_id"], cam_file))
 
 
 def save_default_source(info_dict):
@@ -372,7 +387,7 @@ def save_default_source(info_dict):
     remove(source_file_temp)
 
     print_log.info("Successfully added new default source %s to database file at %s"
-          % (info_dict["name"], path))
+                   % (info_dict["name"], path))
 
 
 def get_all_valid_cam_ids():
@@ -454,7 +469,7 @@ def get_source_info(source_id, try_online=True):
                 return od([(source_id, dat)])
             spl = line.split(":")
             if found:
-                if not any([line[0] == x for x in["#", "\n"]]):
+                if not any([line[0] == x for x in ["#", "\n"]]):
                     spl = line.split(":")
                     k = spl[0].strip()
                     data_str = spl[1].split("#")[0].strip()
@@ -506,7 +521,7 @@ def get_source_info_online(source_id):
         if isinstance(line, bytes):
             line = line.decode('latin-1')
         lc += 1
-        if first_volcano_name in line and line.split(">")[1].\
+        if first_volcano_name in line and line.split(">")[1]. \
                 split("</td")[0].strip() == first_volcano_name:
             in_data, c = 1, 0
         if in_data:
@@ -558,7 +573,6 @@ def get_icon(name, color=None):
 
 
 if __name__ == '__main__':
-
     i1 = get_camera_info('ecII')
 
     i2 = get_camera_info('usgs')
