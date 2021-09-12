@@ -1,0 +1,4 @@
+invalid
+C:\Users\Jonas\my_pyplis
+
+C:\Users\Jonas\AppData\Local\Temp\pytest-of-Jonas\pytest-10\test_download_testdata0

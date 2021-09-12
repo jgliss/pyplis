@@ -18,21 +18,21 @@
 
 from setuptools import setup, find_packages
 from codecs import open
-from os.path import join, abspath, dirname, expanduser, exists
-from os import mkdir
+from os.path import join, expanduser, exists
+from os import makedirs
 
 with open('README.rst') as f:
     readme = f.read()
 
 with open("VERSION.rst") as f:
     version = f.readline()
-    f.close()
-
-#with open(join("pyplis","data", "_paths.txt"), 'w'): pass
 
 usr_dir = join(expanduser('~'), "my_pyplis")
-if not exists(usr_dir):
-    mkdir(usr_dir)
+paths_file = join(usr_dir, '_paths.txt')
+
+makedirs(usr_dir, exist_ok=True)
+if not exists(paths_file):
+    open(paths_file, 'w').close()
 
 setup(
     name        =   'pyplis',
@@ -60,12 +60,10 @@ setup(
 
         # Specify the Python versions you support here. In particular, ensure
         # that you indicate whether you support Python 2, Python 3 or both.,
-        'Programming Language :: Python :: 2.7',
         'Programming Language :: Python :: 3'
     ],
-    #packages    =   ['pyplis'],
-    package_dir =   {'pyplis'     :    'pyplis'},
-                     #'pyplis.gui_features' :    'pyplis/gui_features'},
+    package_dir =   {'pyplis': 'pyplis'},
+
     packages =  find_packages(exclude=['contrib', 'docs', 'tests*']),
 
     package_data = {'pyplis'    :   ['data/*.txt',
@@ -75,8 +73,7 @@ setup(
                                      'data/testdata_minimal/doas_results/*.dat',
                                      'data/testdata_minimal/images/*.fts'],
                     },
-    data_files = [(usr_dir, ['pyplis/data/_paths.txt',
-                             'pyplis/data/cam_info.txt',
+    data_files = [(usr_dir, ['pyplis/data/cam_info.txt',
                              'pyplis/data/my_sources.txt'])],
 
     install_requires    =   [],

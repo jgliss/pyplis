@@ -22,21 +22,11 @@ from os import listdir, mkdir, remove, walk
 from re import split
 
 from collections import OrderedDict as od
+from progressbar import (ProgressBar, Percentage, Bar,
+                         RotatingMarker, ETA, FileTransferSpeed)
 
-try:
-    from progressbar import (ProgressBar, Percentage, Bar,
-                             RotatingMarker, ETA, FileTransferSpeed)
-
-    PGBAR_AVAILABLE = True
-except BaseException:
-    PGBAR_AVAILABLE = False
 from zipfile import ZipFile, ZIP_DEFLATED
-
-try:
-    from urllib.request import urlopen, urlretrieve
-except ImportError:
-    from urllib2 import urlopen
-    from urllib import urlretrieve
+from urllib.request import urlopen, urlretrieve
 
 from pyplis import logger, print_log
 from tempfile import mktemp, gettempdir
@@ -68,7 +58,42 @@ def create_temporary_copy(path):
     copy2(path, temp_path)
     return temp_path
 
+def get_my_pyplis_dir():
+    """
+    Get location of my_pyplis directory (should be ~/my_pyplis)
+
+    Returns
+    -------
+    str
+    """
+    return data_search_dirs()[0]
+
+def get_paths_txt():
+    """
+    Get location of _paths.txt file
+
+    Returns
+    -------
+    str
+    """
+    return join(get_my_pyplis_dir(), '_paths.txt')
+
 def _path_registered(path, paths_txt):
+    """
+    Check if input path is registered in file
+
+    Parameters
+    ----------
+    path : str
+        path location
+    paths_txt : str
+        file that may contain that path in one line
+
+    Returns
+    -------
+    bool
+        True if input path is registered in file, else False
+    """
     found = False
     with open(paths_txt, 'r') as f:
         for line in f.readlines():
@@ -83,7 +108,7 @@ def download_test_data(save_dir=None):
     Parameters
     ----------
     save_dir : str
-        location where data is supposed to be stored
+        location where data is supposed to be stored. If None, then ~/my_pyplis is used.
 
     Code for progress bar was "stolen" `here <http://stackoverflow.com/
     questions/11143767/how-to-make-a-download-with>`_
@@ -101,7 +126,7 @@ def download_test_data(save_dir=None):
     if not exists(save_dir):
         raise FileNotFoundError(save_dir)
 
-    local_paths_info = join(dirs[1], "_paths.txt")
+    local_paths_info = get_paths_txt()
     found = False
     if not _path_registered(save_dir, local_paths_info):
         fobj= open(local_paths_info, "a")
@@ -112,26 +137,21 @@ def download_test_data(save_dir=None):
 
     filename = mktemp('.zip')
 
-    if PGBAR_AVAILABLE:
-        widgets = ['Downloading pyplis test data: ', Percentage(), ' ',
-                   Bar(marker=RotatingMarker()), ' ',
-                   ETA(), ' ', FileTransferSpeed()]
+    widgets = ['Downloading pyplis test data: ', Percentage(), ' ',
+                Bar(marker=RotatingMarker()), ' ',
+                ETA(), ' ', FileTransferSpeed()]
 
-        pbar = ProgressBar(widgets=widgets)
+    pbar = ProgressBar(widgets=widgets)
 
-        def dl_progress(count, block_size, total_size):
-            if pbar.maxval is None:
-                pbar.maxval = total_size
-                pbar.start()
-            pbar.update(min(count * block_size, total_size))
+    def dl_progress(count, block_size, total_size):
+        if pbar.maxval is None:
+            pbar.maxval = total_size
+            pbar.start()
+        pbar.update(min(count * block_size, total_size))
 
-        urlretrieve(url, filename, reporthook=dl_progress)
-        pbar.finish()
-    else:
-        print_log.info(
-            'Downloading Pyplis testdata (this can take a while, install '
-            'Progressbar package if you want to receive download info).')
-        urlretrieve(url, filename)
+    urlretrieve(url, filename, reporthook=dl_progress)
+    pbar.finish()
+
     thefile = ZipFile(filename)
     print_log.info(f'Extracting data at: {save_dir} (this may take a while)')
     thefile.extractall(save_dir)
@@ -144,23 +164,21 @@ def download_test_data(save_dir=None):
 
 def find_test_data():
     """Search location of test data folder."""
-    dirs = data_search_dirs()
+    srcdir = get_my_pyplis_dir()
     folder_name = "pyplis_etna_testdata"
-    for data_path in dirs:
-        if folder_name in listdir(data_path):
-            print_log.info("Found test data at location: %s" % data_path)
-            return join(data_path, folder_name)
-        try:
-            with open(join(data_path, "_paths.txt"), "r") as f:
-                lines = f.readlines()
-                for line in lines:
-                    p = line.split("\n")[0]
-                    if exists(p) and folder_name in listdir(p):
-                        print_log.info("Found test data at default location: %s" % p)
-                        f.close()
-                        return join(p, folder_name)
-        except:
-            pass
+
+    if folder_name in listdir(srcdir):
+        print_log.info(f'Found test data at location: {srcdir}')
+        return join(srcdir, folder_name)
+
+    with open(get_paths_txt()) as f:
+        lines = f.readlines()
+        for line in lines:
+            p = line.strip()
+            if exists(p) and folder_name in listdir(p):
+                print_log.info(f'Found test data at default location: {p}')
+                return join(p, folder_name)
+
     raise IOError("pyplis test data could not be found, please download"
                   "testdata first, using method "
                   "pyplis.inout.download_test_data or"

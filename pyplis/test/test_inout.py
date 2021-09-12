@@ -19,6 +19,14 @@ def test_create_temporary_copy(tmpdir):
     with open(loc) as f:
         assert f.readline() == 'bla'
 
+def test_get_my_pyplis_dir():
+    usr_dir = os.path.join(os.path.expanduser('~'), "my_pyplis")
+    assert os.path.samefile(usr_dir, mod.get_my_pyplis_dir())
+
+def test_get_paths_txt():
+    usr_dir = os.path.join(os.path.expanduser('~'), "my_pyplis/_paths.txt")
+    assert os.path.samefile(usr_dir, mod.get_paths_txt())
+
 def test__path_registered(tmpdir):
     path = os.path.abspath('.')
     fpath = os.path.join(tmpdir, 'file.txt')
