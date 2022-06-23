@@ -464,7 +464,7 @@ class CalibData(object):
             if through_origin:
                 guess[-1] = slope
             else:
-                guess[-1] = min(cds)
+                guess[-1] = max(cds)    # Using min here can cause local minimum issue if a cell with no gas is used
                 guess[-2] = slope
 
         bounds = self._check_bounds(fun, param_bounds)
