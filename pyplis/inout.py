@@ -564,7 +564,7 @@ def get_source_info_online(source_id):
     with urlopen(url) as response:                       
         body = response.read()
 
-    raw_data = json.loads(body)['items']
+    raw_data = loads(body)['items']
 
     norm_data = {item['name']: normalise_keys(item) for item in raw_data}
 
