@@ -566,7 +566,7 @@ def get_source_info_online(source_id):
 
     raw_data = loads(body)['items']
 
-    norm_data = {item['name']: normalise_keys(item) for item in raw_data}
+    norm_data = {item['name'].lower(): normalise_keys(item) for item in raw_data}
 
     return norm_data
 
