@@ -3,7 +3,7 @@ scipy
 pandas
 astropy
 matplotlib
-opencv
+opencv-python
 geonum
 pydoas
 siy
