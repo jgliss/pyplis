@@ -9,12 +9,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ['3.8'] #, '3.9', '3.10']
+        python-version: ['3.8', '3.9', '3.10']
         os: [ubuntu-latest, windows-latest]
     runs-on: ${{ matrix.os }}
     defaults:
       run:
-        shell: bash -l {0}
+        shell: bash -l {0} # https://github.com/conda-incubator/setup-miniconda#important
     steps:
     - uses: actions/checkout@v3
     - name: Set up conda env ${{ matrix.python-version }}
@@ -39,7 +39,7 @@ jobs:
     - name: Run pytest
       run: pytest --cov=pyplis/ --cov-report xml
     - name: Upload coverage to Codecov (Python 3.9, Ubuntu)
-      if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.9'
+      if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.10'
       uses: codecov/codecov-action@v3
       with:
           files: ./coverage.xml
