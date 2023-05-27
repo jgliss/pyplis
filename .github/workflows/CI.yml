@@ -2,7 +2,7 @@
 # For more information see: https://help.github.com/actions/language-and-framework-guides/using-python-with-github-actions
 name: CI
 
-on: [push, pull_request]
+on: [pull_request]
 
 jobs:
   build-and-test:
@@ -32,7 +32,7 @@ jobs:
       run: |
         conda install -c conda-forge --file ./test-requirements.txt
     - name: Install pyplis
-      run: python ./setup.py install
+      run: pip install --no-deps .
     - name: Run pytest
       run: pytest --cov=pyplis/ --cov-report xml
     - name: Upload coverage to Codecov (Python 3.9, Ubuntu)
