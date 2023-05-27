@@ -6,5 +6,5 @@ matplotlib
 opencv-python
 geonum
 pydoas
-siy
+six
 pyproj
