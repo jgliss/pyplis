@@ -16,7 +16,6 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 """Pyplis module for DOAS calibration including FOV search engines."""
-from __future__ import (absolute_import, division)
 from numpy import (min, arange, asarray, zeros, column_stack,
                    ones, nan, float64)
 from scipy.stats import pearsonr

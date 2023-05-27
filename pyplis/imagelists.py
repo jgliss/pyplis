@@ -26,7 +26,6 @@ images of a certain type (e.g. onband, offband, see :class:`Dataset` object).
 pre-processing modes (e.g. load images as dark corrected and calibrated images,
 compute optical flow between current and next image).
 """
-from __future__ import (absolute_import, division)
 from numpy import (asarray, zeros, argmin, arange, ndarray, float32, isnan,
                    logical_or, uint8, exp, ones)
 from numpy.ma import nomask

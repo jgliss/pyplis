@@ -17,7 +17,6 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 """Module containing functionality for all relevant geometrical calculations.
 """
-from __future__ import (absolute_import, division, print_function)
 from numpy import (nan, arctan, deg2rad, linalg, sqrt, abs, array, radians,
                    sin, cos, arcsin, tan, rad2deg, linspace, isnan, asarray,
                    arange, argmin, newaxis, round)

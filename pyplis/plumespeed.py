@@ -16,7 +16,6 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 """Pyplis module containing features related to plume velocity analysis."""
-from __future__ import (absolute_import, division)
 from numpy import mgrid, vstack, int32, sqrt, arctan2, rad2deg, asarray, sin,\
     cos, logical_and, histogram, ceil, roll, argmax, arange, ndarray,\
     deg2rad, nan, dot, mean, isnan, float32, sum, empty, uint8, ones,\

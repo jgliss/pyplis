@@ -16,7 +16,6 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 """Pyplis module for image based correction of the signal dilution effect."""
-from __future__ import (absolute_import, division)
 from numpy import asarray, linspace, exp, ones, nan
 from scipy.ndimage import median_filter
 from matplotlib.pyplot import subplots, rcParams

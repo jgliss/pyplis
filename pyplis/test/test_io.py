@@ -5,9 +5,7 @@ Author: Jonas Gliss
 Email: jonasgliss@gmail.com
 License: GPLv3+
 """
-from __future__ import (absolute_import, division)
 from pyplis import setupclasses as scl
-
 
 def test_load_ecII():
     """Check if default information for EC2 camera can be loaded."""
