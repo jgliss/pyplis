@@ -9,7 +9,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ['3.8', '3.9', '3.10']
+        python-version: ['3.8'] #, '3.9', '3.10']
         os: [ubuntu-latest, windows-latest]
     runs-on: ${{ matrix.os }}
     steps:
@@ -21,9 +21,11 @@ jobs:
         environment-file: pyplis_env.yml
         activate-environment: pyplis
         python-version: ${{ matrix.python-version }}
-        auto-activate-base: false
+        auto-activate-base: true
     - name: Conda info
       run: conda info
+    - name: Activate
+      run: conda activate pyplis
     - name: Python version
       run: which python
     - name: Display current environments
