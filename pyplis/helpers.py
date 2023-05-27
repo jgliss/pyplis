@@ -23,9 +23,9 @@ from datetime import datetime, time, date, timedelta
 
 from matplotlib.pyplot import draw
 from numpy import (mod, linspace, hstack, vectorize, uint8, cast, asarray,
-                   log2, unravel_index, nanargmax, meshgrid, int, floor, log10,
+                   log2, unravel_index, nanargmax, meshgrid, floor, log10,
                    isnan, argmin, sum, zeros, float32, ogrid)
-from scipy.ndimage.filters import gaussian_filter
+from scipy.ndimage import gaussian_filter
 from cv2 import pyrUp
 import six
 from pyplis import logger

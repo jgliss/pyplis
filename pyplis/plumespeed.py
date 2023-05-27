@@ -30,8 +30,8 @@ from collections import OrderedDict as od
 from matplotlib.pyplot import subplots, figure, GridSpec, Line2D, Circle
 from matplotlib.patches import Rectangle
 from matplotlib.dates import DateFormatter
-from scipy.ndimage.filters import median_filter, gaussian_filter
-from scipy.stats.stats import pearsonr
+from scipy.ndimage import median_filter, gaussian_filter
+from scipy.stats import pearsonr
 from os.path import isdir, join, isfile
 from os import getcwd
 from six.moves import xrange

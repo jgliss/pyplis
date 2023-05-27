@@ -19,7 +19,7 @@
 from __future__ import (absolute_import, division)
 from numpy import (min, arange, asarray, zeros, column_stack,
                    ones, nan, float64)
-from scipy.stats.stats import pearsonr
+from scipy.stats import pearsonr
 from scipy.sparse.linalg import lsmr
 
 from datetime import datetime

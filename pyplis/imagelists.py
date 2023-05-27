@@ -36,7 +36,7 @@ import pandas as pd
 from pandas import Series, DataFrame
 from matplotlib.pyplot import figure, draw, ion, ioff, close
 from copy import deepcopy
-from scipy.ndimage.filters import gaussian_filter
+from scipy.ndimage import gaussian_filter
 
 from os.path import exists, abspath, dirname, join, basename
 from os import mkdir

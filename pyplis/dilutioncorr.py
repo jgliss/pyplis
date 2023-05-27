@@ -18,7 +18,7 @@
 """Pyplis module for image based correction of the signal dilution effect."""
 from __future__ import (absolute_import, division)
 from numpy import asarray, linspace, exp, ones, nan
-from scipy.ndimage.filters import median_filter
+from scipy.ndimage import median_filter
 from matplotlib.pyplot import subplots, rcParams
 from collections import OrderedDict as od
 

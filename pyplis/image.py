@@ -46,8 +46,7 @@ from os import remove
 from datetime import datetime
 from decimal import Decimal
 from cv2 import imread, pyrDown, pyrUp, addWeighted, dilate, erode
-from scipy.ndimage.filters import gaussian_filter, median_filter
-from scipy.ndimage.interpolation import shift
+from scipy.ndimage import gaussian_filter, median_filter, shift
 from collections import OrderedDict as od
 from traceback import format_exc
 from copy import deepcopy

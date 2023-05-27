@@ -23,7 +23,7 @@ from matplotlib.patches import Rectangle
 from matplotlib.pyplot import figure, subplots, setp
 import matplotlib.colors as colors
 from collections import OrderedDict as od
-from scipy.ndimage.filters import gaussian_filter
+from scipy.ndimage import gaussian_filter
 
 import six
 

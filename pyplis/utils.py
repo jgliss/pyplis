@@ -19,7 +19,7 @@
 from __future__ import (absolute_import, division)
 import os
 from numpy import (vstack, asarray, ndim, round, hypot, linspace, sum, zeros,
-                   complex, angle, array, cos, sin, arctan, dot, int32, pi,
+                   angle, array, cos, sin, arctan, dot, int32, pi,
                    isnan, nan, mean, ndarray)
 
 from numpy.linalg import norm
