@@ -35,8 +35,6 @@ Furthermore, some basic image preparation features of ImgList objects are
 introduced (e.g. linking of lists, dark correction, automatic blurring,
 cropping, size reduction).
 """
-from __future__ import (absolute_import, division)
-
 from SETTINGS import check_version, IMG_DIR, SAVEFIGS, SAVE_DIR, FORMAT, DPI,\
     OPTPARSE
 
