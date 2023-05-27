@@ -17,8 +17,6 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 """Pyplis module containing methods and classes for emission-rate retrievals.
 """
-from __future__ import (absolute_import, division)
-
 from numpy import (dot, sqrt, mean, nan, isnan, asarray, nanmean, nanmax,
                    nanmin, sum, arctan2, rad2deg, logical_and, ones, arange,
                    nanstd)

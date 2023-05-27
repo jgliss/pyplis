@@ -26,7 +26,6 @@ images of a certain type (e.g. onband, offband, see :class:`Dataset` object).
 pre-processing modes (e.g. load images as dark corrected and calibrated images,
 compute optical flow between current and next image).
 """
-from __future__ import (absolute_import, division)
 from numpy import (asarray, zeros, argmin, arange, ndarray, float32, isnan,
                    logical_or, uint8, exp, ones)
 from numpy.ma import nomask
@@ -36,7 +35,7 @@ import pandas as pd
 from pandas import Series, DataFrame
 from matplotlib.pyplot import figure, draw, ion, ioff, close
 from copy import deepcopy
-from scipy.ndimage.filters import gaussian_filter
+from scipy.ndimage import gaussian_filter
 
 from os.path import exists, abspath, dirname, join, basename
 from os import mkdir
