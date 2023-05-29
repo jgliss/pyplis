@@ -21,12 +21,11 @@ r"""Pyplis module contains the following processing classes and methods.
 #. :class:`PixelMeanTimeSeries`: storage and post analysis of time\
 series of average pixel intensities
 """
-from __future__ import (absolute_import, division)
 from numpy import (vstack, empty, ones, asarray, sum, dstack, float32, zeros,
                    poly1d, polyfit, argmin, where, logical_and, rollaxis,
                    delete, hstack)
 
-from scipy.ndimage.filters import gaussian_filter1d, median_filter
+from scipy.ndimage import gaussian_filter1d, median_filter
 
 
 from copy import deepcopy

@@ -17,7 +17,6 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 """Module containing functionality for all relevant geometrical calculations.
 """
-from __future__ import (absolute_import, division, print_function)
 from numpy import (nan, arctan, deg2rad, linalg, sqrt, abs, array, radians,
                    sin, cos, arcsin, tan, rad2deg, linspace, isnan, asarray,
                    arange, argmin, newaxis, round)
@@ -122,7 +121,7 @@ class MeasGeometry(object):
         dictionary containing information about the camera (valid keys:
         ``cam_id, serno, lon, lat, altitude, elev, elev_err, azim,
         azim_err, focal_length, pix_width, pix_height, pixnum_x, pixnum_y
-        altitude_offs``
+        alt_offset``
 
     Parameters
     ----------
@@ -171,7 +170,7 @@ class MeasGeometry(object):
                         ("pix_height", nan),  # in m
                         ('pixnum_x', nan),
                         ('pixnum_y', nan),
-                        ('altitude_offs', 0.0)])  # altitude above
+                        ('alt_offset', 0.0)])  # altitude above
         # topo in m
         self.auto_topo_access = auto_topo_access
         self.geo_setup = GeoSetup(id=self.cam_id)
@@ -204,7 +203,7 @@ class MeasGeometry(object):
                    ("pix_height", float),  # in m
                    ('pixnum_x', float),
                    ('pixnum_y', float),
-                   ('altitude_offs', float)])
+                   ('alt_offset', float)])
 
     @property
     def cam_id(self):
@@ -377,13 +376,13 @@ class MeasGeometry(object):
         (:attr:`cam_altitude`) is retrieved based on local topography level
         (e.g. using automatic SRTM access based on camera lat and lon).
         """
-        return self._cam["altitude_offs"]
+        return self._cam["alt_offset"]
 
     @cam_altitude_offs.setter
     def cam_altitude_offs(self, val):
         if not isnum(val):
             raise ValueError("Invalid value: %s (need numeric)" % val)
-        self._cam["altitude_offs"] = self._type_dict["altitude_offs"](val)
+        self._cam["alt_offset"] = self._type_dict["alt_offset"](val)
 
     @property
     def source_lon(self):
@@ -727,7 +726,7 @@ class MeasGeometry(object):
                 elev_start=elev_min,
                 elev_stop=elev_max,
                 step_deg=0.1,
-                view_above_topo_m=self._cam["altitude_offs"]
+                view_above_topo_m=self._cam["alt_offset"]
             )
 
             idx_x.append(cols[k])
@@ -836,7 +835,7 @@ class MeasGeometry(object):
 
         (d, d_err, geo_point, _, _) = ep.get_first_intersection(
             elev,
-            view_above_topo_m=self._cam["altitude_offs"]
+            view_above_topo_m=self._cam["alt_offset"]
         )
 
         if d is None:
@@ -913,7 +912,7 @@ class MeasGeometry(object):
 
             d, d_err, p, _, _ = ep.get_first_intersection(
                 elevs[k],
-                view_above_topo_m=self._cam["altitude_offs"])
+                view_above_topo_m=self._cam["alt_offset"])
 
             if d is not None and min_slope_angle > 0:
                 slope = ep.slope_angle(d)

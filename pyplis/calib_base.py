@@ -20,7 +20,6 @@
 This is the base class for storing calibration data, fitting calibration
 curves, and corresponding I/O routines (e.g storage as FITS or text file).
 """
-from __future__ import (absolute_import, division)
 from pyplis import logger
 from numpy import (min, asarray, zeros, linspace, ones, float64, isnan,
                    ndarray, argmax, inf)
@@ -464,7 +463,7 @@ class CalibData(object):
             if through_origin:
                 guess[-1] = slope
             else:
-                guess[-1] = min(cds)
+                guess[-1] = max(cds)    # Using min here can cause local minimum issue if a cell with no gas is used
                 guess[-2] = slope
 
         bounds = self._check_bounds(fun, param_bounds)

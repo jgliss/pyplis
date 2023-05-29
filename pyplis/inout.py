@@ -16,16 +16,16 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 """Module containing all sorts of I/O-routines (e.g. test data access)."""
-from __future__ import (absolute_import, division)
-from os.path import join, basename, exists, isfile, abspath, expanduser, samefile
-from os import listdir, mkdir, remove, walk
+
+from os.path import join, basename, exists, expanduser, samefile
+from os import listdir, mkdir, remove
 from re import split
 
 from collections import OrderedDict as od
 from progressbar import (ProgressBar, Percentage, Bar,
                          RotatingMarker, ETA, FileTransferSpeed)
 
-from zipfile import ZipFile, ZIP_DEFLATED
+from zipfile import ZipFile
 from urllib.request import urlopen, urlretrieve
 
 from pyplis import logger, print_log
@@ -125,7 +125,6 @@ def download_test_data(save_dir=None):
         raise FileNotFoundError(save_dir)
 
     local_paths_info = get_paths_txt()
-    found = False
     if not _path_registered(save_dir, local_paths_info):
         fobj= open(local_paths_info, "a")
         fobj.write(f"\n{save_dir}\n")

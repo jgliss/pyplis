@@ -29,7 +29,6 @@ instance used when performing a plume velocity cross-correlation analysis
 (where the optimal lag between a time-series of two plume intersection lines is
 searched, for details see :class:`pyplis.plumespeed.VeloCrossCorrEngine`).
 """
-from __future__ import (absolute_import, division)
 import six
 from astropy.io import fits
 from matplotlib import gridspec
@@ -46,8 +45,7 @@ from os import remove
 from datetime import datetime
 from decimal import Decimal
 from cv2 import imread, pyrDown, pyrUp, addWeighted, dilate, erode
-from scipy.ndimage.filters import gaussian_filter, median_filter
-from scipy.ndimage.interpolation import shift
+from scipy.ndimage import gaussian_filter, median_filter, shift
 from collections import OrderedDict as od
 from traceback import format_exc
 from copy import deepcopy

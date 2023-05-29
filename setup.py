@@ -19,13 +19,21 @@
 from setuptools import setup, find_packages
 from codecs import open
 from os.path import join, expanduser, exists
+<<<<<<< HEAD
 from os import makedirs
+=======
+from os import mkdir
+>>>>>>> v145dev
 
 with open('README.rst') as f:
     readme = f.read()
 
 with open("VERSION.rst") as f:
     version = f.readline()
+<<<<<<< HEAD
+=======
+    f.close()
+>>>>>>> v145dev
 
 usr_dir = join(expanduser('~'), "my_pyplis")
 paths_file = join(usr_dir, '_paths.txt')
@@ -59,11 +67,12 @@ setup(
         'License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)',
 
         # Specify the Python versions you support here. In particular, ensure
-        # that you indicate whether you support Python 2, Python 3 or both.,
-        'Programming Language :: Python :: 3'
+        # that you indicate whether you support Python 2, Python 3 or both.,,
+        'Programming Language :: Python :: 3.8'
+        'Programming Language :: Python :: 3.9'
+        'Programming Language :: Python :: 3.10'
     ],
-    package_dir =   {'pyplis': 'pyplis'},
-
+    package_dir =   {'pyplis'     :    'pyplis'},
     packages =  find_packages(exclude=['contrib', 'docs', 'tests*']),
 
     package_data = {'pyplis'    :   ['data/*.txt',
