@@ -19,26 +19,21 @@
 from setuptools import setup, find_packages
 from codecs import open
 from os.path import join, expanduser, exists
-<<<<<<< HEAD
-from os import makedirs
-=======
+
 from os import mkdir
->>>>>>> v145dev
 
 with open('README.rst') as f:
     readme = f.read()
 
 with open("VERSION.rst") as f:
     version = f.readline()
-<<<<<<< HEAD
-=======
-    f.close()
->>>>>>> v145dev
 
 usr_dir = join(expanduser('~'), "my_pyplis")
 paths_file = join(usr_dir, '_paths.txt')
 
-makedirs(usr_dir, exist_ok=True)
+if not exists(usr_dir):
+    mkdir(usr_dir)
+
 if not exists(paths_file):
     open(paths_file, 'w').close()
 
