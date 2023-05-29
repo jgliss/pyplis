@@ -16,8 +16,6 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 """Pyplis example script no. 9 - Optical flow Plume velocity retrieval."""
-from __future__ import (absolute_import, division)
-
 from os.path import join
 import pyplis
 # IMPORT GLOBAL SETTINGS

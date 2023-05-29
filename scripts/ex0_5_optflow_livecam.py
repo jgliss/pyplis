@@ -19,8 +19,6 @@
 
 Create an OpticalFlowFarneback object and activate live view (requires webcam)
 """
-from __future__ import (absolute_import, division)
-
 # Check script version
 from SETTINGS import check_version
 

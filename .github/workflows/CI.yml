@@ -1,8 +1,15 @@
 # This workflow will install Python dependencies, run tests and lint with a variety of Python versions
 # For more information see: https://help.github.com/actions/language-and-framework-guides/using-python-with-github-actions
 name: CI
-
-on: [pull_request]
+on:
+  pull_request:
+    branches:
+      - '*'
+  push:
+    branches:
+      - master
+  schedule:
+    - cron: '0 12 * * 1'
 
 jobs:
   build-and-test:
@@ -38,7 +45,7 @@ jobs:
       run: pip install --no-deps .
     - name: Run pytest
       run: pytest --cov=pyplis/ --cov-report xml
-    - name: Upload coverage to Codecov (Python 3.9, Ubuntu)
+    - name: Upload coverage to Codecov
       if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.10'
       uses: codecov/codecov-action@v3
       with:
