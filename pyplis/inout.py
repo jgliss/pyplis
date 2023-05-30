@@ -16,7 +16,6 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 """Module containing all sorts of I/O-routines (e.g. test data access)."""
-from __future__ import (absolute_import, division)
 from os.path import join, basename, exists, isfile, abspath, expanduser
 from os import listdir, mkdir, remove, walk
 from re import split

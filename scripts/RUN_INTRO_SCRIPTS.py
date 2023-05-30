@@ -15,7 +15,6 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
-from __future__ import (absolute_import, division)
 from os import listdir, unlink
 from os.path import basename, join, isfile
 from traceback import format_exc

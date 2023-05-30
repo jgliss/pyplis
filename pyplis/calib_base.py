@@ -20,7 +20,6 @@
 This is the base class for storing calibration data, fitting calibration
 curves, and corresponding I/O routines (e.g storage as FITS or text file).
 """
-from __future__ import (absolute_import, division)
 from pyplis import logger
 from numpy import (min, asarray, zeros, linspace, ones, float64, isnan,
                    ndarray, argmax, inf)

@@ -27,8 +27,6 @@ from example script 5. The results from the DOAS calibration
 (see prev. example) were stored as a FITS file (including FOV information)
 and the results are imported here.
 """
-from __future__ import (absolute_import, division)
-
 from SETTINGS import check_version
 
 import pyplis

@@ -16,7 +16,6 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 """Pyplis module containing features related to plume velocity analysis."""
-from __future__ import (absolute_import, division)
 from numpy import mgrid, vstack, int32, sqrt, arctan2, rad2deg, asarray, sin,\
     cos, logical_and, histogram, ceil, roll, argmax, arange, ndarray,\
     deg2rad, nan, dot, mean, isnan, float32, sum, empty, uint8, ones,\
@@ -30,8 +29,8 @@ from collections import OrderedDict as od
 from matplotlib.pyplot import subplots, figure, GridSpec, Line2D, Circle
 from matplotlib.patches import Rectangle
 from matplotlib.dates import DateFormatter
-from scipy.ndimage.filters import median_filter, gaussian_filter
-from scipy.stats.stats import pearsonr
+from scipy.ndimage import median_filter, gaussian_filter
+from scipy.stats import pearsonr
 from os.path import isdir, join, isfile
 from os import getcwd
 from six.moves import xrange

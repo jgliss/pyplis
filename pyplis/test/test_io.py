@@ -5,11 +5,9 @@ Author: Jonas Gliss
 Email: jonasgliss@gmail.com
 License: GPLv3+
 """
-from __future__ import (absolute_import, division)
 from pyplis import setupclasses as scl
 from pyplis.inout import get_source_info_online
 from collections import OrderedDict as od
-
 
 def test_load_ecII():
     """Check if default information for EC2 camera can be loaded."""

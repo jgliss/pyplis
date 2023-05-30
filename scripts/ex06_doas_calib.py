@@ -39,8 +39,6 @@ stack (3D numpy array) is too large for the RAM. In this case, try
 increasing script option PYRLEVEL_ROUGH_SEARCH.
 
 """
-from __future__ import (absolute_import, division)
-
 from SETTINGS import check_version
 
 import pyplis
