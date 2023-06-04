@@ -156,7 +156,7 @@ The pyplis example data (required to run example scripts) is not part of the ins
   import pyplis
   pyplis.inout.download_test_data(<desired_location>)
 
-which downloads the data into the *my_pyplis* directory if <desired_location> is unspecified. Else, (and if <desired_location> is a valid location) it will be downloaded into <desired_location> which will then be added to the supplementary file *_paths.txt* located in the installation *data* directory. It can then be found by the test data search method::
+The location of the test data can be searched using::
 
   pyplis.inout.find_test_data()
 

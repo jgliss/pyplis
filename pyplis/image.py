@@ -404,6 +404,10 @@ class Img(object):
 
             use :func:`roi` to get ROI for current pyrlevel
         """
+        if self._roi_abs == [0,0,9999,9999] and isinstance(self._img, ndarray):
+            y1, x1 = self.shape
+            self._roi_abs = map_roi([0, 0, x1, y1], 
+                                    pyrlevel_rel=self.pyrlevel*-1)
         return self._roi_abs
 
     @roi_abs.setter

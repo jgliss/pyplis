@@ -13,3 +13,4 @@ dependencies:
   - pydoas
   - six
   - pyproj
+  - progressbar

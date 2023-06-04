@@ -1185,7 +1185,7 @@ class DarkOffsetInfo(object):
         :param str acronym: acronym for identification in filename
         :param str meas_type_acro: acronym for meastype identification in
             filename
-        :param str read_gain: string specifying read_gain mode of this object
+        :param int read_gain: string specifying read_gain mode of this object
             (use 0 or 1, default is 0)
 
         """

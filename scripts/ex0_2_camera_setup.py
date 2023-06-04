@@ -49,7 +49,10 @@ SAVE_TO_DATABASE = True
 
 
 # ## SCRIPT FUNCTION DEFINITIONS
-def create_ecII_cam_new_filters():
+def create_ecII_cam_new_filters(cam_id=None):
+    if cam_id is None:
+        cam_id = "ecII_new_test"
+
     # Start with creating an empty Camera object
     cam = pyplis.setupclasses.Camera()
 
@@ -100,7 +103,7 @@ def create_ecII_cam_new_filters():
 
     # camera ID (needs to be unique, i.e. not included in data base, call
     # pyplis.inout.get_all_valid_cam_ids() to check existing IDs)
-    cam.cam_id = "ecII_new_test"
+    cam.cam_id = cam_id
 
     # image file type
     cam.file_type = "fts"
@@ -168,8 +171,8 @@ def create_ecII_cam_new_filters():
 
 # ## SCRIPT MAIN FUNCTION
 if __name__ == "__main__":
-
-    cam = create_ecII_cam_new_filters()
+    cam_id = "ecII_new_test"
+    cam = create_ecII_cam_new_filters(cam_id)
 
     print(cam)
 
@@ -179,7 +182,7 @@ if __name__ == "__main__":
         cam.save_as_default()
     except KeyError:
         print("Camera already exists in database")
-    cam_reload = pyplis.Camera("ecII_brandnew")
+    cam_reload = pyplis.Camera(cam_id)
     # ## IMPORTANT STUFF FINISHED - everything below is of minor importance
     # for educational purposes
 
