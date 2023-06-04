@@ -24,8 +24,6 @@ detected and separated into individual image lists (for all filters, i.e. here
 on / off).
 
 """
-from __future__ import (absolute_import, division)
-
 from SETTINGS import check_version
 
 import pyplis

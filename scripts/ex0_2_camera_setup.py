@@ -31,8 +31,6 @@ See also here for more information:
 https://pyplis.readthedocs.io/en/latest/tutorials.html#data-import-specifying-
 custom-camera-information
 """
-from __future__ import (absolute_import, division)
-
 from SETTINGS import check_version, OPTPARSE
 
 from os.path import basename

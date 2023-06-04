@@ -16,7 +16,6 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 """Package initialisation."""
-from __future__ import (absolute_import, division)
 from ._init_utils import (check_requirements, _init_logger,
                           _init_supplemental, change_loglevel,
                           get_loglevel)

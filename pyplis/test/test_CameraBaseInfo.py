@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 u"""Pyplis test module for camera_base_info.py base module of Pyplis.
 """
-from __future__ import (absolute_import, division)
 from pyplis.camera_base_info import CameraBaseInfo
 from datetime import datetime
 from pytest import fixture

@@ -5,7 +5,6 @@ Author: Jonas Gliss
 Email: jonasgliss@gmail.com
 License: GPLv3+
 """
-from __future__ import (absolute_import, division)
 from pyplis import Dataset, __dir__ as pyplis__dir__, Img
 from os.path import join
 import pytest

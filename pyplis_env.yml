@@ -1,14 +1,13 @@
+name: pyplis
 channels:
   - conda-forge
-
 dependencies:
-  - python
+  - python<3.11
   - numpy
   - scipy
   - pandas
   - astropy
   - matplotlib
-  - basemap
   - opencv
   - geonum
   - pydoas

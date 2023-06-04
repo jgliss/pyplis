@@ -16,11 +16,10 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 """Module containing optimisation routines."""
-from __future__ import (absolute_import, division)
 from numpy import (abs, linspace, random, asarray, ndarray, where, diff,
                    insert, argmax, average, gradient, arange, nanmean, full,
                    inf, sqrt, pi, mod, mgrid, ndim, ones_like, ogrid, finfo,
-                   remainder, e, sum, uint8, int, histogram, nan, isnan)
+                   remainder, e, sum, uint8, histogram, nan, isnan)
 
 from warnings import catch_warnings, simplefilter
 from matplotlib.pyplot import subplots
@@ -28,7 +27,7 @@ from matplotlib.pyplot import subplots
 from astropy.modeling import models
 from astropy.modeling.fitting import LevMarLSQFitter
 
-from scipy.ndimage.filters import gaussian_filter1d
+from scipy.ndimage import gaussian_filter1d
 from scipy.integrate import quad
 from scipy.optimize import curve_fit, least_squares
 

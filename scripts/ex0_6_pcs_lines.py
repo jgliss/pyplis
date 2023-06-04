@@ -24,8 +24,6 @@ where, for instance velcoity displacement vectors (e.g. from an optical flow
 algorithm) have to be multiplied with the normal vector of such a line (using
 the dot product).
 """
-from __future__ import (absolute_import, division)
-
 from SETTINGS import check_version, SAVEFIGS, SAVE_DIR, FORMAT, DPI, OPTPARSE
 
 from pyplis import LineOnImage

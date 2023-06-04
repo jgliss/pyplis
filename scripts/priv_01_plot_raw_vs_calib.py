@@ -1,4 +1,3 @@
-from __future__ import (absolute_import, division)
 from SETTINGS import check_version
 
 from os.path import join, exists

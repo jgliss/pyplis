@@ -1,0 +1,10 @@
+numpy
+scipy
+pandas
+astropy
+matplotlib
+opencv-python
+geonum
+pydoas
+six
+pyproj

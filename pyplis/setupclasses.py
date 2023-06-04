@@ -23,7 +23,6 @@ The most important ones are:
     #. :class:`Camera`: camera specifications
     #. :class:`MeasSetup`: full measurement setup
 """
-from __future__ import (absolute_import, division)
 from datetime import datetime
 from collections import OrderedDict as od
 from copy import deepcopy
