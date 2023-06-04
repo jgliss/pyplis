@@ -27,10 +27,11 @@ from progressbar import (ProgressBar, Percentage, Bar,
 
 from zipfile import ZipFile
 from urllib.request import urlopen, urlretrieve
-
+from urllib.parse import quote
 from pyplis import logger, print_log
 from tempfile import mktemp, gettempdir
 from shutil import copy2
+from json import loads
 import six
 
 
@@ -462,56 +463,38 @@ def get_source_info_online(source_id):
 
     :param str source_id: ID of source
     """
-    name = source_id
-    name = name.lower()
-    url = ("http://www.ngdc.noaa.gov/nndc/struts/results?type_0=Like&query_0="
-           "&op_8=eq&v_8=&type_10=EXACT&query_10=None+Selected&le_2=&ge_3="
-           "&le_3=&ge_2=&op_5=eq&v_5=&op_6=eq&v_6=&op_7=eq&v_7=&t=102557&s=5"
-           "&d=5")
-    # url = ("https://www.ngdc.noaa.gov/hazel/view/hazards/volcano/loc-data")
-    logger.info("Trying to access volcano data from URL:")
-    logger.info(url)
-    try:
-        # it's a file like object and works just like a file
-        data = urlopen(url)
-    except BaseException:
-        raise
+    src_name = quote(source_id.lower())
+    url = f'https://www.ngdc.noaa.gov/hazel/hazard-service/api/v1/volcanolocs?nameInclude={src_name}'
 
-    res = od()
-    in_row = 0
-    in_data = 0
-    lc = 0
-    col_num = 10
-    first_volcano_name = "Abu"  # this needs to be identical
-    ids = ["name", "country", "region", "lat", "lon", "altitude", "type",
-           "status", "last_eruption"]
-    types = [str, str, str, float, float, float, str, str, str]
-    for line in data:
-        # Decode bytes to string if data is provided in bytes. (latin-1 seems to work, utf-8 sometimes throws error)
-        if isinstance(line, bytes):
-            line = line.decode('latin-1')
-        lc += 1
-        if first_volcano_name in line and line.split(">")[1]. \
-                split("</td")[0].strip() == first_volcano_name:
-            in_data, c = 1, 0
-        if in_data:
-            if c % col_num == 0 and name in line.lower():
-                logger.info("FOUND candidate, line: ", lc)
-                spl = line.split(">")[1].split("</td")[0].strip().lower()
-                if name in spl:
-                    logger.info("FOUND MATCH: ", spl)
-                    in_row, cc = 1, 0
-                    cid = spl
-                    res[cid] = od()
-            if in_row:
-                spl = line.split(">")[1].split("</td")[0].strip()
-                res[cid][ids[cc]] = types[cc](spl)
-                cc += 1
+    with urlopen(url) as response:
+        body = response.read()
 
-            if in_row and cc == 9:
-                logger.info("End of data row reached for %s" % cid)
-                cc, in_row = 0, 0
-            c += 1
+    raw_data = loads(body)['items']
+
+    norm_data = {item['name'].lower(): normalise_keys(item) for item in raw_data}
+
+    return norm_data
+
+def normalise_keys(dict):
+    """Convert the names from the NOAA data to be consistent with pyplis naming conventions
+
+    :param dict: Dict with volcano information
+    """
+    # pyplis names: NOAA names
+    convert_dict = {
+        'name': 'name',
+        'country': 'country',
+        'region': 'location',
+        'lat': 'latitude',
+        'lon': 'longitude',
+        'altitude': 'elevation',
+        'type': 'morphology',
+        'status': 'status',
+        'last_eruption': 'timeErupt'
+        }
+
+    # Run through each item and replace the key name if found, don't include if not.
+    res = od({key: dict[value] for key, value in convert_dict.items() if value in dict.keys()})
 
     return res
 
