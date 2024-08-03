@@ -1429,7 +1429,7 @@ class CellCalibEngine(Dataset):
             bg_poly_vals = ts.get_poly_vals(bg_info.start_acq,
                                             ext_border_secs=30)
 
-            ax.plot(bg_info.start_acq, bg_poly_vals, '-', color=c, lw=2,
+            ax.plot(bg_info.start_acq, bg_poly_vals, color=c, lw=2,
                     ls="--", label='Fitted BG polynomial')
 
             cfn = bg_info.img_list.cfn
