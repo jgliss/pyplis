@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-#
 # Pyplis is a Python library for the analysis of UV SO2 camera data
 # Copyright (C) 2017 Jonas Gliss (jonasgliss@gmail.com)
 #
@@ -15,10 +13,9 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
-"""Module containing all sorts of I/O-routines (e.g. test data access)."""
 
 from os.path import join, basename, exists, expanduser, samefile
-from os import listdir, mkdir, remove
+from os import listdir, mkdir, remove, environ
 from re import split
 
 from collections import OrderedDict as od
@@ -28,32 +25,46 @@ from progressbar import (ProgressBar, Percentage, Bar,
 from zipfile import ZipFile
 from urllib.request import urlopen, urlretrieve
 from urllib.parse import quote
-from pyplis import logger, print_log
 from tempfile import mktemp, gettempdir
 from shutil import copy2
 from json import loads
 import six
 
+from pyplis import logger, print_log
+from pyplis import __dir__
+from pyplis import URL_TESTDATA
 
-def data_search_dirs():
+def get_data_search_dirs():
     """Get basic search directories for package data files.
 
     Data files are searched for in `~/my_pyplis`, `./data` and, if set,
     in the `PYPLIS_DATADIR` environment variable.
     """
-    from pyplis import __dir__
-    import os
     usr_dir = expanduser(join('~', 'my_pyplis'))
     if not exists(usr_dir):
+        print_log.info(f'{usr_dir} does not exist and will be created')
         mkdir(usr_dir)
     try:
-        env = os.environ["PYPLIS_DATADIR"]
+        env = environ["PYPLIS_DATADIR"]
         return (usr_dir, join(__dir__, "data"), env)
     except KeyError:
         return (usr_dir, join(__dir__, "data"))
 
 
 def create_temporary_copy(path):
+    """
+    Create a temporary copy of a file.
+
+    Parameters
+    ----------
+    path : str
+        The path to the file that needs to be copied.
+
+    Returns
+    -------
+    str
+        The path to the copied file in the temporary directory.
+    """
     temp_dir = gettempdir()
     temp_path = join(temp_dir, basename(path))
     copy2(path, temp_path)
@@ -61,13 +72,14 @@ def create_temporary_copy(path):
 
 def get_my_pyplis_dir():
     """
-    Get location of my_pyplis directory (should be ~/my_pyplis)
+    Get location of my_pyplis directory (~/my_pyplis)
 
     Returns
     -------
     str
+        full path to my_pyplis directory
     """
-    return data_search_dirs()[0]
+    return get_data_search_dirs()[0]
 
 def get_paths_txt():
     """
@@ -111,15 +123,12 @@ def download_test_data(save_dir=None):
     save_dir : str
         location where data is supposed to be stored. If None, then ~/my_pyplis is used.
 
-    Code for progress bar was "stolen" `here <http://stackoverflow.com/
+    Code for progress bar was adapted from `here <http://stackoverflow.com/
     questions/11143767/how-to-make-a-download-with>`_
     (last access date: 11/01/2017)
     -progress-bar-in-python
 
     """
-    from pyplis import URL_TESTDATA
-    url = URL_TESTDATA
-
     if save_dir is None:
         save_dir = get_my_pyplis_dir()
     if not exists(save_dir):
@@ -147,7 +156,7 @@ def download_test_data(save_dir=None):
             pbar.start()
         pbar.update(min(count * block_size, total_size))
 
-    urlretrieve(url, filename, reporthook=dl_progress)
+    urlretrieve(URL_TESTDATA, filename, reporthook=dl_progress)
     pbar.finish()
 
     thefile = ZipFile(filename)
@@ -251,7 +260,7 @@ def get_camera_info(cam_id):
     :param str cam_id: string ID of camera (e.g. "ecII")
 
     """
-    dirs = data_search_dirs()
+    dirs = get_data_search_dirs()
     try:
         return _load_cam_info(cam_id, join(dirs[0], "cam_info.txt"))
     except:
@@ -265,7 +274,7 @@ def save_new_default_camera(info_dict):
 
     Only valid keys will be added to the
     """
-    dirs = data_search_dirs()
+    dirs = get_data_search_dirs()
     cam_file = join(dirs[0], "cam_info.txt")
     if not exists(cam_file):
         cam_file = join(dirs[1], "cam_info.txt")
@@ -337,7 +346,7 @@ def save_default_source(info_dict):
         raise ValueError("Cannot save source information, require at least "
                          "name, lon, lat and altitude")
 
-    dirs = data_search_dirs()
+    dirs = get_data_search_dirs()
     path = join(dirs[0], "my_sources.txt")
     if not exists(path):
         path = join(dirs[1], "my_sources.txt")
@@ -382,7 +391,7 @@ def get_cam_ids():
 
     Reads info from file cam_info.txt which is part of package data
     """
-    dirs = data_search_dirs()
+    dirs = get_data_search_dirs()
     ids = []
     for path in dirs:
         try:
@@ -404,7 +413,7 @@ def get_source_ids():
 
     Reads info from file my_sources.txt which is part of package data
     """
-    dirs = data_search_dirs()
+    dirs = get_data_search_dirs()
     ids = []
     for path in dirs:
         try:
@@ -523,9 +532,3 @@ def get_icon(name, color=None):
                 return base_path + file
     logger.warning("Failed to load icon at: " + _LIBDIR)
     return False
-
-
-if __name__ == '__main__':
-    i1 = get_camera_info('ecII')
-
-    i2 = get_camera_info('usgs')
