@@ -1,6 +1,6 @@
+name: pyplis-dev
 channels:
   - conda-forge
-
 dependencies:
   - python
   - numpy
@@ -14,3 +14,5 @@ dependencies:
   - pydoas
   - six
   - pyproj
+  - pytest
+  - pytest-cov
