@@ -27,19 +27,13 @@ from matplotlib.pyplot import figure
 from copy import deepcopy
 import six
 
-from pyplis import logger, print_log, GEONUMAVAILABLE
+from pyplis import logger, print_log
 from .image import Img
 from .helpers import check_roi, isnum
 from .glob import DEFAULT_ROI
 
-if GEONUMAVAILABLE:
-    from geonum import __version__ as _geonum_ver
-    if int(_geonum_ver.split('.')[1]) < 4:
-        from geonum import GeoSetup, GeoPoint, GeoVector3D, TopoData
-        from geonum.topodata import TopoAccessError
-    else:
-        from geonum import GeoSetup, GeoPoint, GeoVector3D, TopoData
-        from geonum.exceptions import TopoAccessError
+from geonum import GeoSetup, GeoPoint, GeoVector3D, TopoData
+from geonum.exceptions import TopoAccessError
 
 
 class MeasGeometry(object):

@@ -21,8 +21,7 @@ import six
 from pyplis import logger, print_log
 from matplotlib.pyplot import subplots
 
-from numpy import (float, log, arange, linspace, isnan, diff, mean, argmin,
-                   asarray)
+from numpy import (log, arange, linspace, isnan, diff, mean, argmin, asarray)
 from matplotlib.pyplot import Figure
 from matplotlib.cm import get_cmap
 from datetime import timedelta

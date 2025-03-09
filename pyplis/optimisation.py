@@ -20,7 +20,7 @@ from __future__ import (absolute_import, division)
 from numpy import (abs, linspace, random, asarray, ndarray, where, diff,
                    insert, argmax, average, gradient, arange, nanmean, full,
                    inf, sqrt, pi, mod, mgrid, ndim, ones_like, ogrid, finfo,
-                   remainder, e, sum, uint8, int, histogram, nan, isnan)
+                   remainder, e, sum, uint8, histogram, nan, isnan)
 
 from warnings import catch_warnings, simplefilter
 from matplotlib.pyplot import subplots

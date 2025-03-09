@@ -10,7 +10,7 @@ dependencies:
   - matplotlib
   - basemap
   - opencv
-  - geonum
+  - geonum>=1.5
   - pydoas
   - six
   - pyproj
