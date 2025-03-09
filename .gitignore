@@ -148,3 +148,6 @@ notebooks
 
 # scripts_out folder
 scripts/scripts_out/*
+
+# vscode configs
+.vscode
