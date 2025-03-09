@@ -114,13 +114,16 @@ def plot_plume_distance_image(meas_geometry):
 
 # SCRIPT MAIN FUNCTION
 if __name__ == "__main__":
+    from geonum import BASEMAP_AVAILABLE
+    draw_maps = True if BASEMAP_AVAILABLE else False
+
     close("all")
 
     # Create the Dataset object (see ex01)
     ds = create_dataset()
 
     # execute function defined above (see above for definition and information)
-    geom_corr, map_ = find_viewing_direction(ds.meas_geometry)
+    geom_corr, map_ = find_viewing_direction(ds.meas_geometry, draw_result=draw_maps)
 
     # execute 2. script function (see above for definition and information)
     fig = plot_plume_distance_image(ds.meas_geometry)
@@ -148,7 +151,8 @@ if __name__ == "__main__":
     # geom_corr.update_source_specs()
 
     geom_corr.update_wind_specs(dir=315)
-    geom_corr.draw_map_2d()  # this figure is only displayed and not saved
+    if draw_maps:
+        geom_corr.draw_map_2d()  # this figure is only displayed and not saved
 
     # recompute plume distance of CFOV pixel
     plume_dist_cfov_new = geom_corr.plume_dist()[0][0]
@@ -159,8 +163,11 @@ if __name__ == "__main__":
     # Using this a
     # IMPORTANT STUFF FINISHED
     if SAVEFIGS:
-        map_.ax.figure.savefig(join(SAVE_DIR, "ex02_out_1.%s" % FORMAT),
-                               format=FORMAT, dpi=DPI)
+        if draw_maps:
+            map_.ax.figure.savefig(join(SAVE_DIR, "ex02_out_1.%s" % FORMAT),
+                                   format=FORMAT, dpi=DPI)
+        else:
+            print('Warning: No output map of meas geometry created since basemap is not installed')
         fig.savefig(join(SAVE_DIR, "ex02_out_2.%s" % FORMAT), format=FORMAT,
                     dpi=DPI)
 
@@ -183,12 +190,13 @@ if __name__ == "__main__":
         # check some propoerties of the basemap (displayed in figure)
 
         # map basemap coordinates to lon / lat values
-        lon, lat = map_(8335, 9392, inverse=True)
-        npt.assert_allclose(actual=[lon, lat, map_.delta_lon, map_.delta_lat],
-                            desired=[15.075131135, 37.76678834,
-                                     0.149263852982,
-                                     0.118462659944],
-                            rtol=1e-7)
+        if draw_maps:
+            lon, lat = map_(8335, 9392, inverse=True)
+            npt.assert_allclose(actual=[lon, lat, map_.delta_lon, map_.delta_lat],
+                                desired=[15.075131135, 37.76678834,
+                                         0.149263852982,
+                                         0.118462659944],
+                                rtol=1e-7)
 
         # check some basic properties / values of the geometry
         npt.assert_allclose(actual=[geom_corr.cam_elev,

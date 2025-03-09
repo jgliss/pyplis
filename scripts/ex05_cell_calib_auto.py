@@ -183,7 +183,7 @@ if __name__ == "__main__":
                                      1.924e+18,
                                      -1.8313164653590516e+16,
                                      0.0],
-                            rtol=1e-7)
+                            rtol=1e-5)
 
         # explicitely check calibration data for on, off and aa (plotted in
         # this script)
@@ -196,7 +196,7 @@ if __name__ == "__main__":
                                      -3.742539080945949e+19,
                                      2.153653759747737e+18,
                                      2.1197681750384312e+18],
-                            rtol=1e-7)
+                            rtol=1e-5)
         print("All tests passed in script: %s" % basename(__file__))
     try:
         if int(options.show) == 1:

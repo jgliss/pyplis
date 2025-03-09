@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-#
 # Pyplis is a Python library for the analysis of UV SO2 camera data
 # Copyright (C) 2017 Jonas Gliss (jonasgliss@gmail.com)
 #
@@ -15,267 +13,184 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
-"""Module containing all sorts of I/O-routines (e.g. test data access)."""
-from os.path import join, basename, exists, isfile, abspath, expanduser
-from os import listdir, mkdir, remove, walk
+
+from os.path import join, basename, exists, expanduser, samefile
+from os import listdir, mkdir, remove, environ
 from re import split
 
 from collections import OrderedDict as od
-try:
-    from progressbar import (ProgressBar, Percentage, Bar,
-                             RotatingMarker, ETA, FileTransferSpeed)
-    PGBAR_AVAILABLE = True
-except BaseException:
-    PGBAR_AVAILABLE = False
-from zipfile import ZipFile, ZIP_DEFLATED
+from progressbar import (ProgressBar, Percentage, Bar,
+                         RotatingMarker, ETA, FileTransferSpeed)
 
-try:
-    from urllib.request import urlopen, urlretrieve
-    from urllib.parse import quote
-except ImportError:
-    from urllib2 import urlopen
-    from urllib import urlretrieve
-
-from pyplis import logger, print_log
+from zipfile import ZipFile
+from urllib.request import urlopen, urlretrieve
+from urllib.parse import quote
 from tempfile import mktemp, gettempdir
 from shutil import copy2
 from json import loads
 import six
 
+from pyplis import logger, print_log
+from pyplis import __dir__
+from pyplis import URL_TESTDATA
 
-def data_search_dirs():
+def get_data_search_dirs():
     """Get basic search directories for package data files.
 
     Data files are searched for in `~/my_pyplis`, `./data` and, if set,
     in the `PYPLIS_DATADIR` environment variable.
     """
-    from pyplis import __dir__
-    import os
     usr_dir = expanduser(join('~', 'my_pyplis'))
     if not exists(usr_dir):
+        print_log.info(f'{usr_dir} does not exist and will be created')
         mkdir(usr_dir)
     try:
-        env = os.environ["PYPLIS_DATADIR"]
+        env = environ["PYPLIS_DATADIR"]
         return (usr_dir, join(__dir__, "data"), env)
     except KeyError:
         return (usr_dir, join(__dir__, "data"))
 
 
-def zip_example_scripts(repo_base):
-    from pyplis import __version__ as v
-    vstr = ".".join(v.split(".")[:3])
-    logger.info("Adding zipped version of pyplis example scripts for version %s" %
-          vstr)
-    scripts_dir = join(repo_base, "scripts")
-    if not exists(scripts_dir):
-        raise IOError("Cannot created zipped version of scripts, folder %s "
-                      "does not exist" % scripts_dir)
-    save_dir = join(scripts_dir, "old_versions")
-    if not exists(save_dir):
-        raise IOError("Cannot create zipped version of scripts, folder %s "
-                      "does not exist" % save_dir)
-    name = "scripts-%s.zip" % vstr
-    zipf = ZipFile(join(save_dir, name), 'w', ZIP_DEFLATED)
-    for fname in listdir(scripts_dir):
-        if fname.endswith("py"):
-            zipf.write(join(scripts_dir, fname))
-    zipf.close()
-
-
-def get_all_files_in_dir(directory, file_type=None, include_sub_dirs=False):
-    """Find all files in a certain directory.
+def create_temporary_copy(path):
+    """
+    Create a temporary copy of a file.
 
     Parameters
     ----------
-    directory : str
-        path to directory
-    file_type : :obj:`str`, optional
-        specify file type (e.g. "png", "fts"). If unspecified, then all files
-        are considered
-    include_sub_dirs : bool
-        if True, also all files from all sub-directories are extracted
+    path : str
+        The path to the file that needs to be copied.
 
     Returns
     -------
-    list
-        sorted list containing paths of all files detected
-
+    str
+        The path to the copied file in the temporary directory.
     """
-    p = directory
-    if p is None or not exists(p):
-        message = ('Error: path %s does not exist' % p)
-        logger.warning(message)
-        return []
-    use_all_types = False
-    if not isinstance(file_type, str):
-        use_all_types = True
-
-    if include_sub_dirs:
-        logger.info("Include files from subdirectories")
-        all_paths = []
-        if use_all_types:
-            logger.info("Using all file types")
-            for path, subdirs, files in walk(p):
-                for filename in files:
-                    all_paths.append(join(path, filename))
-        else:
-            logger.info("Using only %s files" % file_type)
-            for path, subdirs, files in walk(p):
-                for filename in files:
-                    if filename.endswith(file_type):
-                        all_paths.append(join(path, filename))
-
-    else:
-        logger.info("Exclude files from subdirectories")
-        if use_all_types:
-            logger.info("Using all file types")
-            all_paths = [join(p, f) for f in listdir(p) if isfile(join(p, f))]
-        else:
-            logger.info("Using only %s files" % file_type)
-            all_paths = [join(p, f) for f in listdir(p) if
-                         isfile(join(p, f)) and f.endswith(file_type)]
-    all_paths.sort()
-    return all_paths
-
-
-def create_temporary_copy(path):
     temp_dir = gettempdir()
     temp_path = join(temp_dir, basename(path))
     copy2(path, temp_path)
     return temp_path
 
+def get_my_pyplis_dir():
+    """
+    Get location of my_pyplis directory (~/my_pyplis)
 
-def download_test_data(save_path=None):
+    Returns
+    -------
+    str
+        full path to my_pyplis directory
+    """
+    return get_data_search_dirs()[0]
+
+def get_paths_txt():
+    """
+    Get location of _paths.txt file
+
+    Returns
+    -------
+    str
+    """
+    return join(get_my_pyplis_dir(), '_paths.txt')
+
+def _path_registered(path, paths_txt):
+    """
+    Check if input path is registered in file
+
+    Parameters
+    ----------
+    path : str
+        path location
+    paths_txt : str
+        file that may contain that path in one line
+
+    Returns
+    -------
+    bool
+        True if input path is registered in file, else False
+    """
+    found = False
+    with open(paths_txt, 'r') as f:
+        for line in f.readlines():
+            value = line.strip()
+            if exists(value) and samefile(path, value):
+                found = True
+    return found
+
+def download_test_data(save_dir=None):
     """Download pyplis test data.
 
-    :param save_path: location where path is supposed to be stored
+    Parameters
+    ----------
+    save_dir : str
+        location where data is supposed to be stored. If None, then ~/my_pyplis is used.
 
-    Code for progress bar was "stolen" `here <http://stackoverflow.com/
+    Code for progress bar was adapted from `here <http://stackoverflow.com/
     questions/11143767/how-to-make-a-download-with>`_
     (last access date: 11/01/2017)
     -progress-bar-in-python
 
     """
-    from pyplis import URL_TESTDATA
-    url = URL_TESTDATA
+    if save_dir is None:
+        save_dir = get_my_pyplis_dir()
+    if not exists(save_dir):
+        raise FileNotFoundError(save_dir)
 
-    dirs = data_search_dirs()
-    where = dirs[0]
-    fp = join(where, "_paths.txt")
-    if not exists(fp):
-        where = dirs[1]
-        fp = join(where, "_paths.txt")
-    if save_path is None or not exists(save_path):
-        save_path = where
-        logger.info("Save path unspecified")
-    else:
-        with open(fp, "a") as f:
-            f.write("\n" + save_path + "\n")
-            logger.info("Adding new path for test data location in "
-                  "file _paths.txt: %s" % save_path)
-            f.close()
+    local_paths_info = get_paths_txt()
+    if not _path_registered(save_dir, local_paths_info):
+        fobj= open(local_paths_info, "a")
+        fobj.write(f"\n{save_dir}\n")
+        fobj.close()
 
-    print_log.info("installing test data at %s" % save_path)
+    print_log.info(f"downloading test data into {save_dir}")
 
     filename = mktemp('.zip')
 
-    if PGBAR_AVAILABLE:
-        widgets = ['Downloading pyplis test data: ', Percentage(), ' ',
-                   Bar(marker=RotatingMarker()), ' ',
-                   ETA(), ' ', FileTransferSpeed()]
+    widgets = ['Downloading pyplis test data: ', Percentage(), ' ',
+                Bar(marker=RotatingMarker()), ' ',
+                ETA(), ' ', FileTransferSpeed()]
 
-        pbar = ProgressBar(widgets=widgets)
+    pbar = ProgressBar(widgets=widgets)
 
-        def dl_progress(count, block_size, total_size):
-            if pbar.maxval is None:
-                pbar.maxval = total_size
-                pbar.start()
-            pbar.update(min(count * block_size, total_size))
+    def dl_progress(count, block_size, total_size):
+        if pbar.maxval is None:
+            pbar.maxval = total_size
+            pbar.start()
+        pbar.update(min(count * block_size, total_size))
 
-        urlretrieve(url, filename, reporthook=dl_progress)
-        pbar.finish()
-    else:
-        print_log.info("Downloading Pyplis testdata (this can take a while, install"
-              "Progressbar package if you want to receive download info")
-        urlretrieve(url, filename)
+    urlretrieve(URL_TESTDATA, filename, reporthook=dl_progress)
+    pbar.finish()
+
     thefile = ZipFile(filename)
-    print_log.info("Extracting data at: %s (this may take a while)" % save_path)
-    thefile.extractall(save_path)
+    print_log.info(f'Extracting data at: {save_dir} (this may take a while)')
+    thefile.extractall(save_dir)
     thefile.close()
     remove(filename)
-    print_log.info("Download successfully finished, deleted temporary data file"
-          "at: %s" % filename)
+    print_log.info('Download successfully finished, deleted temporary data file '
+                   'at: {}'.format(filename))
+    return save_dir
 
 
 def find_test_data():
     """Search location of test data folder."""
-    dirs = data_search_dirs()
+    srcdir = get_my_pyplis_dir()
     folder_name = "pyplis_etna_testdata"
-    for data_path in dirs:
-        if folder_name in listdir(data_path):
-            print_log.info("Found test data at location: %s" % data_path)
-            return join(data_path, folder_name)
-        try:
-            with open(join(data_path, "_paths.txt"), "r") as f:
-                lines = f.readlines()
-                for line in lines:
-                    p = line.split("\n")[0]
-                    if exists(p) and folder_name in listdir(p):
-                        print_log.info("Found test data at default location: %s" % p)
-                        f.close()
-                        return join(p, folder_name)
-        except:
-            pass
+
+    if folder_name in listdir(srcdir):
+        print_log.info(f'Found test data at location: {srcdir}')
+        return join(srcdir, folder_name)
+
+    with open(get_paths_txt()) as f:
+        lines = f.readlines()
+        for line in lines:
+            p = line.strip()
+            if exists(p) and folder_name in listdir(p):
+                print_log.info(f'Found test data at default location: {p}')
+                return join(p, folder_name)
+
     raise IOError("pyplis test data could not be found, please download"
                   "testdata first, using method "
                   "pyplis.inout.download_test_data or"
                   "specify the local path where the test data is stored using"
                   "pyplis.inout.set_test_data_path")
-
-
-def all_test_data_paths():
-    """Return list of all search paths for test data."""
-    dirs = data_search_dirs()
-    paths = []
-    [paths.append(x) for x in dirs]
-    for data_path in dirs:
-        fp = join(data_path, "_paths.txt")
-        if exists(fp):
-            with open(join(data_path, "_paths.txt"), "r") as f:
-                lines = f.readlines()
-                for line in lines:
-                    p = line.split("\n")[0].lower()
-                    if exists(p):
-                        paths.append(p)
-    return paths
-
-
-def set_test_data_path(save_path):
-    """Set local path where test data is stored."""
-    if save_path.lower() in all_test_data_paths():
-        logger.info("Path is already in search tree")
-        return
-    dirs = data_search_dirs()
-    fp = join(dirs[0], "_paths.txt")
-    if not exists(fp):
-        fp = join(dirs[1], "_paths.txt")
-    save_path = abspath(save_path)
-    try:
-        if not exists(save_path):
-            raise IOError("Could not set test data path: specified location "
-                          "does not exist: %s" % save_path)
-        with open(fp, "a") as f:
-            f.write("\n" + save_path + "\n")
-            print_log.info("Adding new path for test data location in "
-                  "file _paths.txt: %s" % save_path)
-            f.close()
-        if "pyplis_etna_testdata" not in listdir(save_path):
-            logger.warning("WARNING: test data folder (name: pyplis_etna_testdata) "
-                  "could not be  found at specified location, please download "
-                  "test data, unzip and save at: %s" % save_path)
-    except:
-        raise
-
 
 def _load_cam_info(cam_id, filepath):
     """Load camera info from a specific cam_info file."""
@@ -345,7 +260,7 @@ def get_camera_info(cam_id):
     :param str cam_id: string ID of camera (e.g. "ecII")
 
     """
-    dirs = data_search_dirs()
+    dirs = get_data_search_dirs()
     try:
         return _load_cam_info(cam_id, join(dirs[0], "cam_info.txt"))
     except:
@@ -359,7 +274,7 @@ def save_new_default_camera(info_dict):
 
     Only valid keys will be added to the
     """
-    dirs = data_search_dirs()
+    dirs = get_data_search_dirs()
     cam_file = join(dirs[0], "cam_info.txt")
     if not exists(cam_file):
         cam_file = join(dirs[1], "cam_info.txt")
@@ -422,7 +337,7 @@ def save_new_default_camera(info_dict):
     remove(cam_file_temp)
 
     print_log.info("Successfully added new default camera %s to database at %s"
-          % (info_dict["cam_id"], cam_file))
+                   % (info_dict["cam_id"], cam_file))
 
 
 def save_default_source(info_dict):
@@ -431,7 +346,7 @@ def save_default_source(info_dict):
         raise ValueError("Cannot save source information, require at least "
                          "name, lon, lat and altitude")
 
-    dirs = data_search_dirs()
+    dirs = get_data_search_dirs()
     path = join(dirs[0], "my_sources.txt")
     if not exists(path):
         path = join(dirs[1], "my_sources.txt")
@@ -452,7 +367,7 @@ def save_default_source(info_dict):
     remove(source_file_temp)
 
     print_log.info("Successfully added new default source %s to database file at %s"
-          % (info_dict["name"], path))
+                   % (info_dict["name"], path))
 
 
 def get_all_valid_cam_ids():
@@ -476,7 +391,7 @@ def get_cam_ids():
 
     Reads info from file cam_info.txt which is part of package data
     """
-    dirs = data_search_dirs()
+    dirs = get_data_search_dirs()
     ids = []
     for path in dirs:
         try:
@@ -498,7 +413,7 @@ def get_source_ids():
 
     Reads info from file my_sources.txt which is part of package data
     """
-    dirs = data_search_dirs()
+    dirs = get_data_search_dirs()
     ids = []
     for path in dirs:
         try:
@@ -534,7 +449,7 @@ def get_source_info(source_id, try_online=True):
                 return od([(source_id, dat)])
             spl = line.split(":")
             if found:
-                if not any([line[0] == x for x in["#", "\n"]]):
+                if not any([line[0] == x for x in ["#", "\n"]]):
                     spl = line.split(":")
                     k = spl[0].strip()
                     data_str = spl[1].split("#")[0].strip()
@@ -560,7 +475,7 @@ def get_source_info_online(source_id):
     src_name = quote(source_id.lower())
     url = f'https://www.ngdc.noaa.gov/hazel/hazard-service/api/v1/volcanolocs?nameInclude={src_name}'
 
-    with urlopen(url) as response:                       
+    with urlopen(url) as response:
         body = response.read()
 
     raw_data = loads(body)['items']
@@ -571,7 +486,7 @@ def get_source_info_online(source_id):
 
 def normalise_keys(dict):
     """Convert the names from the NOAA data to be consistent with pyplis naming conventions
-    
+
     :param dict: Dict with volcano information
     """
     # pyplis names: NOAA names
@@ -586,10 +501,10 @@ def normalise_keys(dict):
         'status': 'status',
         'last_eruption': 'timeErupt'
         }
-    
+
     # Run through each item and replace the key name if found, don't include if not.
     res = od({key: dict[value] for key, value in convert_dict.items() if value in dict.keys()})
-    
+
     return res
 
 
@@ -617,10 +532,3 @@ def get_icon(name, color=None):
                 return base_path + file
     logger.warning("Failed to load icon at: " + _LIBDIR)
     return False
-
-
-if __name__ == '__main__':
-
-    i1 = get_camera_info('ecII')
-
-    i2 = get_camera_info('usgs')

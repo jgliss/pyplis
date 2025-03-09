@@ -13,5 +13,7 @@ dependencies:
   - pydoas
   - six
   - pyproj
+  - progressbar
   - pytest
   - pytest-cov
+

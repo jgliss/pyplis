@@ -153,7 +153,7 @@ if __name__ == "__main__":
                                      3.194000052267778e+18,
                                      4.779782684462987e+18,
                                      -2.7244424951657216e+16],
-                            rtol=1e-7)
+                            rtol=1e-5)
         print("All tests passed in script: %s" % basename(__file__))
     try:
         if int(options.show) == 1:

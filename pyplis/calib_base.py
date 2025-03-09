@@ -574,7 +574,7 @@ class CalibData(object):
         # returns abspath of current wkdir if None
 
         hdulist.writeto(self._prep_fits_savepath(save_dir, save_name),
-                        clobber=overwrite_existing)
+                        overwrite=overwrite_existing)
 
     def to_csv(self):
         """Store calibration data as tab delimited text file."""
