@@ -21,7 +21,7 @@ from ._init_utils import (check_requirements, _init_logger,
                           _init_supplemental, change_loglevel,
                           get_loglevel)
 
-PYDOASAVAILABLE, GEONUMAVAILABLE  = check_requirements()
+PYDOASAVAILABLE = check_requirements()
 logger, print_log = _init_logger()
 
 __version__, __dir__ = _init_supplemental()

@@ -75,9 +75,4 @@ def check_requirements():
         PYDOASAVAILABLE = True
     except BaseException:
         PYDOASAVAILABLE = False
-    try:
-        import geonum  # noqa: F401
-        GEONUMAVAILABLE = True
-    except BaseException:
-        GEONUMAVAILABLE = False
-    return (PYDOASAVAILABLE, GEONUMAVAILABLE)
+    return PYDOASAVAILABLE

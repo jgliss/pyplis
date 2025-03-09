@@ -27,19 +27,13 @@ from matplotlib.pyplot import figure
 from copy import deepcopy
 import six
 
-from pyplis import logger, print_log, GEONUMAVAILABLE
+from pyplis import logger, print_log
 from .image import Img
 from .helpers import check_roi, isnum
 from .glob import DEFAULT_ROI
 
-if GEONUMAVAILABLE:
-    from geonum import __version__ as _geonum_ver
-    if int(_geonum_ver.split('.')[1]) < 4:
-        from geonum import GeoSetup, GeoPoint, GeoVector3D, TopoData
-        from geonum.topodata import TopoAccessError
-    else:
-        from geonum import GeoSetup, GeoPoint, GeoVector3D, TopoData
-        from geonum.exceptions import TopoAccessError
+from geonum import GeoSetup, GeoPoint, GeoVector3D, TopoData
+from geonum.exceptions import TopoAccessError
 
 
 class MeasGeometry(object):
@@ -587,38 +581,27 @@ class MeasGeometry(object):
         cam_ok, source_ok = self._check_geosetup_info()
         all_ok = True
         if cam_ok:
-            try:
-                cam = GeoPoint(self._cam["lat"], self._cam["lon"],
-                               self._cam["altitude"], name="cam",
-                               auto_topo_access=self.auto_topo_access)
-            except BaseException:
-                cam = GeoPoint(self._cam["lat"], self._cam["lon"],
-                               self._cam["altitude"], name="cam")
-                from geonum import __version__ as v
-                print_log.warning("Outdated version of Geonum: %s. Require >= v1.2.0" % v)
-            self.geo_setup.add_geo_point(cam)
+            cam = GeoPoint(self._cam["lat"], self._cam["lon"],
+                            self._cam["altitude"], name="cam",
+                            auto_topo_access=self.auto_topo_access)
+            self.geo_setup.add_geo_point(cam, overwrite_existing=True)
             logger.info("Updated camera in GeoSetup of MeasGeometry")
         if source_ok:
-            try:
-                source = GeoPoint(self._source["lat"], self._source["lon"],
-                                  self._source["altitude"], name="source",
-                                  auto_topo_access=self.auto_topo_access)
-            except BaseException:
-                from geonum import __version__ as v
-                source = GeoPoint(self._source["lat"], self._source["lon"],
-                                  self._source["altitude"], name="source")
-                print_log.warning("Outdated version of Geonum: %s. Require >= v1.2.0" % v)
-            self.geo_setup.add_geo_point(source)
+            source = GeoPoint(self._source["lat"], self._source["lon"],
+                                self._source["altitude"], name="source",
+                                auto_topo_access=self.auto_topo_access)
+            
+            self.geo_setup.add_geo_point(source, overwrite_existing=True)
             logger.info("Updated source in GeoSetup of MeasGeometry")
         if cam_ok and source_ok:
             try:
                 source2cam = cam - source  # Vector pointing from source to cam
                 mag = source2cam.norm  # length of this vector
                 source2cam.name = "source2cam"
-                self.geo_setup.add_geo_vector(source2cam)
+                self.geo_setup.add_geo_vector(source2cam, overwrite_existing=True)
                 logger.info("Updated source2cam GeoVector in GeoSetup of "
                       "MeasGeometry")
-            except BaseException:
+            except Exception:
                 print_log.warning("Failed to compute GeoVector between camera and source")
                 all_ok = False
             try:
@@ -629,7 +612,7 @@ class MeasGeometry(object):
                                            dist_hor=mag, anchor=cam,
                                            name="cfov")
                 logger.info("Updated camera CFOV vector in GeoSetup of MeasGeometry")
-                self.geo_setup.add_geo_vector(cam_view_vec)
+                self.geo_setup.add_geo_vector(cam_view_vec, overwrite_existing=True)
             except BaseException:
                 print_log.warning("Failed to compute camera CFOV GeoVector"
                      "in GeoSetup of MeasGeometry")
@@ -641,7 +624,7 @@ class MeasGeometry(object):
                                         dist_hor=mag, anchor=source,
                                         name="plume_vec")
                 logger.info("Updated plume vector in GeoSetup of MeasGeometry")
-                self.geo_setup.add_geo_vector(plume_vec)
+                self.geo_setup.add_geo_vector(plume_vec, overwrite_existing=True)
             except BaseException:
                 print_log.warning("Failed to compute plume GeoVector"
                      "in GeoSetup of MeasGeometry")
@@ -654,7 +637,7 @@ class MeasGeometry(object):
                 intersect.name = "intersect"
                 logger.info("Updated GeoPoint of intersection between camera CFOV "
                       "and plume vector in GeoSetup of MeasGeometry")
-                self.geo_setup.add_geo_point(intersect)
+                self.geo_setup.add_geo_point(intersect, overwrite_existing=True)
             except BaseException:
                 print_log.warning("Could not compute intersection point between camera CFOV"
                      " and plume vector in GeoSetup of MeasGeometry")
@@ -674,7 +657,7 @@ class MeasGeometry(object):
                                        elevation=self._cam["elev"],
                                        dist_hor=mag, anchor=cam,
                                        name="cfov")
-            self.geo_setup.add_geo_vector(cam_view_vec)
+            self.geo_setup.add_geo_vector(cam_view_vec, overwrite_existing=True)
             logger.info("MeasGeometry was updated but misses source specifications")
         logger.info("MeasGeometry not (yet) ready for analysis")
 
@@ -1156,36 +1139,7 @@ class MeasGeometry(object):
             self._cam["elev_err"] = elev_err
             self._cam["azim_err"] = azim_err
             self.update_geosetup()
-# =============================================================================
-#             stp = self.geo_setup
-#             plume_vec = stp.vectors["plume_vec"]
-#             # new vector representing the camera center pixel viewing
-#             # direction (CFOV),
-#             # anchor at camera position
-#             cam_pos = self.geo_setup.points["cam"]
-#             cam_view_vec = GeoVector3D(azimuth=self._cam["azim"],
-#                                        elevation=self._cam["elev"],
-#                                        dist_hor=stp.magnitude,
-#                                        anchor=cam_pos, name="cfov")
-#             #horizontal intersection of plume and viewing direction
-#             offs = plume_vec.intersect_hor(cam_view_vec)
-#             #Geopoint at intersection
-#             p3 = stp.points["source"] + offs
-#             p3.name = "intersect"
-#
-#             #Delete the old stuff
-#             stp.delete_geo_vector("cfov")
-#             stp.delete_geo_point("intersect")
-#             stp.delete_geo_point("ll")
-#             stp.delete_geo_point("tr")
-#             #and write the new stuff
-#             stp.add_geo_point(p3)
-#             stp.add_geo_vector(cam_view_vec)
-#             stp.set_borders_from_points(extend_km=self._map_extend_km(),
-#                                         to_square=True)
-#             if isinstance(stp.topo_data, TopoData):
-#                 stp.load_topo_data()
-# =============================================================================
+
         map = None
         if draw_result:
             s = self.geo_setup
