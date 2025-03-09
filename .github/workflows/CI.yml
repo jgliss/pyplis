@@ -1,53 +1,48 @@
 # This workflow will install Python dependencies, run tests and lint with a variety of Python versions
 # For more information see: https://help.github.com/actions/language-and-framework-guides/using-python-with-github-actions
 name: CI
+
 on:
   pull_request:
-    branches:
-      - '*'
-  push:
-    branches:
-      - master
   schedule:
-    - cron: '0 12 * * 1'
+    - cron: '0 12 1 * *'  # 12:00, first day of the month
 
 jobs:
   build-and-test:
-    strategy:
-      fail-fast: false
-      matrix:
-        python-version: ['3.8', '3.9', '3.10']
-        os: [ubuntu-latest, windows-latest]
     runs-on: ${{ matrix.os }}
     defaults:
       run:
         shell: bash -l {0} # https://github.com/conda-incubator/setup-miniconda#important
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.9"]
+        os: [ubuntu-latest, windows-latest]
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: Set up conda env ${{ matrix.python-version }}
-      uses: conda-incubator/setup-miniconda@v2
+      uses: conda-incubator/setup-miniconda@v3
       with:
-        mamba-version: "*"
         environment-file: pyplis_env.yml
-        activate-environment: pyplis
+        activate-environment: pyplis-dev
         python-version: ${{ matrix.python-version }}
-        auto-activate-base: false
+
     - name: Conda info
-      run: conda info
-    - name: Python version
-      run: which python
-    - name: Display current environments
-      run: conda info --envs
-    - name: Install test dependencies
-      run: |
-        conda install -c conda-forge --file ./test-requirements.txt
+      run: | 
+        conda --version
+        conda info --envs
+        which python
+        python --version
+    - name: Conda list
+      run: conda list
     - name: Install pyplis
-      run: pip install --no-deps .
+      run: python -m pip install . --no-deps
     - name: Run pytest
-      run: pytest --cov=pyplis/ --cov-report xml
+      run: pytest pyplis/test --cov=pyplis/ --cov-report xml
     - name: Upload coverage to Codecov
-      if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.10'
-      uses: codecov/codecov-action@v3
+      if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.9'
+      uses: codecov/codecov-action@v4
       with:
-          files: ./coverage.xml
+          token: ${{ secrets.CODECOV_TOKEN }}
+          file: ./coverage.xml
           flags: unittests
