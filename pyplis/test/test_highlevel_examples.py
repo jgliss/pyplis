@@ -127,7 +127,6 @@ def plume_dataset(setup):
     setup.start = START_PLUME
     setup.stop = STOP_PLUME
     # Create analysis object (from BaseSetup)
-    # The dataset takes care of finding all vali
     return pyplis.Dataset(setup)
 
 
