@@ -27,15 +27,8 @@ with open(os.path.join("..", "VERSION.rst")) as f:
     __version__ = ".".join(f.readline().strip().split(".")[:3]) 
     f.close()
 
-try:
-    from unittest.mock import MagicMock
-except ImportError:
-    from mock import Mock as MagicMock
+from unittest.mock import MagicMock as Mock
 
-class Mock(MagicMock):
-    @classmethod
-    def __getattr__(cls, name):
-        return Mock()
 
 MOCK_MODULES = [
     'mpl_toolkits.basemap',
@@ -67,13 +60,9 @@ extensions = [
     'sphinx.ext.todo',
     'sphinx.ext.coverage',
     'sphinx.ext.imgmath',
-    #'sphinx.ext.pngmath',
     'sphinx.ext.ifconfig',
     'sphinx.ext.viewcode',
-    #'sphinxcontrib.bibtex',
-    #'sphinxcontrib.images',
-    'sphinxcontrib.napoleon',
-    #'sphinxcontrib.exceltable'
+    'sphinx.ext.napoleon',
 ]
 
 
