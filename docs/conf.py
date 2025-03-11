@@ -14,21 +14,17 @@
 
 import sys
 import os
-import matplotlib
 
 # This was inserted based on this blog: https://github.com/spinus/sphinxcontrib-images/issues/41, after the following build error occured: Could not import extension sphinxcontrib.images (exception: cannot import name make_admonition), apparently due to a compatibility error between an updated version of sphinx (1.6) and the extension sphinxcontrib.images
 #from docutils.parsers.rst.directives.admonitions import BaseAdmonition
 #from sphinx.util import compat
 #compat.make_admonition = BaseAdmonition
 
-matplotlib.use('agg')
-
 with open(os.path.join("..", "VERSION.rst")) as f:
     __version__ = ".".join(f.readline().strip().split(".")[:3]) 
     f.close()
 
 from unittest.mock import MagicMock as Mock
-
 
 MOCK_MODULES = [
     'mpl_toolkits.basemap',
