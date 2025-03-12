@@ -12,6 +12,7 @@ dependencies:
   - opencv
   - geonum>=1.5
   - pydoas
+  - progressbar
   - six
   - pyproj
   - pytest
