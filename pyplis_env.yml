@@ -10,9 +10,11 @@ dependencies:
   - matplotlib
   - basemap
   - opencv
-  - geonum
+  - geonum>=1.5
   - pydoas
+  - progressbar
   - six
   - pyproj
   - pytest
   - pytest-cov
+  - sphinx-rtd-theme

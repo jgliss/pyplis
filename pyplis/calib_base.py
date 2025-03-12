@@ -24,7 +24,7 @@ from __future__ import (absolute_import, division)
 from pyplis import logger
 from numpy import (min, asarray, zeros, linspace, ones, float64, isnan,
                    ndarray, argmax, inf)
-from inspect import getargspec
+from inspect import signature
 from scipy.optimize import curve_fit
 
 from datetime import datetime
@@ -171,7 +171,7 @@ class CalibData(object):
 
     def num_optargs_fun(self, fun):
         """Return number of optimisation args of a function."""
-        return len(getargspec(fun).args) - 1
+        return len(list(signature(fun).parameters)) - 1
 
     @property
     def senscorr_mask(self):
