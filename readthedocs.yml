@@ -25,3 +25,8 @@ build:
 
 conda:
   environment: pyplis_env.yml
+
+python:
+  install:
+    - method: pip
+      path: .
