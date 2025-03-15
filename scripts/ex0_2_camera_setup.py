@@ -31,11 +31,8 @@ See also here for more information:
 https://pyplis.readthedocs.io/en/latest/tutorials.html#data-import-specifying-
 custom-camera-information
 """
-from __future__ import (absolute_import, division)
-
-from SETTINGS import check_version, OPTPARSE
-
-from os.path import basename
+import pathlib
+from SETTINGS import check_version, ARGPARSER
 from numpy.testing import assert_array_equal
 
 import pyplis
@@ -185,7 +182,7 @@ if __name__ == "__main__":
     # ## IMPORTANT STUFF FINISHED - everything below is of minor importance
     # for educational purposes
 
-    (options, args) = OPTPARSE.parse_args()
+    options = ARGPARSER.parse_args()
     # apply some tests. This is done only if TESTMODE is active: testmode can
     # be activated globally (see SETTINGS.py) or can also be activated from
     # the command line when executing the script using the option --test 1
@@ -238,4 +235,4 @@ if __name__ == "__main__":
 
         assert_array_equal(arr_nominal, arr_vals)
 
-        print("All tests passed in script: %s" % basename(__file__))
+        print(f"All tests passed in script: {pathlib.Path(__file__).name}")

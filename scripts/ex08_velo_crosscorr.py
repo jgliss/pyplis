@@ -29,7 +29,7 @@ from time import time
 from pyplis.plumespeed import VeloCrossCorrEngine
 
 # IMPORT GLOBAL SETTINGS
-from SETTINGS import SAVEFIGS, SAVE_DIR, FORMAT, DPI, OPTPARSE, LINES
+from SETTINGS import SAVEFIGS, SAVE_DIR, FORMAT, DPI, ARGPARSER, LINES
 
 # IMPORTS FROM OTHER EXAMPLE SCRIPTS
 from ex04_prep_aa_imglist import prepare_aa_image_list
@@ -138,7 +138,7 @@ if __name__ == "__main__":
     # IMPORTANT STUFF FINISHED (Below follow tests and display options)
 
     # Import script options
-    (options, args) = OPTPARSE.parse_args()
+    (options, args) = ARGPARSER.parse_args()
 
     # If applicable, do some tests. This is done only if TESTMODE is active:
     # testmode can be activated globally (see SETTINGS.py) or can also be

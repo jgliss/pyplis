@@ -27,30 +27,28 @@ encoded in the image file name. The latter can be performed automatically in
 pyplis using file name conventions (which can be specified globally, see next
 script).
 """
-from __future__ import (absolute_import, division)
+from datetime import datetime
+from matplotlib.pyplot import close
+import pathlib
+import pyplis
 
 # Check script version
 from SETTINGS import check_version
 
 # imports from SETTINGS.py
-from SETTINGS import OPTPARSE, SAVE_DIR
-
-from os.path import join, basename
-from datetime import datetime
-from matplotlib.pyplot import close
-import pyplis
+from SETTINGS import ARGPARSER, SAVE_DIR
 
 check_version()
 
 # file name of test image stored in data folder
 IMG_FILE_NAME = "test_201509160708_F01_335.fts"
 
-IMG_DIR = join(pyplis._LIBDIR, "data")
+IMG_DIR = pathlib.Path(pyplis._LIBDIR) / "data"
 
 if __name__ == "__main__":
     close("all")
 
-    img_path = join(IMG_DIR, IMG_FILE_NAME)
+    img_path = IMG_DIR / IMG_FILE_NAME
 
     # Create Img object (Img objects can be initiated both with image file
     # paths but also with data in memory in form of a 2D numpy array)
@@ -91,7 +89,7 @@ if __name__ == "__main__":
 
     img.save_as_fits(SAVE_DIR, "ex0_1_imgsave_test")
 
-    img_reload = pyplis.Img(join(SAVE_DIR, "ex0_1_imgsave_test.fts"))
+    img_reload = pyplis.Img(SAVE_DIR / "ex0_1_imgsave_test.fts")
 
     # print image information
     print(img)
@@ -99,7 +97,7 @@ if __name__ == "__main__":
     # ## IMPORTANT STUFF FINISHED - everything below is of minor importance
     # for educational purposes
 
-    (options, args) = OPTPARSE.parse_args()
+    options = ARGPARSER.parse_args()
     # If applicable, do some tests. This is done only if TESTMODE is active:
     # testmode can be activated globally (see SETTINGS.py) or can also be
     # activated from the command line when executing the script using the
@@ -121,4 +119,4 @@ if __name__ == "__main__":
                                  0.025],
                                 vals, 4)
 
-        print("All tests passed in script: %s" % basename(__file__))
+        print(f"All tests passed in script: {pathlib.Path(__file__).name}")

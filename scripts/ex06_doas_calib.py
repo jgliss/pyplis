@@ -53,7 +53,7 @@ from os.path import join, exists
 from os import remove
 
 # IMPORT GLOBAL SETTINGS
-from SETTINGS import SAVEFIGS, SAVE_DIR, FORMAT, DPI, IMG_DIR, OPTPARSE
+from SETTINGS import SAVEFIGS, SAVE_DIR, FORMAT, DPI, IMG_DIR, ARGPARSER
 
 # IMPORTS FROM OTHER EXAMPLE SCRIPTS
 from ex04_prep_aa_imglist import prepare_aa_image_list
@@ -251,7 +251,7 @@ if __name__ == "__main__":
     doas_time_series = load_doas_results()
 
     # Import script options
-    (options, args) = OPTPARSE.parse_args()
+    (options, args) = ARGPARSER.parse_args()
 
     if options.test:
         # if test mode is active, the image stack is always recomputed from

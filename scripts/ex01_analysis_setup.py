@@ -59,7 +59,7 @@ which shows how to create an image list displaying AA images.
 """
 from __future__ import (absolute_import, division)
 
-from SETTINGS import check_version, IMG_DIR, OPTPARSE
+from SETTINGS import check_version, IMG_DIR, ARGPARSER
 import pyplis as pyplis
 from datetime import datetime
 from matplotlib.pyplot import show, close
@@ -183,7 +183,7 @@ if __name__ == "__main__":
     # IMPORTANT STUFF FINISHED (Below follow tests and display options)
 
     # Import script options
-    (options, args) = OPTPARSE.parse_args()
+    (options, args) = ARGPARSER.parse_args()
 
     # If applicable, do some tests. This is done only if TESTMODE is active:
     # testmode can be activated globally (see SETTINGS.py) or can also be

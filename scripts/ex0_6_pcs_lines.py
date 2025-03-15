@@ -26,7 +26,7 @@ the dot product).
 """
 from __future__ import (absolute_import, division)
 
-from SETTINGS import check_version, SAVEFIGS, SAVE_DIR, FORMAT, DPI, OPTPARSE
+from SETTINGS import check_version, SAVEFIGS, SAVE_DIR, FORMAT, DPI, ARGPARSER
 
 from pyplis import LineOnImage
 from os.path import join, basename
@@ -137,7 +137,7 @@ if __name__ == "__main__":
                     format=FORMAT, dpi=DPI)
 
     # Import script options
-    (options, args) = OPTPARSE.parse_args()
+    (options, args) = ARGPARSER.parse_args()
 
     # If applicable, do some tests. This is done only if TESTMODE is active:
     # testmode can be activated globally (see SETTINGS.py) or can also be

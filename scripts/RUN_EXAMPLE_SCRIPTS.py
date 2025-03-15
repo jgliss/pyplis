@@ -20,9 +20,9 @@ from os import listdir, unlink
 from os.path import basename, join, isfile
 from time import time
 from sys import exit
-from SETTINGS import OPTPARSE
+from SETTINGS import ARGPARSER
 
-(options, args) = OPTPARSE.parse_args()
+(options, args) = ARGPARSER.parse_args()
 
 # init arrays, that store messages that are printed after execution of all
 # scripts

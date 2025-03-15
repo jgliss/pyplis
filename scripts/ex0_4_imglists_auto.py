@@ -31,10 +31,8 @@ definitions  contains information about the camera specs a the
 image base directory (note that in this example, start / stop acq. time stamps
 are ignored, i.e. all images available in the specified directory are imported)
 """
-from __future__ import (absolute_import, division)
-
 # Imports from SETTINGS.py
-from SETTINGS import check_version, IMG_DIR, OPTPARSE
+from SETTINGS import check_version, IMG_DIR, ARGPARSER
 
 import pyplis
 from os.path import basename
@@ -91,7 +89,7 @@ if __name__ == "__main__":
     on_list.edit_info()
 
     # Import script options
-    (options, args) = OPTPARSE.parse_args()
+    (options, args) = ARGPARSER.parse_args()
 
     # If applicable, do some tests. This is done only if TESTMODE is active:
     # testmode can be activated globally (see SETTINGS.py) or can also be

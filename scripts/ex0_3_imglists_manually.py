@@ -35,31 +35,25 @@ Furthermore, some basic image preparation features of ImgList objects are
 introduced (e.g. linking of lists, dark correction, automatic blurring,
 cropping, size reduction).
 """
-from __future__ import (absolute_import, division)
-
-from SETTINGS import check_version, IMG_DIR, SAVEFIGS, SAVE_DIR, FORMAT, DPI,\
-    OPTPARSE
-
+import pathlib
 import pyplis
 from matplotlib.pyplot import subplots, close, show
 from datetime import datetime
 
-from os.path import join, isfile, basename
-from os import listdir
+from SETTINGS import check_version, IMG_DIR, SAVEFIGS, SAVE_DIR, FORMAT, DPI, ARGPARSER
 
 # Check script version
 check_version()
 
 # ## RELEVANT DIRECTORIES AND PATHS
-OFFSET_FILE = join(IMG_DIR, "EC2_1106307_1R02_2015091607064723_D0L_Etna.fts")
-DARK_FILE = join(IMG_DIR, "EC2_1106307_1R02_2015091607064865_D1L_Etna.fts")
+OFFSET_FILE = IMG_DIR / "EC2_1106307_1R02_2015091607064723_D0L_Etna.fts"
+DARK_FILE = IMG_DIR / "EC2_1106307_1R02_2015091607064865_D1L_Etna.fts"
 
 if __name__ == "__main__":
     close("all")
-
+    
     # ## Get all images in the image path which are FITS files (actually all)
-    all_paths = [join(IMG_DIR, f) for f in listdir(IMG_DIR) if
-                 isfile(join(IMG_DIR, f)) and f.endswith("fts")]
+    all_paths = list(IMG_DIR.glob("*.fts"))
 
     # Let pyplis know that this is the ECII camera standard, so that it is
     # able to import meta information from the FITS header
@@ -156,11 +150,11 @@ if __name__ == "__main__":
 
     # ## IMPORTANT STUFF FINISHED
     if SAVEFIGS:
-        fig.savefig(join(SAVE_DIR, "ex0_3_out_1.%s" % FORMAT),
+        fig.savefig(SAVE_DIR / f"ex0_3_out_1.{FORMAT}",
                     format=FORMAT, dpi=DPI)
 
     # Import script options
-    (options, args) = OPTPARSE.parse_args()
+    options = ARGPARSER.parse_args()
 
     # If applicable, do some tests. This is done only if TESTMODE is active:
     # testmode can be activated globally (see SETTINGS.py) or can also be
@@ -179,7 +173,7 @@ if __name__ == "__main__":
         npt.assert_allclose([402.66284],
                             [off_img.mean() - on_img.mean()],
                             rtol=1e-7, atol=0)
-        print("All tests passed in script: %s" % basename(__file__))
+        print(f"All tests passed in script: {pathlib.Path(__file__).name}")
     try:
         if int(options.show) == 1:
             show()

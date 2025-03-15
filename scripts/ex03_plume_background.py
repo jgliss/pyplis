@@ -30,7 +30,7 @@ import pyplis
 from matplotlib.pyplot import show, subplots, close
 
 # IMPORT GLOBAL SETTINGS
-from SETTINGS import SAVEFIGS, SAVE_DIR, FORMAT, DPI, IMG_DIR, OPTPARSE
+from SETTINGS import SAVEFIGS, SAVE_DIR, FORMAT, DPI, IMG_DIR, ARGPARSER
 
 # Check script version
 check_version()
@@ -240,7 +240,7 @@ if __name__ == "__main__":
     # IMPORTANT STUFF FINISHED (Below follow tests and display options)
 
     # Import script options
-    (options, args) = OPTPARSE.parse_args()
+    (options, args) = ARGPARSER.parse_args()
 
     # If applicable, do some tests. This is done only if TESTMODE is active:
     # testmode can be activated globally (see SETTINGS.py) or can also be

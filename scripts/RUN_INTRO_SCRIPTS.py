@@ -15,52 +15,36 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
-from __future__ import (absolute_import, division)
-from os import listdir, unlink
-from os.path import basename, join, isfile
+import pathlib 
+import os
 from traceback import format_exc
-from SETTINGS import OPTPARSE
 from sys import exit
 from time import time
 
-paths = [f for f in listdir(".") if f[:4] == "ex0_" and f[4] != "5" and
-         f.endswith("py")]
+this_dir = pathlib.Path(__file__).parent
+files = list(this_dir.glob("ex0_*.py"))
 
-# init arrays, that store messages that are printed after execution of all
+# init lists that store messages that are printed after execution of all
 # scripts
 test_err_messages = []
 passed_messages = []
 
-(options, args) = OPTPARSE.parse_args()
-
-if options.clear:
-    folder = "scripts_out"
-    for the_file in listdir(folder):
-        file_path = join(folder, the_file)
-        try:
-            if isfile(file_path):
-                unlink(file_path)
-            # elif os.path.isdir(file_path): shutil.rmtree(file_path)
-        except Exception as e:
-            print(e)
-
 t0 = time()
-for path in paths:
+for path in files:
     try:
         with open(path) as f:
             code = compile(f.read(), path, 'exec')
             exec(code)
 
-        passed_messages.append("All tests passed in script: %s"
-                               % basename(path))
+        passed_messages.append(f"All tests passed in script: {os.path.basename(path)}")
     except AssertionError as e:
-        msg = ("\n\n"
-               "--------------------------------------------------------\n"
-               "Tests in script %s failed.\n"
-               "Error traceback:\n %s\n"
-               "--------------------------------------------------------"
-               "\n\n"
-               % (basename(path), format_exc(e)))
+        msg = (f"\n\n"
+               f"--------------------------------------------------------\n"
+               f"Tests in script {os.path.basename(path)} failed.\n"
+               f"Error traceback:\n {format_exc(e)}\n"
+               f"--------------------------------------------------------"
+               f"\n\n"
+            )
         test_err_messages.append(msg)
 
 t1 = time()

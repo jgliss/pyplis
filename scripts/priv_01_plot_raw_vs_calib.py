@@ -6,7 +6,7 @@ from matplotlib.pyplot import close, show, rc_context
 
 import pyplis
 # IMPORT GLOBAL SETTINGS
-from SETTINGS import SAVEFIGS, SAVE_DIR, FORMAT, DPI, OPTPARSE, LINES
+from SETTINGS import SAVEFIGS, SAVE_DIR, FORMAT, DPI, ARGPARSER, LINES
 
 # IMPORTS FROM OTHER EXAMPLE SCRIPTS
 from ex04_prep_aa_imglist import prepare_aa_image_list
@@ -146,7 +146,7 @@ if __name__ == "__main__":
                             format=FORMAT, dpi=DPI)
 
     # Display images or not
-    (options, args) = OPTPARSE.parse_args()
+    (options, args) = ARGPARSER.parse_args()
     try:
         if int(options.show) == 1:
             show()
