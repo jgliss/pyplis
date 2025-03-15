@@ -33,9 +33,8 @@ are ignored, i.e. all images available in the specified directory are imported)
 """
 # Imports from SETTINGS.py
 from SETTINGS import check_version, IMG_DIR, ARGPARSER
-
+import pathlib
 import pyplis
-from os.path import basename
 
 # ## IMPORTS FROM OTHER EXAMPLE SCRIPTS
 from ex0_2_camera_setup import create_ecII_cam_new_filters
@@ -62,8 +61,7 @@ if __name__ == "__main__":
 
     # print some information about each of the lists
     for lst in all_imglists:
-        print("list_id: %s, list_type: %s, number_of_files: %s"
-              % (lst.list_id, lst.list_type, lst.nof))
+        print(f"list_id: {lst.list_id}, list_type: {lst.list_type}, number_of_files: {lst.nof}")
 
     # single lists can be accessed using "get_list(<id>)" using a valid ID,
     # e.g.:
@@ -74,9 +72,8 @@ if __name__ == "__main__":
 
     # ... because it is linked to the on band list (automatically set in
     # Dataset)
-    print("\nImgLists linked to ImgList on: %s" % on_list.linked_lists.keys())
-    print("Current file number on / off list: %d / %d\n" % (on_list.cfn,
-                                                            off_list.cfn))
+    print(f"ImgLists linked to ImgList on: {on_list.linked_lists.keys()}")
+    print(f"Current file number on / off list: {on_list.cfn} / {off_list.cfn}")
 
     # Detected dark and offset image lists are also automatically linked to the
     # on and off band image list, such that dark image correction can be
@@ -89,7 +86,7 @@ if __name__ == "__main__":
     on_list.edit_info()
 
     # Import script options
-    (options, args) = ARGPARSER.parse_args()
+    options = ARGPARSER.parse_args()
 
     # If applicable, do some tests. This is done only if TESTMODE is active:
     # testmode can be activated globally (see SETTINGS.py) or can also be
@@ -111,4 +108,4 @@ if __name__ == "__main__":
                             desired=[190.56119],
                             rtol=1e-7)
 
-        print("All tests passed in script: %s" % basename(__file__))
+        print(f"All tests passed in script: {pathlib.Path(__file__).name}")

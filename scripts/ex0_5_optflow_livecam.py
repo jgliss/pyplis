@@ -19,14 +19,23 @@
 
 Create an OpticalFlowFarneback object and activate live view (requires webcam)
 """
-from __future__ import (absolute_import, division)
-
 # Check script version
 from SETTINGS import check_version
-
+import signal
+import sys
 import pyplis
 
 check_version()
 
 flow = pyplis.plumespeed.OptflowFarneback()
-flow.live_example()
+
+def signal_handler(sig, frame):
+        print("\nExiting gracefully...")
+        sys.exit(0)  # Exit without error
+
+if __name__ == "__main__":    
+    signal.signal(signal.SIGINT, signal_handler)
+    try:
+        flow.live_example()
+    except KeyboardInterrupt:
+        sys.exit(0)

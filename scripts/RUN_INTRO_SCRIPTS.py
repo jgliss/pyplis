@@ -16,61 +16,70 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 import pathlib 
-import os
+import importlib.util
+import sys
 from traceback import format_exc
-from sys import exit
 from time import time
 
-this_dir = pathlib.Path(__file__).parent
-files = list(this_dir.glob("ex0_*.py"))
+IGNORE_SCRIPTS = ["ex0_5_optflow_livecam.py"]
 
-# init lists that store messages that are printed after execution of all
-# scripts
-test_err_messages = []
-passed_messages = []
+def run_script(script_path: pathlib.Path):
+    module_name = script_path.stem  # Use filename as module name
 
-t0 = time()
-for path in files:
-    try:
-        with open(path) as f:
-            code = compile(f.read(), path, 'exec')
-            exec(code)
+    spec = importlib.util.spec_from_file_location(module_name, script_path)
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[module_name] = module  # Add module to sys.modules
+    spec.loader.exec_module(module)  # Execute module
 
-        passed_messages.append(f"All tests passed in script: {os.path.basename(path)}")
-    except AssertionError as e:
-        msg = (f"\n\n"
-               f"--------------------------------------------------------\n"
-               f"Tests in script {os.path.basename(path)} failed.\n"
-               f"Error traceback:\n {format_exc(e)}\n"
-               f"--------------------------------------------------------"
-               f"\n\n"
-            )
-        test_err_messages.append(msg)
+if __name__ == "__main__":
 
-t1 = time()
+    this_dir = pathlib.Path(__file__).parent
+    all_intro_scripts = [x for x in this_dir.glob("ex0_*.py") if not x.name in IGNORE_SCRIPTS]
+    
+    # init lists that store messages that are printed after execution of all
+    # scripts
+    test_err_messages = []
+    passed_messages = []
+
+    t0 = time()
+    for script_path in all_intro_scripts:
+        try:
+            run_script(script_path=script_path)
+            passed_messages.append(f"All tests passed in script: {os.path.basename(path)}")
+        except AssertionError as e:
+            msg = (f"\n\n"
+                f"--------------------------------------------------------\n"
+                f"Tests in script {os.path.basename(path)} failed.\n"
+                f"Error traceback:\n {format_exc(e)}\n"
+                f"--------------------------------------------------------"
+                f"\n\n"
+                )
+            test_err_messages.append(msg)
+
+    t1 = time()
 
 
-# If applicable, do some tests. This is done only if TESTMODE is active:
-# testmode can be activated globally (see SETTINGS.py) or can also be
-# activated from the command line when executing the script using the
-# option --test 1
-if int(options.test):
-    print("\n----------------------------\n"
-          "T E S T  F A I L U R E S"
-          "\n----------------------------\n")
-    if test_err_messages:
-        for msg in test_err_messages:
-            print(msg)
-    else:
-        print("None")
-    print("\n----------------------------\n"
-          "T E S T  S U C C E S S"
-          "\n----------------------------\n")
-    if passed_messages:
-        for msg in passed_messages:
-            print(msg)
-    else:
-        print("None")
+    # If applicable, do some tests. This is done only if TESTMODE is active:
+    # testmode can be activated globally (see SETTINGS.py) or can also be
+    # activated from the command line when executing the script using the
+    # option --test 1
+    if int(options.test):
+        print("\n----------------------------\n"
+            "T E S T  F A I L U R E S"
+            "\n----------------------------\n")
+        if test_err_messages:
+            for msg in test_err_messages:
+                print(msg)
+        else:
+            print("None")
+        print("\n----------------------------\n"
+            "T E S T  S U C C E S S"
+            "\n----------------------------\n")
+        if passed_messages:
+            for msg in passed_messages:
+                print(msg)
+        else:
+            print("None")
 
-print("Total runtime: %.2f s" % (t1 - t0))
-exit(len(test_err_messages))
+    print("Total runtime: %.2f s" % (t1 - t0))
+    exit(len(test_err_messages))
