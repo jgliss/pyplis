@@ -15,7 +15,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
-"""Classes representing image data and corresponding processing features.
+"""Class representing image data and corresponding processing features.
 
 The image base class :class:`Img` is a powerful object for
 image data, containing I/O routines for many data formats, processing classes
@@ -29,8 +29,8 @@ instance used when performing a plume velocity cross-correlation analysis
 (where the optimal lag between a time-series of two plume intersection lines is
 searched, for details see :class:`pyplis.plumespeed.VeloCrossCorrEngine`).
 """
-from __future__ import (absolute_import, division)
 import six
+from pathlib import Path
 from astropy.io import fits
 from matplotlib import gridspec
 import matplotlib.cm as cmaps
@@ -428,8 +428,7 @@ class Img(object):
     def load_input(self, input):
         """Try to load input as numpy array and additional meta data."""
         try:
-            if any([isinstance(input, x) for x in
-                    [six.string_types, six.text_type]]) and exists(input):
+            if isinstance(input, (Path, str)) and exists(input):
                 self.load_file(input)
                 logger.info(input)
 
