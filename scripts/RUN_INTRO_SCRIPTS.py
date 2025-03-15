@@ -21,6 +21,8 @@ import sys
 from traceback import format_exc
 from time import time
 
+from SETTINGS import ARGPARSER
+
 IGNORE_SCRIPTS = ["ex0_5_optflow_livecam.py"]
 
 def run_script(script_path: pathlib.Path):
@@ -45,16 +47,18 @@ if __name__ == "__main__":
     for script_path in all_intro_scripts:
         try:
             run_script(script_path=script_path)
-            passed_messages.append(f"All tests passed in script: {os.path.basename(path)}")
+            passed_messages.append(f"All tests passed in script: {script_path.name}")
         except AssertionError as e:
             msg = (f"\n\n"
                 f"--------------------------------------------------------\n"
-                f"Tests in script {os.path.basename(path)} failed.\n"
+                f"Tests in script {script_path.name} failed.\n"
                 f"Error traceback:\n {format_exc(e)}\n"
                 f"--------------------------------------------------------"
                 f"\n\n"
                 )
             test_err_messages.append(msg)
+        except Exception as e:
+            test_err_messages.append(f"Unexpected error: {e}")
 
     t1 = time()
 
@@ -63,6 +67,7 @@ if __name__ == "__main__":
     # testmode can be activated globally (see SETTINGS.py) or can also be
     # activated from the command line when executing the script using the
     # option --test 1
+    
     if int(options.test):
         print("\n----------------------------\n"
             "T E S T  F A I L U R E S"
@@ -81,5 +86,5 @@ if __name__ == "__main__":
         else:
             print("None")
 
-    print("Total runtime: %.2f s" % (t1 - t0))
+    print(f"Total runtime: {t1 - t0:.2f} s")
     exit(len(test_err_messages))
