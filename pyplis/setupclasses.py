@@ -27,6 +27,8 @@ from datetime import datetime
 from collections import OrderedDict as od
 from copy import deepcopy
 from os.path import exists
+from pathlib import Path
+from typing import Optional
 from numpy import nan, rad2deg, arctan, ndarray
 from abc import ABCMeta
 
@@ -545,6 +547,9 @@ class Camera(CameraBaseInfo):
         contains more than one off band filter)
     ser_no : int
         optional, camera serial number
+    cam_info_file : Path
+        camera info file from which the default information for provided 
+        `cam_id` shall be imported.
     **geom_info :
         additional keyword args specifying geometrical information, e.g.
         lon, lat, altitude, elev, azim
@@ -569,7 +574,7 @@ class Camera(CameraBaseInfo):
     """
 
     def __init__(self, cam_id=None, filter_list=None, default_filter_on=None,
-                 default_filter_off=None, ser_no=9999, **geom_info):
+                 default_filter_off=None, ser_no=9999, cam_info_file: Optional[Path] = None, **geom_info):
 
         if filter_list is None:
             filter_list = []
@@ -578,7 +583,7 @@ class Camera(CameraBaseInfo):
                 raise TypeError("Camera initialisation: cam_id argument has "
                                 "to be of type str or None")
 
-        super(Camera, self).__init__(cam_id)
+        super(Camera, self).__init__(cam_id, cam_info_file)
 
         # specify the filters used in the camera and the main filter (e.g. On)
         self.ser_no = ser_no  # identifier of camera
@@ -700,9 +705,9 @@ class Camera(CameraBaseInfo):
         logger.warning("Old name of method update")
         self.update(**settings)
 
-    def load_default(self, cam_id):
+    def load_default(self, cam_id: str, cam_info_file: Optional[Path] = None):
         """Redefinition of method from base class :class:`CameraBaseInfo`."""
-        super(Camera, self).load_default(cam_id)
+        super(Camera, self).load_default(cam_id, cam_info_file=cam_info_file)
         self.prepare_filter_setup()
 
     def update(self, **settings):

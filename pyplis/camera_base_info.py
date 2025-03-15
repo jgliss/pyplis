@@ -1,4 +1,6 @@
 from __future__ import (absolute_import, division)
+from pathlib import Path
+from typing import Optional
 from numpy import nan
 from warnings import warn
 from os.path import exists, basename
@@ -19,12 +21,11 @@ class CameraBaseInfo(object):
 
     """
 
-    def __init__(self, cam_id=None, **kwargs):
+    def __init__(self, cam_id=None, cam_info_file: Optional[Path] = None, **kwargs):
         """Init object.
-
+    
         :param str cam_id: string ID of camera (e.g. "ecII")
-        :param dict info_dict: dictionary containing camera info (only loaded
-            if all parameters are available in the right format)
+        :param Path cam_info_file: path to cam_info.txt file to be used to load default.
 
         .. note::
 
@@ -83,7 +84,7 @@ class CameraBaseInfo(object):
                                     "start_acq": False}
 
         try:
-            self.load_default(cam_id)
+            self.load_default(cam_id=cam_id, cam_info_file=cam_info_file)
         except Exception as e:
             if cam_id is not None:
                 warn("Failed to load camera information for cam_id %s:\n%s "
@@ -417,12 +418,14 @@ class CameraBaseInfo(object):
 
         return missed, err
 
-    def load_default(self, cam_id):
+    def load_default(self, cam_id, cam_info_file: Optional[Path] = None):
         """Load information from one of the implemented default cameras.
 
         :param str cam_id: id of camera (e.g. "ecII")
+        :param Path cam_info_file: file from which camera info is to be loaded
         """
-        self.load_info_dict(get_camera_info(cam_id))
+        info = get_camera_info(cam_id, cam_info_file)
+        self.load_info_dict(info)
 
     """
     Helpers, supplemental stuff...
@@ -499,13 +502,13 @@ class CameraBaseInfo(object):
         d["image_import_method"] = ipm
         return d
 
-    def save_as_default(self, *add_cam_ids):
+    def save_as_default(self, cam_info_file: Optional[Path], *add_cam_ids):
         """Save this camera to default data base."""
         cam_ids = [self.cam_id]
         cam_ids.extend(add_cam_ids)
-        d = od([("cam_ids", cam_ids)])
-        d.update(self.to_dict())
-        save_new_default_camera(d)
+        info_dict = od([("cam_ids", cam_ids)])
+        info_dict.update(self.to_dict())
+        save_new_default_camera(info_dict=info_dict, cam_info_file=cam_info_file)
 
     def _all_params(self):
         """Return list of all relevant source attributes."""
