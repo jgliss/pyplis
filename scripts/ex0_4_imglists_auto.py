@@ -42,8 +42,7 @@ from ex0_2_camera_setup import create_ecII_cam_new_filters
 # Check script version
 check_version()
 
-
-if __name__ == "__main__":
+def main():
     # create the camera which was
     cam = create_ecII_cam_new_filters()
 
@@ -109,3 +108,6 @@ if __name__ == "__main__":
                             rtol=1e-7)
 
         print(f"All tests passed in script: {pathlib.Path(__file__).name}")
+
+if __name__ == "__main__":
+    main()

@@ -164,10 +164,7 @@ def create_ecII_cam_new_filters():
     # That's it...
     return cam
 
-
-# ## SCRIPT MAIN FUNCTION
-if __name__ == "__main__":
-
+def main():
     cam = create_ecII_cam_new_filters()
 
     print(cam)
@@ -236,3 +233,6 @@ if __name__ == "__main__":
         assert_array_equal(arr_nominal, arr_vals)
 
         print(f"All tests passed in script: {pathlib.Path(__file__).name}")
+
+if __name__ == "__main__":
+    main()

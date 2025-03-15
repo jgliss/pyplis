@@ -32,8 +32,14 @@ def run_script(script_path: pathlib.Path):
     module = importlib.util.module_from_spec(spec)
     sys.modules[module_name] = module  # Add module to sys.modules
     spec.loader.exec_module(module)  # Execute module
+    if hasattr(module, "main"):
+        module.main()
+    else:
+        raise ValueError(f"Please move content of __main__ to main() in {script_path.name}")
 
 if __name__ == "__main__":
+
+    options = ARGPARSER.parse_args()
 
     this_dir = pathlib.Path(__file__).parent
     all_intro_scripts = [x for x in this_dir.glob("ex0_*.py") if not x.name in IGNORE_SCRIPTS]
@@ -42,10 +48,12 @@ if __name__ == "__main__":
     # scripts
     test_err_messages = []
     passed_messages = []
+    crashed_messages = []
 
     t0 = time()
     for script_path in all_intro_scripts:
         try:
+            print(f"Running {script_path.name}")
             run_script(script_path=script_path)
             passed_messages.append(f"All tests passed in script: {script_path.name}")
         except AssertionError as e:
@@ -58,7 +66,7 @@ if __name__ == "__main__":
                 )
             test_err_messages.append(msg)
         except Exception as e:
-            test_err_messages.append(f"Unexpected error: {e}")
+            crashed_messages.append(f"Unexpected error in {script_path.name}: {e}")
 
     t1 = time()
 
@@ -85,6 +93,15 @@ if __name__ == "__main__":
                 print(msg)
         else:
             print("None")
+
+    print("\n----------------------------\n"
+        "C R A S H E D"
+        "\n----------------------------\n")
+    if crashed_messages:
+        for msg in crashed_messages:
+            print(msg)
+    else:
+        print("None")
 
     print(f"Total runtime: {t1 - t0:.2f} s")
     exit(len(test_err_messages))

@@ -49,7 +49,7 @@ check_version()
 OFFSET_FILE = IMG_DIR / "EC2_1106307_1R02_2015091607064723_D0L_Etna.fts"
 DARK_FILE = IMG_DIR / "EC2_1106307_1R02_2015091607064865_D1L_Etna.fts"
 
-if __name__ == "__main__":
+def main():
     close("all")
     
     # ## Get all images in the image path which are FITS files (actually all)
@@ -179,3 +179,6 @@ if __name__ == "__main__":
             show()
     except Exception:
         print("Use option --show 1 if you want the plots to be displayed")
+
+if __name__ == "__main__":
+    main()

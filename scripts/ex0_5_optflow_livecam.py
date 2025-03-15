@@ -33,9 +33,12 @@ def signal_handler(sig, frame):
         print("\nExiting gracefully...")
         sys.exit(0)  # Exit without error
 
-if __name__ == "__main__":    
+def main():    
     signal.signal(signal.SIGINT, signal_handler)
     try:
         flow.live_example()
     except KeyboardInterrupt:
         sys.exit(0)
+
+if __name__ == "__main__":
+    main()

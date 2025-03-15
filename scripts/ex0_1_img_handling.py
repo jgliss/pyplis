@@ -45,7 +45,7 @@ IMG_FILE_NAME = "test_201509160708_F01_335.fts"
 
 IMG_DIR = pathlib.Path(pyplis._LIBDIR) / "data"
 
-if __name__ == "__main__":
+def main():
     close("all")
 
     img_path = IMG_DIR / IMG_FILE_NAME
@@ -120,3 +120,6 @@ if __name__ == "__main__":
                                 vals, 4)
 
         print(f"All tests passed in script: {pathlib.Path(__file__).name}")
+
+if __name__ == "__main__":
+    main()

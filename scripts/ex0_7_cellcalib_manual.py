@@ -33,12 +33,9 @@ Note, that this calibration does not include a dark correction of the images
 before the calibration, therefore, the results are slightly different compared
 to the results from ex05_cell_calib_auto.py.
 """
-from __future__ import (absolute_import, division)
 
 from SETTINGS import check_version
-
 import pyplis
-from os.path import join, basename
 from matplotlib.pyplot import close, show
 from time import time
 
@@ -64,8 +61,7 @@ A57_OFF = "EC2_1106307_1R02_2015091607014019_F02_Etna.fts"
 BG_AFTER_ON = "EC2_1106307_1R02_2015091607020256_F01_Etna.fts"
 BG_AFTER_OFF = "EC2_1106307_1R02_2015091607020440_F02_Etna.fts"
 
-# SCRIPT MAIN FUNCTION
-if __name__ == "__main__":
+def main():
     close("all")
     start = time()
     # define camera for ECII custom image import
@@ -162,3 +158,6 @@ if __name__ == "__main__":
             show()
     except BaseException:
         print("Use option --show 1 if you want the plots to be displayed")
+
+if __name__ == "__main__":
+    main()
