@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 # Pyplis is a Python library for the analysis of UV SO2 camera data
-# Copyright (C) 2017 Jonas Gliß (jonasgliss@gmail.com)
+# Copyright (C) 2017 Jonas Gliss (jonasgliss@gmail.com)
 #
 # This program is free software: you can redistribute it and/or
 # modify it under the terms of the GNU General Public License a
@@ -15,77 +15,19 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
-from __future__ import (absolute_import, division)
-from os import listdir, unlink
-from os.path import basename, join, isfile
 from time import time
-from sys import exit
-from SETTINGS import ARGPARSER
+from SETTINGS import ARGPARSER, SCRIPTS_DIR
+from run_all_helpers import get_all_script_paths, run_all_scripts, print_output_runall
 
-(options, args) = ARGPARSER.parse_args()
+IGNORE_SCRIPTS = ["ex0_5_optflow_livecam.py"]
+SCRIPT_PATTERN = "ex[0-9][0-9]*.py"
+if __name__ == "__main__":
 
-# init arrays, that store messages that are printed after execution of all
-# scripts
-test_err_messages = []
-passed_messages = []
-if options.clear:
-    folder = "scripts_out"
-    for the_file in listdir(folder):
-        file_path = join(folder, the_file)
-        try:
-            if isfile(file_path):
-                unlink(file_path)
-            # elif os.path.isdir(file_path): shutil.rmtree(file_path)
-        except Exception as e:
-            print(e)
+    options = ARGPARSER.parse_args()
 
-paths = [f for f in listdir(".") if f[:2] == "ex" and
-         f[:4] != "ex0_" and f.endswith("py")]
-
-t0 = time()
-
-for path in paths:
-    print(path)
-    try:
-        with open(path) as f:
-            code = compile(f.read(), path, 'exec')
-            exec(code)
-
-        passed_messages.append("All tests passed in script: %s"
-                               % basename(path))
-    except AssertionError as e:
-        msg = ("\n\n"
-               "--------------------------------------------------------\n"
-               "Tests in script %s failed.\n"
-               "Error message:\n %s\n"
-               "--------------------------------------------------------"
-               "\n\n"
-               % (basename(path), repr(e)))
-        test_err_messages.append(msg)
-
-t1 = time()
-
-# If applicable, do some tests. This is done only if TESTMODE is active:
-# testmode can be activated globally (see SETTINGS.py) or can also be
-# activated from the command line when executing the script using the
-# option --test 1
-if int(options.test):
-    print("\n----------------------------\n"
-          "T E S T  F A I L U R E S"
-          "\n----------------------------\n")
-    if test_err_messages:
-        for msg in test_err_messages:
-            print(msg)
-    else:
-        print("None")
-    print("\n----------------------------\n"
-          "T E S T  S U C C E S S"
-          "\n----------------------------\n")
-    if passed_messages:
-        for msg in passed_messages:
-            print(msg)
-    else:
-        print("None")
-
-print("Total runtime: %.2f s" % (t1 - t0))
-exit(len(test_err_messages))
+    t0 = time()
+    all_example_scripts = get_all_script_paths(SCRIPTS_DIR, SCRIPT_PATTERN, IGNORE_SCRIPTS)
+    test_err_messages, passed_messages, crashed_messages = run_all_scripts(all_example_scripts)
+    t1 = time()    
+    print_output_runall(options, test_err_messages, passed_messages, crashed_messages)
+    print(f"Total runtime: {t1 - t0:.2f} s")

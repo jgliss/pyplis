@@ -118,12 +118,16 @@ def create_dataset():
     wind_info = {"dir": 0.0,
                  "dir_err": 1.0}
 
-#                "dir_err"  : 15.0}
-
     # Create BaseSetup object (which creates the MeasGeometry object)
-    stp = pyplis.setupclasses.MeasSetup(IMG_DIR, start, stop, camera=cam,
-                                        source=source,
-                                        wind_info=wind_info)
+    stp = pyplis.setupclasses.MeasSetup(
+        base_dir=IMG_DIR, 
+        start=start, 
+        stop=stop, 
+        camera=cam,
+        source=source,
+        wind_info=wind_info
+    )
+    
     print(stp.LINK_OFF_TO_ON)
     # Create analysis object (from BaseSetup)
     # The dataset takes care of finding all vali
@@ -131,7 +135,7 @@ def create_dataset():
 
 
 # SCRIPT MAIN FUNCTION
-if __name__ == "__main__":
+def main():
     close("all")
     ds = create_dataset()
 
@@ -183,7 +187,7 @@ if __name__ == "__main__":
     # IMPORTANT STUFF FINISHED (Below follow tests and display options)
 
     # Import script options
-    (options, args) = ARGPARSER.parse_args()
+    options = ARGPARSER.parse_args()
 
     # If applicable, do some tests. This is done only if TESTMODE is active:
     # testmode can be activated globally (see SETTINGS.py) or can also be
@@ -219,3 +223,6 @@ if __name__ == "__main__":
             show()
     except BaseException:
         print("Use option --show 1 if you want the plots to be displayed")
+
+if __name__ == "__main__":
+    main()

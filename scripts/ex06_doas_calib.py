@@ -251,7 +251,7 @@ if __name__ == "__main__":
     doas_time_series = load_doas_results()
 
     # Import script options
-    (options, args) = ARGPARSER.parse_args()
+    options = ARGPARSER.parse_args()
 
     if options.test:
         # if test mode is active, the image stack is always recomputed from

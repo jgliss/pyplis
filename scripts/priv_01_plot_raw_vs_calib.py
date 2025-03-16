@@ -146,7 +146,7 @@ if __name__ == "__main__":
                             format=FORMAT, dpi=DPI)
 
     # Display images or not
-    (options, args) = ARGPARSER.parse_args()
+    options = ARGPARSER.parse_args()
     try:
         if int(options.show) == 1:
             show()

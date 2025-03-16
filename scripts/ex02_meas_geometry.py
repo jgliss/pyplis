@@ -34,8 +34,6 @@ mechanical inclinometer.
 Further, the distance to the plume is retrieved on a pixel basis (represented
 as image).
 """
-from __future__ import (absolute_import, division)
-
 from SETTINGS import check_version
 
 from geonum import GeoPoint
@@ -169,7 +167,7 @@ if __name__ == "__main__":
     # IMPORTANT STUFF FINISHED (Below follow tests and display options)
 
     # Import script options
-    (options, args) = ARGPARSER.parse_args()
+    options = ARGPARSER.parse_args()
 
     # If applicable, do some tests. This is done only if TESTMODE is active:
     # testmode can be activated globally (see SETTINGS.py) or can also be
