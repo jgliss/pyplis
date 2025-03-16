@@ -35,6 +35,7 @@ to the results from ex05_cell_calib_auto.py.
 """
 
 from SETTINGS import check_version
+import pathlib
 import pyplis
 from matplotlib.pyplot import close, show
 from time import time
@@ -71,38 +72,45 @@ def main():
     # now add all cell images manually, specifying paths, the SO2 column
     # densities of each cell, and the corresponding cell ID as well as image
     # type (on, off)
-    cellcalib.set_cell_images(img_paths=join(IMG_DIR, A53_ON),
+    cellcalib.set_cell_images(img_paths=IMG_DIR / A53_ON,
                               cell_gas_cd=4.15e17,
                               cell_id="a53", filter_id="on")
 
-    cellcalib.set_cell_images(img_paths=join(IMG_DIR, A53_OFF),
+    cellcalib.set_cell_images(img_paths=IMG_DIR / A53_OFF,
                               cell_gas_cd=4.15e17,
                               cell_id="a53", filter_id="off")
 
-    cellcalib.set_cell_images(img_paths=join(IMG_DIR, A37_ON),
+    cellcalib.set_cell_images(img_paths=IMG_DIR / A37_ON,
                               cell_gas_cd=8.59e17,
                               cell_id="a37", filter_id="on")
 
-    cellcalib.set_cell_images(img_paths=join(IMG_DIR, A37_OFF),
+    cellcalib.set_cell_images(img_paths=IMG_DIR / A37_OFF,
                               cell_gas_cd=8.59e17,
                               cell_id="a37", filter_id="off")
 
-    cellcalib.set_cell_images(img_paths=join(IMG_DIR, A57_ON),
+    cellcalib.set_cell_images(img_paths=IMG_DIR / A57_ON,
                               cell_gas_cd=1.92e18,
                               cell_id="a57", filter_id="on")
 
-    cellcalib.set_cell_images(img_paths=join(IMG_DIR, A57_OFF),
+    cellcalib.set_cell_images(img_paths=IMG_DIR / A57_OFF,
                               cell_gas_cd=1.92e18,
                               cell_id="a57", filter_id="off")
 
     # put the onband background images into a Python list ....
-    bg_on_paths = [join(IMG_DIR, BG_BEFORE_ON), join(IMG_DIR, BG_AFTER_ON)]
+    bg_on_paths = [
+        IMG_DIR / BG_BEFORE_ON, 
+        IMG_DIR / BG_AFTER_ON
+        ]
 
     # ... and add them to the calibration object ...
     cellcalib.set_bg_images(img_paths=bg_on_paths, filter_id="on")
 
     # ... same for off band background images
-    bg_off_paths = [join(IMG_DIR, BG_BEFORE_OFF), join(IMG_DIR, BG_AFTER_OFF)]
+    bg_off_paths = [
+        IMG_DIR / BG_BEFORE_OFF, 
+        IMG_DIR / BG_AFTER_OFF
+        ]
+    
     cellcalib.set_bg_images(img_paths=bg_off_paths, filter_id="off")
 
     # Prepare calibration data (i.e. CellCalibData objets) for on, off and
@@ -121,15 +129,15 @@ def main():
 
     aa_calib = cellcalib.calib_data["aa"]
 
-    print("Time elapsed for preparing calibration data: %.4f s"
-          % (stop - start))
-    # ## IMPORTANT STUFF FINISHED
+    print(f"Time elapsed for preparing calibration data: {stop - start:.4f} s")
+    
+    ### IMPORTANT STUFF FINISHED
     if SAVEFIGS:
-        ax.figure.savefig(join(SAVE_DIR, "ex0_7_out_1.%s" % FORMAT),
-                          format=FORMAT, dpi=DPI)
+        outfile = SAVE_DIR / f"ex0_7_out_1.{FORMAT}"
+        ax.figure.savefig(outfile, format=FORMAT, dpi=DPI)
 
     # Import script options
-    (options, args) = ARGPARSER.parse_args()
+    options = ARGPARSER.parse_args()
 
     # If applicable, do some tests. This is done only if TESTMODE is active:
     # testmode can be activated globally (see SETTINGS.py) or can also be
@@ -139,20 +147,16 @@ def main():
         import numpy.testing as npt
 
         slope, offs = aa_calib.calib_coeffs
+
         actual = [cellcalib.tau_stacks["aa"].sum(),
                   cellcalib.tau_stacks["aa"].mean(),
                   aa_calib.cd_vec.sum(),
                   slope,
                   offs]
 
-        npt.assert_allclose(actual=actual,
-                            desired=[1007480.56,
-                                     0.24401481,
-                                     3.194000052267778e+18,
-                                     4.779782684462987e+18,
-                                     -2.7244424951657216e+16],
-                            rtol=1e-7)
-        print("All tests passed in script: %s" % basename(__file__))
+        desired = [1007480.56, 0.24401481, 3.194000052267778e+18, 4.779782684462987e+18, -2.7244424951657216e+16]
+        npt.assert_allclose(actual=actual, desired=desired, rtol=1e-5)
+        print(f"All tests passed in script: {pathlib.Path(__file__).name}")
     try:
         if int(options.show) == 1:
             show()

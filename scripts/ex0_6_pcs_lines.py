@@ -25,7 +25,7 @@ algorithm) have to be multiplied with the normal vector of such a line (using
 the dot product).
 """
 from SETTINGS import check_version, SAVEFIGS, SAVE_DIR, FORMAT, DPI, ARGPARSER
-
+import pathlib
 import matplotlib.pyplot as plt
 from pyplis import LineOnImage
 from matplotlib.cm import get_cmap
@@ -125,11 +125,11 @@ def main():
     ax[1].set_ylim([100, 0])
     # ## IMPORTANT STUFF FINISHED
     if SAVEFIGS:
-        fig.savefig(join(SAVE_DIR, "ex0_6_out_1.%s" % FORMAT),
-                    format=FORMAT, dpi=DPI)
+        outfile = SAVE_DIR / f"ex0_6_out_1.{FORMAT}"
+        fig.savefig(outfile, format=FORMAT, dpi=DPI)
 
     # Import script options
-    (options, args) = ARGPARSER.parse_args()
+    options= ARGPARSER.parse_args()
 
     # If applicable, do some tests. This is done only if TESTMODE is active:
     # testmode can be activated globally (see SETTINGS.py) or can also be
@@ -152,10 +152,10 @@ def main():
             desired=[368.79393923],
             rtol=1e-7)
 
-        print("All tests passed in script: %s" % basename(__file__))
+        print(f"All tests passed in script: {pathlib.Path(__file__).name}")
     try:
         if int(options.show) == 1:
-            show()
+            plt.show()
     except Exception:
         print("Use option --show 1 if you want the plots to be displayed")
 

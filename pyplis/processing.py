@@ -98,7 +98,9 @@ class ImgStack(object):
     """
 
     def __init__(self, height=0, width=0, img_num=0, dtype=float32,
-                 stack_id="", img_prep=None, camera=None, **stack_data):
+                 stack_id=None, img_prep=None, camera=None, **stack_data):
+        if stack_id is None:
+            stack_id = ""
         self.stack_id = stack_id
         self.dtype = dtype
         self.current_index = 0
@@ -150,8 +152,8 @@ class ImgStack(object):
                               "(d, h, w): (%s, %s, %s)" % (img_num, height,
                                                            width))
         self.start_acq = asarray([datetime(1900, 1, 1)] * img_num)
-        self.texps = zeros(img_num, dtype=float32)
-        self.add_data = zeros(img_num, dtype=float32)
+        self.texps = zeros(img_num, dtype=float)
+        self.add_data = zeros(img_num, dtype=float)
 
         self._access_mask = zeros(img_num, dtype=bool)
         self.current_index = 0

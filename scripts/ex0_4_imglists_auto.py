@@ -44,7 +44,7 @@ check_version()
 
 def main():
     # create the camera which was
-    cam = create_ecII_cam_new_filters()
+    cam = create_ecII_cam_new_filters("test_cam")
 
     # now throw all this stuff into the BaseSetup objec
     stp = pyplis.setupclasses.MeasSetup(IMG_DIR, camera=cam)
