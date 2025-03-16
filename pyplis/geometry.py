@@ -1075,7 +1075,7 @@ class MeasGeometry(object):
                                obj_id="", geo_point=None, lon_pt=None,
                                lat_pt=None, alt_pt=None, update=True,
                                draw_result=False):
-        r"""Retrieve camera viewing direction from point in image.
+        """Retrieve camera viewing direction from point in image.
 
         Uses the geo coordinates of a characteristic point in the image (e.g.
         the summit of a mountain) and the current position of the camera
@@ -1164,7 +1164,7 @@ class MeasGeometry(object):
             nums = [int(255.0 / k) for k in range(1, len(s.vectors) + 3)]
             map = self.draw_map_2d(draw_fov=False)
             map.draw_geo_vector_2d(self.cam_view_vec,
-                                   c=s.cmap(nums[1]),
+                                   c=s.cmap_vecs(nums[1]),
                                    ls="-",
                                    label="cam cfov (corrected)")
             self.draw_azrange_fov_2d(map, poly_id="fov (corrected)")
@@ -1172,7 +1172,7 @@ class MeasGeometry(object):
             view_dir_vec_old.name = "cfov_old"
 
             map.draw_geo_vector_2d(view_dir_vec_old,
-                                   c=s.cmap(nums[1]),
+                                   c=s.cmap_vecs(nums[1]),
                                    ls="--",
                                    label="cam cfov (initial)")
             map.legend()
@@ -1329,12 +1329,12 @@ class MeasGeometry(object):
                                   self.geo_setup.magnitude * .05, -45)
         if draw_plume:
             m.draw_geo_vector_2d(self.plume_vec,
-                                 c=s.cmap(nums[0]),
+                                 c=s.cmap_vecs(nums[0]),
                                  ls="-",
                                  label="plume direction")
         if draw_fov:
             m.draw_geo_vector_2d(self.cam_view_vec,
-                                 c=s.cmap(nums[1]),
+                                 c=s.cmap_vecs(nums[1]),
                                  label="camera cfov")
             self.draw_azrange_fov_2d(m)
         if draw_legend:
