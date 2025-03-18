@@ -27,13 +27,13 @@ from matplotlib.pyplot import (close, show, subplots, figure, xticks, yticks,
 
 # IMPORTS FROM OTHER EXAMPLE SCRIPTS
 from ex04_prep_aa_imglist import prepare_aa_image_list
-from SETTINGS import check_version
+from SETTINGS import check_pyplis_scripts_version
 
 rcParams["font.size"] = 16
 PCS1, PCS2 = LINES
 
-# Check script version
-check_version()
+
+
 
 # SCRIPT OPTIONS
 
@@ -233,7 +233,7 @@ if __name__ == "__main__":
         npt.assert_allclose(actual=[],
                             desired=[],
                             rtol=1e-7)
-        print("All tests passed in script: %s" % basename(__file__))
+        print(f"All tests passed in script: {pathlib.Path(__file__).name}")
     try:
         if int(options.show) == 1:
             show()

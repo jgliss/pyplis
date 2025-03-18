@@ -24,7 +24,7 @@ where, for instance velcoity displacement vectors (e.g. from an optical flow
 algorithm) have to be multiplied with the normal vector of such a line (using
 the dot product).
 """
-from SETTINGS import check_version, SAVEFIGS, SAVE_DIR, FORMAT, DPI, ARGPARSER
+from SETTINGS import SAVEFIGS, SAVE_DIR, FORMAT, DPI, ARGPARSER
 import pathlib
 import matplotlib.pyplot as plt
 from pyplis import LineOnImage
@@ -95,9 +95,6 @@ def create_example_lines():
     return lines_r, lines_l
 
 def main():
-    # Check script version
-    check_version()
-
     plt.close("all")
     fig, ax = plt.subplots(1, 2, figsize=(18, 9))
 

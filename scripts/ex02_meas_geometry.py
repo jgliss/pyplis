@@ -39,7 +39,7 @@ import pathlib
 import matplotlib.pyplot as plt
 
 # IMPORT GLOBAL SETTINGS
-from SETTINGS import check_version, SAVEFIGS, SAVE_DIR, FORMAT, DPI, ARGPARSER
+from SETTINGS import SAVEFIGS, SAVE_DIR, FORMAT, DPI, ARGPARSER
 
 # IMPORTS FROM OTHER EXAMPLE SCRIPTS
 from ex01_analysis_setup import create_dataset
@@ -109,9 +109,6 @@ def plot_plume_distance_image(meas_geometry):
 if __name__ == "__main__":
     plt.close("all")
     
-    # Check script version
-    check_version()
-
     # Create the Dataset object (see ex01)
     ds = create_dataset()
 

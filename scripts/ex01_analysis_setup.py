@@ -57,18 +57,11 @@ displayed.
 The Dataset object created here is used in script  ex04_prep_aa_imglist.py
 which shows how to create an image list displaying AA images.
 """
-from __future__ import (absolute_import, division)
-
-from SETTINGS import check_version, IMG_DIR, ARGPARSER
+from SETTINGS import IMG_DIR, ARGPARSER
+import pathlib
 import pyplis as pyplis
 from datetime import datetime
-from matplotlib.pyplot import show, close
-
-# Check script version
-check_version()
-
-# SCRIPT FUNCTION DEFINITIONS
-
+import matplotlib.pyplot as plt
 
 def create_dataset():
     """Initialize measurement setup and creates dataset from that."""
@@ -136,7 +129,7 @@ def create_dataset():
 
 # SCRIPT MAIN FUNCTION
 def main():
-    close("all")
+    plt.close("all")
     ds = create_dataset()
 
     # get on-band image list
@@ -163,7 +156,6 @@ def main():
 
     # The same applies for the integration step lengths for emission rate
     # retrievals
-    step_lengths = on_list.integration_step_length
     on_list.integration_step_length = 1.8  # m
 
     img_shift = img.duplicate()
@@ -195,7 +187,6 @@ def main():
     # option --test 1
     if int(options.test):
         import numpy.testing as npt
-        from os.path import basename
 
         actual = [plume_dists.mean(), plume_dists.std(),
                   on_list.get_dark_image().mean()]
@@ -217,10 +208,10 @@ def main():
                                 int(ds.setup.start.strftime("%Y%m%d%H%M%S")),
                                 int(ds.setup.stop.strftime("%Y%m%d%H%M%S"))])
 
-        print("All tests passed in script: %s" % basename(__file__))
+        print(f"All tests passed in script: {pathlib.Path(__file__).name}")
     try:
         if int(options.show) == 1:
-            show()
+            plt.show()
     except BaseException:
         print("Use option --show 1 if you want the plots to be displayed")
 

@@ -29,7 +29,7 @@ and the results are imported here.
 """
 from __future__ import (absolute_import, division)
 
-from SETTINGS import check_version
+from SETTINGS import check_pyplis_scripts_version
 
 import pyplis
 from os.path import join, exists
@@ -45,8 +45,8 @@ from SETTINGS import SAVEFIGS, SAVE_DIR, FORMAT, DPI, ARGPARSER
 from ex05_cell_calib_auto import perform_auto_cell_calib
 from ex04_prep_aa_imglist import prepare_aa_image_list
 
-# Check script version
-check_version()
+
+
 
 CELL_AA_CALIB_FILE = join(SAVE_DIR, "ex05_cellcalib_aa.fts")
 # RELEVANT DIRECTORIES AND PATHS
@@ -217,7 +217,7 @@ if __name__ == "__main__":
         npt.assert_allclose(actual=[],
                             desired=[],
                             rtol=1e-7)
-        print("All tests passed in script: %s" % basename(__file__))
+        print(f"All tests passed in script: {pathlib.Path(__file__).name}")
     try:
         if int(options.show) == 1:
             show()

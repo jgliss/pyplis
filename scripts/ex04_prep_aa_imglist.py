@@ -19,13 +19,10 @@
 
 Script showing how to work in AA mode using ImgList object
 """
-from __future__ import (absolute_import, division)
-
-from SETTINGS import check_version
-
 import pyplis
-from matplotlib.pyplot import close
-from os.path import join
+import pathlib
+import matplotlib.pyplot as plt
+from time import time
 
 # IMPORT GLOBAL SETTINGS
 from SETTINGS import SAVEFIGS, SAVE_DIR, FORMAT, DPI, IMG_DIR, ARGPARSER, PCS1
@@ -33,10 +30,6 @@ from SETTINGS import SAVEFIGS, SAVE_DIR, FORMAT, DPI, IMG_DIR, ARGPARSER, PCS1
 # IMPORTS FROM OTHER EXAMPLE SCRIPTS
 from ex01_analysis_setup import create_dataset
 from ex02_meas_geometry import find_viewing_direction
-
-# Check script version
-check_version()
-
 
 # SCRIPT FUNCTION DEFINITIONS
 def prepare_aa_image_list(bg_corr_mode=6):
@@ -53,10 +46,8 @@ def prepare_aa_image_list(bg_corr_mode=6):
     # Set plume background images for on and off
     # this is the same image which is also used for example script
     # ex03_plume_background.py demonstrating the plume background routines
-    path_bg_on = join(IMG_DIR,
-                      'EC2_1106307_1R02_2015091607022602_F01_Etna.fts')
-    path_bg_off = join(IMG_DIR,
-                       'EC2_1106307_1R02_2015091607022820_F02_Etna.fts')
+    path_bg_on = IMG_DIR / 'EC2_1106307_1R02_2015091607022602_F01_Etna.fts'
+    path_bg_off = IMG_DIR / 'EC2_1106307_1R02_2015091607022820_F02_Etna.fts'
 
     # Get on and off lists and activate dark correction
     on_lst = dataset.get_list("on")
@@ -103,12 +94,8 @@ def prepare_aa_image_list(bg_corr_mode=6):
     return on_lst
 
 
-# SCRIPT MAIN FUNCTION
-if __name__ == "__main__":
-    from matplotlib.pyplot import show
-    from time import time
-
-    close("all")
+def main():
+    plt.close("all")
     aa_list = prepare_aa_image_list()
 
     t0 = time()
@@ -129,7 +116,7 @@ if __name__ == "__main__":
     shape_log, mean_log = sum(aa_list.this.shape), aa_list.this.mean()
 
     ax = aa_list.show_current(zlabel=r"$\tau_{AA}$")
-    print("Elapsed time: %s s" % (time() - t0))
+    print(f"Elapsed time: {time() - t0} s")
 
     aa_list.crop = False
     ax1 = aa_list.bg_model.plot_sky_reference_areas(aa_list.current_img())
@@ -146,9 +133,15 @@ if __name__ == "__main__":
 
     # IMPORTANT STUFF FINISHED
     if SAVEFIGS:
-        ax.figure.savefig(join(SAVE_DIR, "ex04_out_1.%s" % FORMAT),
-                          format=FORMAT, dpi=DPI)
+        outfile = SAVE_DIR / f"ex04_out_1.{FORMAT}"
+        ax.figure.savefig(outfile, format=FORMAT, dpi=DPI)
 
+        outfile = SAVE_DIR / f"ex04_out_2.{FORMAT}"
+        ax1.figure.savefig(outfile, format=FORMAT, dpi=DPI)
+
+        outfile = SAVE_DIR / f"ex04_out_3.{FORMAT}"
+        fig.savefig(outfile, format=FORMAT, dpi=DPI)
+        
     # IMPORTANT STUFF FINISHED (Below follow tests and display options)
 
     # Import script options
@@ -160,7 +153,6 @@ if __name__ == "__main__":
     # option --test 1
     if int(options.test):
         import numpy.testing as npt
-        from os.path import basename
 
         m = aa_list.bg_model
         npt.assert_array_equal([2682, 4144, 1380, 6, 1337, 1, 791, 25, 20,
@@ -190,9 +182,12 @@ if __name__ == "__main__":
                                      1520,
                                      0.014380159209694215],
                             rtol=1e-7)
-        print("All tests passed in script: %s" % basename(__file__))
+        print(f"All tests passed in script: {pathlib.Path(__file__).name}")
     try:
         if int(options.show) == 1:
-            show()
+            plt.show()
     except BaseException:
         print("Use option --show 1 if you want the plots to be displayed")
+
+if __name__ == "__main__":
+    main()

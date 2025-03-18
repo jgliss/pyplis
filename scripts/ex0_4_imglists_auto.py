@@ -32,15 +32,12 @@ image base directory (note that in this example, start / stop acq. time stamps
 are ignored, i.e. all images available in the specified directory are imported)
 """
 # Imports from SETTINGS.py
-from SETTINGS import check_version, IMG_DIR, ARGPARSER
+from SETTINGS import IMG_DIR, ARGPARSER
 import pathlib
 import pyplis
 
 # ## IMPORTS FROM OTHER EXAMPLE SCRIPTS
 from ex0_2_camera_setup import create_ecII_cam_new_filters
-
-# Check script version
-check_version()
 
 def main():
     # create the camera which was

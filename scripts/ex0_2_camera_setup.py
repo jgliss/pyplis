@@ -32,7 +32,7 @@ https://pyplis.readthedocs.io/en/latest/tutorials.html#data-import-specifying-
 custom-camera-information
 """
 import pathlib
-from SETTINGS import check_version, ARGPARSER
+from SETTINGS import ARGPARSER
 from numpy.testing import assert_array_equal
 import os
 import tempfile
@@ -156,7 +156,7 @@ def create_ecII_cam_new_filters(cam_id: str) -> pyplis.Camera:
     return cam
 
 def main():
-    check_version() 
+     
     # Create a test cam_info.txt file for this script in order not to mess with the camera info file shipped with pyplis
     with tempfile.TemporaryDirectory() as temp_data_dir:
         os.environ["PYPLIS_DATADIR"] = temp_data_dir

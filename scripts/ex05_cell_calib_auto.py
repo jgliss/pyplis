@@ -24,26 +24,18 @@ detected and separated into individual image lists (for all filters, i.e. here
 on / off).
 
 """
-from __future__ import (absolute_import, division)
-
-from SETTINGS import check_version
-
+import pathlib
+import matplotlib.pyplot as plt
 import pyplis
 from datetime import datetime
 from time import time
-from os.path import join
-from matplotlib.pyplot import show, close
 
 # IMPORT GLOBAL SETTINGS
 from SETTINGS import SAVEFIGS, SAVE_DIR, FORMAT, DPI, IMG_DIR, ARGPARSER
 
-# Check script version
-check_version()
-
 # File path for storing cell AA calibration data including sensitivity
 # correction mask
-AA_CALIB_FILE = join(SAVE_DIR, "ex05_cellcalib_aa.fts")
-
+AA_CALIB_FILE = SAVE_DIR / "ex05_cellcalib_aa.fts"
 
 # SCRIPT FUNCTION DEFINITIONS
 def perform_auto_cell_calib():
@@ -98,8 +90,8 @@ def perform_auto_cell_calib():
 
 
 # SCRIPT MAIN FUNCTION
-if __name__ == "__main__":
-    close("all")
+def main():
+    plt.close("all")
     start = time()
     c = perform_auto_cell_calib()
 
@@ -121,12 +113,9 @@ if __name__ == "__main__":
     ax2.set_ylim([0, 2.25e18])
     # IMPORTANT STUFF FINISHED
     if SAVEFIGS:
-        ax0.figure.savefig(join(SAVE_DIR, "ex05_2_out_1.%s" % FORMAT),
-                           format=FORMAT, dpi=DPI)
-        ax1.figure.savefig(join(SAVE_DIR, "ex05_2_out_2.%s" % FORMAT),
-                           format=FORMAT, dpi=DPI)
-        ax2.figure.savefig(join(SAVE_DIR, "ex05_2_out_3.%s" % FORMAT),
-                           format=FORMAT, dpi=DPI)
+        ax0.figure.savefig(SAVE_DIR / f"ex05_2_out_1.{FORMAT}", format=FORMAT, dpi=DPI)
+        ax1.figure.savefig(SAVE_DIR / f"ex05_2_out_2.{FORMAT}", format=FORMAT, dpi=DPI)
+        ax2.figure.savefig(SAVE_DIR / f"ex05_2_out_3.{FORMAT}", format=FORMAT, dpi=DPI)
 
     ax0.set_title("Cell search result on band", fontsize=18)
     ax1.set_title("Cell search result off band", fontsize=18)
@@ -140,8 +129,7 @@ if __name__ == "__main__":
     mask = c.get_sensitivity_corr_mask("aa")
 
     aa_calib.save_as_fits(AA_CALIB_FILE)
-    print("Time elapsed for preparing calibration data: %.4f s"
-          % (stop - start))
+    print(f"Time elapsed for preparing calibration data: {stop - start:.4f} s")
 
     # IMPORTANT STUFF FINISHED (Below follow tests and display options)
 
@@ -154,7 +142,6 @@ if __name__ == "__main__":
     # option --test 1
     if int(options.test):
         import numpy.testing as npt
-        from os.path import basename
         calib_reload = pyplis.CellCalibData()
         calib_reload.load_from_fits(AA_CALIB_FILE)
         calib_reload.fit_calib_data(polyorder=2,
@@ -199,9 +186,12 @@ if __name__ == "__main__":
                                      2.153653759747737e+18,
                                      2.1197681750384312e+18],
                             rtol=1e-7)
-        print("All tests passed in script: %s" % basename(__file__))
+        print(f"All tests passed in script: {pathlib.Path(__file__).name}")
     try:
         if int(options.show) == 1:
-            show()
+            plt.show()
     except BaseException:
         print("Use option --show 1 if you want the plots to be displayed")
+
+if __name__ == "__main__":
+    main()

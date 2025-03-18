@@ -20,20 +20,15 @@
 This example script introduces features related to plume background modelling
 and tau image calculations.
 """
-from __future__ import (absolute_import, division)
-
-from SETTINGS import check_version
-
+from typing import Tuple
+from matplotlib.figure import Figure
 import numpy as np
-from os.path import join
+import pathlib
+import matplotlib.pyplot as plt
 import pyplis
-from matplotlib.pyplot import show, subplots, close
 
 # IMPORT GLOBAL SETTINGS
 from SETTINGS import SAVEFIGS, SAVE_DIR, FORMAT, DPI, IMG_DIR, ARGPARSER
-
-# Check script version
-check_version()
 
 # SCRIPT OPTIONS
 
@@ -53,13 +48,10 @@ BG_CORR_MODES = [0,  # 2D poly surface fit (without sky radiance image)
 
 
 # Image file paths relevant for this script
-PLUME_FILE = join(IMG_DIR, 'EC2_1106307_1R02_2015091607065477_F01_Etna.fts')
-BG_FILE = join(IMG_DIR, 'EC2_1106307_1R02_2015091607022602_F01_Etna.fts')
-OFFSET_FILE = join(IMG_DIR, 'EC2_1106307_1R02_2015091607064723_D0L_Etna.fts')
-DARK_FILE = join(IMG_DIR, 'EC2_1106307_1R02_2015091607064865_D1L_Etna.fts')
-
-# SCRIPT FUNCTION DEFINITIONS
-
+PLUME_FILE = IMG_DIR / 'EC2_1106307_1R02_2015091607065477_F01_Etna.fts'
+BG_FILE = IMG_DIR /'EC2_1106307_1R02_2015091607022602_F01_Etna.fts'
+OFFSET_FILE = IMG_DIR / 'EC2_1106307_1R02_2015091607064723_D0L_Etna.fts'
+DARK_FILE = IMG_DIR / 'EC2_1106307_1R02_2015091607064865_D1L_Etna.fts'
 
 def init_background_model():
     """Create background model and define relevant sky reference areas."""
@@ -127,22 +119,23 @@ def load_and_prepare_images():
     plume_vigncorr = pyplis.Img(plume.img / vign)
     return plume, plume_vigncorr, bg
 
-
-def autosettings_vs_manual_settings(bg_model):
+def autosettings_vs_manual_settings(
+        bg_model: pyplis.PlumeBackgroundModel,
+        plume_img: pyplis.Img) -> Tuple[dict, Figure]:
     """Perform automatic retrieval of sky reference areas.
 
     If you are lazy... (i.e. you dont want to define all these reference areas)
     then you could also use the auto search function, a comparison is plotted
     here.
     """
-    auto_params = pyplis.plumebackground.find_sky_reference_areas(plume)
+    auto_params = pyplis.plumebackground.find_sky_reference_areas(plume_img)
     current_params = bg_model.settings_dict()
 
-    fig, axes = subplots(1, 2, figsize=(16, 6))
+    fig, axes = plt.subplots(1, 2, figsize=(16, 6))
     axes[0].set_title("Manually set parameters")
-    pyplis.plumebackground.plot_sky_reference_areas(plume, current_params,
+    pyplis.plumebackground.plot_sky_reference_areas(plume_img, current_params,
                                                     ax=axes[0])
-    pyplis.plumebackground.plot_sky_reference_areas(plume, auto_params,
+    pyplis.plumebackground.plot_sky_reference_areas(plume_img, auto_params,
                                                     ax=axes[1])
     axes[1].set_title("Automatically set parameters")
 
@@ -151,7 +144,7 @@ def autosettings_vs_manual_settings(bg_model):
 
 def plot_pcs_profiles_4_tau_images(tau0, tau1, tau2, tau3, pcs_line):
     """Plot PCS profiles for all 4 methods."""
-    fig, ax = subplots(1, 1)
+    fig, ax = plt.subplots(1, 1)
     tau_imgs = [tau0, tau1, tau2, tau3]
 
     for k in range(4):
@@ -169,9 +162,8 @@ def plot_pcs_profiles_4_tau_images(tau0, tau1, tau2, tau3, pcs_line):
     return fig
 
 
-# SCRIPT MAIN FUNCTION
-if __name__ == "__main__":
-    close("all")
+def main():
+    plt.close("all")
 
     # Create a background model with relevant sky reference areas
     bg_model = init_background_model()
@@ -186,13 +178,14 @@ if __name__ == "__main__":
 
     plume, plume_vigncorr, bg = load_and_prepare_images()
 
-    auto_params, fig0 = autosettings_vs_manual_settings(bg_model)
+    auto_params, fig0 = autosettings_vs_manual_settings(
+        bg_model=bg_model, plume_img=plume)
 
     # Script option
     if USE_AUTO_SETTINGS:
         bg_model.update(**auto_params)
 
-    # Model 4 exemplary tau images
+    # Model 4 tau images
 
     # list to store figures of tau plotted tau images
     _tau_figs = []
@@ -227,16 +220,15 @@ if __name__ == "__main__":
     fig6 = plot_pcs_profiles_4_tau_images(tau0, tau1, tau2, tau3, pcs_line)
 
     if SAVEFIGS:
-        fig0.savefig(join(SAVE_DIR, "ex03_out_1.%s" % FORMAT), format=FORMAT,
+        outfile = SAVE_DIR / f"ex03_out_1.{FORMAT}"
+        fig0.savefig(outfile, format=FORMAT,
                      dpi=DPI, transparent=True)
+        
         for k in range(len(_tau_figs)):
-            # _tau_figs[k].suptitle("")
-            _tau_figs[k].savefig(join(SAVE_DIR, "ex03_out_%d.%s"
-                                      % ((k + 2), FORMAT)),
-                                 format=FORMAT, dpi=DPI)
-
-        fig6.savefig(join(SAVE_DIR, "ex03_out_6.%s" % FORMAT), format=FORMAT,
-                     dpi=DPI)
+            outfile = SAVE_DIR / f"ex03_out_{k+2}.{FORMAT}"
+            _tau_figs[k].savefig(outfile, format=FORMAT, dpi=DPI)
+        outfile = outfile = SAVE_DIR / f"ex03_out_{k+3}.{FORMAT}"
+        fig6.savefig(outfile, format=FORMAT, dpi=DPI)
     # IMPORTANT STUFF FINISHED (Below follow tests and display options)
 
     # Import script options
@@ -248,7 +240,6 @@ if __name__ == "__main__":
     # option --test 1
     if int(options.test):
         import numpy.testing as npt
-        from os.path import basename
         m = bg_model
 
         # test settings for clear sky reference areas
@@ -290,9 +281,12 @@ if __name__ == "__main__":
                                      0.13842879832119934,
                                      0.13943940574220634],
                             rtol=1e-7)
-        print("All tests passed in script: %s" % basename(__file__))
+        print(f"All tests passed in script: {pathlib.Path(__file__).name}")
     try:
         if int(options.show) == 1:
-            show()
+            plt.show()
     except BaseException:
         print("Use option --show 1 if you want the plots to be displayed")
+
+if __name__ == "__main__":
+    main()

@@ -33,18 +33,13 @@ Note, that this calibration does not include a dark correction of the images
 before the calibration, therefore, the results are slightly different compared
 to the results from ex05_cell_calib_auto.py.
 """
-
-from SETTINGS import check_version
 import pathlib
 import pyplis
-from matplotlib.pyplot import close, show
+import matplotlib.pyplot as plt
 from time import time
 
 # IMPORT GLOBAL SETTINGS
 from SETTINGS import SAVEFIGS, SAVE_DIR, FORMAT, DPI, ARGPARSER, IMG_DIR
-
-# Check script version
-check_version()
 
 # SPECIFY IMAGE PATHS FOR EACH CELL AND BACKGROUND IMAGES
 BG_BEFORE_ON = "EC2_1106307_1R02_2015091607000845_F01_Etna.fts"
@@ -63,7 +58,7 @@ BG_AFTER_ON = "EC2_1106307_1R02_2015091607020256_F01_Etna.fts"
 BG_AFTER_OFF = "EC2_1106307_1R02_2015091607020440_F02_Etna.fts"
 
 def main():
-    close("all")
+    plt.close("all")
     start = time()
     # define camera for ECII custom image import
     cam = pyplis.Camera("ecII")
@@ -159,7 +154,7 @@ def main():
         print(f"All tests passed in script: {pathlib.Path(__file__).name}")
     try:
         if int(options.show) == 1:
-            show()
+            plt.show()
     except BaseException:
         print("Use option --show 1 if you want the plots to be displayed")
 

@@ -37,20 +37,17 @@ cropping, size reduction).
 """
 import pathlib
 import pyplis
-from matplotlib.pyplot import subplots, close, show
+import matplotlib.pyplot as plt
 from datetime import datetime
 
-from SETTINGS import check_version, IMG_DIR, SAVEFIGS, SAVE_DIR, FORMAT, DPI, ARGPARSER
-
-# Check script version
-check_version()
+from SETTINGS import IMG_DIR, SAVEFIGS, SAVE_DIR, FORMAT, DPI, ARGPARSER
 
 # ## RELEVANT DIRECTORIES AND PATHS
 OFFSET_FILE = IMG_DIR / "EC2_1106307_1R02_2015091607064723_D0L_Etna.fts"
 DARK_FILE = IMG_DIR / "EC2_1106307_1R02_2015091607064865_D1L_Etna.fts"
 
 def main():
-    close("all")
+    plt.close("all")
     
     # ## Get all images in the image path which are FITS files (actually all)
     all_paths = list(IMG_DIR.glob("*.fts"))
@@ -132,7 +129,7 @@ def main():
     # unedited
     off_img = off_list.current_img()
 
-    fig, ax = subplots(1, 2, figsize=(18, 6))
+    fig, ax = plt.subplots(1, 2, figsize=(18, 6))
 
     on_img.show(ax=ax[0])
     on_time_str = datetime.strftime(on_img.start_acq, "%Y-%m-%d %H:%M:%S")
@@ -176,7 +173,7 @@ def main():
         print(f"All tests passed in script: {pathlib.Path(__file__).name}")
     try:
         if int(options.show) == 1:
-            show()
+            plt.show()
     except Exception:
         print("Use option --show 1 if you want the plots to be displayed")
 

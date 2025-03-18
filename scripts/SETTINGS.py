@@ -65,14 +65,3 @@ ARGPARSER = argparse.ArgumentParser()
 ARGPARSER.add_argument('--show', dest="show", default=SCREENPRINT)
 ARGPARSER.add_argument('--test', dest="test", default=TESTMODE)
 ARGPARSER.add_argument('--clear', dest="clear", default=False)
-
-
-def check_version():
-    v_code = [int(x) for x in __version__.split(".")[:2]]
-    v_scripts = [int(x) for x in SCRIPTS_VERSION.split(".")[:2]]
-    if any(subtract(v_scripts, v_code)) != 0:
-        warn("Version conflict between pyplis installation (v%s) "
-             "and version of example scripts used (v%s). Please "
-             "update your pyplis installation or use the set of example "
-             "scripts corresponding to your installation. "
-             % (__version__, SCRIPTS_VERSION))

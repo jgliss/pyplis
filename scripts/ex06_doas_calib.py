@@ -41,7 +41,7 @@ increasing script option PYRLEVEL_ROUGH_SEARCH.
 """
 from __future__ import (absolute_import, division)
 
-from SETTINGS import check_version
+from SETTINGS import check_pyplis_scripts_version
 
 import pyplis
 import pydoas
@@ -58,8 +58,8 @@ from SETTINGS import SAVEFIGS, SAVE_DIR, FORMAT, DPI, IMG_DIR, ARGPARSER
 # IMPORTS FROM OTHER EXAMPLE SCRIPTS
 from ex04_prep_aa_imglist import prepare_aa_image_list
 
-# Check script version
-check_version()
+
+
 
 # SCRIPT OPTONS
 
@@ -350,7 +350,7 @@ if __name__ == "__main__":
         test_calib_ifr(calib_ifr)
         test_calib_pears_fine(calib_pears_fine)
 
-        print("All tests passed in script: %s" % basename(__file__))
+        print(f"All tests passed in script: {pathlib.Path(__file__).name}")
     try:
         if int(options.show) == 1:
             show()

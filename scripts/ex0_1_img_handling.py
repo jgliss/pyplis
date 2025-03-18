@@ -28,17 +28,12 @@ pyplis using file name conventions (which can be specified globally, see next
 script).
 """
 from datetime import datetime
-from matplotlib.pyplot import close
+import matplotlib.pyplot as plt
 import pathlib
 import pyplis
 
-# Check script version
-from SETTINGS import check_version
-
 # imports from SETTINGS.py
 from SETTINGS import ARGPARSER, SAVE_DIR
-
-check_version()
 
 # file name of test image stored in data folder
 IMG_FILE_NAME = "test_201509160708_F01_335.fts"
@@ -46,7 +41,7 @@ IMG_FILE_NAME = "test_201509160708_F01_335.fts"
 IMG_DIR = pathlib.Path(pyplis._LIBDIR) / "data"
 
 def main():
-    close("all")
+    plt.close("all")
 
     img_path = IMG_DIR / IMG_FILE_NAME
 
