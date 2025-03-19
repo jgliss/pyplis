@@ -1,12 +1,12 @@
 from __future__ import (absolute_import, division)
-from SETTINGS import check_version
+from SETTINGS import check_pyplis_scripts_version
 
 from os.path import join, exists
 from matplotlib.pyplot import close, show, rc_context
 
 import pyplis
 # IMPORT GLOBAL SETTINGS
-from SETTINGS import SAVEFIGS, SAVE_DIR, FORMAT, DPI, OPTPARSE, LINES
+from SETTINGS import SAVEFIGS, SAVE_DIR, FORMAT, DPI, ARGPARSER, LINES
 
 # IMPORTS FROM OTHER EXAMPLE SCRIPTS
 from ex04_prep_aa_imglist import prepare_aa_image_list
@@ -14,7 +14,7 @@ from ex04_prep_aa_imglist import prepare_aa_image_list
 rc_context({'font.size': '18'})
 
 # Raises Exception if conflict occurs
-check_version()
+
 
 PCS = LINES[0]
 
@@ -146,7 +146,7 @@ if __name__ == "__main__":
                             format=FORMAT, dpi=DPI)
 
     # Display images or not
-    (options, args) = OPTPARSE.parse_args()
+    options = ARGPARSER.parse_args()
     try:
         if int(options.show) == 1:
             show()

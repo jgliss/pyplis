@@ -57,18 +57,11 @@ displayed.
 The Dataset object created here is used in script  ex04_prep_aa_imglist.py
 which shows how to create an image list displaying AA images.
 """
-from __future__ import (absolute_import, division)
-
-from SETTINGS import check_version, IMG_DIR, OPTPARSE
+from SETTINGS import IMG_DIR, ARGPARSER
+import pathlib
 import pyplis as pyplis
 from datetime import datetime
-from matplotlib.pyplot import show, close
-
-# Check script version
-check_version()
-
-# SCRIPT FUNCTION DEFINITIONS
-
+import matplotlib.pyplot as plt
 
 def create_dataset():
     """Initialize measurement setup and creates dataset from that."""
@@ -118,12 +111,16 @@ def create_dataset():
     wind_info = {"dir": 0.0,
                  "dir_err": 1.0}
 
-#                "dir_err"  : 15.0}
-
     # Create BaseSetup object (which creates the MeasGeometry object)
-    stp = pyplis.setupclasses.MeasSetup(IMG_DIR, start, stop, camera=cam,
-                                        source=source,
-                                        wind_info=wind_info)
+    stp = pyplis.setupclasses.MeasSetup(
+        base_dir=IMG_DIR, 
+        start=start, 
+        stop=stop, 
+        camera=cam,
+        source=source,
+        wind_info=wind_info
+    )
+    
     print(stp.LINK_OFF_TO_ON)
     # Create analysis object (from BaseSetup)
     # The dataset takes care of finding all vali
@@ -131,8 +128,8 @@ def create_dataset():
 
 
 # SCRIPT MAIN FUNCTION
-if __name__ == "__main__":
-    close("all")
+def main():
+    plt.close("all")
     ds = create_dataset()
 
     # get on-band image list
@@ -159,7 +156,6 @@ if __name__ == "__main__":
 
     # The same applies for the integration step lengths for emission rate
     # retrievals
-    step_lengths = on_list.integration_step_length
     on_list.integration_step_length = 1.8  # m
 
     img_shift = img.duplicate()
@@ -183,7 +179,7 @@ if __name__ == "__main__":
     # IMPORTANT STUFF FINISHED (Below follow tests and display options)
 
     # Import script options
-    (options, args) = OPTPARSE.parse_args()
+    options = ARGPARSER.parse_args()
 
     # If applicable, do some tests. This is done only if TESTMODE is active:
     # testmode can be activated globally (see SETTINGS.py) or can also be
@@ -191,7 +187,6 @@ if __name__ == "__main__":
     # option --test 1
     if int(options.test):
         import numpy.testing as npt
-        from os.path import basename
 
         actual = [plume_dists.mean(), plume_dists.std(),
                   on_list.get_dark_image().mean()]
@@ -213,9 +208,12 @@ if __name__ == "__main__":
                                 int(ds.setup.start.strftime("%Y%m%d%H%M%S")),
                                 int(ds.setup.stop.strftime("%Y%m%d%H%M%S"))])
 
-        print("All tests passed in script: %s" % basename(__file__))
+        print(f"All tests passed in script: {pathlib.Path(__file__).name}")
     try:
         if int(options.show) == 1:
-            show()
+            plt.show()
     except BaseException:
         print("Use option --show 1 if you want the plots to be displayed")
+
+if __name__ == "__main__":
+    main()

@@ -20,9 +20,8 @@
 This is the base class for storing calibration data, fitting calibration
 curves, and corresponding I/O routines (e.g storage as FITS or text file).
 """
-from __future__ import (absolute_import, division)
 from pyplis import logger
-from numpy import (min, asarray, zeros, linspace, ones, float64, isnan,
+from numpy import (min, char, asarray, zeros, linspace, ones, float64, isnan,
                    ndarray, argmax, inf)
 from inspect import signature
 from scipy.optimize import curve_fit
@@ -30,6 +29,7 @@ from scipy.optimize import curve_fit
 from datetime import datetime
 from pandas import Series
 from astropy.io import fits
+from astropy.time import Time
 from os.path import join, exists, isdir, abspath, basename, dirname
 
 
@@ -507,23 +507,22 @@ class CalibData(object):
             mask = self.senscorr_mask
         prim_hdu.data = mask
 
-        if not len(self.cd_vec) == len(self.tau_vec):
-            raise ValueError("Could not save calibration data, mismatch in "
-                             " lengths of data arrays")
-        if not len(self.time_stamps) == len(self.cd_vec):
-            self.time_stamps = asarray([datetime(1900, 1, 1)] *
-                                       len(self.cd_vec))
+        if len(self.cd_vec) != len(self.tau_vec):
+            raise ValueError("Could not save calibration data, mismatch in lengths of data arrays")
+        if len(self.time_stamps) != len(self.cd_vec):
+            time_stamps = asarray([datetime(1900, 1, 1)] * len(self.cd_vec))
+        else:
+            time_stamps = self.time_stamps
 
-        tstamps = [x.strftime("%Y%m%d%H%M%S%f") for x in self.time_stamps]
+        tstamps = [x.strftime("%Y-%m-%dT%H:%M:%S.%f") for x in time_stamps]
         col1 = fits.Column(name="time_stamps", format="25A", array=tstamps)
         col2 = fits.Column(name="tau_vec", format="D", array=self.tau_vec)
         col3 = fits.Column(name="cd_vec", format="D", array=self.cd_vec)
-        if not len(self.cd_vec_err) == len(self.cd_vec):
-            self.cd_vec_err = zeros(len(self.cd_vec))
-        col4 = fits.Column(
-            name="cd_vec_err",
-            format="D",
-            array=self.cd_vec_err)
+        if len(self.cd_vec_err) != len(self.cd_vec):
+            cd_vec_err = zeros(len(self.cd_vec))
+        else:
+            cd_vec_err = self.cd_vec_err
+        col4 = fits.Column(name="cd_vec_err", format="D", array=cd_vec_err)
 
         cols = fits.ColDefs([col1, col2, col3, col4])
         arrays = fits.BinTableHDU.from_columns(cols)
@@ -573,32 +572,26 @@ class CalibData(object):
         """
         hdulist = self._prep_fits_save()
         # returns abspath of current wkdir if None
-
-        hdulist.writeto(self._prep_fits_savepath(save_dir, save_name),
-                        clobber=overwrite_existing)
-
-    def to_csv(self):
-        """Store calibration data as tab delimited text file."""
-        raise NotImplementedError("Coming soon...")
+        outfile = self._prep_fits_savepath(save_dir, save_name)
+        hdulist.writeto(outfile, overwrite=overwrite_existing)
 
     def load_from_fits(self, file_path):
-        """Load stack object (fits).
+        """Load calibration data from FITS file
 
         Parameters
         ----------
         file_path : str
-            file path of calibration data
+            Absolute or relative file path of the calibration data
 
         Returns
         -------
         HDUList
             opened HDU object (e.g. to access potential further data in a
-            function that is calling this method)
+                function that is calling this method)
 
         """
         if not exists(file_path):
-            raise IOError("CalibData could not be loaded, "
-                          "path does not exist")
+            raise IOError("CalibData could not be loaded, path does not exist")
         hdu = fits.open(file_path)
         self.senscorr_mask = Img(hdu[0].data)
         self.calib_id = hdu[0].header["calib_id"]
@@ -613,25 +606,23 @@ class CalibData(object):
                  "and might not work on uncropped images")
         ctable = hdu[1]
         try:
-            times = ctable.data["time_stamps"].byteswap().newbyteorder()
-            self.time_stamps = [datetime.strptime(x, "%Y%m%d%H%M%S%f")
-                                for x in times]
-        except BaseException:
-            logger.warning("Failed to import vector containing calib time stamps from "
-                 "FITS")
+            time_strings = hdu[1].data["time_stamps"]
+            times = Time(time_strings, format="isot").to_datetime()
+            self.time_stamps = times
+        except BaseException as e:
+            logger.warning(f"Failed to import vector containing calib time stamps from FITS: {e}")
         try:
-            self.tau_vec = ctable.data["tau_vec"].byteswap().newbyteorder()
-        except BaseException:
-            logger.warning("Failed to import calibration tau vector from FITS")
+            self.tau_vec = ctable.data["tau_vec"]
+        except BaseException as e:
+            logger.warning(f"Failed to import calibration tau vector from FITS: {e}")
         try:
-            self.cd_vec = ctable.data["cd_vec"].byteswap().newbyteorder()
-        except BaseException:
-            logger.warning("Failed to import CD vector from FITS")
+            self.cd_vec = ctable.data["cd_vec"]
+        except BaseException as e:
+            logger.warning(f"Failed to import CD vector from FITS: {e}")
         try:
-            self.cd_vec_err = ctable.data["cd_vec_err"].byteswap(
-            ).newbyteorder()
-        except BaseException:
-            logger.warning("Failed to import CD uncertainty vector from FITS")
+            self.cd_vec_err = ctable.data["cd_vec_err"]
+        except BaseException as e:
+            logger.warning(f"Failed to import CD uncertainty vector from FITS: {e}")
         if self.type == "base":
             hdu.close()
             hdu = None
