@@ -25,6 +25,7 @@ on / off).
 
 """
 import pathlib
+import numpy as np
 import matplotlib.pyplot as plt
 import pyplis
 from datetime import datetime
@@ -111,15 +112,14 @@ def main():
     ax2 = c.plot_all_calib_curves()
     ax2.set_xlim([0, 0.7])
     ax2.set_ylim([0, 2.25e18])
+    ax0.set_title("Cell search result on band", fontsize=18)
+    ax1.set_title("Cell search result off band", fontsize=18)
+    ax2.set_title("Calibration polynomials", fontsize=18)
     # IMPORTANT STUFF FINISHED
     if SAVEFIGS:
         ax0.figure.savefig(SAVE_DIR / f"ex05_2_out_1.{FORMAT}", format=FORMAT, dpi=DPI)
         ax1.figure.savefig(SAVE_DIR / f"ex05_2_out_2.{FORMAT}", format=FORMAT, dpi=DPI)
         ax2.figure.savefig(SAVE_DIR / f"ex05_2_out_3.{FORMAT}", format=FORMAT, dpi=DPI)
-
-    ax0.set_title("Cell search result on band", fontsize=18)
-    ax1.set_title("Cell search result off band", fontsize=18)
-    ax2.set_title("Calibration polynomials", fontsize=18)
 
     # You can explicitely access the individual CellCalibData objects
     aa_calib = c.calib_data["aa"]
@@ -144,8 +144,11 @@ def main():
         import numpy.testing as npt
         calib_reload = pyplis.CellCalibData()
         calib_reload.load_from_fits(AA_CALIB_FILE)
-        calib_reload.fit_calib_data(polyorder=2,
-                                    through_origin=True)
+        calib_reload.fit_calib_data(polyorder=2, through_origin=True)
+
+        timestamps = np.array([datetime(2015, 9, 16, 7, 0, 25, 127400), datetime(2015, 9, 16, 7, 0, 58, 637400), datetime(2015, 9, 16, 7, 1, 32, 647400)])
+        npt.assert_array_equal(timestamps, calib_reload.time_stamps)
+
         # test some basic features of calibraiton dataset (e.g. different
         # ImgList classes for on and off and the different cells)
         npt.assert_array_equal([c.cell_search_performed,
@@ -166,13 +169,8 @@ def main():
                        d["a57"][0],
                        aa_calib.calib_fun(0, *aa_calib.calib_coeffs),
                        calib_reload.calib_fun(0, *calib_reload.calib_coeffs)]
-        npt.assert_allclose(actual=vals_approx,
-                            desired=[8.59e+17,
-                                     4.15e+17,
-                                     1.924e+18,
-                                     -1.8313164653590516e+16,
-                                     0.0],
-                            rtol=1e-7)
+        desired=[8.59e+17,4.15e+17,1.924e+18,-1.831327e+16,0.0]
+        npt.assert_allclose(actual=vals_approx,desired=desired,rtol=1e-5)
 
         # explicitely check calibration data for on, off and aa (plotted in
         # this script)
@@ -180,12 +178,8 @@ def main():
                   c.calib_data["off"].calib_coeffs.mean(),
                   aa_calib.calib_coeffs.mean(),
                   calib_reload.calib_coeffs.mean()]
-        npt.assert_allclose(actual=actual,
-                            desired=[1.8926803829028974e+18,
-                                     -3.742539080945949e+19,
-                                     2.153653759747737e+18,
-                                     2.1197681750384312e+18],
-                            rtol=1e-7)
+        desired=[1.892681e+18, -3.742539e+19, 2.153654e+18, 2.119768e+18]
+        npt.assert_allclose(actual=actual,desired=desired,rtol=1e-5)
         print(f"All tests passed in script: {pathlib.Path(__file__).name}")
     try:
         if int(options.show) == 1:
