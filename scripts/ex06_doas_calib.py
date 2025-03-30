@@ -39,10 +39,6 @@ stack (3D numpy array) is too large for the RAM. In this case, try
 increasing script option PYRLEVEL_ROUGH_SEARCH.
 
 """
-from __future__ import (absolute_import, division)
-
-from SETTINGS import check_pyplis_scripts_version
-
 import pyplis
 import pydoas
 import numpy.testing as npt
@@ -57,9 +53,6 @@ from SETTINGS import SAVEFIGS, SAVE_DIR, FORMAT, DPI, IMG_DIR, ARGPARSER
 
 # IMPORTS FROM OTHER EXAMPLE SCRIPTS
 from ex04_prep_aa_imglist import prepare_aa_image_list
-
-
-
 
 # SCRIPT OPTONS
 
@@ -80,14 +73,11 @@ DO_FINE_SEARCH = False
 # RELEVANT DIRECTORIES AND PATHS
 
 # Directory containing DOAS result files
-DOAS_DATA_DIR = join(IMG_DIR, "..", "spectra", "plume_prep", "min10Scans",
-                     "ResultFiles")
+DOAS_DATA_DIR = join(IMG_DIR, "..", "spectra", "plume_prep", "min10Scans", "ResultFiles")
 
 STACK_PATH = join(SAVE_DIR, "ex06_aa_imgstack.fts")
 
 # SCRIPT FUNCTION DEFINITIONS
-
-
 def load_doas_results(lt_to_utc_shift=timedelta(-1. / 12)):
     """Specify DOAS data import from DOASIS fit result files.
 
@@ -104,15 +94,11 @@ def load_doas_results(lt_to_utc_shift=timedelta(-1. / 12)):
     # specifying the identification string of the species in the result file
     # headers and the second entry is a list specifying all fit scenario IDs
     # from which this species is supposed to be imported (here only f01)
-    fit_import_info = {"so2": ["SO2_Hermans_298_air_conv_satCorr1e18",
-                               ["f01"]
-                               ]}
+    fit_import_info = {"so2": ["SO2_Hermans_298_air_conv_satCorr1e18",["f01"]]}
 
     # Create a result import setup for the DOAS data based on the import
     # dictionary and the image base directory of the result files ...
-    doas_import_setup =\
-        pydoas.dataimport.ResultImportSetup(DOAS_DATA_DIR,
-                                            result_import_dict=fit_import_info)
+    doas_import_setup = pydoas.dataimport.ResultImportSetup(DOAS_DATA_DIR, result_import_dict=fit_import_info)
 
     # ... and create a result dataset from that
     doas_dataset = pydoas.analysis.DatasetDoasResults(doas_import_setup)
@@ -234,16 +220,14 @@ def test_calib_ifr(calib):
 
     (fov_x, fov_y) = calib.fov.pixel_position_center(abs_coords=True)
 
-    npt.assert_allclose([fov_x, fov_y, calib_ifr.fov.sigma_x_abs,
-                         calib_ifr.fov.sigma_y_abs],
+    npt.assert_allclose([fov_x, fov_y, calib.fov.sigma_x_abs,
+                         calib.fov.sigma_y_abs],
                         [635, 492, 61.5, 41.6], atol=2)
 
     npt.assert_allclose(calib.calib_coeffs,
                         [9.38e+18, 1.75e+17], rtol=1e-1)
 
-
-# SCRIPT MAIN FUNCTION
-if __name__ == "__main__":
+def main():
     # close all plots
     close("all")
 
@@ -356,3 +340,6 @@ if __name__ == "__main__":
             show()
     except BaseException:
         print("Use option --show 1 if you want the plots to be displayed")
+
+if __name__ == "__main__":
+    main()

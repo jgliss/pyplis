@@ -17,9 +17,8 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 """Module containing functionality for all relevant geometrical calculations.
 """
-from __future__ import (absolute_import, division, print_function)
-from numpy import (nan, arctan, deg2rad, linalg, sqrt, abs, array, radians,
-                   sin, cos, arcsin, tan, rad2deg, linspace, isnan, asarray,
+from numpy import (nan, arctan, deg2rad, linalg, sqrt, abs, array,
+                   tan, rad2deg, linspace, isnan, asarray,
                    arange, argmin, newaxis)
 from collections import OrderedDict as od
 
@@ -34,7 +33,7 @@ from .glob import DEFAULT_ROI
 
 from geonum import GeoSetup, GeoPoint, GeoVector3D, TopoData
 from geonum.exceptions import TopoAccessError
-
+from geonum.helpers import haversine_formula
 
 class MeasGeometry(object):
     """Class for calculations and management of the measurement geometry.
@@ -1489,29 +1488,30 @@ class MeasGeometry(object):
         return self.geo_setup.vectors["cfov"]
 
     def haversine(self, lon0, lat0, lon1, lat1, radius=6371.0):
-        """Haversine formula.
+        """Haversine formula to compute distances on a sphere
 
         Approximate horizontal distance between 2 points assuming a spherical
-        earth
+        earth.
 
-        :param float lon0: longitude of first point in decimal degrees
-        :param float lat0: latitude of first point in decimal degrees
-        :param float lon1: longitude of second point in decimal degrees
-        :param float lat1: latitude of second point in decimal degrees
-        :param float radius: average earth radius in km (6371.0)
+        Parameters
+        ----------
+        lon0 : float
+            longitude of first point in decimal degrees
+        lat0 : float
+            latitude of first point in decimal degrees
+        lon1 : float
+            longitude of second point in decimal degrees
+        lat1 : float
+            latitude of second point in decimal degrees
+        radius : float
+            average earth radius in km, defaults to 6371 km
+
+        Returns
+        -------
+        float
+            distance of both points in km
         """
-        def hav(d_theta):
-            return sin(d_theta / 2.0) ** 2
-
-        d_lon = radians(lon1 - lon0)
-        d_lat = radians(lat1 - lat0)
-        lat0 = radians(lat0)
-        lat1 = radians(lat1)
-
-        a = hav(d_lat) + cos(lat0) * cos(lat1) * hav(d_lon)
-        c = 2 * arcsin(sqrt(a))
-
-        return radius * c
+        return haversine_formula(lon0,lat0,lon1,lat1,radius)
 
     def geo_len_scale(self):
         """Return the distance between cam and source in km.
