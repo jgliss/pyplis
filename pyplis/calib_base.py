@@ -430,8 +430,7 @@ class CalibData(object):
                      "and corresponding error vector")
             elif sum(self.cd_vec_err) == 0:
                 logger.warning("Could not perform weighted calibration fit: "
-                     "Values of DOAS fit errors are 0. Do you have pydoas "
-                     "installed?")
+                     "Values of DOAS fit errors are 0. ")
             else:
                 try:
                     if weights_how == "abs":

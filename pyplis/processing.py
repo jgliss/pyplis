@@ -21,7 +21,6 @@ r"""Pyplis module contains the following processing classes and methods.
 #. :class:`PixelMeanTimeSeries`: storage and post analysis of time\
 series of average pixel intensities
 """
-from __future__ import (absolute_import, division)
 from numpy import (vstack, empty, ones, asarray, sum, dstack, float32, zeros,
                    poly1d, polyfit, argmin, where, logical_and, rollaxis,
                    delete, hstack)
@@ -40,10 +39,10 @@ from os.path import join, exists, dirname, basename, isdir, abspath
 from astropy.io import fits
 import six
 from pyplis import logger
-from .image import Img
-from .setupclasses import Camera
-from .helpers import to_datetime, make_circular_mask
-from .glob import DEFAULT_ROI
+from pyplis.image import Img
+from pyplis.setupclasses import Camera
+from pyplis.helpers import to_datetime, make_circular_mask
+from pyplis.glob import DEFAULT_ROI
 
 
 class ImgStack(object):
