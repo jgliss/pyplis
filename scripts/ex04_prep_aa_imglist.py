@@ -50,48 +50,48 @@ def prepare_aa_image_list(bg_corr_mode=6):
     path_bg_off = IMG_DIR / 'EC2_1106307_1R02_2015091607022820_F02_Etna.fts'
 
     # Get on and off lists and activate dark correction
-    on_lst = dataset.get_list("on")
+    on_list = dataset.get_list("on")
     off_list = dataset.get_list("off")
 
     # Deactivate automatic reload in list while changing some list
     # attributes
-    on_lst.auto_reload = False
+    on_list.auto_reload = False
     off_list.auto_reload = False
 
-    on_lst.darkcorr_mode = True
+    on_list.darkcorr_mode = True
     off_list.darkcorr_mode = True
 
     # Prepare on and offband background images
     bg_on = pyplis.Img(path_bg_on)
-    bg_on.subtract_dark_image(on_lst.get_dark_image())
+    bg_on.subtract_dark_image(on_list.get_dark_image())
 
     bg_off = pyplis.Img(path_bg_off)
     bg_off.subtract_dark_image(off_list.get_dark_image())
 
     # set the background images within the lists
-    on_lst.set_bg_img(bg_on)
+    on_list.set_bg_img(bg_on)
     off_list.set_bg_img(bg_off)
 
     # automatically set gas free areas
-    on_lst.bg_model.set_missing_ref_areas(on_lst.current_img())
+    on_list.bg_model.set_missing_ref_areas(on_list.current_img())
     # Now update some of the information from the automatically set sky ref
     # areas
-    on_lst.bg_model.xgrad_line_startcol = 20
-    on_lst.bg_model.xgrad_line_rownum = 25
+    on_list.bg_model.xgrad_line_startcol = 20
+    on_list.bg_model.xgrad_line_rownum = 25
     off_list.bg_model.xgrad_line_startcol = 20
     off_list.bg_model.xgrad_line_rownum = 25
 
     # set background modelling mode
-    on_lst.bg_model.mode = bg_corr_mode
+    on_list.bg_model.mode = bg_corr_mode
     off_list.bg_model.mode = bg_corr_mode
 
-    on_lst.aa_mode = True  # activate AA mode
+    on_list.aa_mode = True  # activate AA mode
 
     off_list.auto_reload = True
-    on_lst.auto_reload = True
+    on_list.auto_reload = True
     print("INITIATED AA LIST")
-    on_lst.meas_geometry = geom
-    return on_lst
+    on_list.meas_geometry = geom
+    return on_list
 
 
 def main():

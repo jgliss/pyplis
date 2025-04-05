@@ -39,14 +39,15 @@ stack (3D numpy array) is too large for the RAM. In this case, try
 increasing script option PYRLEVEL_ROUGH_SEARCH.
 
 """
+from pathlib import Path
 import pyplis
 import pydoas
 import numpy.testing as npt
 import numpy as np
 from datetime import timedelta
 from matplotlib.pyplot import close, show, subplots
-from os.path import join, exists
-from os import remove
+from pyplis.imagelists import ImgList
+from pyplis.processing import ImgStack
 
 # IMPORT GLOBAL SETTINGS
 from SETTINGS import SAVEFIGS, SAVE_DIR, FORMAT, DPI, IMG_DIR, ARGPARSER
@@ -54,28 +55,14 @@ from SETTINGS import SAVEFIGS, SAVE_DIR, FORMAT, DPI, IMG_DIR, ARGPARSER
 # IMPORTS FROM OTHER EXAMPLE SCRIPTS
 from ex04_prep_aa_imglist import prepare_aa_image_list
 
-# SCRIPT OPTONS
-
-# reload and save stack in folder SAVE_DIR, results in increased
-# running time due to stack calculation (is automatically switched on if
-# the stack is not found at this location)
-RELOAD_STACK = False
-
-PYRLEVEL_ROUGH_SEARCH = 2
-# Default search settings are at pyramid level 2, the FOV results are upscaled
-# to original resolution, if the following option is set 1, then, based on
-# the result from pyrlevel=2, another stack is determined at pyrlevel = 0
-# (i.e. in full resolution) within a ROI around the center position from the
-# search performed at pyrlevel=PYRLEVEL_ROUGH_SEARCH (defined 2 lines below)
-DO_FINE_SEARCH = False
-
 
 # RELEVANT DIRECTORIES AND PATHS
 
 # Directory containing DOAS result files
-DOAS_DATA_DIR = join(IMG_DIR, "..", "spectra", "plume_prep", "min10Scans", "ResultFiles")
+DOAS_DATA_DIR = IMG_DIR / ".." / "spectra" / "plume_prep" / "min10Scans" / "ResultFiles"
 
-STACK_PATH = join(SAVE_DIR, "ex06_aa_imgstack.fts")
+# Output file path for storing the AA image stack
+AA_IMG_STACK_PATH = SAVE_DIR / "ex06_aa_imgstack.fts"
 
 # SCRIPT FUNCTION DEFINITIONS
 def load_doas_results(lt_to_utc_shift=timedelta(-1. / 12)):
@@ -115,9 +102,11 @@ def load_doas_results(lt_to_utc_shift=timedelta(-1. / 12)):
     return results_utc
 
 
-def make_aa_stack_from_list(aa_list, roi_abs=None, pyrlevel=None,
-                            save=True, stack_path=STACK_PATH,
-                            save_dir=SAVE_DIR):
+def make_aa_stack_from_list(
+        aa_list: ImgList,
+        output_path: Path, 
+        roi_abs=None, 
+        pyrlevel=None) -> ImgStack:
     """Get and prepare onband list for aa image mode."""
     # Deactivate auto reload to change some settings (if auto_reload is active
     # list images are reloaded whenever a setting is changed in the list. This
@@ -134,35 +123,8 @@ def make_aa_stack_from_list(aa_list, roi_abs=None, pyrlevel=None,
     # Stack all images in image list at pyrlevel 2 and cropped using specified
     # roi (uncropped if roi_abs=None).
     stack = aa_list.make_stack()
-    if save:
-        try:
-            remove(stack_path)
-        except BaseException:
-            pass
-        stack.save_as_fits(save_dir=save_dir,
-                           save_name="ex06_aa_imgstack.fts")
+    stack.save_as_fits(save_dir=output_path.parent, save_name=output_path.name)
     return stack
-
-
-def get_stack(reload_stack=RELOAD_STACK, stack_path=STACK_PATH,
-              pyrlevel=PYRLEVEL_ROUGH_SEARCH):
-    """Load stack data based on current settings."""
-    if not exists(stack_path):
-        reload_stack = 1
-
-    if not reload_stack:
-        stack = pyplis.processing.ImgStack()
-        stack.load_stack_fits(stack_path)
-        if stack.pyrlevel != pyrlevel:
-            reload_stack = True
-    aa_list = None
-    if reload_stack:
-        # import AA image list
-        aa_list = prepare_aa_image_list()
-        # Try creating stack
-        stack = make_aa_stack_from_list(aa_list, pyrlevel=pyrlevel)
-
-    return stack, aa_list
 
 
 # Test functions used at the end of the script
@@ -231,25 +193,20 @@ def main():
     # close all plots
     close("all")
 
-    # import DOAS results
+    # import DOAS SO2 column density timeseries
     doas_time_series = load_doas_results()
+    
+    # get the AA image list 
+    aa_list = prepare_aa_image_list()
 
-    # Import script options
-    options = ARGPARSER.parse_args()
+    # Calculate AA image stack from the list of images in the list
+    stack = make_aa_stack_from_list(
+        aa_list=aa_list,
+        output_path=AA_IMG_STACK_PATH,
+        pyrlevel=2
+    )
 
-    if options.test:
-        # if test mode is active, the image stack is always recomputed from
-        # scratch and the option DO_FINE_SEARCH is activated, since the tests
-        # are based on this. This will lead to an increased computation time
-        # Test mode can be activated / deactivated in SETTINGS.py or via
-        # the script option --test 1 (on) or --test 0 (off)
-        RELOAD_STACK = True
-        PYRLEVEL_ROUGH_SEARCH = 2
-        DO_FINE_SEARCH = True
-
-    # reload or create the AA image stack based on current script settings
-    stack, aa_list = get_stack()
-
+    # Instantiate the engine for retrieving the FOV and calibration data
     s = pyplis.doascalib.DoasFOVEngine(stack, doas_time_series)
     calib_pears = s.perform_fov_search(method="pearson")
     calib_ifr = s.perform_fov_search(method="ifr", ifrlbda=4e-3)
@@ -272,22 +229,17 @@ def main():
     ax2.legend(loc=4, fancybox=True, framealpha=0.7, fontsize=11)
     axes = [ax0, ax1, ax2]
 
-    if DO_FINE_SEARCH:
-        """Perform FOV search within ROI around result from pearson fov
-        search at full resolution (pyrlevel=0)
-        """
-        if aa_list is None:
-            aa_list = prepare_aa_image_list()
-        # remember some properties of the current image stack that is stored in
-        # the DoasFOVEngine object (i.e. the merged one in low pixel res.)
+    #Perform FOV search within ROI around result from pearson fov
+    #search at full resolution (pyrlevel=0)
+    aa_list = prepare_aa_image_list()
 
-        num_merge, h, w = s.img_stack.shape
-        s_fine = s.run_fov_fine_search(aa_list, doas_time_series,
-                                       method="pearson")
+    num_merge, h, w = s.img_stack.shape
+    s_fine = s.run_fov_fine_search(aa_list, doas_time_series,
+                                    method="pearson")
 
-        calib_pears_fine = s_fine.calib_data
-        calib_pears_fine.plot()
-        calib_pears_fine.fov.plot()
+    calib_pears_fine = s_fine.calib_data
+    calib_pears_fine.plot()
+    calib_pears_fine.fov.plot()
 
     calib_pears.save_as_fits(save_dir=SAVE_DIR,
                              save_name="ex06_doascalib_aa.fts")
@@ -306,9 +258,8 @@ def main():
         for k in range(len(axes)):
             ax = axes[k]
             ax.set_title("")
-            ax.figure.savefig(join(SAVE_DIR, "ex06_out_%d.%s"
-                                   % ((k + 1), FORMAT)),
-                              format=FORMAT, dpi=DPI)
+            outfile = SAVE_DIR / f"ex06_out_{k + 1}.{FORMAT}"
+            ax.figure.savefig(outfile, format=FORMAT, dpi=DPI)
 
     # IMPORTANT STUFF FINISHED (Below follow tests and display options)
 
@@ -316,8 +267,16 @@ def main():
     # testmode can be activated globally (see SETTINGS.py) or can also be
     # activated from the command line when executing the script using the
     # option --test 1
+
+    
+    # Import script options
+    options = ARGPARSER.parse_args()
+
     if int(options.test):
-        from os.path import basename
+        
+        # test re-loading of stack from FITS file
+        stack = pyplis.processing.ImgStack()
+        stack.load_stack_fits(AA_IMG_STACK_PATH)
 
         num, h, w = stack.shape
         num2 = s.img_stack.shape[0]  # stack after fine FOV search

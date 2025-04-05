@@ -106,7 +106,7 @@ def plot_plume_distance_image(meas_geometry):
 
 
 # SCRIPT MAIN FUNCTION
-if __name__ == "__main__":
+def main():
     plt.close("all")
     
     # Create the Dataset object (see ex01)
@@ -205,3 +205,6 @@ if __name__ == "__main__":
             plt.show()
     except BaseException:
         print("Use option --show 1 if you want the plots to be displayed")
+
+if __name__ == "__main__":
+    main()

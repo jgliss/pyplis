@@ -92,13 +92,9 @@ def create_dataset():
     # dimension, pixel size, focal length). Measurement specific parameters
     # (e.g. lon, lat, elev, azim) where defined in the dictinary above and
     # can be passed as additional keyword dictionary using **geom_cam
-    # Alternatively, they could also be passed directly, e.g.:
+    # Alternatively, they could also be passed directly:
 
-    # cam = pyplis.setup.Camera(cam_id, filter_list=filters, lon=15.1129,
-    #                           lat=37.73122)
-
-    cam = pyplis.setupclasses.Camera(cam_id, filter_list=filters,
-                                     **geom_cam)
+    cam = pyplis.setupclasses.Camera(cam_id, filter_list=filters,**geom_cam)
 
     # Load default information for Etna. This information is stored in
     # the source_info.txt file of the Pyplis information. You may also access
@@ -120,8 +116,6 @@ def create_dataset():
         source=source,
         wind_info=wind_info
     )
-    
-    print(stp.LINK_OFF_TO_ON)
     # Create analysis object (from BaseSetup)
     # The dataset takes care of finding all vali
     return pyplis.Dataset(stp)

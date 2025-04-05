@@ -48,7 +48,7 @@ BLURRING = 1  # Gaussian blurring applied to images
 PYRLEVEL = 1  # Scale space level (Gauss pyramid)
 
 # Relevant paths
-SAVE_DIR = join(pyplis._LIBDIR, "..", "scripts", "scripts_out", "all_cd_imgs")
+SAVE_DIR = join(pyplis.__dir__, "..", "scripts", "scripts_out", "all_cd_imgs")
 
 if not exists(SAVE_DIR):
     mkdir(SAVE_DIR)

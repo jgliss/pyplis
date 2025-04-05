@@ -38,7 +38,7 @@ from SETTINGS import ARGPARSER, SAVE_DIR
 # file name of test image stored in data folder
 IMG_FILE_NAME = "test_201509160708_F01_335.fts"
 
-IMG_DIR = pathlib.Path(pyplis._LIBDIR) / "data"
+IMG_DIR = pathlib.Path(pyplis.__dir__) / "data"
 
 def main():
     plt.close("all")
