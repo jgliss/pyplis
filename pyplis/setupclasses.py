@@ -959,7 +959,6 @@ class BaseSetup(object):
                            ("REG_SHIFT_OFF", False)])
 
         self.check_timestamps()
-        logger.info(self.LINK_OFF_TO_ON)
         for k, v in six.iteritems(opts):
             if k in self.options:
                 self.options[k] = v

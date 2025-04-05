@@ -45,7 +45,7 @@ from pyplis.helpers import to_datetime, make_circular_mask
 from pyplis.glob import DEFAULT_ROI
 
 
-class ImgStack(object):
+class ImgStack:
     """Image stack object.
 
     The images are stacked into a 3D numpy array, note, that for large datasets
@@ -183,8 +183,8 @@ class ImgStack(object):
             return i + add
         except IndexError:
             raise IndexError("Stack is empty...")
-        except BaseException:
-            raise ValueError("Start acquisition time could accessed in stack")
+        except Exception as e:
+            raise ValueError(f"Unexpected error {e}")
 
     @property
     def time_stamps(self):
@@ -515,6 +515,8 @@ class ImgStack(object):
                 img_idxs.append(matches[argmin(del_ts_temp)])
 
         series_new = time_series[spec_idxs_final]
+        series_new1 = time_series.iloc[spec_idxs_final]
+        assert series_new == series_new1
         try:
             series_new.fit_errs = time_series.fit_errs[spec_idxs_final]
         except BaseException:
@@ -648,10 +650,6 @@ class ImgStack(object):
             texp = (f - i).total_seconds()
             cond = (times >= i) & (times < f)
             if sum(cond) > 0:
-                # ==============================================================================
-                #             print ("Found %s images for spectrum #%s (of %s)"
-                #                                        %(sum(cond), k, num))
-                # ==============================================================================
                 im = stack[cond].mean(axis=0)
                 if counter == 0:
                     new_stack = im
@@ -930,31 +928,35 @@ class ImgStack(object):
             newbyteorder()
         self._format_check()
 
-    def save_as_fits(self, save_dir=None, save_name=None,
-                     overwrite_existing=True):
-        """Save stack as FITS file."""
+    def save_as_fits(self, save_dir, save_name=None,
+                     overwrite_existing=True) -> str:
+        """Save stack as FITS file.
+        
+        Args:
+            save_dir (str): directory to save the FITS file
+            save_name (str): name of the FITS file (optional)
+            overwrite_existing (bool): whether to overwrite existing files
+                (default: True)
+        
+        Returns:
+            output path
+        """
         self._format_check()
-        # returns abspath of current wkdir if None
         save_dir = abspath(save_dir)
-        if not isdir(save_dir):  # save_dir is a file path
-            save_name = basename(save_dir)
-            save_dir = dirname(save_dir)
         if save_name is None:
             save_name = ("pyplis_imgstack_id_%s_%s_%s_%s.fts"
                          % (self.stack_id,
                             self.start.strftime("%Y%m%d"),
                             self.start.strftime("%H%M"),
                             self.stop.strftime("%H%M")))
-        else:
-            save_name = save_name.split(".")[0] + ".fts"
-        logger.info("DIR: %s" % save_dir)
-        logger.info("Name: %s" % save_name)
+        
+        logger.info(f"DIR: {save_dir}")
+        logger.info(f"Name: {save_name}")
         hdu = fits.PrimaryHDU()
         start_acq_str = [x.strftime("%Y%m%d%H%M%S%f") for x in self.start_acq]
         col1 = fits.Column(name="start_acq", format="25A", array=start_acq_str)
         col2 = fits.Column(name="texps", format="D", array=self.texps)
-        col3 = fits.Column(name="_access_mask", format="L",
-                           array=self._access_mask)
+        col3 = fits.Column(name="_access_mask", format="L", array=self._access_mask)
         col4 = fits.Column(name="add_data", format="D", array=self.add_data)
         cols = fits.ColDefs([col1, col2, col3, col4])
         arrays = fits.BinTableHDU.from_columns(cols)
@@ -969,19 +971,9 @@ class ImgStack(object):
         hdulist = fits.HDUList([hdu, arrays, roi_abs])
         path = join(save_dir, save_name)
         if exists(path):
-            logger.info("Stack already exists at %s and will be overwritten"
-                  % path)
-
-        try:
-            hdulist.writeto(path, clobber=overwrite_existing)
-        except BaseException:
-            logger.warning("Failed to save stack to FITS File "
-                 "(check previous warnings)")
-
-    """Magic methods"""
-
-    def __str__(self):
-        raise NotImplementedError
+            logger.info(f"Stack already exists at {path} and will be overwritten")
+        hdulist.writeto(path, overwrite=overwrite_existing)
+        return path
 
     def __sub__(self, other):
         """Subtract data.

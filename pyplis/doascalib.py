@@ -105,35 +105,39 @@ class DoasCalibData(CalibData):
             fov = DoasFOV(camera)
         self.fov = fov
 
-    def save_as_fits(self, save_dir=None, save_name=None,
-                     overwrite_existing=True):
+    def save_as_fits(
+        self, 
+        save_dir=None, 
+        save_name=None,
+        overwrite_existing=True
+    ) -> str:
         """Save calibration data as FITS file.
 
-        Parameters
-        ----------
-        save_dir : str
-            save directory, if None, the current working directory is used
-        save_name : str
-            filename of the FITS file (if None, use pyplis default naming)
-
+        Args:
+            save_dir (str, optional): Directory to save the FITS file.
+                If None, the current working directory is used.
+            save_name (str, optional): Filename of the FITS file.
+                If None, pyplis default naming is used. 
+            overwrite_existing (bool, optional): If True, overwrite existing.
+                
+        Returns:
+            str: Path to the saved FITS file.
         """
         # hdulist containing calibration data and senscorr_mask
         hdulist = self._prep_fits_save()
 
         # add DOAS FOV information (if applicable)
         hdulist.extend(self.fov.prep_hdulist())
-        # returns abspath of current wkdir if None
-        hdulist.writeto(self._prep_fits_savepath(save_dir, save_name),
-                        clobber=overwrite_existing)
-
+        
+        outfile = self._prep_fits_savepath(save_dir, save_name)
+        hdulist.writeto(outfile, overwrite=overwrite_existing)
+        return outfile
+    
     def load_from_fits(self, file_path):
         """Load stack object (fits).
 
-        Parameters
-        ----------
-        file_path : str
-            file path of calibration data
-
+        Args:
+            file_path (str): Path to the FITS file.
         """
         # loads senscorr_mask and calibration data (tau and cd vectors,
         # timestamps)
@@ -158,12 +162,9 @@ class DoasCalibData(CalibData):
         ax2.set_ylabel(r"$S_{%s}$ [cm$^{-2}$]" % SPECIES_ID)
         ax.set_title("Time series overlay DOAS calib data")
 
-        try:
-            if date_fmt is not None:
-                ax.xaxis.set_major_formatter(DateFormatter(date_fmt))
-        except BaseException:
-            pass
-
+        if date_fmt is not None:
+            ax.xaxis.set_major_formatter(DateFormatter(date_fmt))
+    
         ps = p1 + p2
         labs = [l.get_label() for l in ps]
         ax.legend(ps, labs, loc="best", fancybox=True, framealpha=0.5)
@@ -746,7 +747,7 @@ class DoasFOVEngine(object):
         #. This method requires some time as it needs to
         recompute a cropped image stack in full resolution from the
         provided img_list.
-        #. This method deletes the current image stack in this objects.
+        #. This method deletes the current image stack in this object.
         #. Uses the same search settings as set in this class (i.e. method,
         etc.)
 
@@ -786,7 +787,7 @@ class DoasFOVEngine(object):
             return s
 
         except Exception as e:
-            raise Exception("Failed to perform fine search: %s" % repr(e))
+            raise Exception(f"Failed to perform fine search: {repr(e)}")
 
     def merge_data(self, merge_type=None):
         """Merge stack data and DOAS vector in time.

@@ -24,7 +24,6 @@ PYDOASAVAILABLE = check_requirements()
 logger, print_log = _init_logger()
 
 __version__, __dir__ = _init_supplemental()
-_LIBDIR = __dir__  # from older version
 
 URL_TESTDATA = ("https://folk.nilu.no/~arve/pyplis/"
                 "pyplis_etna_testdata.zip")

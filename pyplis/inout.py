@@ -466,9 +466,9 @@ def get_all_valid_cam_ids():
 
     Reads info from file cam_info.txt which is part of package data
     """
-    from pyplis import _LIBDIR
+    from pyplis import __dir__
     ids = []
-    with open(join(_LIBDIR, "data", "cam_info.txt"), "rb") as f:
+    with open(join(__dir__, "data", "cam_info.txt"), "rb") as f:
         for line in f:
             spl = line.decode("ISO-8859-1").split(":")
             if spl[0].strip().lower() == "cam_ids":
@@ -529,12 +529,12 @@ def get_source_info(source_id, try_online=True):
     :param bool try_online: if True and local access fails, try to find source
         ID in online database
     """
-    from pyplis import _LIBDIR
+    from pyplis import __dir__
     dat = od()
     if source_id == "":
         return dat
     found = 0
-    with open(join(_LIBDIR, "data", "my_sources.txt")) as f:
+    with open(join(__dir__, "data", "my_sources.txt")) as f:
         for line in f:
             if "END" in line and found:
                 return od([(source_id, dat)])
@@ -623,19 +623,19 @@ def get_icon(name, color=None):
 
     """
     try:
-        from pyplis import _LIBDIR
+        from pyplis import __dir__
     except BaseException:
         raise
     subfolders = ["axialis", "myIcons"]
     for subf in subfolders:
-        base_path = join(_LIBDIR, "data", "icons", subf)
+        base_path = join(__dir__, "data", "icons", subf)
         if color is not None:
             base_path = join(base_path, color)
         for file in listdir(base_path):
             fname = basename(file).split(".")[0]
             if fname == name:
                 return base_path + file
-    logger.warning("Failed to load icon at: " + _LIBDIR)
+    logger.warning("Failed to load icon at: " + __dir__)
     return False
 
 
