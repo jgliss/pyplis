@@ -545,7 +545,7 @@ class Dataset(object):
         Returns
         -------
         dict
-            Dictionary containing information about which meta inforamtion
+            Dictionary containing information about which meta information
             could be identified from the image file path based on the
             current camera
 
@@ -553,6 +553,7 @@ class Dataset(object):
         err = self.camera.get_img_meta_from_filename(filepath)[4]
         for item in err:
             logger.warning(item)
+            self.camera.get_img_meta_from_filename(filepath)[4]
         return self.camera._fname_access_flags
 
     def change_img_base_dir(self, img_dir):
@@ -997,7 +998,6 @@ class Dataset(object):
 
         self.setup.start = start
         self.setup.stop = stop
-        self.setup.check_timestamps()
 
     def duplicate(self):
         """Duplicate Dataset object."""
@@ -1022,10 +1022,6 @@ class Dataset(object):
     #             raise
     # ==============================================================================
 
-    """
-    Plotting etc.
-    """
-
     def show_current_img(self, filter_id, add_forms=False):
         """Plot current image.
 
@@ -1035,8 +1031,7 @@ class Dataset(object):
         if add_forms:
             handles = []
             for k, v in six.iteritems(self.lines._forms):
-                l = Line2D([v[0], v[2]], [v[1], v[3]], color="#00ff00",
-                           label=k)
+                l = Line2D([v[0], v[2]], [v[1], v[3]], color="#00ff00", label=k)
                 handles.append(l)
                 ax.add_artist(l)
             for k, v in six.iteritems(self.rects._forms):

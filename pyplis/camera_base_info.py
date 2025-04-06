@@ -1,4 +1,6 @@
-from __future__ import (absolute_import, division)
+import re
+import six
+import functools
 from pathlib import Path
 from typing import Optional
 from numpy import nan
@@ -6,12 +8,9 @@ from warnings import warn
 from os.path import exists, basename
 from datetime import datetime as dt
 from collections import OrderedDict as od
-from .utils import DarkOffsetInfo, Filter
-from . import custom_image_import
-from .inout import save_new_default_camera, get_camera_info
-import re
-import six
-
+from pyplis.utils import DarkOffsetInfo, Filter
+from pyplis import custom_image_import
+from pyplis.inout import save_new_default_camera, get_camera_info
 
 class CameraBaseInfo(object):
     """Low level base class for camera specific information.
@@ -35,18 +34,18 @@ class CameraBaseInfo(object):
         """
         self.cam_id = None
         self.delim = "."  # ""
-        self.time_info_pos = None  # nan
-        self.time_info_str = ""  # ""
+        self.time_info_pos = None 
+        self.time_info_str = ""  
         self._time_info_subnum = 1
         self.filename_regexp = None
 
         # Specify filter ID
-        self.filter_id_pos = None  # nan
+        self.filter_id_pos = None  
         self._fid_subnum_max = 1
 
-        self.file_type = None  # ""
+        self.file_type = None  
         self.default_filters = []
-        self.main_filter_id = None  # "on"
+        self.main_filter_id = None  
         self.texp_pos = None
         self.texp_unit = "ms"
 
@@ -54,7 +53,7 @@ class CameraBaseInfo(object):
 
         self.image_import_method = None
 
-        self.meas_type_pos = None  # nan
+        self.meas_type_pos = None 
         # maximum length of meastype substrings after splitting using delim
         self._mtype_subnum_max = 1
 
@@ -161,40 +160,32 @@ class CameraBaseInfo(object):
                 isinstance(self.time_info_str, str)):
             flags["start_acq"] = True
 
-    def parse_filename_regexp(self, filename, conf):
+    def parse_meta_from_filename_regexp(self, filename, values, conf):
         """Extract information from filename using a camera defined or custom regexp.
 
         Parse a date from a string using a grouped regular expression.
 
         :param str file_path: file path used for info import check
         """
-        values = {
-            "acq_time": None,
-            "filter_id": None,
-            "meas_type": None,
-            "texp": None
-        }
-
-        if ("filename_regexp" not in conf):
-            print("no filename_regexp")
-            return values
-
         regexp = re.compile(conf["filename_regexp"])
-        d = re.match(regexp, filename).groupdict()
-        values.update(d)
-
+        values.update(re.match(regexp, filename).groupdict())
         return values
-
-    def parse_filename(self, filename, config):
-        # print(self['delim'], config['delim'])
-        # print('obj: ', config, filename)
-        values = {
-            "acq_time": None,
-            "filter_id": None,
-            "meas_type": None,
-            "texp": None
-        }
-
+        
+    def parse_meta_from_filename(self, filename, values, config):
+        """Extract metadata from filename using a delimiter.
+        
+        Args:
+            filename: filename to be parsed for metadata.
+            config: dictionary containing filename parsing information.
+        
+        Returns:
+            dict: dictionary containing parsed metadata. In specific, the
+                following keys are used:
+                - acq_time: acquisition time (datetime object) 
+                - filter_id: filter ID (string)
+                - meas_type: measurement type (string)
+                - texp: exposure time (float)
+        """
         spl = filename.rsplit(".", 1)[0].split(config["delim"])
         try:
             start = config["time_info_pos"]
@@ -224,20 +215,9 @@ class CameraBaseInfo(object):
 
         return values
 
-    def get_img_meta_from_filename(self, file_path):
-        """Extract as much as possible from filename and update access flags.
-
-        Checks if all declared import information works for a given filetype
-        and update all flags for which it does not.
-
-        :param str file_path: file path used for info import check
-        """
-        if not exists(file_path):
-            raise IOError("Input file location does not exist %s" % file_path)
-
-        filename = basename(file_path)
-
-        config = {
+    @property
+    def filename_info_cfg(self) -> dict:
+        return {
             "delim": self.delim,
             "time_info_pos": self.time_info_pos,
             "time_info_subnum": self._time_info_subnum,
@@ -250,38 +230,57 @@ class CameraBaseInfo(object):
             "texp_unit": self.texp_unit,
             "filename_regexp": self.filename_regexp
         }
+    
+    def get_img_meta_from_filename(self, file_path):
+        """Extract as much as possible from filename and update access flags.
 
-        if (self.filename_regexp):
-            values = self.parse_filename_regexp(filename, config)
-        elif (self.delim):
-            values = self.parse_filename(filename, config)
+        Checks if all declared import information works for a given filetype
+        and update all flags for which it does not.
+
+        Args:
+            file_path: image file path used to extract metadata from 
+                filename.
+        
+        Returns:
+            tuple: (start_acq, filter_id, meas_type, texp, warnings)
+        """
+        filename = basename(file_path)
+        config = self.filename_info_cfg
+        
+        # init metadata of interest  
+        extracted_metadata = {
+            "start_acq": None, #datetime object
+            "filter_id": None, #str
+            "meas_type": None, #str
+            "texp": None, #float
+            "date": None #str
+        }
+        if self.filename_regexp:
+            extracted_metadata = self.parse_meta_from_filename_regexp(filename, extracted_metadata, config)
+        elif self.delim:
+            extracted_metadata = self.parse_meta_from_filename(filename, extracted_metadata, config)
         else:
-            return (None, None, None, None,
-                    ["Neighter filename delimiter or regexp is set"])
+            return (None, None, None, None, ["Neither filename delimiter or regexp is set"])
 
-        if "date" in values and "time_info_str" in config:
-            values["acq_time"] = dt.strptime(values["date"],
-                                             config["time_info_str"])
+        if extracted_metadata.get("date"):
+            extracted_metadata["start_acq"] = dt.strptime(extracted_metadata["date"], config["time_info_str"])
 
-        if "texp" in values and values["texp"] and config["texp_unit"] == "ms":
-            values["texp"] = values["texp"] / 1000.0  # convert to s
+        if extracted_metadata.get("texp") and config["texp_unit"] == "ms":
+            extracted_metadata["texp"] = extracted_metadata["texp"] / 1000.0  # convert to s
 
-        self._fname_access_flags["start_acq"] = not not values["acq_time"]
-        self._fname_access_flags["filter_id"] = not not values["filter_id"]
-        self._fname_access_flags["meas_type"] = not not values["meas_type"]
-        self._fname_access_flags["texp"] = not not values["texp"]
+        warnings = []
+        for key, val in self._fname_access_flags.items():
+            new_val_bool = bool(extracted_metadata[key]) 
+            if new_val_bool != val:
+                self._fname_access_flags[key] = new_val_bool
+                warnings.append(f"Filename access flag {key} changed from {val} to {new_val_bool}")
 
-        warnings = ["INFO: " + x + " cannot be accessed from filename"
-                    for x in self._fname_access_flags.keys()
-                    if not self._fname_access_flags[x]]
-
-        if (not self.delim):
-            warnings.append("Filename delimiter is not set")
-
-        return (values["acq_time"], values["filter_id"], values["meas_type"],
-                values["texp"], warnings)
-
-    """Decorators / dynamic class attributes"""
+        return (
+            extracted_metadata["start_acq"], 
+            extracted_metadata["filter_id"], 
+            extracted_metadata["meas_type"],
+            extracted_metadata["texp"], 
+            warnings)
 
     @property
     def default_filter_acronyms(self):

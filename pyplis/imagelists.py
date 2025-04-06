@@ -641,7 +641,6 @@ class BaseImgList(object):
         -------
         bool
             if True, image was loaded, if False not
-
         """
         if not self._auto_reload:
             logger.info(f"Automatic image reload deactivated in image list {self.list_id}")
@@ -860,17 +859,11 @@ class BaseImgList(object):
     def get_img_meta_from_filename(self, file_path):
         """Load and prepare img meta input dict for Img object.
 
-        Parameters
-        ----------
-        file_path : str
-            file path of image
-
-        Returns
-        -------
-        dict
-            dictionary containing retrieved values for ``start_acq`` and
-            ``texp``
-
+        Args:
+            file_path: image file path
+        
+        Returns:
+            dict: dictionary containing start acquisition time and exposure time
         """
         info = self.camera.get_img_meta_from_filename(file_path)
         return {"start_acq": info[0], "texp": info[3]}
@@ -926,13 +919,12 @@ class BaseImgList(object):
         -------
         array
             array contining linked indices
-
         """
         idx_array = zeros(self.nof, dtype=int)
         times, _ = self.get_img_meta_all_filenames()
         times_lst, _ = lst.get_img_meta_all_filenames()
         if lst.nof == 1:
-            logger.warning("Other list contains only one file, assign all indices to "
+            logger.info("Other list contains only one file, assign all indices to "
                  "the corresponding image")
         elif (any([x is None for x in times]) or
               any([x is None for x in times_lst])):
@@ -1569,8 +1561,7 @@ class BaseImgList(object):
         :param str key: image id (e.g. this)
         """
         if not self.edit_active:
-            logger.warning("Edit not active in img_list " + self.list_id + ": no image "
-                  "preparation will be performed")
+            logger.debug(f"Edit not active in img_list {self.list_id}: no image preparation will be performed")
             return
         img = self.loaded_images[key]
         img.to_pyrlevel(self.img_prep["pyrlevel"])
@@ -3036,7 +3027,6 @@ class ImgList(BaseImgList):
         """Try load current and next image."""
         self.change_index_linked_lists()  # based on current index in this list
         if not super(ImgList, self).load():
-            logger.warning("Image load aborted...")
             return False
         if self.nof > 1:
             next_img = self._load_image(self.next_index)
@@ -3054,8 +3044,7 @@ class ImgList(BaseImgList):
                 self.set_flow_images()
                 self.optflow.calc_flow()
             except IndexError:
-                print_log.warning("Reached last index in image list, optflow_mode will be "
-                     "deactivated")
+                print_log.warning("Reached last index in image list, optflow_mode will be deactivated")
                 self.optflow_mode = 0
         return True
 
@@ -3708,7 +3697,7 @@ class ImgList(BaseImgList):
 
         """
         if not self.edit_active:
-            logger.warning(f"Edit not active in img_list {self.list_id}: no image preparation will be performed")
+            logger.debug(f"Edit not active in img_list {self.list_id}: no image preparation will be performed")
             return
         img = self.loaded_images[key]
         # apply dark correction

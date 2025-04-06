@@ -505,7 +505,7 @@ class VeloCrossCorrEngine(object):
             pass
 
     def update_settings(self, settings_dict):
-        """Update valid settings for cross correlation retrieval.
+        """Update settings for cross correlation retrieval.
 
         Parameters
         ----------
@@ -515,40 +515,37 @@ class VeloCrossCorrEngine(object):
         """
         for k, v in six.iteritems(settings_dict):
             if k in self.settings:
-                logger.info("Updating cross-correlation search setting %s=%s"
-                      % (k, v))
+                logger.info(f"Updating cross-correlation search setting {k}={v}")
                 self.settings[k] = v
 
     @property
     def velocity(self):
         """Retrieve plume velocity.
 
-        Raises
-        ------
-        ValueError
-            if velocity is nan (default).
-
+        Raises:
+            ValueError: if velocity is nan (default).
+        
+        Returns:
+            float: plume velocity in m/s.
         """
         v = self.results["velo"]
         if isnan(v):
-            raise ValueError("Velocity is NaN, correlation analysis"
-                             " performed?")
+            raise ValueError("Velocity is NaN, correlation analysis performed?")
         return v
 
     @property
     def correlation_lag(self):
         """Time lag showing highest correlation between two ICA time-series.
 
-        Raises
-        ------
-        ValueError
-            if velocity is nan (default).
+        Raises:
+            ValueError: if velocity is nan (default).
 
+        Returns:
+            float: time lag in seconds (or indices, see input specs).
         """
         lag = self.results["lag"]
         if isnan(lag):
-            raise ValueError("Correlation lag is not available, analysis"
-                             " performed?")
+            raise ValueError("Correlation lag is not available, analysis performed?")
         return lag
 
     @property
@@ -559,7 +556,7 @@ class VeloCrossCorrEngine(object):
     @pcs.setter
     def pcs(self, val):
         if not isinstance(val, LineOnImage):
-            raise IOError("Invalid input, need LineOnImage object")
+            raise ValueError("Invalid input, need LineOnImage object")
         self._lines["pcs"] = val
 
     @property
@@ -570,7 +567,7 @@ class VeloCrossCorrEngine(object):
     @pcs_offset.setter
     def pcs_offset(self, val):
         if not isinstance(val, LineOnImage):
-            raise IOError("Invalid input, need LineOnImage object")
+            raise ValueError("Invalid input, need LineOnImage object")
         self._lines["pcs_offset"] = val
 
     @property

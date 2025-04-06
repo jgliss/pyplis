@@ -700,11 +700,6 @@ class Camera(CameraBaseInfo):
     def alt_offset(self, val):
         self.geom_data["alt_offset"] = val
 
-    def update_settings(self, **settings):
-        """Call for :func:`update` (old name)."""
-        logger.warning("Old name of method update")
-        self.update(**settings)
-
     def load_default(self, cam_id: str, cam_info_file: Optional[Path] = None):
         """Redefinition of method from base class :class:`CameraBaseInfo`."""
         super(Camera, self).load_default(cam_id, cam_info_file=cam_info_file)
@@ -738,8 +733,8 @@ class Camera(CameraBaseInfo):
             lon, lat = float(self.lon), float(self.lat)
             self.altitude = GeoPoint(lat, lon).altitude
         except Exception as e:
-            logger.warning("Failed to automatically access local topography altitude"
-                 " at camera position using SRTM data: %s" % repr(e))
+            logger.warning(f"Failed to automatically access local topography "
+                           f"altitude at camera position using SRTM data: {e}")
 
     def prepare_filter_setup(self, filter_list=None, default_key_on=None,
                              default_key_off=None):
@@ -775,10 +770,6 @@ class Camera(CameraBaseInfo):
         self.default_filters = []
         for f in filter_list:
             self.default_filters.append(f)
-
-    """
-    Helpers, Convenience stuff
-    """
 
     def to_dict(self):
         """Convert this object into a dictionary."""
@@ -947,9 +938,6 @@ class BaseSetup(object):
         self._start = None
         self._stop = None
 
-        self.start = start
-        self.stop = stop
-
         self.options = od([("USE_ALL_FILES", False),
                            ("SEPARATE_FILTERS", True),
                            ("USE_ALL_FILE_TYPES", False),
@@ -958,10 +946,14 @@ class BaseSetup(object):
                            ("LINK_OFF_TO_ON", True),
                            ("REG_SHIFT_OFF", False)])
 
-        self.check_timestamps()
+        self.start = start
+        self.stop = stop
+
         for k, v in six.iteritems(opts):
             if k in self.options:
                 self.options[k] = v
+            else:
+                logger.warning(f"Invalid option {k}")
 
     @property
     def start(self):
@@ -970,14 +962,9 @@ class BaseSetup(object):
 
     @start.setter
     def start(self, val):
-        try:
-            self._start = to_datetime(val)
-            self.USE_ALL_FILES = False
-        except BaseException:
-            if val is not None:
-                logger.warning("Input %s could not be assigned to start time in "
-                     "setup" % val)
-
+        self._start = to_datetime(val)
+        self.USE_ALL_FILES = False
+        
     @property
     def stop(self):
         """Stop time of setup."""
@@ -985,14 +972,9 @@ class BaseSetup(object):
 
     @stop.setter
     def stop(self, val):
-        try:
-            self._stop = to_datetime(val)
-            self.USE_ALL_FILES = False
-        except BaseException:
-            if val is not None:
-                logger.warning("Input %s could not be assigned to stop time in "
-                     "setup" % val)
-
+        self._stop = to_datetime(val)
+        self.USE_ALL_FILES = False
+    
     @property
     def USE_ALL_FILES(self):
         """File import option (boolean).
@@ -1004,7 +986,7 @@ class BaseSetup(object):
 
     @USE_ALL_FILES.setter
     def USE_ALL_FILES(self, value):
-        if value not in [0, 1]:
+        if int(value) not in [0, 1]:
             raise ValueError("need boolean")
         self.options["USE_ALL_FILES"] = bool(value)
 
@@ -1018,7 +1000,7 @@ class BaseSetup(object):
 
     @SEPARATE_FILTERS.setter
     def SEPARATE_FILTERS(self, value):
-        if value not in [0, 1]:
+        if int(value) not in [0, 1]:
             raise ValueError("need boolean")
         self.options["SEPARATE_FILTERS"] = value
 
@@ -1034,7 +1016,7 @@ class BaseSetup(object):
 
     @USE_ALL_FILE_TYPES.setter
     def USE_ALL_FILE_TYPES(self, value):
-        if value not in [0, 1]:
+        if int(value) not in [0, 1]:
             raise ValueError("need boolean")
         self.options["USE_ALL_FILE_TYPES"] = value
 
@@ -1048,7 +1030,7 @@ class BaseSetup(object):
 
     @INCLUDE_SUB_DIRS.setter
     def INCLUDE_SUB_DIRS(self, value):
-        if value not in [0, 1]:
+        if int(value) not in [0, 1]:
             raise ValueError("need boolean")
         self.options["INCLUDE_SUB_DIRS"] = value
 
@@ -1073,7 +1055,7 @@ class BaseSetup(object):
 
     @ON_OFF_SAME_FILE.setter
     def ON_OFF_SAME_FILE(self, value):
-        if value not in [0, 1]:
+        if int(value) not in [0, 1]:
             raise ValueError("need boolean")
         self.options["ON_OFF_SAME_FILE"] = value
 
@@ -1088,7 +1070,7 @@ class BaseSetup(object):
 
     @LINK_OFF_TO_ON.setter
     def LINK_OFF_TO_ON(self, value):
-        if value not in [0, 1]:
+        if int(value) not in [0, 1]:
             raise ValueError("need boolean")
         self.options["LINK_OFF_TO_ON"] = value
 
@@ -1105,19 +1087,9 @@ class BaseSetup(object):
 
     @REG_SHIFT_OFF.setter
     def REG_SHIFT_OFF(self, value):
-        if value not in [0, 1]:
+        if int(value) not in [0, 1]:
             raise ValueError("need boolean")
         self.options["REG_SHIFT_OFF"] = value
-
-    def check_timestamps(self):
-        """Check if timestamps are valid and set to current time if not."""
-        if not isinstance(self.start, datetime):
-            self.options["USE_ALL_FILES"] = True
-            self.start = datetime(1900, 1, 1)
-        if not isinstance(self.stop, datetime):
-            self.stop = datetime(1900, 1, 1)
-        if self.start > self.stop:
-            self.start, self.stop = self.stop, self.start
 
     def base_info_check(self):
         """Check if all necessary information if available.
