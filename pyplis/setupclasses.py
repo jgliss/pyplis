@@ -947,24 +947,36 @@ class BaseSetup(object):
 
     """
 
-    def __init__(self, base_dir, start, stop, **opts):
+    def __init__(
+            self, 
+            base_dir: str, 
+            start: Optional[datetime] = None, 
+            stop: Optional[datetime] = None, 
+            **opts):
+        
+        if start is None:
+            use_all_files = True
+            start = datetime(1900, 1, 1)
+        else:
+            use_all_files = False
+        if stop is None:
+            stop = datetime(1900, 1, 1)
+
         self.base_dir = base_dir
         self.save_dir = base_dir
 
         self._start = None
         self._stop = None
 
-        self.options = od([("USE_ALL_FILES", False),
+        self.options = od([("USE_ALL_FILES", use_all_files),
                            ("SEPARATE_FILTERS", True),
                            ("USE_ALL_FILE_TYPES", False),
                            ("INCLUDE_SUB_DIRS", False),
                            ("ON_OFF_SAME_FILE", False),
                            ("LINK_OFF_TO_ON", True),
                            ("REG_SHIFT_OFF", False)])
-        if start:
-            self.start = start
-        if stop:
-            self.stop = stop
+        self.start = start
+        self.stop = stop
 
         for k, v in opts.items():
             self.options[k] = v
