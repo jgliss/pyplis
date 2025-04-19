@@ -48,7 +48,7 @@ from .exceptions import ImgMetaError
 import six
 
 
-class Dataset(object):
+class Dataset:
     """Class for data import management.
 
     Default input is a :class:`pyplis.setupclasses.MeasSetup` object, which
@@ -95,8 +95,8 @@ class Dataset(object):
         self.setup = None
 
         self.lst_type = lst_type
-        self._lists_intern = od()
-        self.lists_access_info = od()
+        self._lists_intern = {}
+        self.lists_access_info = {}
 
         ok = self.load_input(input)
 
@@ -553,7 +553,6 @@ class Dataset(object):
         err = self.camera.get_img_meta_from_filename(filepath)[4]
         for item in err:
             logger.warning(item)
-            self.camera.get_img_meta_from_filename(filepath)[4]
         return self.camera._fname_access_flags
 
     def change_img_base_dir(self, img_dir):

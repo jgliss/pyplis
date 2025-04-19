@@ -31,21 +31,19 @@ definitions  contains information about the camera specs a the
 image base directory (note that in this example, start / stop acq. time stamps
 are ignored, i.e. all images available in the specified directory are imported)
 """
-# Imports from SETTINGS.py
-from SETTINGS import IMG_DIR, ARGPARSER
 import pathlib
 import pyplis
 
-# ## IMPORTS FROM OTHER EXAMPLE SCRIPTS
+from SETTINGS import IMG_DIR, ARGPARSER
 from ex0_2_camera_setup import create_ecII_cam_new_filters
 
 def main():
-    # create the camera which was
+    # create the camera object using the function defined in ex0_2_camera_setup.py
     cam = create_ecII_cam_new_filters("test_cam")
 
     # now throw all this stuff into the BaseSetup objec
     stp = pyplis.setupclasses.MeasSetup(IMG_DIR, camera=cam)
-
+    
     # Create a Dataset which creates separate ImgLists for all types (dark,
     # offset, etc.)
     ds = pyplis.dataset.Dataset(stp)

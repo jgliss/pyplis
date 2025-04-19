@@ -208,7 +208,7 @@ def main():
 
     # Instantiate the engine for retrieving the FOV and calibration data
     s = pyplis.doascalib.DoasFOVEngine(stack, doas_time_series)
-    calib_pears = s.perform_fov_search(method="pearson")
+    calib_pears = s.perform_fov_search(method="pearson", mergeopt="nearest")
     calib_ifr = s.perform_fov_search(method="ifr", ifrlbda=4e-3)
 
     # plot the FOV search results

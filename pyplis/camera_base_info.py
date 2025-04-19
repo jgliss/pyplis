@@ -1,11 +1,9 @@
 import re
-import six
-import functools
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 from numpy import nan
 from warnings import warn
-from os.path import exists, basename
+from os.path import basename
 from datetime import datetime as dt
 from collections import OrderedDict as od
 from pyplis.utils import DarkOffsetInfo, Filter
@@ -20,7 +18,12 @@ class CameraBaseInfo(object):
 
     """
 
-    def __init__(self, cam_id=None, cam_info_file: Optional[Path] = None, **kwargs):
+    def __init__(
+            self, 
+            cam_id=None, 
+            cam_info_file: Optional[Path]=None, 
+            try_load_from_registry=True,
+            **kwargs):
         """Init object.
     
         :param str cam_id: string ID of camera (e.g. "ecII")
@@ -33,7 +36,7 @@ class CameraBaseInfo(object):
 
         """
         self.cam_id = None
-        self.delim = "."  # ""
+        self.delim = "." 
         self.time_info_pos = None 
         self.time_info_str = ""  
         self._time_info_subnum = 1
@@ -81,15 +84,15 @@ class CameraBaseInfo(object):
                                     "texp": False,
                                     "meas_type": False,
                                     "start_acq": False}
-
-        try:
-            self.load_default(cam_id=cam_id, cam_info_file=cam_info_file)
-        except Exception as e:
-            if cam_id is not None:
-                warn("Failed to load camera information for cam_id %s:\n%s "
-                     % (cam_id, repr(e)))
+        # Helper to avoid unnecessary warnings
+        self._fname_access_checked = False
+        if cam_id and try_load_from_registry:
+            try:
+                self.load_default(cam_id=cam_id, cam_info_file=cam_info_file)
+            except Exception as e:
+                warn(f"Failed to load camera information for cam_id {cam_id}:\n{e}")
         type_conv = self._type_dict
-        for k, v in six.iteritems(kwargs):
+        for k, v in kwargs.items():
             if k in type_conv:
                 self[k] = type_conv[k](v)
 
@@ -273,8 +276,10 @@ class CameraBaseInfo(object):
             new_val_bool = bool(extracted_metadata[key]) 
             if new_val_bool != val:
                 self._fname_access_flags[key] = new_val_bool
-                warnings.append(f"Filename access flag {key} changed from {val} to {new_val_bool}")
-
+                if self._fname_access_checked:
+                    warnings.append(f"Filename access flag {key} changed from {val} to {new_val_bool}")
+        # if the filename access check was not done before, set the flag to True
+        self._fname_access_checked = True
         return (
             extracted_metadata["start_acq"], 
             extracted_metadata["filter_id"], 
@@ -360,7 +365,7 @@ class CameraBaseInfo(object):
         dark_info = []
         missed = []
         err = []
-        for key, func in six.iteritems(types):
+        for key, func in types.items():
             if key in info_dict:
                 try:
                     val = func(info_dict[key])
@@ -469,7 +474,17 @@ class CameraBaseInfo(object):
     def get_acronym_dark_offset_corr(self, read_gain=0):
         """Get file name acronyms for dark and offset image identification.
 
-        :param str read_gain (0): detector read gain
+        Parameters
+        -----------
+        read_gain : 
+            detector read gain. Default is 0.
+        
+        Returns 
+        --------
+        offs : 
+            offset image acronym (None, if not found).
+        dark :
+            dark image acronym (None, if not found).
         """
         offs = None
         dark = None
@@ -480,12 +495,13 @@ class CameraBaseInfo(object):
                 offs = info.acronym
         return offs, dark
 
-    """
-    Helpers
-    """
-
-    def to_dict(self):
-        """Write specs into dictionary which is returned."""
+    def to_dict(self) -> dict:
+        """Convert to dictionary
+        
+        Returns
+        -------
+        dictionary containing all camera information.
+        """
         d = od()
         for k in self._type_dict.keys():
             if k in ["default_filters", "dark_info"]:
@@ -501,16 +517,29 @@ class CameraBaseInfo(object):
         d["image_import_method"] = ipm
         return d
 
-    def save_as_default(self, cam_info_file: Optional[Path], *add_cam_ids):
-        """Save this camera to default data base."""
+    def save_as_default(self, cam_info_file: Optional[Path], *add_cam_ids) -> None:
+        """Save this camera in default camera registry
+        
+        Parameters
+        ----------
+        cam_info_file : 
+            Path to the camera info file to be used for saving the default camera.
+        *add_cam_ids :
+            Additional camera IDs to be added to the registry.
+        """
         cam_ids = [self.cam_id]
         cam_ids.extend(add_cam_ids)
         info_dict = od([("cam_ids", cam_ids)])
         info_dict.update(self.to_dict())
         save_new_default_camera(info_dict=info_dict, cam_info_file=cam_info_file)
 
-    def _all_params(self):
-        """Return list of all relevant source attributes."""
+    def _all_params(self) -> list:
+        """Return list of all relevant camera parameters
+        
+        Returns
+        -------
+        list of all camera parameters.
+        """
         return list(self._type_dict.keys())
 
     def _short_str(self):
@@ -522,24 +551,18 @@ class CameraBaseInfo(object):
             if key in ["default_filters", "dark_info"]:
                 pass
             else:
-                s += "%s: %s\n" % (key, val)
+                s += f"{key}: {val}\n"
 
-        s += "image_import_method: %s\n" % self.image_import_method
+        s += f"image_import_method: {self.image_import_method}\n"
         s += "\nDark & offset info\n------------------------\n"
         for i in self.dark_info:
-            s += ("ID: %s, type: %s, acronym: %s, meas_type_acro: %s,"
-                  "read_gain: %s\n"
-                  % (i.id, i.type, i.acronym, i.meas_type_acro, i.read_gain))
+            s += (f"ID: {i.id}, type: {i.type}, acronym: {i.acronym}, "
+                  f"meas_type_acro: {i.meas_type_acro}, read_gain: {i.read_gain}\n")
         return s
 
-    """
-    Magic methods
-    """
-
     def __str__(self):
-        s = ("\npyplis CameraBaseInfo\n-------------------------\n\n")
+        s = ("\nCameraBaseInfo\n-------------------------\n\n")
         for key in self._type_dict:
-            # print key in ["defaultFilterSetup", "dark_img_info"]
             val = self(key)
             if key in ["default_filters", "dark_info"]:
                 for info in val:
@@ -548,7 +571,7 @@ class CameraBaseInfo(object):
                 s += "%s: %s\n" % (key, val)
         return s
 
-    def __setitem__(self, key, value):
+    def __setitem__(self, key: str, value: Any):
         """Set class item.
 
         :param str key: valid class attribute

@@ -41,7 +41,7 @@ import pyplis
 # ## SCRIPT FUNCTION DEFINITIONS
 def create_ecII_cam_new_filters(cam_id: str) -> pyplis.Camera:
     # Start with creating an empty Camera object
-    cam = pyplis.setupclasses.Camera(cam_id=cam_id)
+    cam = pyplis.setupclasses.Camera(cam_id=cam_id, try_load_from_registry=False)
 
     # Specify the camera filter setup
 

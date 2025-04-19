@@ -34,18 +34,22 @@ from matplotlib.pyplot import subplots
 from matplotlib.patches import Circle, Ellipse
 from matplotlib.cm import RdBu
 from matplotlib.dates import DateFormatter
+from pydoas.analysis import DoasResults
 
-from .glob import SPECIES_ID
-from .helpers import (shifted_color_map, mesh_from_img, get_img_maximum,
+from pyplis.imagelists import BaseImgList
+from pyplis.processing import ImgStack
+
+from pyplis.glob import SPECIES_ID
+from pyplis.helpers import (shifted_color_map, mesh_from_img, get_img_maximum,
                       sub_img_to_detector_coords, map_coordinates_sub_img,
                       exponent, rotate_xtick_labels)
 
-from .optimisation import gauss_fit_2d, GAUSS_2D_PARAM_INFO
-from .image import Img
-from .inout import get_camera_info
-from .setupclasses import Camera
-from .calib_base import CalibData
-from .helpers import make_circular_mask
+from pyplis.optimisation import gauss_fit_2d, GAUSS_2D_PARAM_INFO
+from pyplis.image import Img
+from pyplis.inout import get_camera_info
+from pyplis.setupclasses import Camera
+from pyplis.calib_base import CalibData
+from pyplis.helpers import make_circular_mask
 
 
 class DoasCalibData(CalibData):
@@ -539,9 +543,13 @@ class DoasFOV(object):
 class DoasFOVEngine(object):
     """Engine to perform DOAS FOV search."""
 
-    def __init__(self, img_stack=None, doas_series=None, method="pearson",
-                 **settings):
-
+    def __init__(
+            self, 
+            img_stack: ImgStack = None, 
+            doas_series: DoasResults = None, 
+            method="pearson",
+            **settings
+        ):
         self._settings = {"method": "pearson",
                           "maxrad": 80,
                           "ifrlbda": 1e-6,  # lambda val IFR
@@ -736,8 +744,12 @@ class DoasFOVEngine(object):
 
         return self.calib_data
 
-    def run_fov_fine_search(self, img_list, doas_series, extend_fac=3,
-                            **settings):
+    def run_fov_fine_search(
+            self, 
+            img_list: BaseImgList, 
+            doas_series: DoasResults, 
+            extend_fac=3,
+            **settings):
         """Get FOV position in full resolution.
 
         Note
@@ -770,24 +782,19 @@ class DoasFOVEngine(object):
 
         """
         self.update_search_settings(**settings)
-        try:
-            extend = self.calib_data.fov.pixel_extend(abs_coords=True)
-            (pos_x, pos_y) = self.calib_data.fov.pixel_position_center(abs_coords=True)  # noqa: E501
+        extend = self.calib_data.fov.pixel_extend(abs_coords=True)
+        (pos_x, pos_y) = self.calib_data.fov.pixel_position_center(abs_coords=True)  # noqa: E501
 
-            self.img_stack = None  # make space for new stack
-            # create ROI around center position of FOV
-            roi = [pos_x - extend_fac * extend, pos_y - extend_fac * extend,
-                   pos_x + extend_fac * extend, pos_y + extend_fac * extend]
+        self.img_stack = None  # make space for new stack
+        # create ROI around center position of FOV
+        roi = [pos_x - extend_fac * extend, pos_y - extend_fac * extend,
+                pos_x + extend_fac * extend, pos_y + extend_fac * extend]
 
-            self.img_stack = stack = img_list.make_stack(pyrlevel=0,
-                                                         roi_abs=roi)
-            s = DoasFOVEngine(stack, self.doas_series, **self._settings)
-            calib = s.perform_fov_search()
-            calib.fit_calib_data()
-            return s
-
-        except Exception as e:
-            raise Exception(f"Failed to perform fine search: {repr(e)}")
+        self.img_stack = stack = img_list.make_stack(pyrlevel=0, roi_abs=roi)
+        s = DoasFOVEngine(stack, doas_series, **self._settings)
+        calib = s.perform_fov_search()
+        calib.fit_calib_data()
+        return s
 
     def merge_data(self, merge_type=None):
         """Merge stack data and DOAS vector in time.
@@ -815,22 +822,18 @@ class DoasFOVEngine(object):
             if merging of data fails
 
         """
-        if self.data_merged:
-            logger.info("Data merging unncessary, img stack and DOAS vector are "
-                  "already merged in time")
+        if self.data_merged and merge_type==self.mergeopt:
+            logger.info("Data merging unncessary, img stack and DOAS vector are already merged in time")
             return
         if merge_type is None:
             merge_type = self._settings["mergeopt"]
         new_stack, new_doas_series = self.img_stack.merge_with_time_series(
-            self.doas_series,
-            method=merge_type)
-        if len(new_doas_series) == new_stack.shape[0]:
-            self.img_stack = new_stack
-            self.doas_series = new_doas_series
-            self._settings["mergeopt"] = merge_type
-            self.data_merged = True
-            return
-        raise RuntimeError("Temporal merging of image and DOAS data failed...")
+            self.doas_series, method=merge_type)
+    
+        self.img_stack = new_stack
+        self.doas_series = new_doas_series
+        self._settings["mergeopt"] = merge_type
+        self.data_merged = True
 
     def det_correlation_image(self, search_type="pearson", **kwargs):
         """Determine correlation image.
@@ -844,32 +847,25 @@ class DoasFOVEngine(object):
         if not self.img_stack.shape[0] == len(self.doas_series):
             raise ValueError("DOAS correlation image object could not be "
                              "determined: inconsistent array lengths, please "
-                             "perform timemerging first")
+                             "perform time merging first")
         self.update_search_settings(method=search_type, **kwargs)
         if search_type == "pearson":
-            corr_img, _ = self._det_correlation_image_pearson(
-                **self._settings)
+            corr_img, _ = self._det_correlation_image_pearson(**self._settings)
         elif search_type == "ifr":
-            corr_img, _ = self._det_correlation_image_ifr_lsmr(
-                **self._settings)
+            corr_img, _ = self._det_correlation_image_ifr_lsmr(**self._settings)
         else:
-            raise ValueError("Invalid search type %s: choose from "
-                             "pearson or ifr" % search_type)
-        corr_img = Img(corr_img,
-                       pyrlevel=self.img_stack.img_prep["pyrlevel"])
+            raise ValueError(f"Invalid search type {search_type}: choose from pearson or ifr")
+        corr_img = Img(corr_img, pyrlevel=self.img_stack.img_prep["pyrlevel"])
         corr_img.add_gaussian_blurring(self._settings["blur"])
-        # corr_img.pyr_up(self.img_stack.img_prep["pyrlevel"])
         self.calib_data.fov.corr_img = corr_img
         self.calib_data.fov.img_prep = self.img_stack.img_prep
         self.calib_data.fov.roi_abs = self.img_stack.roi_abs
         self.calib_data.fov.start_search = self.img_stack.start
         self.calib_data.fov.stop_search = self.img_stack.stop
-        try:
-            if self.img_stack.img_prep["is_aa"]:
-                cid = "AA"
-            else:
-                raise Exception
-        except:
+        
+        if self.img_stack.img_prep["is_aa"]:
+            cid = "AA"
+        else:
             cid = self.img_stack.stack_id
         self.calib_data.calib_id = cid
 
