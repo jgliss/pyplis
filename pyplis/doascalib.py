@@ -89,7 +89,7 @@ class DoasCalibData(CalibData):
 
     def __init__(self, tau_vec=None, cd_vec=None, cd_vec_err=None, time_stamps=None,
                  calib_fun=None, calib_coeffs=None, senscorr_mask=None,
-                 polyorder=1, calib_id="", camera=None, fov=None):
+                 polyorder=1, calib_id=None, camera=None, fov=None):
         super(DoasCalibData, self).__init__(tau_vec, cd_vec, cd_vec_err,
                                             time_stamps, calib_fun,
                                             calib_coeffs, senscorr_mask,
@@ -104,6 +104,8 @@ class DoasCalibData(CalibData):
             time_stamps = []
         if calib_coeffs is None:
             calib_coeffs = []
+        if calib_id is None:
+            calib_id = ""
         self.type = "doas"
         if not isinstance(fov, DoasFOV):
             fov = DoasFOV(camera)
@@ -125,7 +127,7 @@ class DoasCalibData(CalibData):
             overwrite_existing (bool, optional): If True, overwrite existing.
                 
         Returns:
-            str: Path to the saved FITS file.
+            Path to the saved FITS file.
         """
         # hdulist containing calibration data and senscorr_mask
         hdulist = self._prep_fits_save()
@@ -145,12 +147,10 @@ class DoasCalibData(CalibData):
         """
         # loads senscorr_mask and calibration data (tau and cd vectors,
         # timestamps)
-        hdu = super().load_from_fits(file_path)
+        hdulist = super().load_from_fits(file_path)
 
-        self.fov.import_from_hdulist(hdu, first_idx=2)
-        hdu.close()
-        del hdu
-        return 
+        self.fov.import_from_hdulist(hdulist, first_idx=2)
+        hdulist.close()
 
     def plot_data_tseries_overlay(self, date_fmt=None, ax=None):
         """Plot overlay of tau and DOAS time series."""

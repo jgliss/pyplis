@@ -21,7 +21,7 @@ This is the base class for storing calibration data, fitting calibration
 curves, and corresponding I/O routines (e.g storage as FITS or text file).
 """
 from pyplis import logger
-from numpy import (min, char, asarray, zeros, linspace, ones, float64, isnan,
+from numpy import (min, asarray, zeros, linspace, ones, float64, isnan,
                    ndarray, argmax, inf)
 from inspect import signature
 from scipy.optimize import curve_fit
@@ -31,7 +31,6 @@ from pandas import Series
 from astropy.io import fits
 from astropy.time import Time
 from os.path import join, exists, isdir, abspath, basename, dirname
-
 
 from matplotlib.pyplot import subplots
 
@@ -479,7 +478,7 @@ class CalibData(object):
             self.plot()
         return self.calib_coeffs
 
-    def _prep_fits_save(self):
+    def _prep_fits_save(self) -> fits.HDUList:
         """Prepare FITS HDU list for storing calibration data.
 
         Returns
@@ -493,9 +492,9 @@ class CalibData(object):
         prim_hdu.header["type"] = self.type
         prim_hdu.header["calib_id"] = self.calib_id
         prim_hdu.header.update(self.senscorr_mask.edit_log)
-        try:
+        if isinstance(self.senscorr_mask, Img):
             mask = self.senscorr_mask.img
-        except:
+        else:
             mask = self.senscorr_mask
         prim_hdu.data = mask
 
@@ -567,58 +566,44 @@ class CalibData(object):
         outfile = self._prep_fits_savepath(save_dir, save_name)
         hdulist.writeto(outfile, overwrite=overwrite_existing)
 
-    def load_from_fits(self, file_path):
+    def load_from_fits(self, file_path: str) -> fits.HDUList | None:
         """Load calibration data from FITS file
 
         Parameters
         ----------
-        file_path : str
+        file_path : 
             Absolute or relative file path of the calibration data
 
         Returns
         -------
-        HDUList
-            opened HDU object (e.g. to access potential further data in a
-                function that is calling this method)
-
+        None if run from this class directly, else (i.e. child class with :attr:`type` != "base") FITS HDUList object
+        that can be used to extract further information.
         """
         if not exists(file_path):
             raise IOError("CalibData could not be loaded, path does not exist")
-        hdu = fits.open(file_path)
-        self.senscorr_mask = Img(hdu[0].data)
-        self.calib_id = hdu[0].header["calib_id"]
-        self.type = hdu[0].header["type"]
+        hdulist = fits.open(file_path, memmap=False) #memmap=False is due to https://github.com/astropy/astropy/issues/7404
+        self.senscorr_mask = Img(hdulist[0].data)
+        self.calib_id = hdulist[0].header["calib_id"]
+        self.type = hdulist[0].header["type"]
 
-        for key, val in six.iteritems(hdu[0].header):
+        for key, val in hdulist[0].header.items():
             k = key.lower()
             if k in self.senscorr_mask.edit_log:
                 self.senscorr_mask.edit_log[k] = val
         if self.senscorr_mask.is_cropped:
             logger.warning("Imported sensitivity correction mask is flagged as cropped "
                  "and might not work on uncropped images")
-        ctable = hdu[1]
-        try:
-            time_strings = hdu[1].data["time_stamps"]
-            times = Time(time_strings, format="isot").to_datetime()
-            self.time_stamps = times
-        except BaseException as e:
-            logger.warning(f"Failed to import vector containing calib time stamps from FITS: {e}")
-        try:
-            self.tau_vec = ctable.data["tau_vec"]
-        except BaseException as e:
-            logger.warning(f"Failed to import calibration tau vector from FITS: {e}")
-        try:
-            self.cd_vec = ctable.data["cd_vec"]
-        except BaseException as e:
-            logger.warning(f"Failed to import CD vector from FITS: {e}")
-        try:
-            self.cd_vec_err = ctable.data["cd_vec_err"]
-        except BaseException as e:
-            logger.warning(f"Failed to import CD uncertainty vector from FITS: {e}")
+        ctable = hdulist[1]
+        time_strings = hdulist[1].data["time_stamps"]
+        times = Time(time_strings, format="isot").to_datetime()
+        self.time_stamps = times
+        self.tau_vec = ctable.data["tau_vec"]
+        self.cd_vec = ctable.data["cd_vec"]
+        self.cd_vec_err = ctable.data["cd_vec_err"]
         if self.type == "base":
-            hdu.close()
-            hdu = None
-        return hdu
+            hdulist.close()
+            hdulist = None
+        return hdulist
 
     def plot(self, add_label_str="", ax=None, **kwargs):
         """Plot calibration data and fit result.
