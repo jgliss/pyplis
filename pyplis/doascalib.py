@@ -145,10 +145,12 @@ class DoasCalibData(CalibData):
         """
         # loads senscorr_mask and calibration data (tau and cd vectors,
         # timestamps)
-        hdu = super(DoasCalibData, self).load_from_fits(file_path)
+        hdu = super().load_from_fits(file_path)
 
         self.fov.import_from_hdulist(hdu, first_idx=2)
         hdu.close()
+        del hdu
+        return 
 
     def plot_data_tseries_overlay(self, date_fmt=None, ax=None):
         """Plot overlay of tau and DOAS time series."""
@@ -355,21 +357,6 @@ class DoasFOV(object):
                                           self.pyrlevel,
                                           self.roi_abs).astype(bool)
 
-# ==============================================================================
-#
-#     def fov_mask(self, abs_coords = False):
-#         """Returns FOV mask for data access
-#
-#         :param bool abs_coords: if False, mask is created in stack
-#             coordinates (i.e. corresponding to ROI and pyrlevel of stack).
-#             If True, the FOV parameters are converted into absolute
-#             detector coordinates such that they can be used for original
-#             images.
-#
-#         """
-#         raise NotImplementedError
-# =============================================================================
-
     def import_from_hdulist(self, hdu, first_idx=0):
         """Import FOV information from FITS HDU list.
 
@@ -388,7 +375,7 @@ class DoasFOV(object):
         """
         i = first_idx
         try:
-            self.fov_mask_rel = hdu[i].data.byteswap().newbyteorder()
+            self.fov_mask_rel = hdu[i].data
         except BaseException:
             logger.info("(Warning loading DOAS calib data): FOV mask not "
                   "available")
@@ -396,7 +383,7 @@ class DoasFOV(object):
         prep_keys = Img().edit_log.keys()
         search_keys = DoasFOVEngine()._settings.keys()
 
-        for key, val in six.iteritems(hdu[i].header):
+        for key, val in hdu[i].header.items():
             k = key.lower()
             if k in prep_keys:
                 self.img_prep[k] = val
@@ -406,14 +393,13 @@ class DoasFOV(object):
                 self.result_pearson[k] = val
 
         try:
-            self.corr_img = Img(hdu[i + 1].data.byteswap().newbyteorder())
+            self.corr_img = Img(hdu[i + 1].data)
         except BaseException:
             logger.info("(Warning loading DOAS calib data): FOV search correlation "
                   "image not available")
-        self.roi_abs = hdu[i + 2].data["roi"].byteswap().newbyteorder()
+        self.roi_abs = hdu[i + 2].data["roi"]
         try:
-            self.result_ifr["popt"] =\
-                hdu[i + 3].data["ifr_res"].byteswap().newbyteorder()
+            self.result_ifr["popt"] = hdu[i + 3].data["ifr_res"]
         except BaseException:
             logger.info("Failed to import array containing IFR optimisation "
                   " results from FOV search")

@@ -631,7 +631,7 @@ class CalibData(object):
             matplotlib axes object, if None, a new one is created
 
         """
-        if "color" not in kwargs:
+        if "color" not in kwargs and "c" not in kwargs:
             kwargs["color"] = "b"
 
         if ax is None:

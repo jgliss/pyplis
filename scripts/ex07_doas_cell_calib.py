@@ -27,16 +27,11 @@ from example script 5. The results from the DOAS calibration
 (see prev. example) were stored as a FITS file (including FOV information)
 and the results are imported here.
 """
-from __future__ import (absolute_import, division)
-
-from SETTINGS import check_pyplis_scripts_version
-
 import pyplis
-from os.path import join, exists
+from pathlib import Path
 import numpy as np
 from matplotlib.pyplot import close, subplots, show
 from matplotlib.patches import Circle
-import six
 
 # IMPORT GLOBAL SETTINGS
 from SETTINGS import SAVEFIGS, SAVE_DIR, FORMAT, DPI, ARGPARSER
@@ -45,15 +40,11 @@ from SETTINGS import SAVEFIGS, SAVE_DIR, FORMAT, DPI, ARGPARSER
 from ex05_cell_calib_auto import perform_auto_cell_calib
 from ex04_prep_aa_imglist import prepare_aa_image_list
 
-
-
-
-CELL_AA_CALIB_FILE = join(SAVE_DIR, "ex05_cellcalib_aa.fts")
+CELL_AA_CALIB_FILE = SAVE_DIR / "ex05_cellcalib_aa.fts"
 # RELEVANT DIRECTORIES AND PATHS
 
 # fits file containing DOAS calibration information (from ex6)
-DOAS_CALIB_FILE = join(SAVE_DIR, "ex06_doascalib_aa.fts")
-
+DOAS_CALIB_FILE = SAVE_DIR / "ex06_doascalib_aa.fts"
 
 # SCRIPT FUNCTION DEFINITIONS
 def draw_doas_fov(fov_x, fov_y, fov_extend, ax):
@@ -78,7 +69,7 @@ def plot_pcs_comparison(aa_init, aa_imgs_corr, pcs1, pcs2):
     axes[0].plot(p10, "-", label=r"Init $\phi=%.3f$" % (sum(p10) / num))
     axes[1].plot(p20, "-", label=r"Init $\phi=%.3f$" % (sum(p20) / num))
 
-    for cd, aa_corr in six.iteritems(aa_imgs_corr):
+    for cd, aa_corr in aa_imgs_corr.items():
         p1 = pcs1.get_line_profile(aa_corr.img)
         p2 = pcs2.get_line_profile(aa_corr.img)
 
@@ -95,10 +86,10 @@ def plot_pcs_comparison(aa_init, aa_imgs_corr, pcs1, pcs2):
 
 
 # SCRIPT MAIN FUNCTION
-if __name__ == "__main__":
+def main():
     close("all")
 
-    if not exists(DOAS_CALIB_FILE):
+    if not DOAS_CALIB_FILE.exists():
         raise IOError("Calibration file could not be found at specified "
                       "location:\n %s\nYou might need to run example 6 first")
 
@@ -129,10 +120,8 @@ if __name__ == "__main__":
     cell_aa_calib = cellcalib.calib_data["aa"]
 
     # Define lines on image for plume profiles
-    pcs1 = pyplis.LineOnImage(620, 700, 940, 280,
-                              line_id="center")
-    pcs2 = pyplis.LineOnImage(40, 40, 40, 600,
-                              line_id="edge")
+    pcs1 = pyplis.LineOnImage(620, 700, 940, 280, line_id="center")
+    pcs2 = pyplis.LineOnImage(40, 40, 40, 600, line_id="edge")
 
     # Plot DOAS calibration polynomial
     ax0 = doascalib.plot(add_label_str="DOAS")
@@ -182,12 +171,9 @@ if __name__ == "__main__":
     # IMPORTANT STUFF FINISHED
 
     if SAVEFIGS:
-        ax0.figure.savefig(join(SAVE_DIR, "ex07_out_1.%s" % FORMAT),
-                           format=FORMAT, dpi=DPI)
-        ax.figure.savefig(join(SAVE_DIR, "ex07_out_2.%s" % FORMAT),
-                          format=FORMAT, dpi=DPI)
-        fig.savefig(join(SAVE_DIR, "ex07_out_3.%s" % FORMAT), format=FORMAT,
-                    dpi=DPI)
+        ax0.figure.savefig(SAVE_DIR / f"ex07_out_1.{FORMAT}", format=FORMAT, dpi=DPI)
+        ax.figure.savefig(SAVE_DIR / f"ex07_out_2.{FORMAT}", format=FORMAT, dpi=DPI)
+        fig.savefig(SAVE_DIR / f"ex07_out_3.{FORMAT}", format=FORMAT, dpi=DPI)
 
     # Save the sensitivity correction mask from the cell with the lowest SO2 CD
     so2min = np.min(list(masks.keys()))
@@ -209,7 +195,6 @@ if __name__ == "__main__":
     # option --test 1
     if int(options.test):
         import numpy.testing as npt
-        from os.path import basename
 
         npt.assert_array_equal([],
                                [])
@@ -217,9 +202,12 @@ if __name__ == "__main__":
         npt.assert_allclose(actual=[],
                             desired=[],
                             rtol=1e-7)
-        print(f"All tests passed in script: {pathlib.Path(__file__).name}")
+        print(f"All tests passed in script: {Path(__file__).name}")
     try:
         if int(options.show) == 1:
             show()
     except BaseException:
         print("Use option --show 1 if you want the plots to be displayed")
+
+if __name__ == "__main__":
+    main()
