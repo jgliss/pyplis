@@ -857,36 +857,18 @@ class ImgStack:
         if not exists(file_path):
             raise IOError("ImgStack could not be loaded, path does not exist")
         hdu = fits.open(file_path)
-        self.set_stack_data(hdu[0].data.byteswap().newbyteorder().
-                            astype(self.dtype))
+        self.set_stack_data(hdu[0].data.astype(self.dtype))
         prep = Img().edit_log
-        for key, val in six.iteritems(hdu[0].header):
+        for key, val in hdu[0].header.items():
             if key.lower() in prep.keys():
                 self.img_prep[key.lower()] = val
         self.stack_id = hdu[0].header["stack_id"]
-        try:
-            times = hdu[1].data["start_acq"].byteswap().newbyteorder()
-            self.start_acq = asarray([datetime.strptime(x, "%Y%m%d%H%M%S%f")
-                                      for x in times])
-        except BaseException:
-            logger.warning("Failed to import acquisition times")
-        try:
-            self.texps = asarray(
-                hdu[1].data["texps"].byteswap().newbyteorder())
-        except BaseException:
-            logger.warning("Failed to import exposure times")
-        try:
-            self._access_mask = asarray(hdu[1].data["_access_mask"].
-                                        byteswap().newbyteorder())
-        except BaseException:
-            logger.warning("Failed to import data access mask")
-        try:
-            self.add_data = asarray(hdu[1].data["add_data"].byteswap().
-                                    newbyteorder())
-        except BaseException:
-            logger.warning("Failed to import data additional data")
-        self.roi_abs = hdu[2].data["roi_abs"].byteswap().\
-            newbyteorder()
+        times = hdu[1].data["start_acq"]
+        self.start_acq = asarray([datetime.strptime(x, "%Y%m%d%H%M%S%f") for x in times])
+        self.texps = asarray(hdu[1].data["texps"])
+        self._access_mask = asarray(hdu[1].data["_access_mask"])
+        self.add_data = asarray(hdu[1].data["add_data"])
+        self.roi_abs = hdu[2].data["roi_abs"]
         self._format_check()
 
     def save_as_fits(self, save_dir, save_name=None,

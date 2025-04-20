@@ -1032,7 +1032,7 @@ class BaseImgList(object):
         num = self._iter_num(start_idx, stop_idx)
         # remember last image shape settings
         _roi = deepcopy(self._roi_abs)
-        _pyrlevel = deepcopy(self.pyrlevel)
+        _pyrlevel = self.pyrlevel
         _crop = self.crop
 
         self.auto_reload = False
@@ -1057,21 +1057,20 @@ class BaseImgList(object):
         ref_check = True
         if not check_roi(ref_check_roi_abs):
             ref_check = False
-        if ref_check_min_val:
+        if ref_check_min_val is not None:
             ref_check_min_val = float(ref_check_min_val)
         else:
             ref_check = False
-        try:
+        if ref_check_max_val is not None:
             ref_check_max_val = float(ref_check_max_val)
-        except BaseException:
+        else:
             ref_check = False
         exp = int(10**exponent(num) / 4.0)
         if not exp:
             exp = 1
         for k in range(num):
             if k % exp == 0:
-                print_log.info("Building img-stack from list %s, progress: (%s | %s)"
-                      % (lid, k, num - 1))
+                print_log.info(f"Building img-stack from list {lid}, progress: ({k} | {num - 1})")
             img = self.loaded_images["this"]
             append = True
             if ref_check:

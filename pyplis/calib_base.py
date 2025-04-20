@@ -231,9 +231,6 @@ class CalibData(object):
     def calib_fun(self, val):
         if not callable(val):
             raise ValueError("Need a callable object (e.g. lambda function)")
-        args = getargspec(val).args
-        logger.info("Setting optimisation function in CalibData class. "
-                    "Argspec: %s" % args)
         self._calib_fun = val
 
     @property
@@ -412,10 +409,9 @@ class CalibData(object):
             raise ValueError("Calibration data is not available")
         if isnum(polyorder):
             self.polyorder = polyorder
-        try:
+        if calib_fun is not None:
             self.calib_fun = calib_fun
-        except BaseException:
-            pass
+    
         fun = self.calib_fun
         if sum(isnan(self.tau_vec)) + sum(isnan(self.cd_vec)) > 0:
             raise ValueError("Encountered nans in data")
@@ -432,16 +428,13 @@ class CalibData(object):
                 logger.warning("Could not perform weighted calibration fit: "
                      "Values of DOAS fit errors are 0. ")
             else:
-                try:
-                    if weights_how == "abs":
-                        yerr = (self.cd_vec_err / 10**exp if normalise_cds
-                                else self.cd_vec_err)
-                    else:
-                        yerr = self.cd_vec_err / self.cd_vec
-                        yerr_abs = False
-                    # ws = ws / max(ws)
-                except BaseException:
-                    logger.warning("Failed to calculate weights")
+                if weights_how == "abs":
+                    yerr = (self.cd_vec_err / 10**exp if normalise_cds
+                            else self.cd_vec_err)
+                else:
+                    yerr = self.cd_vec_err / self.cd_vec
+                    yerr_abs = False
+                
         tau_vals = self.tau_vec
         if normalise_cds and callable(self._calib_fun):
             raise ValueError("Cannot use option normalise_cds with custom "

@@ -29,7 +29,7 @@ from traceback import format_exc
 
 import six
 
-from pyplis import logger
+from pyplis import logger, print_log
 from matplotlib.pyplot import subplots
 from matplotlib.patches import Circle, Ellipse
 from matplotlib.cm import RdBu
@@ -550,6 +550,10 @@ class DoasFOVEngine(object):
             method="pearson",
             **settings
         ):
+        if isinstance(doas_series, Series):
+            print_log.warning(
+                "Input doas_series is a pandas Series and will be converted to DoasResults series")
+            doas_series = DoasResults(doas_series)
         self._settings = {"method": "pearson",
                           "maxrad": 80,
                           "ifrlbda": 1e-6,  # lambda val IFR
@@ -732,13 +736,17 @@ class DoasFOVEngine(object):
 
         All relevant results are written into ``self.calib_data`` (which
         includes :class:`DoasFOV` object)
-
-
         """
-        self.calib_data = DoasCalibData()  # includes DoasCalibData class
+        # Initialize DOAS calibration data object, which will store the
+        # results of the FOV search performed here
+        self.calib_data = DoasCalibData() 
         self.update_search_settings(**settings)
+        # merge DOAS data and image stack in time
         self.merge_data(merge_type=self._settings["mergeopt"])
+        # compute correlation image (corrlation of image stack pixels series with
+        # DOAS timeseries)
         self.det_correlation_image(search_type=self.method)
+        # infer the FOV shape from the correlation image
         self.get_fov_shape()
         self.calib_data.fov.search_settings = deepcopy(self._settings)
 
@@ -946,7 +954,7 @@ class DoasFOVEngine(object):
         if self.method == "pearson":
             cy, cx = get_img_maximum(self.calib_data.fov.corr_img.img)
 
-            logger.info("Start radius search in stack around x/y: %s/%s" % (cx, cy))
+            logger.info(f"Start radius search in stack around x/y: {cx}/{cy}")
             (radius,
              corr_curve,
              tau_vec,

@@ -207,9 +207,9 @@ def main():
     )
 
     # Instantiate the engine for retrieving the FOV and calibration data
-    s = pyplis.doascalib.DoasFOVEngine(stack, doas_time_series)
-    calib_pears = s.perform_fov_search(method="pearson", mergeopt="nearest")
-    calib_ifr = s.perform_fov_search(method="ifr", ifrlbda=4e-3)
+    fov_engine = pyplis.doascalib.DoasFOVEngine(stack, doas_time_series)
+    calib_pears = fov_engine.perform_fov_search(method="pearson", mergeopt="nearest")
+    calib_ifr = fov_engine.perform_fov_search(method="ifr", ifrlbda=4e-3)
 
     # plot the FOV search results
     ax0 = calib_pears.fov.plot()
@@ -233,8 +233,8 @@ def main():
     #search at full resolution (pyrlevel=0)
     aa_list = prepare_aa_image_list()
 
-    num_merge, h, w = s.img_stack.shape
-    s_fine = s.run_fov_fine_search(aa_list, doas_time_series,
+    num_merge, h, w = fov_engine.img_stack.shape
+    s_fine = fov_engine.run_fov_fine_search(aa_list, doas_time_series,
                                     method="pearson")
 
     calib_pears_fine = s_fine.calib_data
@@ -279,7 +279,7 @@ def main():
         stack.load_stack_fits(AA_IMG_STACK_PATH)
 
         num, h, w = stack.shape
-        num2 = s.img_stack.shape[0]  # stack after fine FOV search
+        num2 = fov_engine.img_stack.shape[0]  # stack after fine FOV search
         prep = stack.img_prep
 
         # check some basic properties of the data used for the different FOV
@@ -293,7 +293,7 @@ def main():
         test_calib_ifr(calib_ifr)
         test_calib_pears_fine(calib_pears_fine)
 
-        print(f"All tests passed in script: {pathlib.Path(__file__).name}")
+        print(f"All tests passed in script: {Path(__file__).name}")
     try:
         if int(options.show) == 1:
             show()
