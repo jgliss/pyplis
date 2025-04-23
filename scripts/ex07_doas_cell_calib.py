@@ -202,7 +202,7 @@ def main():
         npt.assert_allclose(actual=[],
                             desired=[],
                             rtol=1e-7)
-        print(f"All tests passed in script: {Path(__file__).name}")
+        print(f"WARNING: NO TESTS in script: {Path(__file__).name}")
     try:
         if int(options.show) == 1:
             show()

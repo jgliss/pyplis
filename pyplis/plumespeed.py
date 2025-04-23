@@ -16,7 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 """Pyplis module containing features related to plume velocity analysis."""
-from __future__ import (absolute_import, division)
+from typing import Optional
 from numpy import mgrid, vstack, int32, sqrt, arctan2, rad2deg, asarray, sin,\
     cos, logical_and, histogram, ceil, roll, argmax, arange, ndarray,\
     deg2rad, nan, dot, mean, isnan, float32, sum, empty, uint8, ones,\
@@ -34,7 +34,6 @@ from scipy.ndimage.filters import median_filter, gaussian_filter
 from scipy.stats.stats import pearsonr
 from os.path import isdir, join, isfile
 from os import getcwd
-from six.moves import xrange
 import six
 
 import pandas as pd
@@ -43,6 +42,8 @@ from pandas import Series, DataFrame
 from cv2 import calcOpticalFlowFarneback, OPTFLOW_FARNEBACK_GAUSSIAN,\
     cvtColor, COLOR_GRAY2BGR, line, circle, VideoCapture, COLOR_BGR2GRAY,\
     waitKey, imshow, dilate, erode, pyrDown, pyrUp
+
+from pyplis.base_img_list import BaseImgList
 
 from .helpers import bytescale, check_roi, map_roi, roi2rect, set_ax_lim_roi,\
     nth_moment, rotate_xtick_labels
@@ -54,8 +55,6 @@ from .utils import LineOnImage
 from .image import Img, ProfileTimeSeriesImg
 from .geometry import MeasGeometry
 from .glob import DEFAULT_ROI
-# LABEL_SIZE=rcParams["font.size"]+ 2
-
 
 def get_veff(normal_vec, dir_mu, dir_sigma, len_mu, len_sigma,
              pix_dist_m=1.0, del_t=1.0, sigma_tol=2):
@@ -175,17 +174,16 @@ def find_signal_correlation(first_data_vec, next_data_vec,
     """
     if not all([isinstance(x, ndarray)
                 for x in [first_data_vec, next_data_vec]]):
-        raise IOError("Need numpy arrays as input")
+        raise ValueError("Need numpy arrays as input")
     if not len(first_data_vec) == len(next_data_vec):
-        raise IOError("Mismatch in lengths of input data vectors")
+        raise ValueError("Mismatch in lengths of input data vectors")
     lag_fac = 1  # factor to convert retrieved lag from indices to seconds
     if (time_stamps is not None and
             len(time_stamps) == len(first_data_vec) and
             all([isinstance(x, datetime) for x in time_stamps])):
         logger.info("Input is time series data")
         if itp_method not in ["linear", "quadratic", "cubic"]:
-            logger.warning("Invalid interpolation method %s: setting default (linear)"
-                 % itp_method)
+            logger.warning(f"Invalid interpolation method {itp_method}: setting default (linear)")
             itp_method = "linear"
 
         if reg_grid_tres is None:
@@ -199,7 +197,7 @@ def find_signal_correlation(first_data_vec, next_data_vec,
             else:
                 freq_unit = "S"
         logger.info(reg_grid_tres, freq_unit)
-        delt_str = "%d%s" % (reg_grid_tres, freq_unit)
+        delt_str = f"{reg_grid_tres}{freq_unit}"
         logger.info("Delta t string for resampling: %s" % delt_str)
 
         s1 = Series(first_data_vec, time_stamps)
@@ -461,21 +459,28 @@ class VeloCrossCorrEngine(object):
 
     """
 
-    def __init__(self, imglist=None, pcs=None, pcs_offset=None,
-                 meas_geometry=None, **settings):
-
-        self._imglist = None
+    def __init__(
+            self, 
+            pcs: LineOnImage, 
+            pcs_offset: Optional[LineOnImage] = None,
+            meas_geometry: Optional[MeasGeometry] = None,
+            imglist: Optional[BaseImgList] = None,
+            **settings):
+        if imglist:
+            self.check_list(imglist)
+        if meas_geometry is None:
+            meas_geometry = imglist.meas_geometry
+        if not isinstance(meas_geometry, MeasGeometry):
+            raise ValueError("Please either provide meas_geometry directly, or imglist with available meas_geometry")
+        
         self._lines = {"pcs": None,
                        "pcs_offset": None}
 
         self.profile_images = {"pcs": None,
                                "pcs_offset": None}
 
-        try:
-            self.imglist = imglist
-        except BaseException:
-            pass
-        self._meas_geometry = None
+        self.imglist = imglist
+        self.meas_geometry = meas_geometry
 
         self.results = {"velo": nan,
                         "lag": nan,
@@ -493,16 +498,8 @@ class VeloCrossCorrEngine(object):
 
         self.update_settings(settings)
         self.pcs = pcs
-
-        try:
+        if pcs_offset is not None:
             self.pcs_offset = pcs_offset
-        except BaseException:
-            pass
-
-        try:
-            self.meas_geometry = meas_geometry
-        except BaseException:
-            pass
 
     def update_settings(self, settings_dict):
         """Update settings for cross correlation retrieval.
@@ -513,7 +510,7 @@ class VeloCrossCorrEngine(object):
             dictionary containing new settings
 
         """
-        for k, v in six.iteritems(settings_dict):
+        for k, v in settings_dict.items():
             if k in self.settings:
                 logger.info(f"Updating cross-correlation search setting {k}={v}")
                 self.settings[k] = v
@@ -569,35 +566,6 @@ class VeloCrossCorrEngine(object):
         if not isinstance(val, LineOnImage):
             raise ValueError("Invalid input, need LineOnImage object")
         self._lines["pcs_offset"] = val
-
-    @property
-    def imglist(self):
-        """Return the image list supposed to be used for the analysis."""
-        return self._imglist
-
-    @imglist.setter
-    def imglist(self, val):
-        self.check_list(val)
-        self._imglist = val
-
-    @property
-    def meas_geometry(self):
-        """Return measurement geometry from image list."""
-        if isinstance(self._meas_geometry, MeasGeometry):
-            return self._meas_geometry
-        else:
-            try:
-                return self.imglist.meas_geometry
-            except BaseException:
-                raise AttributeError("Could not access measurement geometry "
-                                     "from image list. Check if an image list "
-                                     "is set using self.imglist")
-
-    @meas_geometry.setter
-    def meas_geometry(self, val):
-        if not isinstance(val, MeasGeometry):
-            raise IOError("Invalid input: need MeasGeometry object")
-        self._meas_geometry = val
 
     @property
     def pcs_profile_pics(self):
@@ -737,16 +705,14 @@ class VeloCrossCorrEngine(object):
             both PCS lines
 
         """
-        from pyplis.imagelists import BaseImgList
-
+        if self.imglist is None:
+            raise AttributeError("Image list is not set")
         lst = self.imglist
         cfn_temp = lst.cfn
         pcs1 = self.pcs.convert(to_pyrlevel=lst.pyrlevel,
                                 to_roi_abs=lst.roi_abs)
         pcs2 = self.pcs_offset.convert(to_pyrlevel=lst.pyrlevel,
                                        to_roi_abs=lst.roi_abs)
-        if not isinstance(lst, BaseImgList):
-            raise AttributeError("Image list is not set")
 
         dist_img = self.get_pix_dist_img(lst.pyrlevel)
 
@@ -774,17 +740,15 @@ class VeloCrossCorrEngine(object):
         # for each of the 2 lines, extract pixel to pixel distances from the
         # provided dist_img (comes from measurement geometry) which is required
         # in order to perform integration along the profiles
-        dists_pcs1 = pcs1.get_line_profile(
-            dist_img.img)  # pix to pix dists line 1
-        dists_pcs2 = pcs2.get_line_profile(
-            dist_img.img)  # pix to pix dists line 2
+        dists_pcs1 = pcs1.get_line_profile(dist_img.img)  # pix to pix dists line 1
+        dists_pcs2 = pcs2.get_line_profile(dist_img.img)  # pix to pix dists line 2
 
         # loop over all images in list, extract profiles and write in the
         # corresponding column of the profile picture
         times = []
         for k in range(num):
             if k % 25 == 0:
-                logger.info("Loading PCS profiles from list: %d (%d)" % (k, num))
+                logger.info(f"Loading PCS profiles from list: {k} ({num})")
             img = lst.current_img().img
             profiles1[:, k] = pcs1.get_line_profile(img)
             profiles2[:, k] = pcs2.get_line_profile(img)
@@ -904,16 +868,13 @@ class VeloCrossCorrEngine(object):
             True, if list is okay, False if not
 
         """
-        from pyplis.imagelists import BaseImgList
-        if not isinstance(lst, BaseImgList):
-            raise TypeError("Invalid input, need BaseImgList class "
-                            "or inherited")
         if not lst.nof:
             raise AttributeError("List contains no images")
 
         elif lst.nof < 20:
-            logger.warning("List contains less than 20 images, cross-correlation "
-                 "analysis is likely to fail")
+            logger.warning(
+                "List contains less than 20 images, cross-correlation "
+                "analysis is likely to fail")
         try:
             lst.meas_geometry.compute_all_integration_step_lengths()
         except BaseException:
@@ -927,10 +888,9 @@ class VeloCrossCorrEngine(object):
         The image is loaded from the current :class:`MeasGeometry` object
         assigned to the image list.
         """
-        return (self.meas_geometry.
-                compute_all_integration_step_lengths(pyrlevel)[0])
+        return (self.meas_geometry.compute_all_integration_step_lengths(pyrlevel)[0])
 
-    def load_pcs_profile_img(self, file_path, line_id="pcs"):
+    def load_pcs_profile_img(self, file_path: str, line_id: str):
         """Try to load ICA profile time series image from FITS file.
 
         Parameters
@@ -941,9 +901,8 @@ class VeloCrossCorrEngine(object):
             specify to which line the image belongs
 
         """
-        if line_id not in ["pcs", "pcs_offset"]:
-            raise IOError("Invalid line ID %s: choose from pcs or offset"
-                          % line_id)
+        if line_id not in ("pcs", "pcs_offset"):
+            raise ValueError(f"Invalid line ID {line_id}: choose from pcs or offset")
         img = ProfileTimeSeriesImg()
         img.load_fits(file_path)
         l = LineOnImage()
@@ -952,9 +911,12 @@ class VeloCrossCorrEngine(object):
         self.profile_images[line_id] = img
         self._lines[line_id] = l
 
-    def save_pcs_profile_images(self, save_dir=None,
-                                fname1="profile_tseries_pcs.fts",
-                                fname2="profile_tseries_offset.fts"):
+    def save_pcs_profile_images(
+            self, 
+            save_dir: str,
+            fname1: Optional[str] = None,
+            fname2: Optional[str] = None,
+            ):
         """Save current ICA profile time series images as FITS file.
 
         Note
@@ -972,9 +934,10 @@ class VeloCrossCorrEngine(object):
             name of second profile image
 
         """
-        if save_dir is None:
-            save_dir = "."
-
+        if fname1 is None:
+            fname1 = "profile_tseries_pcs.fts"
+        if fname2 is None:
+            fname2 = "profile_tseries_offset.fts"
         img1, img2 = self.pcs_profile_pics
 
         img1.save_as_fits(save_dir, fname1)
@@ -1020,7 +983,7 @@ class VeloCrossCorrEngine(object):
 
         """
         if ax is None:
-            fig, ax = subplots(1, 1)
+            _, ax = subplots(1, 1)
 
         res = self.results
         lag = self.correlation_lag
@@ -1031,10 +994,10 @@ class VeloCrossCorrEngine(object):
 
         # plot original ICA time series along pcs 1
         ax = s_pcs.plot(ax=ax, style="--", color=self.pcs.color,
-                        label="%s (original)" % self.pcs.line_id)
+                label=f"{self.pcs.line_id} (original)")
         # plot shifted time series along pcs 1 and apply light fill
         s_shift.plot(ax=ax, style="-", color=self.pcs.color,
-                     label="%s (lag: %.1f s)" % (self.pcs.line_id, lag))
+                 label=f"{self.pcs.line_id} (lag: {lag:.1f} s)")
         ax.fill_between(s_shift.index, s_shift.values,
                         color=self.pcs.color, alpha=0.05)
 
@@ -1066,7 +1029,7 @@ class VeloCrossCorrEngine(object):
 
         """
         if ax is None:
-            fig, ax = subplots(1, 1)
+            _, ax = subplots(1, 1)
         coeffs = self.results["coeffs"]
         if coeffs is None:
             raise ValueError("Correlation coefficients could not be "
@@ -1083,7 +1046,7 @@ class VeloCrossCorrEngine(object):
 
         if add_lag:
             ax.plot([lag, lag], [0, 1], "--", **kwargs)
-            ax.set_title("Max correlation @ %.2f s" % lag)
+            ax.set_title(f"Max correlation @ {lag:.2f} s")
         return ax
 
 
@@ -1117,7 +1080,7 @@ class LocalPlumeProperties(object):
         self._fit_success = []
         self._pyrlevel = []
 
-        for k, v in six.iteritems(kwargs):
+        for k, v in kwargs.items():
             self[k] = v
 
     @property
@@ -2696,7 +2659,7 @@ class OptflowFarneback(object):
             return count, bins
         elif len(bins) == len(count) + 1:
             bins = asarray([0.5 * (bins[i] + bins[i + 1]) for
-                            i in xrange(len(bins) - 1)])
+                            i in range(len(bins) - 1)])
             return count, bins
         else:
             raise ValueError("Invalid input for histogram data")

@@ -1201,7 +1201,7 @@ class MeasGeometry(object):
             self._cam["focal_length"] * 2**pyrlevel
 
     def compute_all_integration_step_lengths(self, pyrlevel=0, roi_abs=None):
-        r"""Determine images containing pixel and plume distances.
+        """Determine images containing pixel and plume distances.
 
         Computes and returns three images where each pixel value corresponds
         to:
@@ -1235,8 +1235,7 @@ class MeasGeometry(object):
 
         """
         ratio_hor = self._cam["pix_width"] / self._cam["focal_length"]  # in m
-        # ratio_vert = self.cam["pix_height"] / self.cam["focal_length"] #in m
-
+        
         azims = self.all_azimuths_camfov()
         elevs = self.all_elevs_camfov()
 

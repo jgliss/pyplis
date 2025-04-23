@@ -36,7 +36,7 @@ from matplotlib.cm import RdBu
 from matplotlib.dates import DateFormatter
 from pydoas.analysis import DoasResults
 
-from pyplis.imagelists import BaseImgList
+from pyplis.base_img_list import BaseImgList
 from pyplis.processing import ImgStack
 
 from pyplis.glob import SPECIES_ID
