@@ -16,10 +16,8 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 """Pyplis example script no. 9 - Optical flow Plume velocity retrieval."""
-from __future__ import (absolute_import, division)
-
-from os.path import join
 import pyplis
+from pathlib import Path
 # IMPORT GLOBAL SETTINGS
 from SETTINGS import SAVEFIGS, SAVE_DIR, FORMAT, DPI, ARGPARSER, LINES
 from matplotlib.pyplot import (close, show, subplots, figure, xticks, yticks,
@@ -27,59 +25,32 @@ from matplotlib.pyplot import (close, show, subplots, figure, xticks, yticks,
 
 # IMPORTS FROM OTHER EXAMPLE SCRIPTS
 from ex04_prep_aa_imglist import prepare_aa_image_list
-from SETTINGS import check_pyplis_scripts_version
 
 rcParams["font.size"] = 16
-PCS1, PCS2 = LINES
-
-
-
-
-# SCRIPT OPTIONS
-
-PEAK_SIGMA_TOL = 2
-
-# perform histogram analysis for all images in time series
-HISTO_ANALYSIS_ALL = 1
-# applies multi gauss fit to retrieve local predominant displacement
-# direction, if False, then the latter is calculated from 1. and 2. moment
-# of histogram (Faster but more sensitive to additional peaks in histogram)
-HISTO_ANALYSIS_MULTIGAUSS = True
-HISTO_ANALYSIS_START_IDX = 0
-HISTO_ANALYSIS_STOP_IDX = None  # 207
-
-# Gauss pyramid level
-PYRLEVEL = 1
-BLUR = 0
-ROI_CONTRAST = [0, 0, 1344, 730]
-MIN_AA = 0.05
-
 
 def analyse_and_plot(lst, lines):
     fig = figure(figsize=(14, 8))
 
     ax0 = fig.add_axes([0.01, 0.15, 0.59, 0.8])
-    # ax0.set_axis_off()
     ax1 = fig.add_axes([0.61, 0.15, 0.16, 0.8])
     ax2 = fig.add_axes([0.78, 0.15, 0.16, 0.8])
-    mask = lst.get_thresh_mask(MIN_AA)
+
+    mask = lst.get_thresh_mask(0.05)
     fl = lst.optflow
-    fl.plot(ax=ax0)  # , in_roi=True)
+    fl.plot(ax=ax0)
     for line in lines:
         m = mask * line.get_rotated_roi_mask(fl.flow.shape[:2])
         line.plot_line_on_grid(ax=ax0, include_normal=1,
                                include_roi_rot=1)
-        try:
-            _, mu, sigma = fl.plot_orientation_histo(pix_mask=m,
-                                                     apply_fit=True, ax=ax1,
-                                                     color=line.color)
-            ax1.legend_.remove()
-            low, high = mu - sigma, mu + sigma
-            fl.plot_length_histo(pix_mask=m, ax=ax2, dir_low=low,
-                                 dir_high=high, color=line.color)
-        except BaseException:
-            pass
-    # pyplis.helpers.set_ax_lim_roi(roi_disp, ax0)
+        
+        _, mu, sigma = fl.plot_orientation_histo(pix_mask=m,
+                                                    apply_fit=True, ax=ax1,
+                                                    color=line.color)
+        ax1.legend_.remove()
+        low, high = mu - sigma, mu + sigma
+        fl.plot_length_histo(pix_mask=m, ax=ax2, dir_low=low,
+                                dir_high=high, color=line.color)
+        
     ax0.get_xaxis().set_ticks([])
     ax0.get_yaxis().set_ticks([])
     ax0.set_title("")
@@ -107,7 +78,7 @@ def analyse_and_plot(lst, lines):
 
 
 # SCRIPT MAIN FUNCTION
-if __name__ == "__main__":
+def main():
     close("all")
     figs = []
     # Prepare aa image list (see example 4)
@@ -117,13 +88,10 @@ if __name__ == "__main__":
     # distance image where pixel values correspond to step widths in the plume,
     # obviously, the distance values depend on the downscaling factor, which
     # is calculated from the analysis pyramid level (PYRLEVEL)
-    dist_img, _, _ = aa_list.meas_geometry.compute_all_integration_step_lengths(  # noqa: E501
-        pyrlevel=PYRLEVEL)
+    dist_img, _, _ = aa_list.meas_geometry.compute_all_integration_step_lengths(pyrlevel=1)
     # set the pyramid level in the list
-    aa_list.pyrlevel = PYRLEVEL
-    # add some blurring.. or not (if BLUR = 0)
-    aa_list.add_gaussian_blurring(BLUR)
-
+    aa_list.pyrlevel = 1
+    
     # Access to the optical flow module in the image list. If optflow_mode is
     # active in the list, then, whenever the list index changes (e.g. using
     # list.goto_next(), or list.goto_img(100)), the optical flow field is
@@ -139,17 +107,19 @@ if __name__ == "__main__":
     s = aa_list.optflow.settings
     s.hist_dir_gnum_max = 10
     s.hist_dir_binres = 10
-    s.hist_sigma_tol = PEAK_SIGMA_TOL
+    s.hist_sigma_tol = 2
 
-    s.roi_rad = ROI_CONTRAST
+    s.roi_rad_abs = [0, 0, 1344, 730]
 
     aa_list.optflow_mode = True
 
-    plume_mask = pyplis.Img(aa_list.get_thresh_mask(MIN_AA))
+    plume_mask = pyplis.Img(aa_list.get_thresh_mask(0.05))
     plume_mask.show(tit="AA threshold mask")
 
     figs.append(analyse_and_plot(aa_list, LINES))
 
+    PCS1, PCS2 = LINES
+    
     figs.append(fl.plot_flow_histograms(PCS1, plume_mask.img))
     figs.append(fl.plot_flow_histograms(PCS2, plume_mask.img))
 
@@ -164,55 +134,44 @@ if __name__ == "__main__":
     plume_props_l1 = pyplis.plumespeed.LocalPlumeProperties(PCS1.line_id)
     plume_props_l2 = pyplis.plumespeed.LocalPlumeProperties(PCS2.line_id)
 
-    if HISTO_ANALYSIS_ALL:
-        aa_list.goto_img(HISTO_ANALYSIS_START_IDX)
-        if HISTO_ANALYSIS_STOP_IDX is None:
-            HISTO_ANALYSIS_STOP_IDX = aa_list.nof - 1
-        for k in range(HISTO_ANALYSIS_START_IDX, HISTO_ANALYSIS_STOP_IDX):
-            plume_mask = aa_list.get_thresh_mask(MIN_AA)
-            plume_props_l1.get_and_append_from_farneback(
-                fl, line=PCS1, pix_mask=plume_mask,
-                dir_multi_gauss=HISTO_ANALYSIS_MULTIGAUSS)
-            plume_props_l2.get_and_append_from_farneback(
-                fl, line=PCS2, pix_mask=plume_mask,
-                dir_multi_gauss=HISTO_ANALYSIS_MULTIGAUSS)
-            aa_list.goto_next()
+    aa_list.goto_img(0)
+    stop_idx = aa_list.nof - 1
+    for k in range(0, stop_idx):
+        plume_mask = aa_list.get_thresh_mask(0.05)
+        plume_props_l1.get_and_append_from_farneback(
+            fl, line=PCS1, pix_mask=plume_mask,
+            dir_multi_gauss=True)
+        plume_props_l2.get_and_append_from_farneback(
+            fl, line=PCS2, pix_mask=plume_mask,
+            dir_multi_gauss=True)
+        aa_list.goto_next()
 
-# ==============================================================================
-#         plume_props_l1 = plume_props_l1.interpolate()
-#         plume_props_l2 = plume_props_l2.interpolate()
-# ==============================================================================
+    fig, ax = subplots(2, 1, figsize=(10, 9))
 
-        fig, ax = subplots(2, 1, figsize=(10, 9))
+    plume_props_l1.plot_directions(ax=ax[0],
+                                    color=PCS1.color,
+                                    label="PCS1")
+    plume_props_l2.plot_directions(ax=ax[0], color=PCS2.color,
+                                    label="PCS2")
 
-        plume_props_l1.plot_directions(ax=ax[0],
-                                       color=PCS1.color,
-                                       label="PCS1")
-        plume_props_l2.plot_directions(ax=ax[0], color=PCS2.color,
-                                       label="PCS2")
+    plume_props_l1.plot_magnitudes(normalised=True, ax=ax[1],
+                                    date_fmt="%H:%M:%S", color=PCS1.color,
+                                    label="PCS1")
+    plume_props_l2.plot_magnitudes(normalised=True, ax=ax[1],
+                                    date_fmt="%H:%M:%S", color=PCS2.color,
+                                    label="PCS2")
+    ax[0].set_xticklabels([])
+    
+    figs.append(fig)
 
-        plume_props_l1.plot_magnitudes(normalised=True, ax=ax[1],
-                                       date_fmt="%H:%M:%S", color=PCS1.color,
-                                       label="PCS1")
-        plume_props_l2.plot_magnitudes(normalised=True, ax=ax[1],
-                                       date_fmt="%H:%M:%S", color=PCS2.color,
-                                       label="PCS2")
-        ax[0].set_xticklabels([])
-        # ax[0].legend(loc='best', fancybox=True, framealpha=0.5, fontsize=14)
-        # ax[0].set_title("Movement direction")
-        # ax[1].set_title("Displacement length")
-        figs.append(fig)
-        # Save the time series as txt
-        plume_props_l1.save_txt(join(SAVE_DIR,
-                                     "ex09_plumeprops_young_plume.txt"))
-        plume_props_l2.save_txt(join(SAVE_DIR,
-                                     "ex09_plumeprops_aged_plume.txt"))
+    # Save the time series as txt
+    plume_props_l1.save_txt(SAVE_DIR / "ex09_plumeprops_young_plume.txt")
+    plume_props_l2.save_txt(SAVE_DIR / "ex09_plumeprops_aged_plume.txt")
 
     if SAVEFIGS:
         for k in range(len(figs)):
-            figs[k].savefig(join(SAVE_DIR, "ex09_out_%d.%s"
-                                 % ((k + 1), FORMAT)),
-                            format=FORMAT, dpi=DPI)
+            outfile = SAVE_DIR / f"ex09_out_{k + 1}.{FORMAT}"
+            figs[k].savefig(outfile, format=FORMAT, dpi=DPI)
 
     # IMPORTANT STUFF FINISHED (Below follow tests and display options)
 
@@ -225,7 +184,6 @@ if __name__ == "__main__":
     # option --test 1
     if int(options.test):
         import numpy.testing as npt
-        from os.path import basename
 
         npt.assert_array_equal([],
                                [])
@@ -233,9 +191,12 @@ if __name__ == "__main__":
         npt.assert_allclose(actual=[],
                             desired=[],
                             rtol=1e-7)
-        print(f"All tests passed in script: {pathlib.Path(__file__).name}")
+        print(f"WARNING: NO TESTS in script: {Path(__file__).name}")
     try:
         if int(options.show) == 1:
             show()
     except BaseException:
         print("Use option --show 1 if you want the plots to be displayed")
+
+if __name__ == "__main__":
+    main()

@@ -1794,7 +1794,7 @@ class LocalPlumeProperties(object):
 
 
 class FarnebackSettings(object):
-    r"""Settings for optical flow Farneback calculations and visualisation.
+    """Settings for optical flow Farneback calculations and visualisation.
 
     .. todo::
 
@@ -1906,19 +1906,6 @@ class FarnebackSettings(object):
         self._contrast["i_max"] = val
 
     @property
-    def roi_rad(self):
-        """Old name of :attr:`roi_rad_abs`."""
-        logger.warning("This method was renamed after release 0.11.2. Please use "
-             "roi_rad_abs in the future")
-        return self._contrast["roi_rad_abs"]
-
-    @roi_rad.setter
-    def roi_rad(self, val):
-        logger.warning("This method was renamed after release 0.11.2. Please use "
-             "roi_rad_abs in the future")
-        self.roi_rad_abs = val
-
-    @property
     def roi_rad_abs(self):
         """ROI used for measuring min / max intensities for contrast settings.
 
@@ -1930,8 +1917,7 @@ class FarnebackSettings(object):
     @roi_rad_abs.setter
     def roi_rad_abs(self, val):
         if not check_roi(val):
-            raise ValueError("Invalid ROI, need list [x0, y0, x1, y1], "
-                             "got %s" % val)
+            raise ValueError(f"Invalid ROI, need list [x0, y0, x1, y1], got {val}")
         self._contrast["roi_rad_abs"] = val
 
     @property
@@ -3195,7 +3181,7 @@ class OptflowFarneback(object):
 
         """
         if ax is None:
-            fig, ax = subplots(1, 1)
+            _, ax = subplots(1, 1)
         if min_length is None:
             min_length = self.settings.min_length
         lens, angles = self.all_len_angle_vecs_roi(pix_mask)
@@ -3541,15 +3527,11 @@ class OptflowFarneback(object):
                                      extend_len_fac=extend_len_fac,
                                      include_short_vecs=include_short_vecs)
 
-        # tit = r"1. img"
         x0, y0, w, h = roi2rect(roi_rel)
         if not in_roi and w < disp.shape[1]:
             ax.add_patch(Rectangle((x0, y0), w, h, fc="none", ec="c"))
             x0, y0 = 0, 0
-# ==============================================================================
-#         else:
-#             tit += " (in ROI)"
-# ==============================================================================
+
         if not draw_img:
             if color is None:
                 color = "lime"
@@ -3569,20 +3551,6 @@ class OptflowFarneback(object):
             ax.imshow(disp)
         if in_roi:
             set_ax_lim_roi(roi_rel, ax)
-            # img = img.crop(roi_abs=roi_abs, new_img=True)
-
-        # ax.imshow(disp)
-
-# ==============================================================================
-#       try:
-#           tit += (r": %s \n $\Delta$t (next) = %.2f s" %(\
-#               self.get_img_acq_times()[0].strftime("%H:%M:%S"), self.del_t))
-#           tit = tit.decode("string_escape")
-#       except:
-#           pass
-#
-#       #ax.set_title(tit, fontsize=12)
-# ==============================================================================
         return ax
 
     def live_example(self):
