@@ -16,54 +16,42 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 """Pyplis example script no. 10 - Create background image dataset."""
-from __future__ import (absolute_import, division)
-
-from SETTINGS import check_pyplis_scripts_version
-
 import pyplis
 from datetime import datetime
 from matplotlib.pyplot import show
+from pathlib import Path
 
 # IMPORT GLOBAL SETTINGS
 from SETTINGS import IMG_DIR, ARGPARSER
 
-
-
-
-# SCRIPT FUNCTION DEFINITIONS
-
-
-def get_bg_image_lists():
-    """Initialize measurement setup and creates dataset from that."""
-    start = datetime(2015, 9, 16, 7, 2, 0o5)
+# SCRIPT MAIN FUNCTION
+def main():
+    # start time of sky background image acquisition
+    start = datetime(2015, 9, 16, 7, 2, 5)
+    
+    # stop time of sky background image acquisition
     stop = datetime(2015, 9, 16, 7, 2, 30)
-    # Define camera (here the default ecII type is used)
+
+    # Define camera (in the example dataset from Etna, the ECII camera is used)
     cam_id = "ecII"
 
-    # the camera filter setup
+    # Declare the on and offband camera filters used
     filters = [pyplis.utils.Filter(type="on", acronym="F01"),
                pyplis.utils.Filter(type="off", acronym="F02")]
 
-    # create camera setup
+    # Create Camera instance using the ECII camera type and filters
     cam = pyplis.setupclasses.Camera(cam_id=cam_id, filter_list=filters)
 
     # Create BaseSetup object (which creates the MeasGeometry object)
     stp = pyplis.setupclasses.MeasSetup(IMG_DIR, start, stop, camera=cam)
 
     ds = pyplis.dataset.Dataset(stp)
-    on, off = ds.get_list("on"), ds.get_list("off")
-    on.darkcorr_mode = True
-    off.darkcorr_mode = True
-    return on, off
-
-
-# SCRIPT MAIN FUNCTION
-if __name__ == "__main__":
-    on, off = get_bg_image_lists()
-    on.show_current()
-    off.show_current()
-
-    # IMPORTANT STUFF FINISHED (Below follow tests and display options)
+    on_list, off_list = ds.get_list("on"), ds.get_list("off")
+    on_list.darkcorr_mode = True
+    off_list.darkcorr_mode = True
+    
+    on_list.show_current()
+    off_list.show_current()
 
     # Import script options
     options = ARGPARSER.parse_args()
@@ -74,17 +62,16 @@ if __name__ == "__main__":
     # option --test 1
     if int(options.test):
         import numpy.testing as npt
-        from os.path import basename
-
-        npt.assert_array_equal([],
-                               [])
-
-        npt.assert_allclose(actual=[],
-                            desired=[],
-                            rtol=1e-7)
-        print(f"All tests passed in script: {pathlib.Path(__file__).name}")
+        npt.assert_allclose(actual=[on_list.this.mean(), off_list.this.mean()],
+                            desired=[2555.4597, 2826.8848],
+                            rtol=1e-3)
+        print(f"All tests passed in script: {Path(__file__).name}")
     try:
         if int(options.show) == 1:
             show()
     except BaseException:
         print("Use option --show 1 if you want the plots to be displayed")
+
+if __name__ == "__main__":
+    # Execute main function
+    main()

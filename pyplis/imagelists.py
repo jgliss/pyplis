@@ -252,13 +252,6 @@ class ImgList(BaseImgList):
         if self.data_available and init:
             self.load()
 
-# =============================================================================
-#     @property
-#     def next(self):
-#         """Next image"""
-#         return self.loaded_images["next"]
-# =============================================================================
-
     @property
     def darkcorr_opt(self):
         """Return the current dark correction mode.
@@ -525,7 +518,7 @@ class ImgList(BaseImgList):
             raise TypeError("Could not set calibration data in imglist %s: "
                             "need CellCalibData obj or DoasCalibData obj"
                             % self.list_id)
-        try:
+        try: # ToDo: there must be a better way of doing this
             val(0.1)  # try converting a fake tau value into a gas column
         except ValueError:
             raise ValueError("Cannot set calibration data in image list, "
@@ -540,13 +533,11 @@ class ImgList(BaseImgList):
         except BaseException:
             raise ValueError("No DOAS FOV information available")
 
-    """RESETTING AND INIT METHODS"""
     def init_bg_model(self, **kwargs):
         """Init clear sky reference areas in background model."""
         self.bg_model.update(**kwargs)
         self.bg_model.set_missing_ref_areas(self.current_img())
 
-    """LIST MODE MANAGEMENT METHODS"""
     def activate_darkcorr(self, value=True):
         """Activate or deactivate dark and offset correction of images.
 
@@ -572,7 +563,6 @@ class ImgList(BaseImgList):
                      % self.list_id)
                 return
             self.get_dark_image()
-            # self.update_index_dark_offset_lists()
 
         self._list_modes["darkcorr"] = value
         self.load()
@@ -668,7 +658,6 @@ class ImgList(BaseImgList):
             if self.bg_model.mode == 0:
                 logger.info("Background correction mode is 0, initiating "
                             "settings for poly surface fit")
-                # self.calc_sky_background_mask()
                 try:
                     self.calc_sky_background_mask()
                 except Exception as e:
@@ -700,12 +689,12 @@ class ImgList(BaseImgList):
         fulfilled:
 
             1. This list needs to be an on band list
-            (``self.list_type = "on"``)
-            #. At least one offband list must be linked to this list (if more
-            offband lists are linked and input param off_id is unspecified,
-            then the first offband list found is used)
-            #. The number of images in the off band list must exceed a minimum
-            of 50% of the images in this list
+                (``self.list_type = "on"``)
+            2. At least one offband list must be linked to this list (if more
+                offband lists are linked and input param off_id is unspecified,
+                then the first offband list found is used)
+            3. The number of images in the off band list must exceed a minimum
+                of 50% of the images in this list
 
         Parameters
         ----------
@@ -721,19 +710,17 @@ class ImgList(BaseImgList):
         aa_test = None
         if value:
             if self.this.edit_log["is_aa"]:
-                raise AttributeError("AA mode cannot be activated in image "
-                                     "list %s: current image is already AA "
-                                     "image" % self.list_id)
+                raise AttributeError(f"AA mode cannot be activated in image "
+                                     f"list {self.list_id}: current image is already AA "
+                                     f"image")
 
             offlist = self.get_off_list()
-            logger.info("Activation of AA mode in ImgList %s. Updating settings for "
-                  "plume background modelling and the following image "
-                  "preparation settings in linked off-band list:\n"
-                  "pyrlevel = 0 (prev: %d)\n"
-                  "darkcorr_mode = %s (prev: %s)\n"
-                  "roi_abs (cropping) = %s (prev: %s)"
-                  % (self.list_id, offlist.pyrlevel, self.darkcorr_mode,
-                     offlist.darkcorr_mode, DEFAULT_ROI, offlist.roi_abs))
+            logger.info(f"Activation of AA mode in ImgList {self.list_id}. Updating settings for "
+                        f"plume background modelling and the following image "
+                        f"preparation settings in linked off-band list:\n"
+                        f"pyrlevel = 0 (prev: {offlist.pyrlevel})\n"
+                        f"darkcorr_mode = {self.darkcorr_mode} (prev: {offlist.darkcorr_mode})\n"
+                        f"roi_abs (cropping) = {DEFAULT_ROI} (prev: {offlist.roi_abs})")
             ed = offlist.edit_active
             offlist.edit_active = False
             offlist.bg_model.update(**self.bg_model.settings_dict())
@@ -742,8 +729,6 @@ class ImgList(BaseImgList):
             offlist.roi_abs = DEFAULT_ROI
             offlist.edit_active = ed
 
-            if not isinstance(offlist, BaseImgList):
-                raise Exception("Linked off band list could not be found")
             if not offlist.nof / float(self.nof) > 0.25:
                 raise IndexError(
                     "Off band list does not have enough images...")
@@ -759,12 +744,8 @@ class ImgList(BaseImgList):
                                          "background image using method "
                                          "set_bg_img or set background "
                                          "modelling mode = 0")
-            # offlist.update_img_prep(**self.img_prep)
-            # offlist.init_bg_model(mode = self.bg_model.mode)
+        
             self._list_modes["tau"] = False
-            # updated on 12/1/17 (i.e. the current image in the offband list
-            # needs to be reloaded in case the list is in tau mode)
-            # offlist._list_modes["tau"] = False
             offlist.tau_mode = False
             aa_test = self._aa_test_img(offlist)
         self._list_modes["aa"] = value
@@ -816,7 +797,7 @@ class ImgList(BaseImgList):
                 raise AttributeError("Failed to activate dilution correction "
                                      "mode in list {}. Error: {}"
                                      .format(self.list_id, repr(e)))
-            # now make sure that in case an off-band list is assigned, it can
+            # make sure that in case an off-band list is assigned, it can
             # also be used to perform a dilution correction (i.e. bg_model
             # ready)
             if self.list_type == "on":
@@ -869,8 +850,6 @@ class ImgList(BaseImgList):
                 self.optflow.draw_flow()
         self._list_modes["optflow"] = value
 
-    """GETTERS"""
-
     def get_dark_image(self, key="this"):
         """Prepare the current dark image dependent on ``darkcorr_opt``.
 
@@ -905,9 +884,8 @@ class ImgList(BaseImgList):
                 "Dark image could not be accessed in list %s: "
                 "darkcorr_opt is zero, please set darkcorr_opt according "
                 "to your data type")
-        # this was changed on 8/1/2017
+        
         texp = self.this.meta["texp"]
-        # img = self.current_img(key)
         read_gain = self.this.meta["read_gain"]
         val = self.update_index_dark_offset_lists()
         last_dark = self._last_dark
@@ -943,15 +921,13 @@ class ImgList(BaseImgList):
                     raise ValueError(
                         "Dark image could not be accessed in "
                         "image list %s (darkcorr_opt=2)" % self.list_id)
-        try:
-            texp_ratio = texp / dark.meta["texp"]
-            if not 0.8 <= texp_ratio <= 1.2:
-                print_log.warning("Exposure time of current dark image in list %s "
-                     "deviates by more than 20% from list image %s "
-                     "(current list index: %d)"
-                     % (self.list_id, key, self.cfn))
-        except BaseException:
-            pass
+        
+        texp_ratio = texp / dark.meta["texp"]
+        if not 0.8 <= texp_ratio <= 1.2:
+            print_log.warning(f"Exposure time of current dark image in list {self.list_id} "
+                                f"deviates by more than 20% from list image {key} "
+                                f"(current list index: {self.cfn})")
+    
         self._last_dark = dark
         return dark
 
@@ -2052,13 +2028,10 @@ class ImgList(BaseImgList):
             (t_last - timedelta(minutes=self.update_dark_ival)) < ctime <
                 (t_last + timedelta(minutes=self.update_dark_ival))):
             if self.set_closest_dark_offset():
-                logger.info("Updated dark / offset in img_list %s at %s"
-                      % (self.list_id, ctime))
+                logger.info(f"Updated dark / offset in img_list {self.list_id} at {ctime}")
                 self.time_last_dark_check = ctime
                 return True
         return False
-
-    """Private methods"""
 
     def _apply_edit(self, key):
         """Apply the current image edit settings to image.
