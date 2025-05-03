@@ -260,7 +260,7 @@ def main():
     ia_off = off_vigncorr.crop(AMBIENT_ROI, True).mean()
 
     # perform dilution anlysis and retrieve extinction coefficients (on-band)
-    ext_on, _, _, ax0 = dil.apply_dilution_fit(img=on_vigncorr,
+    ext_on, i0_on, _, ax0 = dil.apply_dilution_fit(img=on_vigncorr,
                                                rad_ambient=ia_on,
                                                i0_min=I0_MIN,
                                                plot=True)
@@ -308,6 +308,7 @@ def main():
     tau_off_corr = offlist.current_img()
 
     # determine corrected SO2-CD image from the image lists
+    # by applying the calibration function to the AA image
     so2_img_corr = calib(tau_on_corr - tau_off_corr)
     so2_img_corr.edit_log["is_tau"] = True  # for plotting
     so2_cds_corr = pcs_line.get_line_profile(so2_img_corr)
@@ -324,8 +325,7 @@ def main():
     offlist.dilcorr_mode = False
     onlist.dilcorr_mode = False
 
-    # the "this" attribute returns the current list image (same as
-    # method "current_img()")
+    # Get uncorrected SO2-CD image 
     so2_img_uncorr = calib(onlist.current_img() - offlist.current_img())
 
     # Retrieve column density profile along PCS in uncorrected image
@@ -340,7 +340,7 @@ def main():
         pix_dists_err=pix_dist_err)
 
     # IMPORTANT STUFF FINISHED (below follow some plots)
-    ax2 = plot_retrieval_points_into_image(so2_img_corr)
+    ax2 = plot_retrieval_points_into_image(so2_img_corr, dil)
     pcs_line.plot_line_on_grid(ax=ax2, ls="-", color="g")
     ax2.legend(loc="best", framealpha=0.5, fancybox=True, fontsize=20)
     ax2.set_title("Dilution corrected AA image", fontsize=12)
@@ -352,8 +352,7 @@ def main():
 
     fig, ax3 = subplots(1, 1)
     ax3.plot(so2_cds_uncorr, ls="-", color="#ff33e3",
-             label=r"Uncorr: $\Phi_{SO2}=$%.2f (+/- %.2f) kg/s"
-                   % (phi_uncorr / 1000.0, phi_uncorr_err / 1000.0))
+             label=r"Uncorr: $\Phi_{SO2}=$%.2f (+/- %.2f) kg/s" % (phi_uncorr / 1000.0, phi_uncorr_err / 1000.0))
     ax3.plot(so2_cds_corr, "-g", lw=3,
              label=r"Corr: $\Phi_{SO2}=$%.2f (+/- %.2f) kg/s"
                    % (phi_corr / 1000.0, phi_corr_err / 1000.0))
@@ -395,9 +394,20 @@ def main():
         npt.assert_array_equal([],
                                [])
 
-        npt.assert_allclose(actual=[],
-                            desired=[],
-                            rtol=1e-7)
+        npt.assert_allclose(
+            actual=[
+                ext_on, i0_on, 
+                ext_off, i0_off,
+                phi_corr, phi_corr_err,
+                phi_uncorr, phi_uncorr_err
+                ],
+            desired=[
+                7.41e-5,449.9,
+                6.55e-5, 236.5,
+                9.67e3, 1.99e3,
+                3.35e3, 0.81e3],
+        rtol=1e-2)
+        
         print(f"All tests passed in script: {Path(__file__).name}")
     try:
         if int(options.show) == 1:
