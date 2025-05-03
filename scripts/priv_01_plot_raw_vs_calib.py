@@ -102,14 +102,14 @@ if __name__ == "__main__":
     aa_list.calib_mode = False
     aa_list.aa_mode = False
     raw_disp = aa_list.show_current()
-    raw = aa_list.this.duplicate()
+    raw = aa_list.current_img().duplicate()
     raw_disp.set_title("")
     figs.append(raw_disp.figure)
     aa_list.calib_mode = True
 
     from cv2 import erode, dilate
     import numpy as np
-    calib = aa_list.this
+    calib = aa_list.current_img()
     mask = calib.img < -5e16
     mask = mask.astype(np.float32)
     size = 20
@@ -119,7 +119,7 @@ if __name__ == "__main__":
     mask = dilate(mask, kernel)
     pyplis.Img(mask).show()
 
-    calib = aa_list.this.duplicate()
+    calib = aa_list.current_img().duplicate()
     calib.img[mask.astype(bool)] = 0
     c_disp = calib.show(vmin=-1e18, vmax=2e18, zlabel=r"$S_{SO2}\,[cm^{-2}]$",
                         zlabel_size=24)

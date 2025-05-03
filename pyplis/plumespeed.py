@@ -964,7 +964,7 @@ class VeloCrossCorrEngine(object):
 
         """
         if not isinstance(img, Img):
-            img = self.imglist.this
+            img = self.imglist.current_img()
 
         ax = img.show(**kwargs)
         ax.set_title("")

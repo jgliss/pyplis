@@ -162,10 +162,10 @@ def main():
 
         npt.assert_array_equal([501, 1, 500, 0],
                                [on_list.nof + off_list.nof,
-                                on_list.this.edit_log["darkcorr"],
-                                sum(on_list.this.shape),
+                                on_list.current_img().edit_log["darkcorr"],
+                                sum(on_list.current_img().shape),
                                 on_list.gaussian_blurring -
-                                on_list.this.edit_log["blurring"]])
+                                on_list.current_img().edit_log["blurring"]])
 
         npt.assert_allclose([402.66284],
                             [off_img.mean() - on_img.mean()],

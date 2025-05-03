@@ -423,8 +423,8 @@ class ImgList(BaseImgList):
             return img
 
         lst = self.bg_list
-        if isinstance(lst.this, Img):
-            return lst.this
+        if isinstance(lst.current_img(), Img):
+            return lst.current_img()
 
         raise AttributeError("No background image found in image list")
 
@@ -557,7 +557,7 @@ class ImgList(BaseImgList):
             raise ImgMetaError("Cannot deactivate dark correction, original"
                                "image file was already dark corrected")
         if value:
-            if self.this.edit_log["darkcorr"]:
+            if self.current_img().edit_log["darkcorr"]:
                 print_log.warning("Cannot activate dark correction in image list %s: "
                      "current image is already corrected for dark current"
                      % self.list_id)
@@ -585,7 +585,7 @@ class ImgList(BaseImgList):
         if value is self.vigncorr_mode:  # do nothing
             return
         elif value:
-            if self.this.edit_log["vigncorr"]:
+            if self.current_img().edit_log["vigncorr"]:
                 print_log.warning("Cannot activate vignetting correction in image list %s: "
                      "current image is already corrected for vignetting"
                      % self.list_id)
@@ -647,7 +647,7 @@ class ImgList(BaseImgList):
         if value is self.tau_mode:  # do nothing
             return
         if value:
-            if self.this.edit_log["is_tau"]:
+            if self.current_img().edit_log["is_tau"]:
                 print_log.warning("Cannot activate tau mode in image list %s: "
                      "current image is already a tau image"
                      % self.list_id)
@@ -709,7 +709,7 @@ class ImgList(BaseImgList):
                             "not an onband list")
         aa_test = None
         if value:
-            if self.this.edit_log["is_aa"]:
+            if self.current_img().edit_log["is_aa"]:
                 raise AttributeError(f"AA mode cannot be activated in image "
                                      f"list {self.list_id}: current image is already AA "
                                      f"image")
@@ -885,8 +885,8 @@ class ImgList(BaseImgList):
                 "darkcorr_opt is zero, please set darkcorr_opt according "
                 "to your data type")
         
-        texp = self.this.meta["texp"]
-        read_gain = self.this.meta["read_gain"]
+        texp = self.current_img().meta["texp"]
+        read_gain = self.current_img().meta["read_gain"]
         val = self.update_index_dark_offset_lists()
         last_dark = self._last_dark
         if not val and isinstance(last_dark, Img):
@@ -1383,7 +1383,7 @@ class ImgList(BaseImgList):
             self._load_edit["next"].update(next_img.edit_log)
             self._apply_edit("next")
         else:
-            print_log.warning("Image list contains only one image. Setting this image both "
+            logger.debug(f"{self.__class__.__name__} '{self.list_id}' contains only one image. Setting this image both "
                  "in <this> and <next> attr.")
             self.loaded_images["next"] = self.loaded_images["this"]
             self._load_edit["next"].update(self._load_edit["this"])
@@ -1522,7 +1522,7 @@ class ImgList(BaseImgList):
             mask specifying pixels that exceed the threshold
 
         """
-        mask = self.this.get_thresh_mask(thresh)
+        mask = self.current_img().get_thresh_mask(thresh)
         if this_and_next and not self.cfn == self.nof - 1:
             next_mask = self.loaded_images["next"].get_thresh_mask(thresh)
             mask = logical_or(mask, next_mask).astype(uint8)
@@ -1585,7 +1585,7 @@ class ImgList(BaseImgList):
             2D-numpy boolean numpy array specifying sky background pixels
 
         """
-        return self.bg_model.calc_sky_background_mask(self.this,
+        return self.bg_model.calc_sky_background_mask(self.current_img(),
                                      self.loaded_images["next"],
                                      lower_thresh,
                                      apply_movement_search,
@@ -1662,7 +1662,7 @@ class ImgList(BaseImgList):
 #             except:
 #                 pass
 #
-#             if plume_pix_mask.shape == self.this.shape:
+#             if plume_pix_mask.shape == self.current_img().shape:
 #                 mask_ok = True
 #             else:
 #                 mask_ok = False
@@ -1939,7 +1939,7 @@ class ImgList(BaseImgList):
         for k in range(num):
             (corr,
              bg,
-             plume_pix_mask) = self.correct_dilution(self.this,
+             plume_pix_mask) = self.correct_dilution(self.current_img(),
                                                      tau_thresh=tau_thresh,
                                                      ext_coeff=ext_on,
                                                      **kwargs)
@@ -1964,7 +1964,7 @@ class ImgList(BaseImgList):
                     # use on band plume pixel mask
                     (corr_off,
                      bg_off,
-                     _) = off.correct_dilution(off.this, ext_coeff=ext_off,
+                     _) = off.correct_dilution(off.current_img(), ext_coeff=ext_off,
                                                plume_pix_mask=plume_pix_mask,
                                                **kwargs)
                     saved_off.append(corr_off.save_as_fits(save_dir))

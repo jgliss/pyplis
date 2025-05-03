@@ -16,7 +16,6 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 """Pyplis module for image based correction of the signal dilution effect."""
-from __future__ import (absolute_import, division)
 from numpy import asarray, linspace, exp, ones, nan
 from scipy.ndimage.filters import median_filter
 from matplotlib.pyplot import subplots, rcParams
@@ -26,19 +25,18 @@ from pandas import Series, DataFrame
 import six
 
 from pyplis import logger, print_log
-from .utils import LineOnImage
-from .image import Img
-from .optimisation import dilution_corr_fit
-from .model_functions import dilutioncorr_model
-from .geometry import MeasGeometry
-from .helpers import check_roi, isnum
-from .imagelists import ImgList
-from .exceptions import ImgModifiedError
+from pyplis.utils import LineOnImage
+from pyplis.image import Img
+from pyplis.optimisation import dilution_corr_fit
+from pyplis.model_functions import dilutioncorr_model
+from pyplis.geometry import MeasGeometry
+from pyplis.helpers import check_roi, isnum
+from pyplis.imagelists import ImgList
+from pyplis.exceptions import ImgModifiedError
 LABEL_SIZE = rcParams["font.size"] + 2
 
-
-class DilutionCorr(object):
-    r"""Class for management of dilution correction.
+class DilutionCorr:
+    """Class for management of dilution correction.
 
     The class provides functionality to retrieve topographic distances from
     meas geometry, to manage lines in the image used for the retrieval, to
@@ -71,23 +69,17 @@ class DilutionCorr(object):
     def __init__(self, lines=None, meas_geometry=None, **settings):
         if lines is None:
             lines = []
-        elif isinstance(lines, LineOnImage):
-            lines = [lines]
-        if not isinstance(lines, list):
-            raise TypeError("Invalid input type for parameter lines, need "
-                            "LineOnGrid class or a python list containing  "
-                            "LineOnGrid objects")
         if not isinstance(meas_geometry, MeasGeometry):
             meas_geometry = MeasGeometry()
         self.meas_geometry = meas_geometry
-        self.lines = od()
+        self.lines = {}
 
         self.settings = {"skip_pix": 5,
                          "min_slope_angle": 5.0,
                          "topo_res_m": 5.0}
 
-        self._masks_lines = od()
-        self._dists_lines = od()
+        self._masks_lines = {}
+        self._dists_lines = {}
         # additional retrieval points that were added manually using
         # method add_retrieval_point
         self._add_points = []
@@ -108,7 +100,7 @@ class DilutionCorr(object):
 
     def update_settings(self, **settings):
         """Update settings dict for topo distance retrieval."""
-        for k, v in six.iteritems(settings):
+        for k, v in settings.items():
             if k in self.settings:
                 self.settings[k] = v
 
@@ -138,12 +130,8 @@ class DilutionCorr(object):
 
         """
         if not isnum(dist):
-            logger.info("Input distance for point unspecified, trying automatic "
-                  "access")
-            (dist,
-             derr,
-             p) = self.meas_geometry.get_topo_distance_pix(pos_x_abs,
-                                                           pos_y_abs)
+            logger.info("Input distance for point unspecified, trying automatic access")
+            (dist,_, p) = self.meas_geometry.get_topo_distance_pix(pos_x_abs, pos_y_abs)
             self._geopoints["add_points"].append(p)
             dist *= 1000.0
         self._add_points.append((pos_x_abs, pos_y_abs, dist))
@@ -159,7 +147,7 @@ class DilutionCorr(object):
             :func:`get_topo_distances_line` in :class:`MeasGeometry`
 
         """
-        for lid, line in six.iteritems(self.lines):
+        for lid in self.lines.keys():
             self.det_topo_dists_line(lid, **settings)
 
     def det_topo_dists_line(self, line_id, **settings):
@@ -181,11 +169,10 @@ class DilutionCorr(object):
         -------
         array
             retrieved distances
-
         """
         if line_id not in self.lines.keys():
             raise KeyError("No line with ID %s available" % line_id)
-        logger.info("Searching topo distances for pixels on line %s" % line_id)
+        logger.info(f"Searching topo distances for pixels on line {line_id}")
         self.update_settings(**settings)
 
         l = self.lines[line_id]

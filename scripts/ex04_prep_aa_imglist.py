@@ -113,7 +113,7 @@ def main():
     aa_list.auto_reload = True
 
     # store some results for tests below
-    shape_log, mean_log = sum(aa_list.this.shape), aa_list.this.mean()
+    shape_log, mean_log = sum(aa_list.current_img().shape), aa_list.current_img().mean()
 
     ax = aa_list.show_current(zlabel=r"$\tau_{AA}$")
     print(f"Elapsed time: {time() - t0} s")
@@ -124,7 +124,7 @@ def main():
 
     # import plume cross section and computed integrated optical density
     # for current image
-    img = aa_list.this
+    img = aa_list.current_img()
     ax2 = img.show(vmin=-0.1, vmax=0.3)
     pcs = PCS1.convert(to_pyrlevel=0)
     pcs.plot_line_on_grid(ax=ax2)
@@ -171,7 +171,7 @@ def main():
         actual = [aa_list.meas_geometry.cam_elev,
                   aa_list.meas_geometry.cam_azim,
                   aa_list.meas_geometry.plume_dist()[0, 0],
-                  aa_list.this.mean(),
+                  aa_list.current_img().mean(),
                   shape_log, mean_log]
 
         npt.assert_allclose(actual=actual,

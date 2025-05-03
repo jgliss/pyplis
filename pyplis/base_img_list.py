@@ -258,7 +258,7 @@ class BaseImgList:
             value = Img(value)
         except BaseException:
             pass
-        pyrlevel_rel = get_pyr_factor_rel(self.this.img, value.img)
+        pyrlevel_rel = get_pyr_factor_rel(self.current_img().img, value.img)
         if pyrlevel_rel != 0:
             if pyrlevel_rel < 0:
                 value.pyr_down(pyrlevel_rel)
@@ -328,7 +328,7 @@ class BaseImgList:
                 "Need Img or numerical data type (e.g. float, int)")
         if isinstance(value, Img):
             value = value.to_pyrlevel(self.pyrlevel)
-            if not value.shape == self.this.shape:
+            if not value.shape == self.current_img().shape:
                 raise ValueError("Cannot set plume distance image: shape "
                                  "mismatch between input and images in list")
         self._integration_step_lengths = value
@@ -600,7 +600,7 @@ class BaseImgList:
                 self.vign_mask = img.vign_mask
 
             if self.update_cam_geodata:
-                self.meas_geometry.update_cam_specs(**self.this.meta)
+                self.meas_geometry.update_cam_specs(**self.current_img().meta)
 
             self._apply_edit("this")
 
@@ -627,20 +627,20 @@ class BaseImgList:
         if self.nof < 2:
             print_log.warning("Only one image available, no index change or "
                  "reload performed")
-            return self.this
+            return self.current_img()
         self.iter_indices(to_index=self.next_index)
         self.load()
-        return self.this
+        return self.current_img()
 
     def goto_prev(self):
         """Load previous image in list."""
         if self.nof < 2:
             print_log.warning("Only one image available, no index change or "
                  "reload performed")
-            return self.this
+            return self.current_img()
         self.iter_indices(to_index=self.prev_index)
         self.load()
-        return self.this
+        return self.current_img()
 
     def goto_img(self, to_index, reload_here=False):
         """Change the index of the list, load and prepare images at new index.
@@ -662,7 +662,7 @@ class BaseImgList:
         elif to_index == self.index:
             if reload_here:
                 self.load()
-            return self.this
+            return self.current_img()
         elif to_index == self.next_index:
             self.goto_next()
         elif to_index == self.prev_index:
@@ -839,7 +839,7 @@ class BaseImgList:
                 pass
         try:
             if times[0].date() == date(1900, 1, 1):
-                d = self.this.meta["start_acq"].date()
+                d = self.current_img().meta["start_acq"].date()
                 print_log.warning("Warning accessing acq. time stamps from file names in "
                      "ImgList: date information could not be accessed, using "
                      "date of currently loaded image meta info: %s" % d)
@@ -850,8 +850,14 @@ class BaseImgList:
             pass
         return times, texps
 
-    def assign_indices_linked_list(self, lst):
+    def assign_indices_linked_list(self, lst: "BaseImgList") -> ndarray:
         """Create a look up table for fast indexing between image lists.
+
+        This method links the image indices of another list 
+        to the indices of this list based on the acquisition times of
+        the images in both lists, that is, it ensures that for each
+        image in this list, the index of the image in the input list 
+        closest in time is known.
 
         Parameters
         ----------
@@ -861,15 +867,12 @@ class BaseImgList:
         Returns
         -------
         array
-            array contining linked indices
+            array containing linked indices
         """
         idx_array = zeros(self.nof, dtype=int)
         times, _ = self.get_img_meta_all_filenames()
         times_lst, _ = lst.get_img_meta_all_filenames()
-        if lst.nof == 1:
-            logger.info("Other list contains only one file, assign all indices to "
-                 "the corresponding image")
-        elif (any([x is None for x in times]) or
+        if (any([x is None for x in times]) or
               any([x is None for x in times_lst])):
             print_log.warning("Image acquisition times could not be accessed from file "
                  "names, assigning by indices")
@@ -880,7 +883,6 @@ class BaseImgList:
             for k in range(self.nof):
                 idx = abs(times[k] - times_lst).argmin()
                 idx_array[k] = idx
-
         return idx_array
 
     def same_preedit_settings(self, settings_dict):

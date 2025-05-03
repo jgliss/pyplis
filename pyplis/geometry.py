@@ -17,7 +17,8 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 """Module containing functionality for all relevant geometrical calculations.
 """
-from numpy import (nan, arctan, deg2rad, linalg, sqrt, abs, array,
+from typing import Tuple
+from numpy import (nan, arctan, deg2rad, linalg, ndarray, sqrt, abs, array,
                    tan, rad2deg, linspace, isnan, asarray,
                    arange, argmin, newaxis)
 from collections import OrderedDict as od
@@ -27,6 +28,7 @@ from copy import deepcopy
 import six
 
 from pyplis import logger, print_log
+from pyplis.utils import LineOnImage
 from .image import Img
 from .helpers import check_roi, isnum
 from .glob import DEFAULT_ROI
@@ -739,7 +741,7 @@ class MeasGeometry(object):
                 dists.append(nan)
         return idx_x, idx_y, dists
 
-    def get_viewing_directions_line(self, line):
+    def get_viewing_directions_line(self, line: LineOnImage) -> Tuple[ndarray, ndarray, ndarray, ndarray]:
         """Determine viewing direction coords for a line in an image.
 
         Parameters
@@ -750,7 +752,7 @@ class MeasGeometry(object):
         Returns
         -------
         tuple
-            4-element tuple containing
+            4-element tuple containing 4 arrays of same length:
 
             - 1-d array containing azimuth angles of pixels on line
             - 1-d array containing elevation angles of pixels on line
@@ -773,8 +775,8 @@ class MeasGeometry(object):
         delx = abs(x1 - x0)
         dely = abs(y1 - y0)
 
-        l = sqrt(delx ** 2 + dely ** 2)
-        x = linspace(x0, x1, l)
+        l = round(sqrt(delx ** 2 + dely ** 2))
+        x =  linspace(x0, x1, l)
         y = linspace(y0, y1, l)
         dx = self._cam["pix_width"] * (x - self._cam["pixnum_x"] / 2)
         dy = self._cam["pix_height"] * (y - self._cam["pixnum_y"] / 2)

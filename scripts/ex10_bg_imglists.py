@@ -24,8 +24,7 @@ from pathlib import Path
 # IMPORT GLOBAL SETTINGS
 from SETTINGS import IMG_DIR, ARGPARSER
 
-# SCRIPT MAIN FUNCTION
-def main():
+def get_bg_image_lists():
     # start time of sky background image acquisition
     start = datetime(2015, 9, 16, 7, 2, 5)
     
@@ -46,10 +45,16 @@ def main():
     stp = pyplis.setupclasses.MeasSetup(IMG_DIR, start, stop, camera=cam)
 
     ds = pyplis.dataset.Dataset(stp)
+    
+    
     on_list, off_list = ds.get_list("on"), ds.get_list("off")
     on_list.darkcorr_mode = True
     off_list.darkcorr_mode = True
-    
+    return on_list, off_list
+
+# SCRIPT MAIN FUNCTION
+def main():
+    on_list, off_list = get_bg_image_lists()
     on_list.show_current()
     off_list.show_current()
 
@@ -62,7 +67,7 @@ def main():
     # option --test 1
     if int(options.test):
         import numpy.testing as npt
-        npt.assert_allclose(actual=[on_list.this.mean(), off_list.this.mean()],
+        npt.assert_allclose(actual=[on_list.current_img().mean(), off_list.current_img().mean()],
                             desired=[2555.4597, 2826.8848],
                             rtol=1e-3)
         print(f"All tests passed in script: {Path(__file__).name}")

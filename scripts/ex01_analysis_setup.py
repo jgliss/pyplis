@@ -193,9 +193,9 @@ def main():
                                 20150916070600,
                                 20150916072200],
                                [on_list.nof + off_list.nof,
-                                on_list.this.is_darkcorr +
-                                off_list.this.is_darkcorr,
-                                sum(on_list.this.shape),
+                                on_list.current_img().is_darkcorr +
+                                off_list.current_img().is_darkcorr,
+                                sum(on_list.current_img().shape),
                                 on_list.cfn,
                                 off_list.cfn,
                                 sum(img.img[img.img < 2000]),
