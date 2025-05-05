@@ -1783,7 +1783,7 @@ class LocalPlumeProperties(object):
         self.to_pandas_dataframe().to_csv(path)
 
     def load_txt(self, path):
-        df = pd.read_csv(path)
+        df = pd.read_csv(path, index_col=0, parse_dates=True)
         return self.from_pandas_dataframe(df)
 
     def __setitem__(self, key, val):

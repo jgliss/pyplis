@@ -26,6 +26,8 @@ images of a certain type (e.g. onband, offband, see :class:`Dataset` object).
 pre-processing modes (e.g. load images as dark corrected and calibrated images,
 compute optical flow between current and next image).
 """
+from typing import Sequence
+import warnings
 from numpy import (arange, ndarray, isnan,
                    logical_or, uint8, exp, ones, size, array)
 from datetime import timedelta, datetime
@@ -387,33 +389,50 @@ class ImgList(BaseImgList):
 
     @property
     def ext_coeff(self):
-        """Return current extinction coefficient."""
+        """Atmosphere aerosol extinction coefficient closest in time to current image"""
         if not isinstance(self.ext_coeffs, Series):
             raise AttributeError("Extinction coefficients not available in "
                                  "image list %s" % self.list_id)
-        elif len(self.ext_coeffs) == self.nof:
-            # assuming that time stamps correspond to list time stamps
-            return self.ext_coeffs[self.cfn]
-        else:
-            idx = closest_index(self.current_time(), self.ext_coeffs.index)
-            return self.ext_coeffs[idx]
+        idx = closest_index(self.current_time(), self.ext_coeffs.index)
+        return self.ext_coeffs.iloc[idx]
 
     @ext_coeff.setter
     def ext_coeff(self, val):
+        msg = ("ext_coeff setter is deprecated and will be removed in future versions. "
+                "Please use set_ext_coeffs instead") 
+        warnings.warn(msg, DeprecationWarning, stacklevel=2)
         self.ext_coeffs = val
 
     @property
-    def ext_coeffs(self):
+    def ext_coeffs(self) -> Series:
         """Dilution extinction coefficients."""
         return self._ext_coeffs
 
     @ext_coeffs.setter
     def ext_coeffs(self, val):
-        if isinstance(val, float):
-            val = Series(val, [self.start_acq[0]])
-        if not isinstance(val, Series):
-            raise ValueError("Need pandas Series object")
-        self._ext_coeffs = val
+        msg = ("ext_coeffs setter is deprecated and will be removed in future versions. "
+                "Please use set_ext_coeffs instead") 
+        warnings.warn(msg, DeprecationWarning, stacklevel=2)
+        if not isinstance(val, float):
+            raise ValueError("need float for ext coeff val.")
+        self.set_ext_coeffs(values=[val],timestamps=[self.start_acq[0]])
+    
+    def set_ext_coeffs(self, values: Sequence[float], timestamps: Sequence[datetime]) -> None:
+        """Set extinction coefficients.
+        
+        The extinction coefficients are assigned as a timeseries and used if `dilcorr_mode` mode is
+        activated. The extinction coefficients are used to correct the images for signal dilution
+        due to ambient aerosol. 
+
+        Note: Ideally, the extinction coefficients should be retrieved for each image in this
+            list, to achieve the highest accuracy of correction. However, in stable atmospheric
+            settings and for short image sequences, it may suffice to set less. 
+
+        Args:
+            values: List of extinction coefficient values.
+            timestamps: List of timestamps corresponding to the values.
+        """
+        self._ext_coeffs = Series(values, index=timestamps)
 
     @property
     def bg_img(self):
@@ -509,7 +528,7 @@ class ImgList(BaseImgList):
     def calib_data(self):
         """Get set object to perform calibration."""
         if not isinstance(self._calib_data, CalibData):
-            print_log.warning("No calibration data available in imglist %s" % self.list_id)
+            print_log.warning(f"No calibration data available in imglist {self.list_id}")
         return self._calib_data
 
     @calib_data.setter
@@ -1732,7 +1751,7 @@ class ImgList(BaseImgList):
                          ext_coeff=None, tau_thresh=0.05, vigncorr_mask=None,
                          erosion_kernel_size=0, dilation_kernel_size=0,
                          img_check_plumemask=True):
-        r"""Correct a plume image for the signal dilution effect.
+        """Correct a plume image for the signal dilution effect.
 
         The provided plume image needs to be in intensity space, meaning the
         pixel values need to be intensities and not optical densities or
@@ -1840,7 +1859,7 @@ class ImgList(BaseImgList):
                                                      erosion_kernel_size,
                                                      dilation_kernel_size)
 
-        from .dilutioncorr import correct_img
+        from pyplis.dilutioncorr import correct_img
         corr = correct_img(img, ext_coeff,
                            plume_bg_vigncorr, plume_dists, plume_pix_mask)
 
@@ -1973,8 +1992,6 @@ class ImgList(BaseImgList):
             self.goto_next()
         ion()
 
-    """I/O"""
-
     def import_ext_coeffs_csv(self, file_path, header_id=None, **kwargs):
         """Import extinction coefficients from csv.
 
@@ -2001,16 +2018,10 @@ class ImgList(BaseImgList):
         This is a Beta version, insert try / except block after testing
 
         """
-        try:
-            df = read_csv(file_path, **kwargs)
-            s = df[header_id]
-        except BaseException:
-            s = read_csv(file_path, header=None, index_col=0, squeeze=True,
-                            parse_dates=True, **kwargs)
-        self.ext_coeffs = s
+        ts = read_csv(file_path, header=None, index_col=0,
+                      parse_dates=True, **kwargs).squeeze("columns")
+        self.set_ext_coeffs(values=ts.values, timestamps=ts.index.to_pydatetime())
         return self.ext_coeffs
-
-    """HELPERS"""
 
     def has_bg_img(self):
         """Return boolean whether or not background image is available."""
@@ -2064,7 +2075,6 @@ class ImgList(BaseImgList):
         # raw images can be used to compute the dilution corrected optical
         # densities
         if self.dilcorr_mode:
-            s = self.dilcorr_settings
             # init variable plume_pix_mask
             plume_pix_mask = None
             if self.aa_mode:
@@ -2078,16 +2088,18 @@ class ImgList(BaseImgList):
                 # onband background
                 off_list = self.get_off_list()
                 off_img = off_list.loaded_images[key].to_pyrlevel(img.pyrlevel)
-                if off_img.is_vigncorr:
-                    print_log.warning("List %s is in AA mode: it appears that "
-                         "vigncorr_mode is active in either or both of the "
-                         "lists %s and %s. You might want to consider to turn "
-                         "off vigncorr_mode as this is irrelevant for the "
+                if off_img.is_vigncorr:    
+                    print_log.warning(
+                        f"List {self.__class__.__name__} '{self.list_id}'"
+                         "is in AA mode: it appears that "
+                         "vigncorr_mode is active in either or both the on and off list. " 
+                         "You might want to consider to turn "
+                         "off vigncorr_mode in both lists as this is irrelevant for the "
                          "computation of OD and AA images and only slows "
                          "things down a little")
-                    off_img = off_img.duplicate().\
-                        correct_vignetting(off_list.vign_mask,
-                                           new_state=False)
+                    
+                    # revoke vignetting correcting in offband image
+                    off_img = off_img.duplicate().correct_vignetting(off_list.vign_mask, new_state=False)
                 if off_img.is_tau:
                     raise AttributeError("Off-band image is in tau mode, "
                                          "please deactivate tau_mode in "
@@ -2098,20 +2110,20 @@ class ImgList(BaseImgList):
                                                        bg_on, bg_off)
                 plume_pix_mask = self.calc_plumepix_mask(
                     aa_uncorr,
-                    s.tau_thresh,
-                    s.erosion_kernel_size,
-                    s.dilation_kernel_size)
+                    self.dilcorr_settings.tau_thresh,
+                    self.dilcorr_settings.erosion_kernel_size,
+                    self.dilcorr_settings.dilation_kernel_size)
 
             (img,  # vignetting corrected and dilution corrected image
              bg_vigncorr,
              plume_pix_mask) = self.correct_dilution(
                 img,
                 plume_pix_mask=plume_pix_mask,
-                tau_thresh=s.tau_thresh,
-                erosion_kernel_size=s.erosion_kernel_size,
-                dilation_kernel_size=s.dilation_kernel_size)
+                tau_thresh=self.dilcorr_settings.tau_thresh,
+                erosion_kernel_size=self.dilcorr_settings.erosion_kernel_size,
+                dilation_kernel_size=self.dilcorr_settings.dilation_kernel_size)
             if self.tau_mode:
-                img = s.bg_model.get_tau_image(plume_img=img,
+                img = self.dilcorr_settings.bg_model.get_tau_image(plume_img=img,
                                                bg_img=bg_vigncorr)
             elif self.aa_mode:
                 if off_img.is_dilcorr:
@@ -2120,8 +2132,7 @@ class ImgList(BaseImgList):
                                          "signal dilution. Please "
                                          "deactivate.")
 
-                bg_on = bg_vigncorr.duplicate().\
-                    correct_vignetting(self.vign_mask, 0)
+                bg_on = bg_vigncorr.duplicate().correct_vignetting(self.vign_mask, new_state=False)
                 bg_off = (bg_on * off_img / (img_uncorr * exp(aa_uncorr.img)))
 
                 bg_off_vigncorr = bg_off.correct_vignetting(off_list.vign_mask)
@@ -2131,12 +2142,12 @@ class ImgList(BaseImgList):
                     plume_bg_vigncorr=bg_off_vigncorr,
                     plume_pix_mask=plume_pix_mask)
 
-                img = s.bg_model.get_aa_image(plume_on=img,
+                img = self.dilcorr_settings.bg_model.get_aa_image(plume_on=img,
                                               plume_off=off_img,
                                               bg_on=bg_vigncorr,
                                               bg_off=bg_off_vigncorr)
 
-        else:
+        else: # dilution correction mode is inactive
             bg = None
             if self.tau_mode:
                 if self.bg_model.mode > 0:  # dilution_corr is not active
@@ -2147,13 +2158,16 @@ class ImgList(BaseImgList):
                 off_list = self.get_off_list()
                 off_img = off_list.loaded_images[key].to_pyrlevel(img.pyrlevel)
                 if off_img.is_vigncorr:
-                    print_log.warning("List %s is in AA mode: it appears that "
-                         "vigncorr_mode is active in either or both of the "
-                         "lists %s and %s. You might want to consider to turn "
-                         "off vigncorr_mode as this is irrelevant for the "
+                    print_log.warning(
+                        f"List {self.__class__.__name__} '{self.list_id}'"
+                         "is in AA mode: it appears that "
+                         "vigncorr_mode is active in either or both the on and off list. " 
+                         "You might want to consider to turn "
+                         "off vigncorr_mode in both lists as this is irrelevant for the "
                          "computation of OD and AA images and only slows "
                          "things down a little")
                     off_img = off_img.duplicate()
+                    # revoke vignetting correcting in offband image
                     off_img.correct_vignetting(off_list.vign_mask,
                                                new_state=False)
                 if off_list.dilcorr_mode:

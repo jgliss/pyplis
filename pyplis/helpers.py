@@ -16,7 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 """Pyplis module containing all sorts of helper methods."""
-from __future__ import (absolute_import, division)
+from typing import Any
 import matplotlib.cm as colormaps
 import matplotlib.colors as colors
 from datetime import datetime, time, date, timedelta
@@ -157,6 +157,11 @@ def set_ax_lim_roi(roi, ax, xy_aspect=None):
 def closest_index(time_stamp, time_stamps):
     """Find index of time stamp in array to other time stamp.
 
+    Note
+    ----
+    Does not do boundary check, that is, first or last index are returned
+    respectively if the time stamp is outside the range of the array.
+
     Parameters
     ----------
     time_stamp : datetime
@@ -169,19 +174,28 @@ def closest_index(time_stamp, time_stamps):
     -------
     int
         index of best match
-
     """
     if time_stamp < time_stamps[0]:
-        logger.warning("Time stamp is earlier than first time stamp in array")
+        logger.debug("Time stamp is earlier than first time stamp in array")
         return 0
     elif time_stamp > time_stamps[-1]:
-        logger.warning("Time stamp is later than last time stamp in array")
+        logger.debug("Time stamp is later than last time stamp in array")
         return len(time_stamps) - 1
     return argmin([abs((time_stamp - x).total_seconds()) for x in time_stamps])
 
 
-def to_datetime(value):
-    """Evaluate time and / or date input and convert to datetime."""
+def to_datetime(value: Any) -> datetime:
+    """Evaluate time and / or date input and convert to datetime.
+    
+    Args:
+        value: input value to be converted to datetime object
+    
+    Returns:
+        datetime object
+    
+    Raises:
+        ValueError: if input value is not of type datetime, date or time
+    """
     if isinstance(value, datetime):
         return value
     elif isinstance(value, date):
@@ -189,14 +203,20 @@ def to_datetime(value):
     elif isinstance(value, time):
         return datetime.combine(date(1900, 1, 1), value)
     else:
-        raise ValueError("Conversion into datetime object failed for input: "
-                         "%s (type: %s)" % (value, type(value)))
+        raise ValueError(
+            f"Conversion into datetime object failed for input: "
+            f"{value} (type: {type(value)})"
+        )
 
 
-def isnum(val):
+def isnum(val: Any) -> bool:
     """Check if input is number (int or float) and not nan.
 
-    :returns: bool, True or False
+    Args:
+        val: input value to be checked
+    
+    Returns:
+        True if input is number (int or float) and not nan, else False
     """
     if isinstance(val, (six.integer_types, float)) and not isnan(val):
         return True

@@ -32,6 +32,7 @@ plume cross section)
 """
 
 import pyplis as pyplis
+import pandas as pd
 from geonum import GeoPoint
 from matplotlib.pyplot import show, close, subplots, Rectangle, plot
 from datetime import datetime
@@ -283,15 +284,15 @@ def main():
     plume_pix_mask[840:, :] = 0  # remove tree in lower part of the image
     onlist.aa_mode = False
 
-    # assign the just retrieved extinction coefficients to the respective
-    # image lists
-    onlist.ext_coeffs = ext_on
-    offlist.ext_coeffs = ext_off
+    # assign the just retrieved extinction coefficients together with the 
+    # acq. time of images they were retrieved from
+    onlist.set_ext_coeffs(values=[ext_on], timestamps=[on_vigncorr.start_acq])
+    offlist.set_ext_coeffs(values=[ext_off], timestamps=[off_vigncorr.start_acq])
 
     # save the extinction coefficients into a txt file (re-used in example
     # script 12). They are stored as pandas.Series object in the ImgList
-    onlist.ext_coeffs.to_csv(SAVE_DIR / "ex11_ext_scat_on.txt")
-    offlist.ext_coeffs.to_csv(SAVE_DIR / "ex11_ext_scat_off.txt")
+    onlist.ext_coeffs.to_csv(SAVE_DIR / "ex11_ext_scat_on.csv", header=False)
+    offlist.ext_coeffs.to_csv(SAVE_DIR / "ex11_ext_scat_off.csv", header=False)
 
     # Activate automatic dilution correction in both lists
     # get dilution corrected on and off-band image

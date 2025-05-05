@@ -1657,9 +1657,9 @@ class EmissionRateAnalysis(object):
         upper = s + err
         exp = exponent(upper.values.max())
 
-        s_disp = s * 10**-exp
-        lower_disp = lower * 10**-exp
-        upper_disp = upper * 10**-exp
+        s_disp = s / 10**exp
+        lower_disp = lower / 10**exp
+        upper_disp = upper / 10**exp
 
         s_disp.plot(ax=ax, label="mean", **kwargs)
         try:
@@ -1668,7 +1668,6 @@ class EmissionRateAnalysis(object):
         except BaseException:
             pass
 
-        # ax.yaxis.set_ticks([lower_disp.mean(), 0, upper_disp.mean()])
         ax.fill_between(s.index, lower_disp, upper_disp, alpha=0.1, **kwargs)
         ax.set_ylabel(r"$ROI_{BG}\,[E%d\,cm^{-2}]$" % exp, fontsize=labelsize)
         ax.grid()
