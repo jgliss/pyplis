@@ -17,12 +17,11 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 """Pyplis module for image based correction of the signal dilution effect."""
 from numpy import asarray, linspace, exp, ones, nan
-from scipy.ndimage.filters import median_filter
+from scipy.ndimage import median_filter
 from matplotlib.pyplot import subplots, rcParams
 from collections import OrderedDict as od
 
 from pandas import Series, DataFrame
-import six
 
 from pyplis import logger, print_log
 from pyplis.utils import LineOnImage

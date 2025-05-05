@@ -18,7 +18,7 @@
 
 from setuptools import setup, find_packages
 from codecs import open
-from os.path import join, abspath, dirname, expanduser, exists
+from os.path import join, expanduser, exists
 from os import mkdir
 
 with open('README.rst') as f:
@@ -27,8 +27,6 @@ with open('README.rst') as f:
 with open("VERSION.rst") as f:
     version = f.readline()
     f.close()
-
-#with open(join("pyplis","data", "_paths.txt"), 'w'): pass
 
 usr_dir = join(expanduser('~'), "my_pyplis")
 if not exists(usr_dir):
@@ -60,8 +58,6 @@ setup(
 
         # Specify the Python versions you support here. In particular, ensure
         # that you indicate whether you support Python 2, Python 3 or both.,
-        'Programming Language :: Python :: 3.9',
-        'Programming Language :: Python :: 3.10',
         'Programming Language :: Python :: 3.11',
         'Programming Language :: Python :: 3.12'
     ],
