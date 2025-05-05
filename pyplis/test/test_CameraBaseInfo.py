@@ -26,7 +26,7 @@ def test_get_img_meta_from_filename():
     assert acq_time == datetime(2015, 9, 16, 7, 0, 30, 320000)
     assert filter_id == meas_type == 'F01'
     assert texp is None
-    assert len(warnings) == 3
+    assert len(warnings) == 0
 
 
 def test_parse_filename_parsers():
