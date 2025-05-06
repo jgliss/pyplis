@@ -1067,7 +1067,9 @@ class LocalPlumeProperties(object):
     a dense optical flow algorithm.
     """
 
-    def __init__(self, roi_id="", **kwargs):
+    def __init__(self, roi_id=None, **kwargs):
+        if roi_id is None:
+            roi_id = ""
         self.roi_id = roi_id
         self.color = "b"
         self._len_mu_norm = []

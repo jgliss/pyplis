@@ -33,7 +33,7 @@ rates for the 3 velocity modes. Here, emission rates are retrieved along 1
 exemplary plume cross section. This can be easily extended by adding additional
 PCS lines in the EmissionRateAnalysis class using ``add_pcs_line``.
 The results for each velocity mode and for each PCS line are stored within
-EmissionRateResults classes.
+instances of `EmissionRates` class.
 """
 
 from pathlib import Path
@@ -52,7 +52,7 @@ rc_context({'font.size': '18'})
 PCS = LINES[0]
 
 # If false, then only the working environment is initalised
-DO_EVAL = True
+DO_EVAL = False
 
 # Dilution correction
 DILCORR = True
@@ -264,26 +264,13 @@ def main():
     ax = ana.plot_bg_roi_rect(ax=ax, to_pyrlevel=PYRLEVEL)
     figs.append(ax.figure)
 
-    if not DO_EVAL:
-        aa_list.dilcorr_mode = not DILCORR
-        aa_list.show_current(
-            vmin=-5e18,
-            vmax=6e18,
-            tit=f"Dilution corr: {not DILCORR}")
+    ana.run_retrieval(start_index=START_INDEX,
+                        stop_index=STOP_INDEX)
 
-        # check if optical flow works
-        ana.imglist.optflow_mode = True
-        aa_mask = ana.imglist.get_thresh_mask(CD_MIN)
-        ana.imglist.optflow.plot_flow_histograms(line=pcs, pix_mask=aa_mask)
-
-    else:
-        ana.run_retrieval(start_index=START_INDEX,
-                          stop_index=STOP_INDEX)
-
-        figs.append(plot_and_save_results(ana))
-        # the EmissionRateResults class has an informative string
-        # representation
-        print(ana.get_results("young_plume", "flow_histo"))
+    figs.append(plot_and_save_results(ana))
+    # the EmissionRates class has an informative string
+    # representation
+    print(ana.get_results("young_plume", "flow_histo"))
 
     if SAVEFIGS:
         for k in range(len(figs)):
@@ -302,12 +289,37 @@ def main():
     if int(options.test):
         import numpy.testing as npt
 
-        npt.assert_array_equal([],
-                               [])
+        npt.assert_array_equal([
+            list(ana.results), list(ana.results["young_plume"]),
+            ],
+            [
+                ["young_plume"],['glob', 'flow_raw', 'flow_histo', 'flow_hybrid']
+            ])
 
-        npt.assert_allclose(actual=[],
-                            desired=[],
-                            rtol=1e-7)
+        res = ana.results["young_plume"]["glob"]
+        assert isinstance(res, pyplis.EmissionRates)        
+        npt.assert_allclose(actual=[res.phi.mean(), res.phi_err.mean(), res.velo_eff.mean(), res.velo_eff_err.mean()],
+                            desired=[7202.8308, 2551.5447, PLUME_VELO_GLOB, PLUME_VELO_GLOB_ERR],
+                            rtol=1e-3)
+
+        res = ana.results["young_plume"]["flow_raw"]
+        assert isinstance(res, pyplis.EmissionRates)        
+        npt.assert_allclose(actual=[res.phi.mean(), res.phi_err.mean(), res.velo_eff.mean(), res.velo_eff_err.mean()],
+                            desired=[4684.6984, 749.426, 2.7767, 0.4165],
+                            rtol=1e-3)
+        
+        res = ana.results["young_plume"]["flow_histo"]
+        assert isinstance(res, pyplis.EmissionRates)        
+        npt.assert_allclose(actual=[res.phi.mean(), res.phi_err.mean(), res.velo_eff.mean(), res.velo_eff_err.mean()],
+                            desired=[5636.7601, 996.3797, 3.3551, 0.5457],
+                            rtol=1e-3)
+
+        res = ana.results["young_plume"]["flow_hybrid"]
+        assert isinstance(res, pyplis.EmissionRates)        
+        npt.assert_allclose(actual=[res.phi.mean(), res.phi_err.mean(), res.velo_eff.mean(), res.velo_eff_err.mean()],
+                            desired=[5853.8232, 954.3205, 3.4865, 0.5288],
+                            rtol=1e-3)
+        
         print(f"All tests passed in script: {Path(__file__).name}")
     try:
         if int(options.show) == 1:
