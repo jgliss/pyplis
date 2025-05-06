@@ -45,16 +45,16 @@ from cv2 import calcOpticalFlowFarneback, OPTFLOW_FARNEBACK_GAUSSIAN,\
 
 from pyplis.base_img_list import BaseImgList
 
-from .helpers import bytescale, check_roi, map_roi, roi2rect, set_ax_lim_roi,\
+from pyplis.helpers import bytescale, check_roi, map_roi, roi2rect, set_ax_lim_roi,\
     nth_moment, rotate_xtick_labels
 
 from pyplis import logger
-from .optimisation import MultiGaussFit
-from .processing import ImgStack
-from .utils import LineOnImage
-from .image import Img, ProfileTimeSeriesImg
-from .geometry import MeasGeometry
-from .glob import DEFAULT_ROI
+from pyplis.optimisation import MultiGaussFit
+from pyplis.processing import ImgStack
+from pyplis.utils import LineOnImage
+from pyplis.image import Img, ProfileTimeSeriesImg
+from pyplis.geometry import MeasGeometry
+from pyplis.glob import DEFAULT_ROI
 
 def get_veff(normal_vec, dir_mu, dir_sigma, len_mu, len_sigma,
              pix_dist_m=1.0, del_t=1.0, sigma_tol=2):
@@ -116,7 +116,6 @@ def get_veff(normal_vec, dir_mu, dir_sigma, len_mu, len_sigma,
             veffs.append(len_mu_eff * pix_dist_m / del_t)
     diff = abs(veff - asarray(veffs))
     verr = diff.std()
-    # print "Retrieved eff. velocity v = %.2f +/- %.2f" %(veff, verr)
     return (veff, verr)
 
 
@@ -988,7 +987,6 @@ class VeloCrossCorrEngine(object):
         res = self.results
         lag = self.correlation_lag
         s_pcs = res["ica_tseries_pcs"]
-        # index = s_pcs.index.to_pydatetime()
         s_offs = res["ica_tseries_offset"]
         s_shift = res["ica_tseries_shift"]
 
@@ -1007,11 +1005,10 @@ class VeloCrossCorrEngine(object):
         if isinstance(ylabel, str):
             ax.set_ylabel(ylabel)
         else:
-            logger.warning("No y-label provided, setting y-axis invisible, since ICA"
-                 "may also correspond to integrated optical densities")
+            logger.warning(
+                "No y-label provided, setting y-axis invisible, since ICA"
+                "may also correspond to integrated optical densities")
             ax.yaxis.set_visible(0)
-        # ax.xaxis.set_major_formatter(DateFormatter("%H:%M"))
-        # ax[0,].set_title("Original time series", fontsize = 10)
         ax.grid()
         ax.legend(loc="best", fancybox=True, framealpha=0.5, fontsize=12)
         return ax
@@ -1038,7 +1035,6 @@ class VeloCrossCorrEngine(object):
         lag = self.results["lag"]
         ax.set_xlabel(r"$\Delta$t [s]")
         ax.grid()
-        # ax[1].set_xlabel("Shift")
         ax.set_ylabel("Correlation coefficient")
         x = arange(0, len(coeffs), 1) * lag / argmax(coeffs)
 
@@ -1050,8 +1046,8 @@ class VeloCrossCorrEngine(object):
         return ax
 
 
-class LocalPlumeProperties(object):
-    """Class to store results about local properties of plume displacement.
+class LocalPlumeProperties:
+    """Class to store local properties of plume displacement.
 
     This class represents statistical (local) plume (gas) displacement
     information (e.g. retrieved using an optical flow algorithm). These
@@ -1371,7 +1367,7 @@ class LocalPlumeProperties(object):
 
         """
         res = optflow_farneback.local_flow_params(**kwargs)
-        for key, val in six.iteritems(res):
+        for key, val in res.items():
             if key in self.__dict__:
                 self.__dict__[key].append(val)
 
@@ -1408,32 +1404,16 @@ class LocalPlumeProperties(object):
             - :obj:`float`: uncertainty of effective velocity
 
         """
-        # print "GETTING VELOCITY AT %s" %self.start_acq[idx]
         if pix_dist_m_err is None:
             pix_dist_m_err = pix_dist_m * 0.05
         vec = self.displacement_vector(idx)
         if normal_vec is None:
             normal_vec = vec / norm(vec)
-# ==============================================================================
-#         print "DIR_MU=%.2f\nLEN_MU=%.2f\nDT=%.2fs" %(self.dir_mu[idx],
-#                                                      self.len_mu[idx],
-#                                                      self.del_t[idx])
-# ==============================================================================
         v, verr = get_veff(normal_vec, self.dir_mu[idx], self.dir_sigma[idx],
                            self.len_mu[idx], self.len_sigma[idx],
                            pix_dist_m=pix_dist_m,
                            del_t=self.del_t[idx],
                            sigma_tol=sigma_tol)
-# ==============================================================================
-#         len_mu_eff = dot(normal_vec, vec)
-#         dt = self.del_t[idx]
-# ==============================================================================
-        # print v, len_mu_eff * pix_dist_m / dt
-# ==============================================================================
-#         verr = sqrt((pix_dist_m * self.len_sigma[idx] / dt)**2 +\
-#                     (pix_dist_m_err * len_mu_eff / dt)**2)
-# ==============================================================================
-
         return (v, verr)
 
     def get_orientation_tseries(self):
@@ -1534,7 +1514,6 @@ class LocalPlumeProperties(object):
             ax.fill_between(s.index, lower, upper, alpha=0.1, **kwargs)
         ax.set_ylabel(r"$\varphi\,[^{\circ}$]")
         ax.grid()
-        # rotate_xtick_labels(ax=ax)
         return ax
 
     def plot_magnitudes(self, normalised=True, ax=None,
@@ -1686,7 +1665,6 @@ class LocalPlumeProperties(object):
 
         return ax
 
-    #: I/O stuff
     def to_dict(self):
         """Write all data attributes into dictionary.
 
@@ -1722,9 +1700,8 @@ class LocalPlumeProperties(object):
             this object
 
         """
-        for k, v in six.iteritems(d):
-            if k in self.__dict__:
-                self.__dict__[k] = v
+        for k, v in d.items():
+            self[k] = v
 
     def to_pandas_dataframe(self):
         """Convert object into pandas dataframe.
@@ -1790,8 +1767,6 @@ class LocalPlumeProperties(object):
 
     def __setitem__(self, key, val):
         if key in self.__dict__:
-            # print ("Updating attr. %s in LocalPlumeProperties, new val: %s"
-            #    %(key, val))
             self.__dict__[key] = val
 
 

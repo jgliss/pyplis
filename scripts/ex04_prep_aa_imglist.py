@@ -89,7 +89,6 @@ def prepare_aa_image_list(bg_corr_mode=6):
 
     off_list.auto_reload = True
     on_list.auto_reload = True
-    print("INITIATED AA LIST")
     on_list.meas_geometry = geom
     return on_list
 

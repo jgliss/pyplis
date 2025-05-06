@@ -52,7 +52,6 @@ def get_bg_image_lists():
     off_list.darkcorr_mode = True
     return on_list, off_list
 
-# SCRIPT MAIN FUNCTION
 def main():
     on_list, off_list = get_bg_image_lists()
     on_list.show_current()

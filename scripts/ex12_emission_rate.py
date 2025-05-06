@@ -288,14 +288,12 @@ def main():
     # option --test 1
     if int(options.test):
         import numpy.testing as npt
-
-        npt.assert_array_equal([
-            list(ana.results), list(ana.results["young_plume"]),
-            ],
-            [
-                ["young_plume"],['glob', 'flow_raw', 'flow_histo', 'flow_hybrid']
-            ])
-
+        
+        assert len(ana.results) == 1
+        assert "young_plume" in ana.results
+        assert len(ana.results["young_plume"]) == 4
+        assert list(ana.results["young_plume"]) == ["glob", "flow_raw", "flow_histo", "flow_hybrid"]
+        
         res = ana.results["young_plume"]["glob"]
         assert isinstance(res, pyplis.EmissionRates)        
         npt.assert_allclose(actual=[res.phi.mean(), res.phi_err.mean(), res.velo_eff.mean(), res.velo_eff_err.mean()],

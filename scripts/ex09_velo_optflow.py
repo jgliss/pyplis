@@ -43,13 +43,19 @@ def analyse_and_plot(lst, lines):
         line.plot_line_on_grid(ax=ax0, include_normal=1,
                                include_roi_rot=1)
         
-        _, mu, sigma = fl.plot_orientation_histo(pix_mask=m,
-                                                    apply_fit=True, ax=ax1,
-                                                    color=line.color)
+        _, mu, sigma = fl.plot_orientation_histo(
+            pix_mask=m,
+            apply_fit=True, 
+            ax=ax1,
+            color=line.color)
         ax1.legend_.remove()
         low, high = mu - sigma, mu + sigma
-        fl.plot_length_histo(pix_mask=m, ax=ax2, dir_low=low,
-                                dir_high=high, color=line.color)
+        fl.plot_length_histo(
+            pix_mask=m, 
+            ax=ax2, 
+            dir_low=low,
+            dir_high=high, 
+            color=line.color)
         
     ax0.get_xaxis().set_ticks([])
     ax0.get_yaxis().set_ticks([])
@@ -136,7 +142,10 @@ def main():
 
     aa_list.goto_img(0)
     stop_idx = aa_list.nof - 1
+    print("Computing local optical flow properties for 2 PCS lines for each image in the image list")
     for k in range(0, stop_idx):
+        if k%20==0:
+            print(f"Computation ongoing ({k}/{stop_idx})")
         plume_mask = aa_list.get_thresh_mask(0.05)
         plume_props_l1.get_and_append_from_farneback(
             fl, line=PCS1, pix_mask=plume_mask,
@@ -184,13 +193,60 @@ def main():
     # option --test 1
     if int(options.test):
         import numpy.testing as npt
+        import numpy as np
+        res = plume_props_l1
+        assert res.roi_id == "young_plume"
+        assert np.isnan(res._len_mu_norm).sum() == 5
+        assert np.isnan(res._len_sigma_norm).sum() == 5
+        assert np.isnan(res._dir_mu).sum() == 5
+        assert (np.array(res._dir_sigma) == 180).sum() == 5
+        assert (np.array(res._significance) == 0).sum() == 5
+        
+        npt.assert_allclose(
+            actual=[
+                np.nanmean(res._len_mu_norm),
+                np.nanmean(res._len_sigma_norm),
+                np.nanmean(res._dir_mu),
+                np.nanmean(res._dir_sigma),
+                np.nanmean(res._del_t),
+                np.nanmean(res._significance),
+                ],
+            desired=[
+                0.8446354828438595, 
+                0.288896828513025, 
+                -56.972104109591605, 
+                19.873233016577196, 
+                4.206971153846154, 
+                0.7650539016892137
+                ],
+            rtol=1e-5)
 
-        npt.assert_array_equal([],
-                               [])
-
-        npt.assert_allclose(actual=[],
-                            desired=[],
-                            rtol=1e-7)
+        res = plume_props_l2
+        assert res.roi_id == "old_plume"
+        assert np.isnan(res._len_mu_norm).sum() == 5
+        assert np.isnan(res._len_sigma_norm).sum() == 5
+        assert np.isnan(res._dir_mu).sum() == 5
+        assert (np.array(res._dir_sigma) == 180).sum() == 5
+        assert (np.array(res._significance) == 0).sum() == 5
+        
+        npt.assert_allclose(
+            actual=[
+                np.nanmean(res._len_mu_norm),
+                np.nanmean(res._len_sigma_norm),
+                np.nanmean(res._dir_mu),
+                np.nanmean(res._dir_sigma),
+                np.nanmean(res._del_t),
+                np.nanmean(res._significance),
+                ],
+            desired=[
+                1.0966500134369748, 
+                0.39550772843047144, 
+                -93.31145142654839, 
+                20.139529500869035, 
+                4.206971153846154, 
+                0.6430045694337098
+                ],
+            rtol=1e-5)
         print(f"WARNING: NO TESTS in script: {Path(__file__).name}")
     try:
         if int(options.show) == 1:
