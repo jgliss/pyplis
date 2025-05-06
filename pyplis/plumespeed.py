@@ -2667,10 +2667,10 @@ class OptflowFarneback(object):
             - :obj:`array`: all angles used to determine the histogram
 
         """
-        try:
+        if "lens" in kwargs and "angles" in kwargs:
             lens = kwargs["lens"]
             angles = kwargs["angles"]
-        except BaseException:
+        else:
             lens, angles = self.all_len_angle_vecs_roi(pix_mask)
         if bin_res_degrees is None:
             bin_res_degrees = self.settings.hist_dir_binres
@@ -2720,9 +2720,9 @@ class OptflowFarneback(object):
             - :obj:`array`: all lengths used to determine the histogram
 
         """
-        try:
+        if "lens" in kwargs:
             lens = kwargs["lens"]
-        except BaseException:
+        else:
             lens, _ = self.all_len_angle_vecs_roi(pix_mask)
         cond = lens > min_length
 
@@ -2765,16 +2765,19 @@ class OptflowFarneback(object):
         """
         ok = True
         c, x = self._prep_histo_data(count, bins)
-        fit = MultiGaussFit(c, x, noise_amp=noise_amp,
-                            max_num_gaussians=max_num_gaussians,
-                            do_fit=False)  # make sure the object is initiated
+        fit_engine = MultiGaussFit(
+            data=c, 
+            index=x, 
+            noise_amp=noise_amp,
+            max_num_gaussians=max_num_gaussians,
+            do_fit=False)
         ok = False
         try:
-            if fit.run_optimisation():
+            if fit_engine.run_optimisation():
                 ok = True
         except BaseException:
             pass
-        return fit, ok
+        return fit_engine, ok
 
     def fit_orientation_histo(self, count, bins, noise_amp=None,
                               max_num_gaussians=None, **kwargs):
@@ -2876,10 +2879,6 @@ class OptflowFarneback(object):
             max_num_gaussians=max_num_gaussians)
         return fit, ok
 
-    def get_main_flow_field_params(self, **kwargs):
-        """Old name of :func:`local_flow_params`."""
-        return self.local_flow_params(**kwargs)
-
     def local_flow_params(self, line=None, pix_mask=None, noise_amp=None,
                           min_count_frac=None, min_length=None,
                           dir_multi_gauss=True):
@@ -2925,19 +2924,21 @@ class OptflowFarneback(object):
             dictionary containing results of the analysis
 
         """
-        del_t = self.del_t
-        res = od([("_len_mu_norm", nan),  # normalised displ. len [s-1]
-                  ("_len_sigma_norm", nan),  # error norm. displ. len [s-1]
-                  ("_dir_mu", nan),  # predominant displ. dir. [deg]
-                  ("_dir_sigma", 180.0),  # error pred. displ. dir. [deg]
-                  ("_del_t", del_t),  # time diff 'this' -> 'next'
-                  ("_start_acq", self.current_time),  # time stamp 'this'
-                  ("_significance", 0.0),  # fraction of usable pixels in ROI
-                  ("_add_gauss_dir", []),
-                  ("pix_mask", None),
-                  ("fit_dir", None),
-                  ("_fit_success", 0),
-                  ("_pyrlevel", self.pyrlevel)])
+        del_t = self.del_t # [s]
+        res = {
+            "_len_mu_norm": nan,  # normalised displ. len [s-1]
+            "_len_sigma_norm": nan,  # error norm. displ. len [s-1]
+            "_dir_mu": nan,  # predominant displ. dir. [deg]
+            "_dir_sigma": 180.0,  # error pred. displ. dir. [deg]
+            "_del_t": del_t,  # time diff 'this' -> 'next'
+            "_start_acq": self.current_time,  # time stamp 'this'
+            "_significance": 0.0,  # fraction of usable pixels in ROI
+            "_add_gauss_dir": [],
+            "pix_mask": None,
+            "fit_dir": None,
+            "_fit_success": 0,
+            "_pyrlevel": self.pyrlevel
+        }
 
         # EVALUATE INPUT AND INIT PARAMETERS
 
@@ -2949,19 +2950,20 @@ class OptflowFarneback(object):
         # total number of vectors in ROI)
         if min_count_frac is None:
             min_count_frac = self.settings.min_count_frac
-        try:
+        
+        # make sure pixel mask is a numpy array
+        if isinstance(pix_mask, Img):
             pix_mask = pix_mask.img
-        except BaseException:
-            pass
+        
         # init pixel access mask
         mask = pix_mask
         if isinstance(line, LineOnImage):
-            # print "Using rotated ROI mask for pixel access"""
-            m = line.get_rotated_roi_mask(self.flow.shape[:2])
+            line_mask = line.get_rotated_roi_mask(self.flow.shape[:2])
             if mask is None:
-                mask = m
+                mask = line_mask
             else:
-                mask = (mask * m).astype(bool)
+                # combine both masks (i.e. line mask and input pixel mask)
+                mask = (mask * line_mask).astype(bool)
 
         res["pix_mask"] = mask
 
@@ -2976,17 +2978,16 @@ class OptflowFarneback(object):
              angs) = self.flow_orientation_histo(lens=lens,
                                                  angles=angles,
                                                  min_length=min_length)
-        except BaseException:
-            logger.warning("Retrieval of flow orientation histogram failed")
+        except Exception as e:
+            logger.warning(f"Retrieval of flow orientation histogram failed: {repr(e)}")
             return res
 
         # Check if enough vectors are left to go on with the analysis
         frac = len(angs) / float(len(angles))
         if frac < min_count_frac:
-            logger.warning("Aborted retrieval of main flow field paramaters"
-                 "only %d %% of the vectors in current ROI are longer than "
-                 "minimum required length %.1f"
-                 % (frac * 100, min_length))
+            logger.warning(f"Aborted retrieval of main flow field parameters "
+                           f"only {frac * 100:.0f}% of the vectors in current ROI are longer than "
+                           f"minimum required length {min_length:.1f}")
             return res
         # Now try to apply multi gauss fit to histogram distribution
         sigma_tol = self.settings.hist_sigma_tol
@@ -2998,33 +2999,26 @@ class OptflowFarneback(object):
 
                 # analyse the fit result (i.e. find main gauss peak and
                 # potential other significant peaks)
-                (dir_mu, dir_sigma, tot_num, add_gaussians) =\
-                    fit.analyse_fit_result(sigma_tol_overlaps=sigma_tol + 1)
-                sign_addgauss = sum([fit.integrate_gauss(*g) for g
-                                     in add_gaussians]) / tot_num
-                # sign = int(fit.integrate_gauss(*g) * 100 / tot_num)
+                (dir_mu, 
+                 dir_sigma, 
+                 tot_num, 
+                 add_gaussians) = fit.analyse_fit_result(sigma_tol_overlaps=sigma_tol+1)
+                
+                sign_addgauss = sum([fit.integrate_gauss(*g) for g in add_gaussians]) / tot_num
+               
                 if sign_addgauss > .2:  # other peaks exceed 20% of main peak
-                    logger.warning("Aborting histogram analysis: Multi-Gauss fit "
-                         "yielded additional Gaussian exceeding "
-                         "significance thresh of 0.2 in histo of "
-                         "orientation angles\nSignificance: %s %%\n"
-                         % (sign_addgauss * 100))
+                    logger.warning(
+                        f"Aborting histogram analysis: Multi-Gauss fit yielded additional "
+                        f"Gaussian exceeding significance threshold of 0.2 in histogram of "
+                        f"orientation angles\nSignificance: {sign_addgauss * 100:.2f} %\n"
+                    )
                     return res
             else:
                 logger.warning("Aborting histogram analysis, Multi-Gauss fit failed")
                 return res
         else:
             dir_mu, dir_sigma = self.mu_sigma_from_moments(count, bins)
-            # NEXT LINE WAS COMMENTED OUT ON 24/1/2018
-            # dir_sigma *= sigma_tol
             add_gaussians = 0
-# ==============================================================================
-#           logger.warning("Could not retrieve predominant peak of orientation "
-#                "histogram from multi gauss fit. Using 1. and 2. moment of "
-#                "distr. for estimate of mean displacement direction")
-#             dir_mu, dir_sigma = self.mu_sigma_from_moments(count, bins)
-#             add_gaussians = []
-# ==============================================================================
 
         res["_dir_mu"] = dir_mu
         res["_dir_sigma"] = dir_sigma
@@ -3041,24 +3035,16 @@ class OptflowFarneback(object):
         # Check if enough vectors are left to go on with the analysis
         frac = sum(cond) / float(len(lens))
         if frac < min_count_frac:
-            logger.warning("Aborted retrieval of main flow field parameters"
-                 "only %d %% of the vectors in current ROI remain after "
-                 "limiting angular range from fit result of orientation histo"
-                 % (frac * 100))
+            logger.warning(
+                f"Aborted retrieval of main flow field parameters "
+                f"only {frac * 100:.0f}% of the vectors in current ROI remain after "
+                f"limiting angular range from fit result of orientation histo")
             return res
         res["_significance"] = frac
         lens = lens[cond]
 
         count, bins, _ = self.flow_length_histo(lens=lens)
-        # len_mu, _ = self.mu_sigma_from_moments(count, bins)
         len_mu, len_sigma = self.mu_sigma_from_moments(count, bins)
-# =============================================================================
-#         ### NEXT LINE WAS ADDED ON 24/1/2018
-#         len_sigma *= sigma_tol
-# =============================================================================
-
-        # logger.info("Avg. displ. length: %.1f +/- %.1f" %(len_mu, len_sigma))
-
         res["_len_mu_norm"] = len_mu / del_t  # normalise to 1s ival
         res["_len_sigma_norm"] = len_sigma / del_t  # normalise to 1s ival
         return res
