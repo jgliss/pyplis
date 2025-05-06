@@ -628,7 +628,7 @@ class CalibData(object):
         cds = self.cd_vec
 
         ax.plot(self.tau_vec, cds, ls="", marker=".",
-                label="Data %s" % add_label_str, **kwargs)
+            label=f"Data {add_label_str}", **kwargs)
         try:
             ax.errorbar(self.tau_vec, cds, yerr=self.cd_vec_err,
                         marker="None", ls=" ", c="#b3b3b3")

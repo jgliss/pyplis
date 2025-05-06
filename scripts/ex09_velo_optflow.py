@@ -247,7 +247,7 @@ def main():
                 0.6430045694337098
                 ],
             rtol=1e-5)
-        print(f"WARNING: NO TESTS in script: {Path(__file__).name}")
+        print(f"All tests passed in script: {Path(__file__).name}")
     try:
         if int(options.show) == 1:
             show()

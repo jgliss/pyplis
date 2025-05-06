@@ -63,26 +63,32 @@ def plot_pcs_comparison(aa_init, aa_imgs_corr, pcs1, pcs2):
 
     num = len(p10)
 
-    axes[0].set_title("Line %s" % pcs1.line_id)
-    axes[1].set_title("Line %s" % pcs2.line_id)
-
-    axes[0].plot(p10, "-", label=r"Init $\phi=%.3f$" % (sum(p10) / num))
-    axes[1].plot(p20, "-", label=r"Init $\phi=%.3f$" % (sum(p20) / num))
-
+    axes[0].set_title(f"Line {pcs1.line_id}")
+    axes[1].set_title(f"Line {pcs2.line_id}")
+    phi_p1_init = sum(p10) / num
+    phi_p2_init = sum(p20) / num
+    axes[0].plot(p10, "-", label=f"Init φ={phi_p1_init:.3f}")
+    axes[1].plot(p20, "-", label=f"Init φ={phi_p2_init:.3f}")
+    # store main results for testing in main()
+    results_p1 = [(np.nan, float(phi_p1_init))]
+    results_p2 = [(np.nan, float(phi_p2_init))]
+    
     for cd, aa_corr in aa_imgs_corr.items():
         p1 = pcs1.get_line_profile(aa_corr.img)
         p2 = pcs2.get_line_profile(aa_corr.img)
+        phi_p1 = sum(p1) / num
+        phi_p2 = sum(p2) / num
+        results_p1.append((float(cd), float(phi_p1)))
+        results_p2.append((float(cd), float(phi_p2)))
 
-        axes[0].plot(p1, "-", label=r"Cell CD: %.2e $\phi=%.3f$"
-                     % (cd, sum(p1) / num))
-        axes[1].plot(p2, "-", label=r"Cell CD: %.2e $\phi=%.3f$"
-                     % (cd, sum(p2) / num))
+        axes[0].plot(p1, "-", label=f"Cell CD: {cd:.2e} φ={phi_p1:.3f}")
+        axes[1].plot(p2, "-", label=f"Cell CD: {cd:.2e} φ={phi_p2:.3f}")
 
     axes[0].legend(loc='best', fancybox=True, framealpha=0.5, fontsize=10)
     axes[1].legend(loc='best', fancybox=True, framealpha=0.5, fontsize=10)
     axes[0].grid()
     axes[1].grid()
-    return fig, axes
+    return fig, axes, results_p1, results_p2
 
 
 # SCRIPT MAIN FUNCTION
@@ -124,13 +130,13 @@ def main():
     pcs2 = pyplis.LineOnImage(40, 40, 40, 600, line_id="edge")
 
     # Plot DOAS calibration polynomial
-    ax0 = doascalib.plot(add_label_str="DOAS")
-    ax0 = cellcalib.calib_data["aa"].plot(ax=ax0, c="r")
+    ax0 = doascalib.plot(add_label_str="DOAS calib")
+    ax0 = cellcalib.calib_data["aa"].plot(ax=ax0, c="r", add_label_str="Cell calib")
     ax0.set_title("")
     ax0.set_xlim([0, 0.5])
 
     # Get current AA image from image list
-    aa_init = aa_list.current_img()
+    aa_init_img = aa_list.current_img()
 
     # now determine sensitivity correction masks from the different cells
     masks = {}
@@ -142,7 +148,7 @@ def main():
                                                    radius_abs=fov_extend,
                                                    cell_cd_closest=cd)
         masks[cd] = mask
-        aa_imgs_corr[cd] = pyplis.Img(aa_init.img / mask.img)
+        aa_imgs_corr[cd] = pyplis.Img(aa_init_img.img / mask.img)
 
     # get mask corresponding to minimum cell CD
     mask = list(masks.values())[np.argmin(list(masks.keys()))]
@@ -166,7 +172,7 @@ def main():
     ax.legend(loc='best', fancybox=True, framealpha=0.5, fontsize=10)
     ax = draw_doas_fov(fov_x, fov_y, fov_extend, ax=ax)
 
-    fig, _ = plot_pcs_comparison(aa_init, aa_imgs_corr, pcs1, pcs2)
+    fig, _, results_p1, results_p2 = plot_pcs_comparison(aa_init_img, aa_imgs_corr, pcs1, pcs2)
 
     # IMPORTANT STUFF FINISHED
 
@@ -195,14 +201,57 @@ def main():
     # option --test 1
     if int(options.test):
         import numpy.testing as npt
+        assert len(doascalib.tau_vec) == 88
+        assert len(doascalib.cd_vec) == 88
 
-        npt.assert_array_equal([],
-                               [])
+        npt.assert_allclose(
+            actual=[
+                doascalib.tau_vec.mean(),
+                doascalib.cd_vec.mean()
+            ],
+            desired=[
+                0.10984407750550997,
+                1.2129406193969774e+18
+            ],
+            rtol=1e-7
+        )
 
-        npt.assert_allclose(actual=[],
-                            desired=[],
-                            rtol=1e-7)
-        print(f"WARNING: NO TESTS in script: {Path(__file__).name}")
+        npt.assert_allclose(
+            actual=[
+                cellcalib.calib_data["aa"].cd_vec,
+                cellcalib.calib_data["aa"].tau_vec,
+                cellcalib.calib_data["on"].tau_vec,
+                cellcalib.calib_data["off"].tau_vec
+            ],
+            desired=[
+                [4.150e+17, 8.590e+17, 1.924e+18],
+                [0.11438841, 0.20960312, 0.45484966],
+                [0.25561193, 0.34218314, 0.58974224],
+                [0.14122352, 0.13258003, 0.13489263]
+            ],
+            rtol=1e-7
+        )
+
+        npt.assert_allclose(
+            actual=results_p1,
+            desired=[
+                (np.nan, 0.06704542158954685), 
+                (4.15e+17, 0.06718042466335893), 
+                (8.59e+17, 0.0672710026562296), 
+                (1.924e+18, 0.06713881262426598)],
+            rtol=1e-7
+        )
+
+        npt.assert_allclose(
+            actual=results_p2,
+            desired=[
+                (np.nan, 0.09656624766757335), 
+                (4.15e+17, 0.08434758808651711), 
+                (8.59e+17, 0.08673337715111279), 
+                (1.924e+18, 0.08756188495164571)],
+            rtol=1e-7
+        )
+        print(f"All tests passed in script: {Path(__file__).name}")
     try:
         if int(options.show) == 1:
             show()
