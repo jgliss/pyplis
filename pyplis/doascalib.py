@@ -1104,6 +1104,5 @@ class DoasFOVEngine(object):
         normsum = fov_mask.sum()
         fov_mask_norm = fov_mask / normsum
         # convolve with image stack
-        # stack_data_conv = transpose(self.stac, (2,0,1)) * fov_fitted_norm
         stack_data_conv = self.img_stack.stack * fov_mask_norm
         return stack_data_conv.sum((1, 2))
