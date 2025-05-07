@@ -15,8 +15,8 @@ def _init_logger():
     logger = logging.getLogger('pyplis')
 
     fmt = "%(filename)s(l%(lineno)s,%(funcName)s()): %(message)s"
-    # fmt = "%(funcName)s():%(lineno)i: %(message)s"
-    default_formatter = logging.Formatter(fmt)
+    fmt = '%(asctime)s - %(module)s:L%(lineno)d - %(message)s'
+    default_formatter = logging.Formatter(fmt, datefmt='%Y-%m-%d %H:%M:%S')
 
     console_handler = logging.StreamHandler()
     console_handler.setFormatter(default_formatter)

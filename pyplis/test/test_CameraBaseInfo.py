@@ -1,32 +1,10 @@
 # -*- coding: utf-8 -*-
-u"""Pyplis test module for camera_base_info.py base module of Pyplis.
+"""Pyplis test module for camera_base_info.py base module of Pyplis.
 """
-from __future__ import (absolute_import, division)
 from pyplis.camera_base_info import CameraBaseInfo
 from datetime import datetime
-from pytest import fixture
-from distutils import dir_util
-import os
 
-
-@fixture
-def datadir(tmpdir, request):
-    """Search for test data files.
-
-    Search for a folder with the same name of test module and, if available,
-    move all contents to a temporary directory so tests can use them freely.
-    Adapted from https://stackoverflow.com/a/29631801
-    """
-    filename = request.module.__file__
-    test_dir, _ = os.path.splitext(filename)
-
-    if os.path.isdir(test_dir):
-        dir_util.copy_tree(test_dir, str(tmpdir))
-
-    return tmpdir
-
-
-def test_get_img_meta_from_filename(datadir):
+def test_get_img_meta_from_filename():
     cam = CameraBaseInfo()
     flags = cam._fname_access_flags
     assert flags["filter_id"] is False
@@ -36,10 +14,10 @@ def test_get_img_meta_from_filename(datadir):
 
     cam.filename_regexp = r'^.*_(?P<date>.*)_(?P<meas_type>(?P<filter_id>.*))_.*'  # noqa: E501
     cam.time_info_str = "%Y%m%d%H%M%S%f"
-    filename = datadir.join('EC2_1106307_1R02_2015091607003032_F01_Etna.fts')
+    filepath = '/tmp/EC2_1106307_1R02_2015091607003032_F01_Etna.fts'
 
     (acq_time, filter_id, meas_type,
-        texp, warnings) = cam.get_img_meta_from_filename(str(filename))
+        texp, warnings) = cam.get_img_meta_from_filename(file_path=filepath)
 
     assert flags["filter_id"] is True
     assert flags["texp"] is False
@@ -48,7 +26,7 @@ def test_get_img_meta_from_filename(datadir):
     assert acq_time == datetime(2015, 9, 16, 7, 0, 30, 320000)
     assert filter_id == meas_type == 'F01'
     assert texp is None
-    assert len(warnings) == 1
+    assert len(warnings) == 0
 
 
 def test_parse_filename_parsers():
@@ -68,14 +46,20 @@ def test_parse_filename_parsers():
         "texp_unit": "ms"
     }
 
+    extracted_metadata = {
+            "start_acq": None, #datetime object
+            "filter_id": None, #str
+            "meas_type": None, #str
+            "texp": None, #float
+            "date": None #str
+        }
     cam = CameraBaseInfo()
-    cam.parse_filename(filename, config)
 
-    values = cam.parse_filename(filename, config)
-    assert values["date"] == '2015091607003032'
-    assert values["filter_id"] == 'F01'
-    assert values["meas_type"] == 'F01'
-    assert values["texp"] is None
+    extracted_metadata = cam.parse_meta_from_filename(filename, extracted_metadata, config)
+    assert extracted_metadata["date"] == '2015091607003032'
+    assert extracted_metadata["filter_id"] == 'F01'
+    assert extracted_metadata["meas_type"] == 'F01'
+    assert extracted_metadata["texp"] is None
 
     # compare regexp parser
 
@@ -83,6 +67,6 @@ def test_parse_filename_parsers():
         "filename_regexp":
             r'^.*_(?P<date>.*)_(?P<meas_type>(?P<filter_id>.*))_.*'
     }
-    values_r = cam.parse_filename_regexp(filename, config)
+    values_r = cam.parse_meta_from_filename_regexp(filename, extracted_metadata, config)
 
-    assert values == values_r
+    assert extracted_metadata == values_r

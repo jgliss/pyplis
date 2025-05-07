@@ -10,8 +10,8 @@ dependencies:
   - matplotlib
   - basemap
   - opencv
-  - geonum>=1.5
-  - pydoas
+  - geonum>=1.6
+  - pydoas>=2.0.3
   - progressbar
   - six
   - pyproj

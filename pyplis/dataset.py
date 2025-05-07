@@ -48,7 +48,7 @@ from .exceptions import ImgMetaError
 import six
 
 
-class Dataset(object):
+class Dataset:
     """Class for data import management.
 
     Default input is a :class:`pyplis.setupclasses.MeasSetup` object, which
@@ -95,8 +95,8 @@ class Dataset(object):
         self.setup = None
 
         self.lst_type = lst_type
-        self._lists_intern = od()
-        self.lists_access_info = od()
+        self._lists_intern = {}
+        self.lists_access_info = {}
 
         ok = self.load_input(input)
 
@@ -545,7 +545,7 @@ class Dataset(object):
         Returns
         -------
         dict
-            Dictionary containing information about which meta inforamtion
+            Dictionary containing information about which meta information
             could be identified from the image file path based on the
             current camera
 
@@ -997,7 +997,6 @@ class Dataset(object):
 
         self.setup.start = start
         self.setup.stop = stop
-        self.setup.check_timestamps()
 
     def duplicate(self):
         """Duplicate Dataset object."""
@@ -1022,10 +1021,6 @@ class Dataset(object):
     #             raise
     # ==============================================================================
 
-    """
-    Plotting etc.
-    """
-
     def show_current_img(self, filter_id, add_forms=False):
         """Plot current image.
 
@@ -1035,8 +1030,7 @@ class Dataset(object):
         if add_forms:
             handles = []
             for k, v in six.iteritems(self.lines._forms):
-                l = Line2D([v[0], v[2]], [v[1], v[3]], color="#00ff00",
-                           label=k)
+                l = Line2D([v[0], v[2]], [v[1], v[3]], color="#00ff00", label=k)
                 handles.append(l)
                 ax.add_artist(l)
             for k, v in six.iteritems(self.rects._forms):

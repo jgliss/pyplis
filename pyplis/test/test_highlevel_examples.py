@@ -151,7 +151,7 @@ def aa_image_list(plume_dataset, bg_img_on, bg_img_off, viewing_direction):
     # automatically set gas free areas
     # NOTE: this corresponds to pyramid level 3 as the test data is
     # stored in low res
-    lst.bg_model.set_missing_ref_areas(lst.this)
+    lst.bg_model.set_missing_ref_areas(lst.current_img())
 
     # Now update some of the information from the automatically set sky ref
     # areas
@@ -328,12 +328,12 @@ def test_auto_cellcalib(calib_dataset):
     keys = ["on", "off"]
     nominal = [6., 845.50291, 354.502678, 3., 3.]
     mean = 0
-    bg_mean = calib_dataset.bg_lists["on"].this.mean() +\
-        calib_dataset.bg_lists["off"].this.mean()
+    bg_mean = calib_dataset.bg_lists["on"].current_img().mean() +\
+        calib_dataset.bg_lists["off"].current_img().mean()
     num = 0
     for key in keys:
         for lst in calib_dataset.cell_lists[key].values():
-            mean += lst.this.mean()
+            mean += lst.current_img().mean()
             num += 1
     vals = [num, mean, bg_mean, len(calib_dataset.cell_lists["on"]),
             len(calib_dataset.cell_lists["off"])]
@@ -349,7 +349,7 @@ def test_bg_model(plume_dataset):
     l = plume_dataset.get_list("on")
     m = l.bg_model
 
-    m.set_missing_ref_areas(l.this)
+    m.set_missing_ref_areas(l.current_img())
     # m.set_missing_ref_areas(plume_img())
 
 
