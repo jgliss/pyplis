@@ -51,7 +51,7 @@ def dilution_corr_fit(rads, dists, rad_ambient, i0_guess=None,
                       i0_min=0.0, i0_max=None, ext_guess=1e-4, ext_min=0.0,
                       ext_max=1e-3):
     """Perform least square fit on data.
-
+    
     :param ndarray rads: vector containing measured radiances
     :param ndarray dists: vector containing corresponding dictances
     :param float rad_ambient: ambient intensity

@@ -1496,7 +1496,6 @@ class CellCalibEngine(Dataset):
             pl = ax.plot(tau, gas_cd, " ^",
                          label="Data %s (pix" % calib_id)
             # try adding error bars
-
             ax.errorbar(tau, gas_cd, gas_cd_errs, linestyle="none",
                         color="#6E6E6E")
 

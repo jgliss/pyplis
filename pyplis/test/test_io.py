@@ -1,10 +1,4 @@
 # -*- coding: utf-8 -*-
-"""Test environment for setupclasses.py module.
-
-Author: Jonas Gliss
-Email: jonasgliss@gmail.com
-License: GPLv3+
-"""
 from pyplis import setupclasses as scl
 from pyplis.inout import get_source_info_online
 from collections import OrderedDict as od

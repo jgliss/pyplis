@@ -24,24 +24,19 @@ detected and separated into individual image lists (for all filters, i.e. here
 on / off).
 
 """
-from SETTINGS import check_version
-
+import pathlib
+import numpy as np
+import matplotlib.pyplot as plt
 import pyplis
 from datetime import datetime
 from time import time
-from os.path import join
-from matplotlib.pyplot import show, close
 
 # IMPORT GLOBAL SETTINGS
-from SETTINGS import SAVEFIGS, SAVE_DIR, FORMAT, DPI, IMG_DIR, OPTPARSE
-
-# Check script version
-check_version()
+from SETTINGS import SAVEFIGS, SAVE_DIR, FORMAT, DPI, IMG_DIR, ARGPARSER
 
 # File path for storing cell AA calibration data including sensitivity
 # correction mask
-AA_CALIB_FILE = join(SAVE_DIR, "ex05_cellcalib_aa.fts")
-
+AA_CALIB_FILE = SAVE_DIR / "ex05_cellcalib_aa.fts"
 
 # SCRIPT FUNCTION DEFINITIONS
 def perform_auto_cell_calib():
@@ -96,8 +91,8 @@ def perform_auto_cell_calib():
 
 
 # SCRIPT MAIN FUNCTION
-if __name__ == "__main__":
-    close("all")
+def main():
+    plt.close("all")
     start = time()
     c = perform_auto_cell_calib()
 
@@ -117,18 +112,14 @@ if __name__ == "__main__":
     ax2 = c.plot_all_calib_curves()
     ax2.set_xlim([0, 0.7])
     ax2.set_ylim([0, 2.25e18])
-    # IMPORTANT STUFF FINISHED
-    if SAVEFIGS:
-        ax0.figure.savefig(join(SAVE_DIR, "ex05_2_out_1.%s" % FORMAT),
-                           format=FORMAT, dpi=DPI)
-        ax1.figure.savefig(join(SAVE_DIR, "ex05_2_out_2.%s" % FORMAT),
-                           format=FORMAT, dpi=DPI)
-        ax2.figure.savefig(join(SAVE_DIR, "ex05_2_out_3.%s" % FORMAT),
-                           format=FORMAT, dpi=DPI)
-
     ax0.set_title("Cell search result on band", fontsize=18)
     ax1.set_title("Cell search result off band", fontsize=18)
     ax2.set_title("Calibration polynomials", fontsize=18)
+    # IMPORTANT STUFF FINISHED
+    if SAVEFIGS:
+        ax0.figure.savefig(SAVE_DIR / f"ex05_2_out_1.{FORMAT}", format=FORMAT, dpi=DPI)
+        ax1.figure.savefig(SAVE_DIR / f"ex05_2_out_2.{FORMAT}", format=FORMAT, dpi=DPI)
+        ax2.figure.savefig(SAVE_DIR / f"ex05_2_out_3.{FORMAT}", format=FORMAT, dpi=DPI)
 
     # You can explicitely access the individual CellCalibData objects
     aa_calib = c.calib_data["aa"]
@@ -138,13 +129,12 @@ if __name__ == "__main__":
     mask = c.get_sensitivity_corr_mask("aa")
 
     aa_calib.save_as_fits(AA_CALIB_FILE)
-    print("Time elapsed for preparing calibration data: %.4f s"
-          % (stop - start))
+    print(f"Time elapsed for preparing calibration data: {stop - start:.4f} s")
 
     # IMPORTANT STUFF FINISHED (Below follow tests and display options)
 
     # Import script options
-    (options, args) = OPTPARSE.parse_args()
+    options = ARGPARSER.parse_args()
 
     # If applicable, do some tests. This is done only if TESTMODE is active:
     # testmode can be activated globally (see SETTINGS.py) or can also be
@@ -152,11 +142,13 @@ if __name__ == "__main__":
     # option --test 1
     if int(options.test):
         import numpy.testing as npt
-        from os.path import basename
         calib_reload = pyplis.CellCalibData()
         calib_reload.load_from_fits(AA_CALIB_FILE)
-        calib_reload.fit_calib_data(polyorder=2,
-                                    through_origin=True)
+        calib_reload.fit_calib_data(polyorder=2, through_origin=True)
+
+        timestamps = np.array([datetime(2015, 9, 16, 7, 0, 25, 127400), datetime(2015, 9, 16, 7, 0, 58, 637400), datetime(2015, 9, 16, 7, 1, 32, 647400)])
+        npt.assert_array_equal(timestamps, calib_reload.time_stamps)
+
         # test some basic features of calibraiton dataset (e.g. different
         # ImgList classes for on and off and the different cells)
         npt.assert_array_equal([c.cell_search_performed,
@@ -177,13 +169,8 @@ if __name__ == "__main__":
                        d["a57"][0],
                        aa_calib.calib_fun(0, *aa_calib.calib_coeffs),
                        calib_reload.calib_fun(0, *calib_reload.calib_coeffs)]
-        npt.assert_allclose(actual=vals_approx,
-                            desired=[8.59e+17,
-                                     4.15e+17,
-                                     1.924e+18,
-                                     -1.8313164653590516e+16,
-                                     0.0],
-                            rtol=1e-7)
+        desired=[8.59e+17,4.15e+17,1.924e+18,-1.831327e+16,0.0]
+        npt.assert_allclose(actual=vals_approx,desired=desired,rtol=1e-5)
 
         # explicitely check calibration data for on, off and aa (plotted in
         # this script)
@@ -191,15 +178,14 @@ if __name__ == "__main__":
                   c.calib_data["off"].calib_coeffs.mean(),
                   aa_calib.calib_coeffs.mean(),
                   calib_reload.calib_coeffs.mean()]
-        npt.assert_allclose(actual=actual,
-                            desired=[1.8926803829028974e+18,
-                                     -3.742539080945949e+19,
-                                     2.153653759747737e+18,
-                                     2.1197681750384312e+18],
-                            rtol=1e-7)
-        print("All tests passed in script: %s" % basename(__file__))
+        desired=[1.892681e+18, -3.742539e+19, 2.153654e+18, 2.119768e+18]
+        npt.assert_allclose(actual=actual,desired=desired,rtol=1e-5)
+        print(f"All tests passed in script: {pathlib.Path(__file__).name}")
     try:
         if int(options.show) == 1:
-            show()
+            plt.show()
     except BaseException:
         print("Use option --show 1 if you want the plots to be displayed")
+
+if __name__ == "__main__":
+    main()

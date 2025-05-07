@@ -16,6 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 """Pyplis module containing features related to plume velocity analysis."""
+from typing import Optional
 from numpy import mgrid, vstack, int32, sqrt, arctan2, rad2deg, asarray, sin,\
     cos, logical_and, histogram, ceil, roll, argmax, arange, ndarray,\
     deg2rad, nan, dot, mean, isnan, float32, sum, empty, uint8, ones,\
@@ -33,7 +34,6 @@ from scipy.ndimage import median_filter, gaussian_filter
 from scipy.stats import pearsonr
 from os.path import isdir, join, isfile
 from os import getcwd
-from six.moves import xrange
 import six
 
 import pandas as pd
@@ -43,18 +43,18 @@ from cv2 import calcOpticalFlowFarneback, OPTFLOW_FARNEBACK_GAUSSIAN,\
     cvtColor, COLOR_GRAY2BGR, line, circle, VideoCapture, COLOR_BGR2GRAY,\
     waitKey, imshow, dilate, erode, pyrDown, pyrUp
 
-from .helpers import bytescale, check_roi, map_roi, roi2rect, set_ax_lim_roi,\
+from pyplis.base_img_list import BaseImgList
+
+from pyplis.helpers import bytescale, check_roi, map_roi, roi2rect, set_ax_lim_roi,\
     nth_moment, rotate_xtick_labels
 
 from pyplis import logger
-from .optimisation import MultiGaussFit
-from .processing import ImgStack
-from .utils import LineOnImage
-from .image import Img, ProfileTimeSeriesImg
-from .geometry import MeasGeometry
-from .glob import DEFAULT_ROI
-# LABEL_SIZE=rcParams["font.size"]+ 2
-
+from pyplis.optimisation import MultiGaussFit
+from pyplis.processing import ImgStack
+from pyplis.utils import LineOnImage
+from pyplis.image import Img, ProfileTimeSeriesImg
+from pyplis.geometry import MeasGeometry
+from pyplis.glob import DEFAULT_ROI
 
 def get_veff(normal_vec, dir_mu, dir_sigma, len_mu, len_sigma,
              pix_dist_m=1.0, del_t=1.0, sigma_tol=2):
@@ -116,7 +116,6 @@ def get_veff(normal_vec, dir_mu, dir_sigma, len_mu, len_sigma,
             veffs.append(len_mu_eff * pix_dist_m / del_t)
     diff = abs(veff - asarray(veffs))
     verr = diff.std()
-    # print "Retrieved eff. velocity v = %.2f +/- %.2f" %(veff, verr)
     return (veff, verr)
 
 
@@ -174,17 +173,16 @@ def find_signal_correlation(first_data_vec, next_data_vec,
     """
     if not all([isinstance(x, ndarray)
                 for x in [first_data_vec, next_data_vec]]):
-        raise IOError("Need numpy arrays as input")
+        raise ValueError("Need numpy arrays as input")
     if not len(first_data_vec) == len(next_data_vec):
-        raise IOError("Mismatch in lengths of input data vectors")
+        raise ValueError("Mismatch in lengths of input data vectors")
     lag_fac = 1  # factor to convert retrieved lag from indices to seconds
     if (time_stamps is not None and
             len(time_stamps) == len(first_data_vec) and
             all([isinstance(x, datetime) for x in time_stamps])):
         logger.info("Input is time series data")
         if itp_method not in ["linear", "quadratic", "cubic"]:
-            logger.warning("Invalid interpolation method %s: setting default (linear)"
-                 % itp_method)
+            logger.warning(f"Invalid interpolation method {itp_method}: setting default (linear)")
             itp_method = "linear"
 
         if reg_grid_tres is None:
@@ -198,7 +196,7 @@ def find_signal_correlation(first_data_vec, next_data_vec,
             else:
                 freq_unit = "S"
         logger.info(reg_grid_tres, freq_unit)
-        delt_str = "%d%s" % (reg_grid_tres, freq_unit)
+        delt_str = f"{reg_grid_tres}{freq_unit}"
         logger.info("Delta t string for resampling: %s" % delt_str)
 
         s1 = Series(first_data_vec, time_stamps)
@@ -460,21 +458,28 @@ class VeloCrossCorrEngine(object):
 
     """
 
-    def __init__(self, imglist=None, pcs=None, pcs_offset=None,
-                 meas_geometry=None, **settings):
-
-        self._imglist = None
+    def __init__(
+            self, 
+            pcs: LineOnImage, 
+            pcs_offset: Optional[LineOnImage] = None,
+            meas_geometry: Optional[MeasGeometry] = None,
+            imglist: Optional[BaseImgList] = None,
+            **settings):
+        if imglist:
+            self.check_list(imglist)
+        if meas_geometry is None:
+            meas_geometry = imglist.meas_geometry
+        if not isinstance(meas_geometry, MeasGeometry):
+            raise ValueError("Please either provide meas_geometry directly, or imglist with available meas_geometry")
+        
         self._lines = {"pcs": None,
                        "pcs_offset": None}
 
         self.profile_images = {"pcs": None,
                                "pcs_offset": None}
 
-        try:
-            self.imglist = imglist
-        except BaseException:
-            pass
-        self._meas_geometry = None
+        self.imglist = imglist
+        self.meas_geometry = meas_geometry
 
         self.results = {"velo": nan,
                         "lag": nan,
@@ -492,19 +497,11 @@ class VeloCrossCorrEngine(object):
 
         self.update_settings(settings)
         self.pcs = pcs
-
-        try:
+        if pcs_offset is not None:
             self.pcs_offset = pcs_offset
-        except BaseException:
-            pass
-
-        try:
-            self.meas_geometry = meas_geometry
-        except BaseException:
-            pass
 
     def update_settings(self, settings_dict):
-        """Update valid settings for cross correlation retrieval.
+        """Update settings for cross correlation retrieval.
 
         Parameters
         ----------
@@ -512,42 +509,39 @@ class VeloCrossCorrEngine(object):
             dictionary containing new settings
 
         """
-        for k, v in six.iteritems(settings_dict):
+        for k, v in settings_dict.items():
             if k in self.settings:
-                logger.info("Updating cross-correlation search setting %s=%s"
-                      % (k, v))
+                logger.info(f"Updating cross-correlation search setting {k}={v}")
                 self.settings[k] = v
 
     @property
     def velocity(self):
         """Retrieve plume velocity.
 
-        Raises
-        ------
-        ValueError
-            if velocity is nan (default).
-
+        Raises:
+            ValueError: if velocity is nan (default).
+        
+        Returns:
+            float: plume velocity in m/s.
         """
         v = self.results["velo"]
         if isnan(v):
-            raise ValueError("Velocity is NaN, correlation analysis"
-                             " performed?")
+            raise ValueError("Velocity is NaN, correlation analysis performed?")
         return v
 
     @property
     def correlation_lag(self):
         """Time lag showing highest correlation between two ICA time-series.
 
-        Raises
-        ------
-        ValueError
-            if velocity is nan (default).
+        Raises:
+            ValueError: if velocity is nan (default).
 
+        Returns:
+            float: time lag in seconds (or indices, see input specs).
         """
         lag = self.results["lag"]
         if isnan(lag):
-            raise ValueError("Correlation lag is not available, analysis"
-                             " performed?")
+            raise ValueError("Correlation lag is not available, analysis performed?")
         return lag
 
     @property
@@ -558,7 +552,7 @@ class VeloCrossCorrEngine(object):
     @pcs.setter
     def pcs(self, val):
         if not isinstance(val, LineOnImage):
-            raise IOError("Invalid input, need LineOnImage object")
+            raise ValueError("Invalid input, need LineOnImage object")
         self._lines["pcs"] = val
 
     @property
@@ -569,37 +563,8 @@ class VeloCrossCorrEngine(object):
     @pcs_offset.setter
     def pcs_offset(self, val):
         if not isinstance(val, LineOnImage):
-            raise IOError("Invalid input, need LineOnImage object")
+            raise ValueError("Invalid input, need LineOnImage object")
         self._lines["pcs_offset"] = val
-
-    @property
-    def imglist(self):
-        """Return the image list supposed to be used for the analysis."""
-        return self._imglist
-
-    @imglist.setter
-    def imglist(self, val):
-        self.check_list(val)
-        self._imglist = val
-
-    @property
-    def meas_geometry(self):
-        """Return measurement geometry from image list."""
-        if isinstance(self._meas_geometry, MeasGeometry):
-            return self._meas_geometry
-        else:
-            try:
-                return self.imglist.meas_geometry
-            except BaseException:
-                raise AttributeError("Could not access measurement geometry "
-                                     "from image list. Check if an image list "
-                                     "is set using self.imglist")
-
-    @meas_geometry.setter
-    def meas_geometry(self, val):
-        if not isinstance(val, MeasGeometry):
-            raise IOError("Invalid input: need MeasGeometry object")
-        self._meas_geometry = val
 
     @property
     def pcs_profile_pics(self):
@@ -739,16 +704,14 @@ class VeloCrossCorrEngine(object):
             both PCS lines
 
         """
-        from pyplis.imagelists import BaseImgList
-
+        if self.imglist is None:
+            raise AttributeError("Image list is not set")
         lst = self.imglist
         cfn_temp = lst.cfn
         pcs1 = self.pcs.convert(to_pyrlevel=lst.pyrlevel,
                                 to_roi_abs=lst.roi_abs)
         pcs2 = self.pcs_offset.convert(to_pyrlevel=lst.pyrlevel,
                                        to_roi_abs=lst.roi_abs)
-        if not isinstance(lst, BaseImgList):
-            raise AttributeError("Image list is not set")
 
         dist_img = self.get_pix_dist_img(lst.pyrlevel)
 
@@ -776,17 +739,15 @@ class VeloCrossCorrEngine(object):
         # for each of the 2 lines, extract pixel to pixel distances from the
         # provided dist_img (comes from measurement geometry) which is required
         # in order to perform integration along the profiles
-        dists_pcs1 = pcs1.get_line_profile(
-            dist_img.img)  # pix to pix dists line 1
-        dists_pcs2 = pcs2.get_line_profile(
-            dist_img.img)  # pix to pix dists line 2
+        dists_pcs1 = pcs1.get_line_profile(dist_img.img)  # pix to pix dists line 1
+        dists_pcs2 = pcs2.get_line_profile(dist_img.img)  # pix to pix dists line 2
 
         # loop over all images in list, extract profiles and write in the
         # corresponding column of the profile picture
         times = []
         for k in range(num):
             if k % 25 == 0:
-                logger.info("Loading PCS profiles from list: %d (%d)" % (k, num))
+                logger.info(f"Loading PCS profiles from list: {k} ({num})")
             img = lst.current_img().img
             profiles1[:, k] = pcs1.get_line_profile(img)
             profiles2[:, k] = pcs2.get_line_profile(img)
@@ -906,16 +867,13 @@ class VeloCrossCorrEngine(object):
             True, if list is okay, False if not
 
         """
-        from pyplis.imagelists import BaseImgList
-        if not isinstance(lst, BaseImgList):
-            raise TypeError("Invalid input, need BaseImgList class "
-                            "or inherited")
         if not lst.nof:
             raise AttributeError("List contains no images")
 
         elif lst.nof < 20:
-            logger.warning("List contains less than 20 images, cross-correlation "
-                 "analysis is likely to fail")
+            logger.warning(
+                "List contains less than 20 images, cross-correlation "
+                "analysis is likely to fail")
         try:
             lst.meas_geometry.compute_all_integration_step_lengths()
         except BaseException:
@@ -929,10 +887,9 @@ class VeloCrossCorrEngine(object):
         The image is loaded from the current :class:`MeasGeometry` object
         assigned to the image list.
         """
-        return (self.meas_geometry.
-                compute_all_integration_step_lengths(pyrlevel)[0])
+        return (self.meas_geometry.compute_all_integration_step_lengths(pyrlevel)[0])
 
-    def load_pcs_profile_img(self, file_path, line_id="pcs"):
+    def load_pcs_profile_img(self, file_path: str, line_id: str):
         """Try to load ICA profile time series image from FITS file.
 
         Parameters
@@ -943,9 +900,8 @@ class VeloCrossCorrEngine(object):
             specify to which line the image belongs
 
         """
-        if line_id not in ["pcs", "pcs_offset"]:
-            raise IOError("Invalid line ID %s: choose from pcs or offset"
-                          % line_id)
+        if line_id not in ("pcs", "pcs_offset"):
+            raise ValueError(f"Invalid line ID {line_id}: choose from pcs or offset")
         img = ProfileTimeSeriesImg()
         img.load_fits(file_path)
         l = LineOnImage()
@@ -954,9 +910,12 @@ class VeloCrossCorrEngine(object):
         self.profile_images[line_id] = img
         self._lines[line_id] = l
 
-    def save_pcs_profile_images(self, save_dir=None,
-                                fname1="profile_tseries_pcs.fts",
-                                fname2="profile_tseries_offset.fts"):
+    def save_pcs_profile_images(
+            self, 
+            save_dir: str,
+            fname1: Optional[str] = None,
+            fname2: Optional[str] = None,
+            ):
         """Save current ICA profile time series images as FITS file.
 
         Note
@@ -974,9 +933,10 @@ class VeloCrossCorrEngine(object):
             name of second profile image
 
         """
-        if save_dir is None:
-            save_dir = "."
-
+        if fname1 is None:
+            fname1 = "profile_tseries_pcs.fts"
+        if fname2 is None:
+            fname2 = "profile_tseries_offset.fts"
         img1, img2 = self.pcs_profile_pics
 
         img1.save_as_fits(save_dir, fname1)
@@ -1003,7 +963,7 @@ class VeloCrossCorrEngine(object):
 
         """
         if not isinstance(img, Img):
-            img = self.imglist.this
+            img = self.imglist.current_img()
 
         ax = img.show(**kwargs)
         ax.set_title("")
@@ -1022,21 +982,20 @@ class VeloCrossCorrEngine(object):
 
         """
         if ax is None:
-            fig, ax = subplots(1, 1)
+            _, ax = subplots(1, 1)
 
         res = self.results
         lag = self.correlation_lag
         s_pcs = res["ica_tseries_pcs"]
-        # index = s_pcs.index.to_pydatetime()
         s_offs = res["ica_tseries_offset"]
         s_shift = res["ica_tseries_shift"]
 
         # plot original ICA time series along pcs 1
         ax = s_pcs.plot(ax=ax, style="--", color=self.pcs.color,
-                        label="%s (original)" % self.pcs.line_id)
+                label=f"{self.pcs.line_id} (original)")
         # plot shifted time series along pcs 1 and apply light fill
         s_shift.plot(ax=ax, style="-", color=self.pcs.color,
-                     label="%s (lag: %.1f s)" % (self.pcs.line_id, lag))
+                 label=f"{self.pcs.line_id} (lag: {lag:.1f} s)")
         ax.fill_between(s_shift.index, s_shift.values,
                         color=self.pcs.color, alpha=0.05)
 
@@ -1046,11 +1005,10 @@ class VeloCrossCorrEngine(object):
         if isinstance(ylabel, str):
             ax.set_ylabel(ylabel)
         else:
-            logger.warning("No y-label provided, setting y-axis invisible, since ICA"
-                 "may also correspond to integrated optical densities")
+            logger.warning(
+                "No y-label provided, setting y-axis invisible, since ICA"
+                "may also correspond to integrated optical densities")
             ax.yaxis.set_visible(0)
-        # ax.xaxis.set_major_formatter(DateFormatter("%H:%M"))
-        # ax[0,].set_title("Original time series", fontsize = 10)
         ax.grid()
         ax.legend(loc="best", fancybox=True, framealpha=0.5, fontsize=12)
         return ax
@@ -1068,7 +1026,7 @@ class VeloCrossCorrEngine(object):
 
         """
         if ax is None:
-            fig, ax = subplots(1, 1)
+            _, ax = subplots(1, 1)
         coeffs = self.results["coeffs"]
         if coeffs is None:
             raise ValueError("Correlation coefficients could not be "
@@ -1077,7 +1035,6 @@ class VeloCrossCorrEngine(object):
         lag = self.results["lag"]
         ax.set_xlabel(r"$\Delta$t [s]")
         ax.grid()
-        # ax[1].set_xlabel("Shift")
         ax.set_ylabel("Correlation coefficient")
         x = arange(0, len(coeffs), 1) * lag / argmax(coeffs)
 
@@ -1085,12 +1042,12 @@ class VeloCrossCorrEngine(object):
 
         if add_lag:
             ax.plot([lag, lag], [0, 1], "--", **kwargs)
-            ax.set_title("Max correlation @ %.2f s" % lag)
+            ax.set_title(f"Max correlation @ {lag:.2f} s")
         return ax
 
 
-class LocalPlumeProperties(object):
-    """Class to store results about local properties of plume displacement.
+class LocalPlumeProperties:
+    """Class to store local properties of plume displacement.
 
     This class represents statistical (local) plume (gas) displacement
     information (e.g. retrieved using an optical flow algorithm). These
@@ -1106,7 +1063,9 @@ class LocalPlumeProperties(object):
     a dense optical flow algorithm.
     """
 
-    def __init__(self, roi_id="", **kwargs):
+    def __init__(self, roi_id=None, **kwargs):
+        if roi_id is None:
+            roi_id = ""
         self.roi_id = roi_id
         self.color = "b"
         self._len_mu_norm = []
@@ -1119,7 +1078,7 @@ class LocalPlumeProperties(object):
         self._fit_success = []
         self._pyrlevel = []
 
-        for k, v in six.iteritems(kwargs):
+        for k, v in kwargs.items():
             self[k] = v
 
     @property
@@ -1408,7 +1367,7 @@ class LocalPlumeProperties(object):
 
         """
         res = optflow_farneback.local_flow_params(**kwargs)
-        for key, val in six.iteritems(res):
+        for key, val in res.items():
             if key in self.__dict__:
                 self.__dict__[key].append(val)
 
@@ -1445,32 +1404,16 @@ class LocalPlumeProperties(object):
             - :obj:`float`: uncertainty of effective velocity
 
         """
-        # print "GETTING VELOCITY AT %s" %self.start_acq[idx]
         if pix_dist_m_err is None:
             pix_dist_m_err = pix_dist_m * 0.05
         vec = self.displacement_vector(idx)
         if normal_vec is None:
             normal_vec = vec / norm(vec)
-# ==============================================================================
-#         print "DIR_MU=%.2f\nLEN_MU=%.2f\nDT=%.2fs" %(self.dir_mu[idx],
-#                                                      self.len_mu[idx],
-#                                                      self.del_t[idx])
-# ==============================================================================
         v, verr = get_veff(normal_vec, self.dir_mu[idx], self.dir_sigma[idx],
                            self.len_mu[idx], self.len_sigma[idx],
                            pix_dist_m=pix_dist_m,
                            del_t=self.del_t[idx],
                            sigma_tol=sigma_tol)
-# ==============================================================================
-#         len_mu_eff = dot(normal_vec, vec)
-#         dt = self.del_t[idx]
-# ==============================================================================
-        # print v, len_mu_eff * pix_dist_m / dt
-# ==============================================================================
-#         verr = sqrt((pix_dist_m * self.len_sigma[idx] / dt)**2 +\
-#                     (pix_dist_m_err * len_mu_eff / dt)**2)
-# ==============================================================================
-
         return (v, verr)
 
     def get_orientation_tseries(self):
@@ -1571,7 +1514,6 @@ class LocalPlumeProperties(object):
             ax.fill_between(s.index, lower, upper, alpha=0.1, **kwargs)
         ax.set_ylabel(r"$\varphi\,[^{\circ}$]")
         ax.grid()
-        # rotate_xtick_labels(ax=ax)
         return ax
 
     def plot_magnitudes(self, normalised=True, ax=None,
@@ -1723,7 +1665,6 @@ class LocalPlumeProperties(object):
 
         return ax
 
-    #: I/O stuff
     def to_dict(self):
         """Write all data attributes into dictionary.
 
@@ -1759,9 +1700,8 @@ class LocalPlumeProperties(object):
             this object
 
         """
-        for k, v in six.iteritems(d):
-            if k in self.__dict__:
-                self.__dict__[k] = v
+        for k, v in d.items():
+            self[k] = v
 
     def to_pandas_dataframe(self):
         """Convert object into pandas dataframe.
@@ -1822,18 +1762,16 @@ class LocalPlumeProperties(object):
         self.to_pandas_dataframe().to_csv(path)
 
     def load_txt(self, path):
-        df = pd.read_csv(path)
+        df = pd.read_csv(path, index_col=0, parse_dates=True)
         return self.from_pandas_dataframe(df)
 
     def __setitem__(self, key, val):
         if key in self.__dict__:
-            # print ("Updating attr. %s in LocalPlumeProperties, new val: %s"
-            #    %(key, val))
             self.__dict__[key] = val
 
 
 class FarnebackSettings(object):
-    r"""Settings for optical flow Farneback calculations and visualisation.
+    """Settings for optical flow Farneback calculations and visualisation.
 
     .. todo::
 
@@ -1945,19 +1883,6 @@ class FarnebackSettings(object):
         self._contrast["i_max"] = val
 
     @property
-    def roi_rad(self):
-        """Old name of :attr:`roi_rad_abs`."""
-        logger.warning("This method was renamed after release 0.11.2. Please use "
-             "roi_rad_abs in the future")
-        return self._contrast["roi_rad_abs"]
-
-    @roi_rad.setter
-    def roi_rad(self, val):
-        logger.warning("This method was renamed after release 0.11.2. Please use "
-             "roi_rad_abs in the future")
-        self.roi_rad_abs = val
-
-    @property
     def roi_rad_abs(self):
         """ROI used for measuring min / max intensities for contrast settings.
 
@@ -1969,8 +1894,7 @@ class FarnebackSettings(object):
     @roi_rad_abs.setter
     def roi_rad_abs(self, val):
         if not check_roi(val):
-            raise ValueError("Invalid ROI, need list [x0, y0, x1, y1], "
-                             "got %s" % val)
+            raise ValueError(f"Invalid ROI, need list [x0, y0, x1, y1], got {val}")
         self._contrast["roi_rad_abs"] = val
 
     @property
@@ -2707,7 +2631,7 @@ class OptflowFarneback(object):
             return count, bins
         elif len(bins) == len(count) + 1:
             bins = asarray([0.5 * (bins[i] + bins[i + 1]) for
-                            i in xrange(len(bins) - 1)])
+                            i in range(len(bins) - 1)])
             return count, bins
         else:
             raise ValueError("Invalid input for histogram data")
@@ -2752,10 +2676,10 @@ class OptflowFarneback(object):
             - :obj:`array`: all angles used to determine the histogram
 
         """
-        try:
+        if "lens" in kwargs and "angles" in kwargs:
             lens = kwargs["lens"]
             angles = kwargs["angles"]
-        except BaseException:
+        else:
             lens, angles = self.all_len_angle_vecs_roi(pix_mask)
         if bin_res_degrees is None:
             bin_res_degrees = self.settings.hist_dir_binres
@@ -2805,9 +2729,9 @@ class OptflowFarneback(object):
             - :obj:`array`: all lengths used to determine the histogram
 
         """
-        try:
+        if "lens" in kwargs:
             lens = kwargs["lens"]
-        except BaseException:
+        else:
             lens, _ = self.all_len_angle_vecs_roi(pix_mask)
         cond = lens > min_length
 
@@ -2850,16 +2774,19 @@ class OptflowFarneback(object):
         """
         ok = True
         c, x = self._prep_histo_data(count, bins)
-        fit = MultiGaussFit(c, x, noise_amp=noise_amp,
-                            max_num_gaussians=max_num_gaussians,
-                            do_fit=False)  # make sure the object is initiated
+        fit_engine = MultiGaussFit(
+            data=c, 
+            index=x, 
+            noise_amp=noise_amp,
+            max_num_gaussians=max_num_gaussians,
+            do_fit=False)
         ok = False
         try:
-            if fit.run_optimisation():
+            if fit_engine.run_optimisation():
                 ok = True
         except BaseException:
             pass
-        return fit, ok
+        return fit_engine, ok
 
     def fit_orientation_histo(self, count, bins, noise_amp=None,
                               max_num_gaussians=None, **kwargs):
@@ -2961,10 +2888,6 @@ class OptflowFarneback(object):
             max_num_gaussians=max_num_gaussians)
         return fit, ok
 
-    def get_main_flow_field_params(self, **kwargs):
-        """Old name of :func:`local_flow_params`."""
-        return self.local_flow_params(**kwargs)
-
     def local_flow_params(self, line=None, pix_mask=None, noise_amp=None,
                           min_count_frac=None, min_length=None,
                           dir_multi_gauss=True):
@@ -3010,19 +2933,21 @@ class OptflowFarneback(object):
             dictionary containing results of the analysis
 
         """
-        del_t = self.del_t
-        res = od([("_len_mu_norm", nan),  # normalised displ. len [s-1]
-                  ("_len_sigma_norm", nan),  # error norm. displ. len [s-1]
-                  ("_dir_mu", nan),  # predominant displ. dir. [deg]
-                  ("_dir_sigma", 180.0),  # error pred. displ. dir. [deg]
-                  ("_del_t", del_t),  # time diff 'this' -> 'next'
-                  ("_start_acq", self.current_time),  # time stamp 'this'
-                  ("_significance", 0.0),  # fraction of usable pixels in ROI
-                  ("_add_gauss_dir", []),
-                  ("pix_mask", None),
-                  ("fit_dir", None),
-                  ("_fit_success", 0),
-                  ("_pyrlevel", self.pyrlevel)])
+        del_t = self.del_t # [s]
+        res = {
+            "_len_mu_norm": nan,  # normalised displ. len [s-1]
+            "_len_sigma_norm": nan,  # error norm. displ. len [s-1]
+            "_dir_mu": nan,  # predominant displ. dir. [deg]
+            "_dir_sigma": 180.0,  # error pred. displ. dir. [deg]
+            "_del_t": del_t,  # time diff 'this' -> 'next'
+            "_start_acq": self.current_time,  # time stamp 'this'
+            "_significance": 0.0,  # fraction of usable pixels in ROI
+            "_add_gauss_dir": [],
+            "pix_mask": None,
+            "fit_dir": None,
+            "_fit_success": 0,
+            "_pyrlevel": self.pyrlevel
+        }
 
         # EVALUATE INPUT AND INIT PARAMETERS
 
@@ -3034,19 +2959,20 @@ class OptflowFarneback(object):
         # total number of vectors in ROI)
         if min_count_frac is None:
             min_count_frac = self.settings.min_count_frac
-        try:
+        
+        # make sure pixel mask is a numpy array
+        if isinstance(pix_mask, Img):
             pix_mask = pix_mask.img
-        except BaseException:
-            pass
+        
         # init pixel access mask
         mask = pix_mask
         if isinstance(line, LineOnImage):
-            # print "Using rotated ROI mask for pixel access"""
-            m = line.get_rotated_roi_mask(self.flow.shape[:2])
+            line_mask = line.get_rotated_roi_mask(self.flow.shape[:2])
             if mask is None:
-                mask = m
+                mask = line_mask
             else:
-                mask = (mask * m).astype(bool)
+                # combine both masks (i.e. line mask and input pixel mask)
+                mask = (mask * line_mask).astype(bool)
 
         res["pix_mask"] = mask
 
@@ -3061,17 +2987,16 @@ class OptflowFarneback(object):
              angs) = self.flow_orientation_histo(lens=lens,
                                                  angles=angles,
                                                  min_length=min_length)
-        except BaseException:
-            logger.warning("Retrieval of flow orientation histogram failed")
+        except Exception as e:
+            logger.warning(f"Retrieval of flow orientation histogram failed: {repr(e)}")
             return res
 
         # Check if enough vectors are left to go on with the analysis
         frac = len(angs) / float(len(angles))
         if frac < min_count_frac:
-            logger.warning("Aborted retrieval of main flow field paramaters"
-                 "only %d %% of the vectors in current ROI are longer than "
-                 "minimum required length %.1f"
-                 % (frac * 100, min_length))
+            logger.warning(f"Aborted retrieval of main flow field parameters "
+                           f"only {frac * 100:.0f}% of the vectors in current ROI are longer than "
+                           f"minimum required length {min_length:.1f}")
             return res
         # Now try to apply multi gauss fit to histogram distribution
         sigma_tol = self.settings.hist_sigma_tol
@@ -3083,33 +3008,26 @@ class OptflowFarneback(object):
 
                 # analyse the fit result (i.e. find main gauss peak and
                 # potential other significant peaks)
-                (dir_mu, dir_sigma, tot_num, add_gaussians) =\
-                    fit.analyse_fit_result(sigma_tol_overlaps=sigma_tol + 1)
-                sign_addgauss = sum([fit.integrate_gauss(*g) for g
-                                     in add_gaussians]) / tot_num
-                # sign = int(fit.integrate_gauss(*g) * 100 / tot_num)
+                (dir_mu, 
+                 dir_sigma, 
+                 tot_num, 
+                 add_gaussians) = fit.analyse_fit_result(sigma_tol_overlaps=sigma_tol+1)
+                
+                sign_addgauss = sum([fit.integrate_gauss(*g) for g in add_gaussians]) / tot_num
+               
                 if sign_addgauss > .2:  # other peaks exceed 20% of main peak
-                    logger.warning("Aborting histogram analysis: Multi-Gauss fit "
-                         "yielded additional Gaussian exceeding "
-                         "significance thresh of 0.2 in histo of "
-                         "orientation angles\nSignificance: %s %%\n"
-                         % (sign_addgauss * 100))
+                    logger.warning(
+                        f"Aborting histogram analysis: Multi-Gauss fit yielded additional "
+                        f"Gaussian exceeding significance threshold of 0.2 in histogram of "
+                        f"orientation angles\nSignificance: {sign_addgauss * 100:.2f} %\n"
+                    )
                     return res
             else:
                 logger.warning("Aborting histogram analysis, Multi-Gauss fit failed")
                 return res
         else:
             dir_mu, dir_sigma = self.mu_sigma_from_moments(count, bins)
-            # NEXT LINE WAS COMMENTED OUT ON 24/1/2018
-            # dir_sigma *= sigma_tol
             add_gaussians = 0
-# ==============================================================================
-#           logger.warning("Could not retrieve predominant peak of orientation "
-#                "histogram from multi gauss fit. Using 1. and 2. moment of "
-#                "distr. for estimate of mean displacement direction")
-#             dir_mu, dir_sigma = self.mu_sigma_from_moments(count, bins)
-#             add_gaussians = []
-# ==============================================================================
 
         res["_dir_mu"] = dir_mu
         res["_dir_sigma"] = dir_sigma
@@ -3126,24 +3044,16 @@ class OptflowFarneback(object):
         # Check if enough vectors are left to go on with the analysis
         frac = sum(cond) / float(len(lens))
         if frac < min_count_frac:
-            logger.warning("Aborted retrieval of main flow field parameters"
-                 "only %d %% of the vectors in current ROI remain after "
-                 "limiting angular range from fit result of orientation histo"
-                 % (frac * 100))
+            logger.warning(
+                f"Aborted retrieval of main flow field parameters "
+                f"only {frac * 100:.0f}% of the vectors in current ROI remain after "
+                f"limiting angular range from fit result of orientation histo")
             return res
         res["_significance"] = frac
         lens = lens[cond]
 
         count, bins, _ = self.flow_length_histo(lens=lens)
-        # len_mu, _ = self.mu_sigma_from_moments(count, bins)
         len_mu, len_sigma = self.mu_sigma_from_moments(count, bins)
-# =============================================================================
-#         ### NEXT LINE WAS ADDED ON 24/1/2018
-#         len_sigma *= sigma_tol
-# =============================================================================
-
-        # logger.info("Avg. displ. length: %.1f +/- %.1f" %(len_mu, len_sigma))
-
         res["_len_mu_norm"] = len_mu / del_t  # normalise to 1s ival
         res["_len_sigma_norm"] = len_sigma / del_t  # normalise to 1s ival
         return res
@@ -3243,7 +3153,7 @@ class OptflowFarneback(object):
 
         """
         if ax is None:
-            fig, ax = subplots(1, 1)
+            _, ax = subplots(1, 1)
         if min_length is None:
             min_length = self.settings.min_length
         lens, angles = self.all_len_angle_vecs_roi(pix_mask)
@@ -3589,15 +3499,11 @@ class OptflowFarneback(object):
                                      extend_len_fac=extend_len_fac,
                                      include_short_vecs=include_short_vecs)
 
-        # tit = r"1. img"
         x0, y0, w, h = roi2rect(roi_rel)
         if not in_roi and w < disp.shape[1]:
             ax.add_patch(Rectangle((x0, y0), w, h, fc="none", ec="c"))
             x0, y0 = 0, 0
-# ==============================================================================
-#         else:
-#             tit += " (in ROI)"
-# ==============================================================================
+
         if not draw_img:
             if color is None:
                 color = "lime"
@@ -3617,20 +3523,6 @@ class OptflowFarneback(object):
             ax.imshow(disp)
         if in_roi:
             set_ax_lim_roi(roi_rel, ax)
-            # img = img.crop(roi_abs=roi_abs, new_img=True)
-
-        # ax.imshow(disp)
-
-# ==============================================================================
-#       try:
-#           tit += (r": %s \n $\Delta$t (next) = %.2f s" %(\
-#               self.get_img_acq_times()[0].strftime("%H:%M:%S"), self.del_t))
-#           tit = tit.decode("string_escape")
-#       except:
-#           pass
-#
-#       #ax.set_title(tit, fontsize=12)
-# ==============================================================================
         return ax
 
     def live_example(self):

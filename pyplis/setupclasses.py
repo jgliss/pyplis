@@ -27,8 +27,9 @@ from datetime import datetime
 from collections import OrderedDict as od
 from copy import deepcopy
 from os.path import exists
+from pathlib import Path
+from typing import Optional
 from numpy import nan, rad2deg, arctan, ndarray
-from abc import ABCMeta
 
 import six
 
@@ -76,9 +77,11 @@ class Source(object):
 
     """
 
-    def __init__(self, name="", info_dict=None, **kwargs):
+    def __init__(self, name=None, info_dict=None, **kwargs):
         if info_dict is None:
             info_dict = {}
+        if name is None:
+            name = ""
         self.name = name
         self.lon = nan
         self.lat = nan
@@ -258,11 +261,14 @@ class Source(object):
         return list(self._type_dict.keys())
 
     def __str__(self):
-        s = ("\npyplis Source\n-------------------------\n")
-        for key, val in six.iteritems(self._type_dict):
+        s = ("\nSource\n-------------------------\n")
+        for key in self._type_dict.keys():
             s = s + "%s: %s\n" % (key, self(key))
         return s
 
+    def __repr__(self):
+        return f"Source({self.name})"
+    
     def __setitem__(self, key, value):
         if key in self.__dict__:
             self.__dict__[key] = value
@@ -279,7 +285,7 @@ class Source(object):
         return self.__getitem__(key)
 
 
-class FilterSetup(object):
+class FilterSetup:
     """A collection of :class:`pyplis.utils.Filter` objects.
 
     This collection specifies a filter setup for a camera. A typical setup
@@ -288,7 +294,7 @@ class FilterSetup(object):
 
     Parameters
     ----------
-    filters : list
+    filter_list : list
         list of :class:`pyplis.utils.Filter` objects specifying
         camera filter setup
     default_key_on : str
@@ -305,11 +311,11 @@ class FilterSetup(object):
         if filter_list is None:
             filter_list = []
 
-        self._filters = od()
+        self._filters = {}
         self.init_filters(filter_list, **filters)
 
-        self._default_key_on = None
-        self._default_key_off = None
+        self._default_key_on = default_key_on
+        self._default_key_off = default_key_off
 
     @property
     def filters(self):
@@ -413,7 +419,7 @@ class FilterSetup(object):
         if isinstance(filter_list, (list, ndarray)):
             for f in filter_list:
                 self[f.id] = f
-        for fid, f in six.iteritems(filters):
+        for fid, f in filters.items():
             self[fid] = f
 
         if not bool(self._filters):
@@ -545,6 +551,12 @@ class Camera(CameraBaseInfo):
         contains more than one off band filter)
     ser_no : int
         optional, camera serial number
+    cam_info_file : Path
+        camera info file from which the default information for provided 
+        `cam_id` shall be imported.
+    try_load_from_registry : bool 
+        if True, and if `cam_id` is provided, the camera information is 
+        loaded from the pyplis camera registry. Default is True.
     **geom_info :
         additional keyword args specifying geometrical information, e.g.
         lon, lat, altitude, elev, azim
@@ -568,17 +580,21 @@ class Camera(CameraBaseInfo):
 
     """
 
-    def __init__(self, cam_id=None, filter_list=None, default_filter_on=None,
-                 default_filter_off=None, ser_no=9999, **geom_info):
+    def __init__(
+            self, 
+            cam_id: Optional[str] = None, 
+            filter_list: Optional[list] = None, 
+            default_filter_on=None,
+            default_filter_off=None, 
+            ser_no=9999, 
+            cam_info_file: Optional[Path]=None,
+            try_load_from_registry=True,
+            **geom_info):
 
         if filter_list is None:
             filter_list = []
-        if cam_id is not None:
-            if not isinstance(cam_id, str):
-                raise TypeError("Camera initialisation: cam_id argument has "
-                                "to be of type str or None")
 
-        super(Camera, self).__init__(cam_id)
+        super(Camera, self).__init__(cam_id, cam_info_file, try_load_from_registry=try_load_from_registry)
 
         # specify the filters used in the camera and the main filter (e.g. On)
         self.ser_no = ser_no  # identifier of camera
@@ -591,7 +607,7 @@ class Camera(CameraBaseInfo):
                              ("elev_err", None),
                              ("alt_offset", 0.0)])
 
-        for k, v in six.iteritems(geom_info):
+        for k, v in geom_info.items():
             self[k] = v
 
         self.filter_setup = None
@@ -695,14 +711,9 @@ class Camera(CameraBaseInfo):
     def alt_offset(self, val):
         self.geom_data["alt_offset"] = val
 
-    def update_settings(self, **settings):
-        """Call for :func:`update` (old name)."""
-        logger.warning("Old name of method update")
-        self.update(**settings)
-
-    def load_default(self, cam_id):
+    def load_default(self, cam_id: str, cam_info_file: Optional[Path] = None):
         """Redefinition of method from base class :class:`CameraBaseInfo`."""
-        super(Camera, self).load_default(cam_id)
+        super(Camera, self).load_default(cam_id, cam_info_file=cam_info_file)
         self.prepare_filter_setup()
 
     def update(self, **settings):
@@ -733,11 +744,14 @@ class Camera(CameraBaseInfo):
             lon, lat = float(self.lon), float(self.lat)
             self.altitude = GeoPoint(lat, lon).altitude
         except Exception as e:
-            logger.warning("Failed to automatically access local topography altitude"
-                 " at camera position using SRTM data: %s" % repr(e))
+            logger.warning(f"Failed to automatically access local topography "
+                           f"altitude at camera position using SRTM data: {e}")
 
-    def prepare_filter_setup(self, filter_list=None, default_key_on=None,
-                             default_key_off=None):
+    def prepare_filter_setup(
+            self, 
+            filter_list: Optional[list] = None, 
+            default_key_on: Optional[str] = None,
+            default_key_off: Optional[str] = None):
         """Create :class:`FilterSetup` object.
 
         This method defines the camera filter setup based on an input list of
@@ -745,21 +759,21 @@ class Camera(CameraBaseInfo):
 
         Parameters
         ----------
-        filter_list : list
+        filter_list :
             list containing :class:`pyplis.utils.Filter` objects
-        default_filter_on : str
+        default_key_on :
             string specifiying the string ID of the main onband filter of
             the camera (usually "on"). If unspecified (None), then the
             ID of the first available on bandfilter in the filter input
             list will be used.
-        default_filter_off : str
+        default_key_off : 
             string specifiying the string ID of the main offband filter
             of the camera (usually "on"). If unspecified (None), then the
             ID of the first available off band filter in the
             filter input list will be used.
 
         """
-        if not isinstance(filter_list, list) or not bool(filter_list):
+        if filter_list is None or len(filter_list) == 0:
             filter_list = self.default_filters
             default_key_on = self.main_filter_id
 
@@ -770,10 +784,6 @@ class Camera(CameraBaseInfo):
         self.default_filters = []
         for f in filter_list:
             self.default_filters.append(f)
-
-    """
-    Helpers, Convenience stuff
-    """
 
     def to_dict(self):
         """Convert this object into a dictionary."""
@@ -867,6 +877,9 @@ class Camera(CameraBaseInfo):
                 s += "%s: %s\n" % (key, val)
 
         return s
+    
+    def __repr__(self):
+        return f"Camera({self.cam_id})"
 
     def __setitem__(self, key, value):
         """Set item method."""
@@ -907,7 +920,6 @@ class FormSetup(object):
         return s
 
 
-@six.add_metaclass(ABCMeta)
 class BaseSetup(object):
     """Abstract base class for basic measurement setup.
 
@@ -935,30 +947,40 @@ class BaseSetup(object):
 
     """
 
-    def __init__(self, base_dir, start, stop, **opts):
+    def __init__(
+            self, 
+            base_dir: str, 
+            start: Optional[datetime] = None, 
+            stop: Optional[datetime] = None, 
+            **opts):
+        
+        if start is None:
+            use_all_files = True
+            start = datetime(1900, 1, 1)
+        else:
+            use_all_files = False
+        if stop is None:
+            stop = datetime(1900, 1, 1)
+
         self.base_dir = base_dir
         self.save_dir = base_dir
 
         self._start = None
         self._stop = None
 
-        self.start = start
-        self.stop = stop
-
-        self.options = od([("USE_ALL_FILES", False),
+        self.options = od([("USE_ALL_FILES", use_all_files),
                            ("SEPARATE_FILTERS", True),
                            ("USE_ALL_FILE_TYPES", False),
                            ("INCLUDE_SUB_DIRS", False),
                            ("ON_OFF_SAME_FILE", False),
                            ("LINK_OFF_TO_ON", True),
                            ("REG_SHIFT_OFF", False)])
+        self.start = start
+        self.stop = stop
 
-        self.check_timestamps()
-        logger.info(self.LINK_OFF_TO_ON)
-        for k, v in six.iteritems(opts):
-            if k in self.options:
-                self.options[k] = v
-
+        for k, v in opts.items():
+            self.options[k] = v
+            
     @property
     def start(self):
         """Start time of setup."""
@@ -966,14 +988,9 @@ class BaseSetup(object):
 
     @start.setter
     def start(self, val):
-        try:
-            self._start = to_datetime(val)
-            self.USE_ALL_FILES = False
-        except BaseException:
-            if val is not None:
-                logger.warning("Input %s could not be assigned to start time in "
-                     "setup" % val)
-
+        self._start = to_datetime(val)
+        self.USE_ALL_FILES = False
+        
     @property
     def stop(self):
         """Stop time of setup."""
@@ -981,14 +998,9 @@ class BaseSetup(object):
 
     @stop.setter
     def stop(self, val):
-        try:
-            self._stop = to_datetime(val)
-            self.USE_ALL_FILES = False
-        except BaseException:
-            if val is not None:
-                logger.warning("Input %s could not be assigned to stop time in "
-                     "setup" % val)
-
+        self._stop = to_datetime(val)
+        self.USE_ALL_FILES = False
+    
     @property
     def USE_ALL_FILES(self):
         """File import option (boolean).
@@ -1000,7 +1012,7 @@ class BaseSetup(object):
 
     @USE_ALL_FILES.setter
     def USE_ALL_FILES(self, value):
-        if value not in [0, 1]:
+        if int(value) not in [0, 1]:
             raise ValueError("need boolean")
         self.options["USE_ALL_FILES"] = bool(value)
 
@@ -1014,7 +1026,7 @@ class BaseSetup(object):
 
     @SEPARATE_FILTERS.setter
     def SEPARATE_FILTERS(self, value):
-        if value not in [0, 1]:
+        if int(value) not in [0, 1]:
             raise ValueError("need boolean")
         self.options["SEPARATE_FILTERS"] = value
 
@@ -1030,7 +1042,7 @@ class BaseSetup(object):
 
     @USE_ALL_FILE_TYPES.setter
     def USE_ALL_FILE_TYPES(self, value):
-        if value not in [0, 1]:
+        if int(value) not in [0, 1]:
             raise ValueError("need boolean")
         self.options["USE_ALL_FILE_TYPES"] = value
 
@@ -1044,7 +1056,7 @@ class BaseSetup(object):
 
     @INCLUDE_SUB_DIRS.setter
     def INCLUDE_SUB_DIRS(self, value):
-        if value not in [0, 1]:
+        if int(value) not in [0, 1]:
             raise ValueError("need boolean")
         self.options["INCLUDE_SUB_DIRS"] = value
 
@@ -1069,7 +1081,7 @@ class BaseSetup(object):
 
     @ON_OFF_SAME_FILE.setter
     def ON_OFF_SAME_FILE(self, value):
-        if value not in [0, 1]:
+        if int(value) not in [0, 1]:
             raise ValueError("need boolean")
         self.options["ON_OFF_SAME_FILE"] = value
 
@@ -1084,7 +1096,7 @@ class BaseSetup(object):
 
     @LINK_OFF_TO_ON.setter
     def LINK_OFF_TO_ON(self, value):
-        if value not in [0, 1]:
+        if int(value) not in [0, 1]:
             raise ValueError("need boolean")
         self.options["LINK_OFF_TO_ON"] = value
 
@@ -1101,19 +1113,9 @@ class BaseSetup(object):
 
     @REG_SHIFT_OFF.setter
     def REG_SHIFT_OFF(self, value):
-        if value not in [0, 1]:
+        if int(value) not in [0, 1]:
             raise ValueError("need boolean")
         self.options["REG_SHIFT_OFF"] = value
-
-    def check_timestamps(self):
-        """Check if timestamps are valid and set to current time if not."""
-        if not isinstance(self.start, datetime):
-            self.options["USE_ALL_FILES"] = True
-            self.start = datetime(1900, 1, 1)
-        if not isinstance(self.stop, datetime):
-            self.stop = datetime(1900, 1, 1)
-        if self.start > self.stop:
-            self.start, self.stop = self.stop, self.start
 
     def base_info_check(self):
         """Check if all necessary information if available.
@@ -1225,8 +1227,9 @@ class MeasSetup(BaseSetup):
         if not isinstance(source, Source):
             source = Source()
         self.auto_topo_access = auto_topo_access
-        self._cam_source_dict = {"camera": camera,
-                                 "source": source}
+
+        self.camera = camera
+        self.source = source
 
         self.cell_info_dict = cell_info_dict
         self.forms = FormSetup(lines, rects)
@@ -1247,28 +1250,6 @@ class MeasSetup(BaseSetup):
         # If specified in custom camera, update the file I/O options
         # defined in :class:`BaseSetup`
         self.options.update(self.camera.io_opts)
-
-    @property
-    def source(self):
-        """Emission source."""
-        return self._cam_source_dict["source"]
-
-    @source.setter
-    def source(self, value):
-        if not isinstance(value, Source):
-            raise TypeError("Invalid input type, need Source object")
-        self._cam_source_dict["source"] = value
-
-    @property
-    def camera(self):
-        """Camera."""
-        return self._cam_source_dict["camera"]
-
-    @camera.setter
-    def camera(self, value):
-        if not isinstance(value, Camera):
-            raise TypeError("Invalid input type, need Camera object")
-        self._cam_source_dict["camera"] = value
 
     def update_wind_info(self, info_dict):
         """Update wind info dict using valid entries from input dict.
@@ -1330,7 +1311,7 @@ class MeasSetup(BaseSetup):
         ok = 1
         s = ("\n------------------------------\nChecking basic geometry info"
              "\n------------------------------\n")
-        for key, val in six.iteritems(self.camera.geom_data):
+        for key, val in self.camera.geom_data.items():
             if not self._check_if_number(val):
                 ok = 0
                 s += "Missing info in Camera setup\n"
@@ -1340,12 +1321,12 @@ class MeasSetup(BaseSetup):
             if not self._check_if_number(val):
                 ok = 0
                 s += self._dict_miss_info_str(key, val)
-        for key, val in six.iteritems(source.geo_data):
+        for key, val in source.geo_data.items():
             if not self._check_if_number(val):
                 ok = 0
                 s += "Missing info in Source: %s\n" % source.name
                 s += self._dict_miss_info_str(key, val)
-        for key, val in six.iteritems(self.wind_info):
+        for key, val in self.wind_info.items():
             if not self._check_if_number(val):
                 ok = 0
                 s += "Missing Meteorology info\n"
@@ -1366,9 +1347,7 @@ class MeasSetup(BaseSetup):
 
     def short_str(self):
         """Return a short info string."""
-        s = super(BaseSetup, self).__str__() + "\n"
-        return s + "Camera: %s\nSource: %s" % (self.camera.cam_id,
-                                               self.source.name)
+        return f"{super().__str__()}\nCamera: {repr(self.camera)}\nSource: {repr(self.source)}"
 
     def __setitem__(self, key, value):
         """Update class item."""
@@ -1384,31 +1363,12 @@ class MeasSetup(BaseSetup):
         """Detailed information string."""
         s = super(BaseSetup, self).__str__() + "\n\n"
         s += "Meteorology info\n-----------------------\n"
-        for key, val in six.iteritems(self.wind_info):
+        for key, val in self.wind_info.items():
             s += "%s: %s\n" % (key, val)
         s += "\n" + str(self.camera) + "\n"
         s += str(self.source)
         if self.cell_info_dict.keys():
             s += "\nCell specifications:\n"
-            for key, val in six.iteritems(self.cell_info_dict):
+            for key, val in self.cell_info_dict.items():
                 s += "%s: %s +/- %s\n" % (key, val[0], val[1])
         return s
-
-# ==============================================================================
-#     def edit_in_gui(self):
-#         """Edit the current dataSet object"""
-#         from pyplis.gui_features.setup_widgets import MeasSetupEdit
-#         app=QApplication(argv)
-#         dial = MeasSetupEdit(deepcopy(self))
-#         dial.exec_()
-#         return dial
-# ==============================================================================
-# ==============================================================================
-#         if dial.changesAccepted:
-#             #self.dataSet.update_base_info(self.dataSet.setup)
-#             self.dataSet.set_setup(stp)
-#             self.analysis.setup.set_plume_data_setup(stp)
-#             self.dataSet.init_image_lists()
-#             self.init_viewers()
-#             self.update_actions()
-# ==============================================================================

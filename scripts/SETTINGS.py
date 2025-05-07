@@ -16,9 +16,9 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 from numpy import subtract
-from os.path import join
+import pathlib
 from warnings import warn
-from optparse import OptionParser
+import argparse
 from matplotlib import rcParams
 
 from pyplis.inout import find_test_data
@@ -37,15 +37,15 @@ SAVEFIGS = 1  # save plots from this script in SAVE_DIR
 DPI = 150  # pixel resolution for saving
 FORMAT = "png"  # format for saving
 
-SCREENPRINT = 0  # show images on screen when executing script
+SCREENPRINT = 0 # show images on screen when executing script
 
 # Image directory
-IMG_DIR = join(find_test_data(), "images")
+TESTDATA_DIR = find_test_data()
+IMG_DIR = pathlib.Path(TESTDATA_DIR) / "images"
 
 # Directory where results are stored
-
-SAVE_DIR = join(".", "scripts_out")
-# SAVE_DIR = r'D:/Dropbox/TEMP/jgliss_publications/pyplis/graphics/out_code/'
+SCRIPTS_DIR = pathlib.Path(__file__).parent
+SAVE_DIR = SCRIPTS_DIR / "scripts_out"
 
 # Emission rate retrieval lines
 
@@ -61,18 +61,7 @@ PCS2 = LineOnImage(80, 10, 80, 270, pyrlevel_def=1,
 
 LINES = [PCS1, PCS2]
 
-OPTPARSE = OptionParser(usage='')
-OPTPARSE.add_option('--show', dest="show", default=SCREENPRINT)
-OPTPARSE.add_option('--test', dest="test", default=TESTMODE)
-OPTPARSE.add_option('--clear', dest="clear", default=False)
-
-
-def check_version():
-    v_code = [int(x) for x in __version__.split(".")[:2]]
-    v_scripts = [int(x) for x in SCRIPTS_VERSION.split(".")[:2]]
-    if any(subtract(v_scripts, v_code)) != 0:
-        warn("Version conflict between pyplis installation (v%s) "
-             "and version of example scripts used (v%s). Please "
-             "update your pyplis installation or use the set of example "
-             "scripts corresponding to your installation. "
-             % (__version__, SCRIPTS_VERSION))
+ARGPARSER = argparse.ArgumentParser()
+ARGPARSER.add_argument('--show', dest="show", default=SCREENPRINT)
+ARGPARSER.add_argument('--test', dest="test", default=TESTMODE)
+ARGPARSER.add_argument('--clear', dest="clear", default=False)

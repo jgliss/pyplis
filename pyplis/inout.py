@@ -18,6 +18,7 @@
 """Module containing all sorts of I/O-routines (e.g. test data access)."""
 from os.path import join, basename, exists, isfile, abspath, expanduser
 from os import listdir, mkdir, remove, walk
+from pathlib import Path
 from re import split
 
 from collections import OrderedDict as od
@@ -27,6 +28,7 @@ try:
     PGBAR_AVAILABLE = True
 except BaseException:
     PGBAR_AVAILABLE = False
+from typing import Optional
 from zipfile import ZipFile, ZIP_DEFLATED
 
 try:
@@ -277,7 +279,7 @@ def set_test_data_path(save_path):
         raise
 
 
-def _load_cam_info(cam_id, filepath):
+def _load_cam_info(cam_id, filepath) -> dict:
     """Load camera info from a specific cam_info file."""
     dat = od()
     if cam_id is None:
@@ -339,12 +341,15 @@ def _load_cam_info(cam_id, filepath):
     raise IOError("Camera info for cam_id %s could not be found" % cam_id)
 
 
-def get_camera_info(cam_id):
+def get_camera_info(cam_id, cam_info_file: Optional[Path] = None):
     """Try access camera information from file "cam_info.txt" (package data).
 
     :param str cam_id: string ID of camera (e.g. "ecII")
 
     """
+    if cam_info_file:
+        return _load_cam_info(cam_id, str(cam_info_file))
+    
     dirs = data_search_dirs()
     try:
         return _load_cam_info(cam_id, join(dirs[0], "cam_info.txt"))
@@ -352,20 +357,22 @@ def get_camera_info(cam_id):
         return _load_cam_info(cam_id, join(dirs[1], "cam_info.txt"))
 
 
-def save_new_default_camera(info_dict):
+def save_new_default_camera(info_dict, cam_info_file: Optional[Path] = None):
     """Save new default camera to data file *cam_info.txt*.
 
     :param dict info_dict: dictionary containing camera default information
-
-    Only valid keys will be added to the
+    :param dict cam_info_file: text file where camera should be stored in. If None, 
+        check and use pyplis default locations (libdir/data or ~/my_pyplis)
+    
     """
-    dirs = data_search_dirs()
-    cam_file = join(dirs[0], "cam_info.txt")
-    if not exists(cam_file):
-        cam_file = join(dirs[1], "cam_info.txt")
+    if not cam_info_file:
+        dirs = data_search_dirs()
+        cam_file = join(dirs[0], "cam_info.txt")
+        if not exists(cam_file):
+            cam_file = join(dirs[1], "cam_info.txt")
+    else:
+        cam_file = cam_info_file
     keys = get_camera_info("ecII").keys()
-    for key in keys:
-        logger.info("%s (in input: %s)" % (key, key in info_dict))
     if "cam_id" not in info_dict:
         raise KeyError("Missing specification of cam_id")
     try:
@@ -460,9 +467,9 @@ def get_all_valid_cam_ids():
 
     Reads info from file cam_info.txt which is part of package data
     """
-    from pyplis import _LIBDIR
+    from pyplis import __dir__
     ids = []
-    with open(join(_LIBDIR, "data", "cam_info.txt"), "rb") as f:
+    with open(join(__dir__, "data", "cam_info.txt"), "rb") as f:
         for line in f:
             spl = line.decode("ISO-8859-1").split(":")
             if spl[0].strip().lower() == "cam_ids":
@@ -523,12 +530,12 @@ def get_source_info(source_id, try_online=True):
     :param bool try_online: if True and local access fails, try to find source
         ID in online database
     """
-    from pyplis import _LIBDIR
+    from pyplis import __dir__
     dat = od()
     if source_id == "":
         return dat
     found = 0
-    with open(join(_LIBDIR, "data", "my_sources.txt")) as f:
+    with open(join(__dir__, "data", "my_sources.txt")) as f:
         for line in f:
             if "END" in line and found:
                 return od([(source_id, dat)])
@@ -603,19 +610,19 @@ def get_icon(name, color=None):
 
     """
     try:
-        from pyplis import _LIBDIR
+        from pyplis import __dir__
     except BaseException:
         raise
     subfolders = ["axialis", "myIcons"]
     for subf in subfolders:
-        base_path = join(_LIBDIR, "data", "icons", subf)
+        base_path = join(__dir__, "data", "icons", subf)
         if color is not None:
             base_path = join(base_path, color)
         for file in listdir(base_path):
             fname = basename(file).split(".")[0]
             if fname == name:
                 return base_path + file
-    logger.warning("Failed to load icon at: " + _LIBDIR)
+    logger.warning("Failed to load icon at: " + __dir__)
     return False
 
 

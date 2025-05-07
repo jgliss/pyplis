@@ -33,18 +33,13 @@ Note, that this calibration does not include a dark correction of the images
 before the calibration, therefore, the results are slightly different compared
 to the results from ex05_cell_calib_auto.py.
 """
-from SETTINGS import check_version
-
+import pathlib
 import pyplis
-from os.path import join, basename
-from matplotlib.pyplot import close, show
+import matplotlib.pyplot as plt
 from time import time
 
 # IMPORT GLOBAL SETTINGS
-from SETTINGS import SAVEFIGS, SAVE_DIR, FORMAT, DPI, OPTPARSE, IMG_DIR
-
-# Check script version
-check_version()
+from SETTINGS import SAVEFIGS, SAVE_DIR, FORMAT, DPI, ARGPARSER, IMG_DIR
 
 # SPECIFY IMAGE PATHS FOR EACH CELL AND BACKGROUND IMAGES
 BG_BEFORE_ON = "EC2_1106307_1R02_2015091607000845_F01_Etna.fts"
@@ -62,9 +57,8 @@ A57_OFF = "EC2_1106307_1R02_2015091607014019_F02_Etna.fts"
 BG_AFTER_ON = "EC2_1106307_1R02_2015091607020256_F01_Etna.fts"
 BG_AFTER_OFF = "EC2_1106307_1R02_2015091607020440_F02_Etna.fts"
 
-# SCRIPT MAIN FUNCTION
-if __name__ == "__main__":
-    close("all")
+def main():
+    plt.close("all")
     start = time()
     # define camera for ECII custom image import
     cam = pyplis.Camera("ecII")
@@ -73,38 +67,45 @@ if __name__ == "__main__":
     # now add all cell images manually, specifying paths, the SO2 column
     # densities of each cell, and the corresponding cell ID as well as image
     # type (on, off)
-    cellcalib.set_cell_images(img_paths=join(IMG_DIR, A53_ON),
+    cellcalib.set_cell_images(img_paths=IMG_DIR / A53_ON,
                               cell_gas_cd=4.15e17,
                               cell_id="a53", filter_id="on")
 
-    cellcalib.set_cell_images(img_paths=join(IMG_DIR, A53_OFF),
+    cellcalib.set_cell_images(img_paths=IMG_DIR / A53_OFF,
                               cell_gas_cd=4.15e17,
                               cell_id="a53", filter_id="off")
 
-    cellcalib.set_cell_images(img_paths=join(IMG_DIR, A37_ON),
+    cellcalib.set_cell_images(img_paths=IMG_DIR / A37_ON,
                               cell_gas_cd=8.59e17,
                               cell_id="a37", filter_id="on")
 
-    cellcalib.set_cell_images(img_paths=join(IMG_DIR, A37_OFF),
+    cellcalib.set_cell_images(img_paths=IMG_DIR / A37_OFF,
                               cell_gas_cd=8.59e17,
                               cell_id="a37", filter_id="off")
 
-    cellcalib.set_cell_images(img_paths=join(IMG_DIR, A57_ON),
+    cellcalib.set_cell_images(img_paths=IMG_DIR / A57_ON,
                               cell_gas_cd=1.92e18,
                               cell_id="a57", filter_id="on")
 
-    cellcalib.set_cell_images(img_paths=join(IMG_DIR, A57_OFF),
+    cellcalib.set_cell_images(img_paths=IMG_DIR / A57_OFF,
                               cell_gas_cd=1.92e18,
                               cell_id="a57", filter_id="off")
 
     # put the onband background images into a Python list ....
-    bg_on_paths = [join(IMG_DIR, BG_BEFORE_ON), join(IMG_DIR, BG_AFTER_ON)]
+    bg_on_paths = [
+        IMG_DIR / BG_BEFORE_ON, 
+        IMG_DIR / BG_AFTER_ON
+        ]
 
     # ... and add them to the calibration object ...
     cellcalib.set_bg_images(img_paths=bg_on_paths, filter_id="on")
 
     # ... same for off band background images
-    bg_off_paths = [join(IMG_DIR, BG_BEFORE_OFF), join(IMG_DIR, BG_AFTER_OFF)]
+    bg_off_paths = [
+        IMG_DIR / BG_BEFORE_OFF, 
+        IMG_DIR / BG_AFTER_OFF
+        ]
+    
     cellcalib.set_bg_images(img_paths=bg_off_paths, filter_id="off")
 
     # Prepare calibration data (i.e. CellCalibData objets) for on, off and
@@ -123,15 +124,15 @@ if __name__ == "__main__":
 
     aa_calib = cellcalib.calib_data["aa"]
 
-    print("Time elapsed for preparing calibration data: %.4f s"
-          % (stop - start))
-    # ## IMPORTANT STUFF FINISHED
+    print(f"Time elapsed for preparing calibration data: {stop - start:.4f} s")
+    
+    ### IMPORTANT STUFF FINISHED
     if SAVEFIGS:
-        ax.figure.savefig(join(SAVE_DIR, "ex0_7_out_1.%s" % FORMAT),
-                          format=FORMAT, dpi=DPI)
+        outfile = SAVE_DIR / f"ex0_7_out_1.{FORMAT}"
+        ax.figure.savefig(outfile, format=FORMAT, dpi=DPI)
 
     # Import script options
-    (options, args) = OPTPARSE.parse_args()
+    options = ARGPARSER.parse_args()
 
     # If applicable, do some tests. This is done only if TESTMODE is active:
     # testmode can be activated globally (see SETTINGS.py) or can also be
@@ -141,22 +142,21 @@ if __name__ == "__main__":
         import numpy.testing as npt
 
         slope, offs = aa_calib.calib_coeffs
+
         actual = [cellcalib.tau_stacks["aa"].sum(),
                   cellcalib.tau_stacks["aa"].mean(),
                   aa_calib.cd_vec.sum(),
                   slope,
                   offs]
 
-        npt.assert_allclose(actual=actual,
-                            desired=[1007480.56,
-                                     0.24401481,
-                                     3.194000052267778e+18,
-                                     4.779782684462987e+18,
-                                     -2.7244424951657216e+16],
-                            rtol=1e-7)
-        print("All tests passed in script: %s" % basename(__file__))
+        desired = [1007480.56, 0.24401481, 3.194000052267778e+18, 4.779782684462987e+18, -2.7244424951657216e+16]
+        npt.assert_allclose(actual=actual, desired=desired, rtol=1e-5)
+        print(f"All tests passed in script: {pathlib.Path(__file__).name}")
     try:
         if int(options.show) == 1:
-            show()
+            plt.show()
     except BaseException:
         print("Use option --show 1 if you want the plots to be displayed")
+
+if __name__ == "__main__":
+    main()

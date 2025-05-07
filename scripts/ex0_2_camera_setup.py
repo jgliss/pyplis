@@ -31,27 +31,17 @@ See also here for more information:
 https://pyplis.readthedocs.io/en/latest/tutorials.html#data-import-specifying-
 custom-camera-information
 """
-from SETTINGS import check_version, OPTPARSE
-
-from os.path import basename
+import pathlib
+from SETTINGS import ARGPARSER
 from numpy.testing import assert_array_equal
-
+import os
+import tempfile
 import pyplis
 
-# Check script version
-check_version()
-
-# ## SCRIPT OPTIONS
-
-# Save the new camera as default in database (cam_info.txt file that can be
-# found in the "data" directory of the installation.
-SAVE_TO_DATABASE = True
-
-
 # ## SCRIPT FUNCTION DEFINITIONS
-def create_ecII_cam_new_filters():
+def create_ecII_cam_new_filters(cam_id: str) -> pyplis.Camera:
     # Start with creating an empty Camera object
-    cam = pyplis.setupclasses.Camera()
+    cam = pyplis.setupclasses.Camera(cam_id=cam_id, try_load_from_registry=False)
 
     # Specify the camera filter setup
 
@@ -100,7 +90,7 @@ def create_ecII_cam_new_filters():
 
     # camera ID (needs to be unique, i.e. not included in data base, call
     # pyplis.inout.get_all_valid_cam_ids() to check existing IDs)
-    cam.cam_id = "ecII_new_test"
+    cam.cam_id = cam_id
 
     # image file type
     cam.file_type = "fts"
@@ -165,75 +155,88 @@ def create_ecII_cam_new_filters():
     # That's it...
     return cam
 
+def main():
+     
+    # Create a test cam_info.txt file for this script in order not to mess with the camera info file shipped with pyplis
+    with tempfile.TemporaryDirectory() as temp_data_dir:
+        os.environ["PYPLIS_DATADIR"] = temp_data_dir
+        cam_info_file_tmp = pathlib.Path(temp_data_dir) / "cam_info.txt"
+        cam_info_file_tmp.touch()
 
-# ## SCRIPT MAIN FUNCTION
-if __name__ == "__main__":
+        
+        available_cam_defs = pyplis.utils.get_cam_ids()
+        new_cam_id = "test_cam"
+        if new_cam_id in available_cam_defs:
+            raise ValueError(f"Camera with ID {new_cam_id} already exists, please choose a different ID")
+        
+        cam = create_ecII_cam_new_filters(new_cam_id)
 
-    cam = create_ecII_cam_new_filters()
+        print(cam)
 
-    print(cam)
-
-    try:
         # you can add the cam to the database (raises error if ID conflict
         # occurs, e.g. if the camera was already added to the database)
-        cam.save_as_default()
-    except KeyError:
-        print("Camera already exists in database")
-    cam_reload = pyplis.Camera("ecII_brandnew")
-    # ## IMPORTANT STUFF FINISHED - everything below is of minor importance
-    # for educational purposes
+        cam.save_as_default(cam_info_file=cam_info_file_tmp)
+        
+        cam_reload = pyplis.Camera(new_cam_id, cam_info_file=cam_info_file_tmp)
+        print(cam_reload)
+        
+        # ## IMPORTANT STUFF FINISHED - everything below is of minor importance
+        # for educational purposes
 
-    (options, args) = OPTPARSE.parse_args()
-    # apply some tests. This is done only if TESTMODE is active: testmode can
-    # be activated globally (see SETTINGS.py) or can also be activated from
-    # the command line when executing the script using the option --test 1
-    if int(options.test):
-        # quick and dirty test
+        options = ARGPARSER.parse_args()
+        # apply some tests. This is done only if TESTMODE is active: testmode can
+        # be activated globally (see SETTINGS.py) or can also be activated from
+        # the command line when executing the script using the option --test 1
+        if int(options.test):
+            # quick and dirty test
 
-        cam_dict_nominal = {'darkcorr_opt': 1,
-                            '_fid_subnum_max': 1,
-                            '_fname_access_flags': {'filter_id': False,
-                                                    'meas_type': False,
-                                                    'start_acq': False,
-                                                    'texp': False},
-                            '_mtype_subnum_max': 1,
-                            '_time_info_subnum': 1,
-                            'cam_id': 'ecII_new_test',
-                            'delim': '_',
-                            'file_type': 'fts',
-                            'filter_id_pos': 4,
-                            'focal_length': '',
-                            'image_import_method':
-                                pyplis.custom_image_import.load_ecII_fits,
-                            'main_filter_id': 'on',
-                            'meas_type_pos': 4,
-                            'pix_height': 4.65e-06,
-                            'pix_width': 4.65e-06,
-                            'pixnum_x': 1344,
-                            'pixnum_y': 1024,
-                            'ser_no': 9999,
-                            'texp_pos': '',
-                            'texp_unit': '',
-                            'time_info_pos': 3,
-                            'time_info_str': '%Y%m%d%H%M%S%f'}
+            cam_dict_nominal = {'darkcorr_opt': 1,
+                                '_fid_subnum_max': 1,
+                                '_fname_access_flags': {'filter_id': False,
+                                                        'meas_type': False,
+                                                        'start_acq': False,
+                                                        'texp': False},
+                                '_mtype_subnum_max': 1,
+                                '_time_info_subnum': 1,
+                                'cam_id': new_cam_id,
+                                'delim': '_',
+                                'file_type': 'fts',
+                                'filter_id_pos': 4,
+                                'focal_length': '',
+                                'image_import_method':
+                                    pyplis.custom_image_import.load_ecII_fits,
+                                'main_filter_id': 'on',
+                                'meas_type_pos': 4,
+                                'pix_height': 4.65e-06,
+                                'pix_width': 4.65e-06,
+                                'pixnum_x': 1344,
+                                'pixnum_y': 1024,
+                                'ser_no': 9999,
+                                'texp_pos': '',
+                                'texp_unit': '',
+                                'time_info_pos': 3,
+                                'time_info_str': '%Y%m%d%H%M%S%f'}
 
-        from collections import OrderedDict
-        geom_data_nominal = OrderedDict([('lon', None),
-                                         ('lat', None),
-                                         ('altitude', None),
-                                         ('azim', None),
-                                         ('azim_err', None),
-                                         ('elev', None),
-                                         ('elev_err', None),
-                                         ('alt_offset', 0.0)])
+            from collections import OrderedDict
+            geom_data_nominal = OrderedDict([('lon', None),
+                                            ('lat', None),
+                                            ('altitude', None),
+                                            ('azim', None),
+                                            ('azim_err', None),
+                                            ('elev', None),
+                                            ('elev_err', None),
+                                            ('alt_offset', 0.0)])
 
-        arr_nominal = list(geom_data_nominal.items())
-        arr_nominal.extend(list(cam_dict_nominal.items()))
+            arr_nominal = list(geom_data_nominal.items())
+            arr_nominal.extend(list(cam_dict_nominal.items()))
 
-        arr_vals = list(cam.geom_data.items())
-        for k in cam_dict_nominal:
-            arr_vals.append((k, cam.__dict__[k]))
+            arr_vals = list(cam.geom_data.items())
+            for k in cam_dict_nominal:
+                arr_vals.append((k, cam.__dict__[k]))
 
-        assert_array_equal(arr_nominal, arr_vals)
+            assert_array_equal(arr_nominal, arr_vals)
 
-        print("All tests passed in script: %s" % basename(__file__))
+            print(f"All tests passed in script: {pathlib.Path(__file__).name}")
+
+if __name__ == "__main__":
+    main()

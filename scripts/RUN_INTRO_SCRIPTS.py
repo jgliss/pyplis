@@ -15,77 +15,19 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
-from os import listdir, unlink
-from os.path import basename, join, isfile
-from traceback import format_exc
-from SETTINGS import OPTPARSE
-from sys import exit
 from time import time
+from SETTINGS import ARGPARSER, SCRIPTS_DIR
+from run_all_helpers import get_all_script_paths, run_all_scripts, print_output_runall
 
-paths = [f for f in listdir(".") if f[:4] == "ex0_" and f[4] != "5" and
-         f.endswith("py")]
+IGNORE_SCRIPTS = ["ex0_5_optflow_livecam.py"]
+SCRIPT_PATTERN = "ex0_*.py"
+if __name__ == "__main__":
 
-# init arrays, that store messages that are printed after execution of all
-# scripts
-test_err_messages = []
-passed_messages = []
+    options = ARGPARSER.parse_args()
 
-(options, args) = OPTPARSE.parse_args()
-
-if options.clear:
-    folder = "scripts_out"
-    for the_file in listdir(folder):
-        file_path = join(folder, the_file)
-        try:
-            if isfile(file_path):
-                unlink(file_path)
-            # elif os.path.isdir(file_path): shutil.rmtree(file_path)
-        except Exception as e:
-            print(e)
-
-t0 = time()
-for path in paths:
-    try:
-        with open(path) as f:
-            code = compile(f.read(), path, 'exec')
-            exec(code)
-
-        passed_messages.append("All tests passed in script: %s"
-                               % basename(path))
-    except AssertionError as e:
-        msg = ("\n\n"
-               "--------------------------------------------------------\n"
-               "Tests in script %s failed.\n"
-               "Error traceback:\n %s\n"
-               "--------------------------------------------------------"
-               "\n\n"
-               % (basename(path), format_exc(e)))
-        test_err_messages.append(msg)
-
-t1 = time()
-
-
-# If applicable, do some tests. This is done only if TESTMODE is active:
-# testmode can be activated globally (see SETTINGS.py) or can also be
-# activated from the command line when executing the script using the
-# option --test 1
-if int(options.test):
-    print("\n----------------------------\n"
-          "T E S T  F A I L U R E S"
-          "\n----------------------------\n")
-    if test_err_messages:
-        for msg in test_err_messages:
-            print(msg)
-    else:
-        print("None")
-    print("\n----------------------------\n"
-          "T E S T  S U C C E S S"
-          "\n----------------------------\n")
-    if passed_messages:
-        for msg in passed_messages:
-            print(msg)
-    else:
-        print("None")
-
-print("Total runtime: %.2f s" % (t1 - t0))
-exit(len(test_err_messages))
+    t0 = time()
+    all_intro_scripts = get_all_script_paths(SCRIPTS_DIR, SCRIPT_PATTERN, IGNORE_SCRIPTS)
+    test_err_messages, passed_messages, crashed_messages = run_all_scripts(all_intro_scripts)
+    t1 = time()    
+    print_output_runall(options, test_err_messages, passed_messages, crashed_messages)
+    print(f"Total runtime: {t1 - t0:.2f} s")

@@ -32,9 +32,9 @@ from pandas import Series
 from cv2 import cvtColor, COLOR_BGR2GRAY, fillPoly
 
 from pyplis import logger
-from .helpers import (map_coordinates_sub_img, same_roi, map_roi, roi2rect)
-from .inout import get_cam_ids
-from .glob import DEFAULT_ROI
+from pyplis.helpers import map_coordinates_sub_img, same_roi, map_roi, roi2rect
+from pyplis.inout import get_cam_ids
+from pyplis.glob import DEFAULT_ROI
 
 import six
 

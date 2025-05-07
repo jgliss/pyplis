@@ -15,7 +15,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
-"""Classes representing image data and corresponding processing features.
+"""Class representing image data and corresponding processing features.
 
 The image base class :class:`Img` is a powerful object for
 image data, containing I/O routines for many data formats, processing classes
@@ -30,6 +30,7 @@ instance used when performing a plume velocity cross-correlation analysis
 searched, for details see :class:`pyplis.plumespeed.VeloCrossCorrEngine`).
 """
 import six
+from pathlib import Path
 from astropy.io import fits
 from matplotlib import gridspec
 import matplotlib.cm as cmaps
@@ -427,8 +428,7 @@ class Img(object):
     def load_input(self, input):
         """Try to load input as numpy array and additional meta data."""
         try:
-            if any([isinstance(input, x) for x in
-                    [six.string_types, six.text_type]]) and exists(input):
+            if isinstance(input, (Path, str)) and exists(input):
                 self.load_file(input)
                 logger.info(input)
 
@@ -1253,37 +1253,11 @@ class Img(object):
         hdulist.writeto(path)
         return save_name
 
-# =============================================================================
-#     def import_ec2_header(self, ec2header):
-#         """Import image meta info for ECII camera type from FITS file
-#         header"""
-#         gain_info = {"LOW"  :   0,"HIGH" :   1}
-#
-#
-#         self.meta["texp"] = float(ec2header['EXP'])*10**-6        #unit s
-#         self.meta["bit_depth"] = 12
-#         self.meta["device_id"] = 'ECII'
-#         self.meta["file_type"] = 'fts'
-#         self.meta["start_acq"] = datetime.strptime(ec2header['STIME'],\
-#                                                     '%Y-%m-%d %H:%M:%S.%f')
-#         self.meta["stop_acq"] = datetime.strptime(ec2header['ETIME'],\
-#                                                     '%Y-%m-%d %H:%M:%S.%f')
-#         self.meta["read_gain"] = gain_info[ec2header['GAIN']]
-#         self.meta["pix_width"] = self.meta["pix_height"] = 4.65e-6 #m
-# =============================================================================
-
     """PLOTTING AND VISUALSATION FUNCTIONS"""
     def get_cmap(self, vmin=None, vmax=None, **kwargs):
         """Determine and return default cmap for current image."""
         if self.is_tau or self.is_aa:
             return cmaps.viridis
-# =============================================================================
-#             if vmin is None:
-#                 vmin = self.min()
-#             if vmax is None:
-#                 vmax = self.max()
-#             return shifted_color_map(vmin, vmax, cmaps.RdBu)
-# =============================================================================
         return cmaps.gray
 
     def show(self, zlabel=None, tit=None, **kwargs):
@@ -1638,7 +1612,7 @@ class ProfileTimeSeriesImg(Img):
             except BaseException:
                 logger.warning("Failed to delete existing file...")
         try:
-            hdulist.writeto(path, clobber=overwrite_existing)
+            hdulist.writeto(path, overwrite=overwrite_existing)
         except BaseException:
             logger.warning("Failed to save FITS File (check previous warnings)")
 

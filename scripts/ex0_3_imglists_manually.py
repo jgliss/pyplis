@@ -35,29 +35,22 @@ Furthermore, some basic image preparation features of ImgList objects are
 introduced (e.g. linking of lists, dark correction, automatic blurring,
 cropping, size reduction).
 """
-from SETTINGS import check_version, IMG_DIR, SAVEFIGS, SAVE_DIR, FORMAT, DPI,\
-    OPTPARSE
-
+import pathlib
 import pyplis
-from matplotlib.pyplot import subplots, close, show
+import matplotlib.pyplot as plt
 from datetime import datetime
 
-from os.path import join, isfile, basename
-from os import listdir
-
-# Check script version
-check_version()
+from SETTINGS import IMG_DIR, SAVEFIGS, SAVE_DIR, FORMAT, DPI, ARGPARSER
 
 # ## RELEVANT DIRECTORIES AND PATHS
-OFFSET_FILE = join(IMG_DIR, "EC2_1106307_1R02_2015091607064723_D0L_Etna.fts")
-DARK_FILE = join(IMG_DIR, "EC2_1106307_1R02_2015091607064865_D1L_Etna.fts")
+OFFSET_FILE = IMG_DIR / "EC2_1106307_1R02_2015091607064723_D0L_Etna.fts"
+DARK_FILE = IMG_DIR / "EC2_1106307_1R02_2015091607064865_D1L_Etna.fts"
 
-if __name__ == "__main__":
-    close("all")
-
+def main():
+    plt.close("all")
+    
     # ## Get all images in the image path which are FITS files (actually all)
-    all_paths = [join(IMG_DIR, f) for f in listdir(IMG_DIR) if
-                 isfile(join(IMG_DIR, f)) and f.endswith("fts")]
+    all_paths = list(IMG_DIR.glob("*.fts"))
 
     # Let pyplis know that this is the ECII camera standard, so that it is
     # able to import meta information from the FITS header
@@ -136,7 +129,7 @@ if __name__ == "__main__":
     # unedited
     off_img = off_list.current_img()
 
-    fig, ax = subplots(1, 2, figsize=(18, 6))
+    fig, ax = plt.subplots(1, 2, figsize=(18, 6))
 
     on_img.show(ax=ax[0])
     on_time_str = datetime.strftime(on_img.start_acq, "%Y-%m-%d %H:%M:%S")
@@ -154,11 +147,11 @@ if __name__ == "__main__":
 
     # ## IMPORTANT STUFF FINISHED
     if SAVEFIGS:
-        fig.savefig(join(SAVE_DIR, "ex0_3_out_1.%s" % FORMAT),
+        fig.savefig(SAVE_DIR / f"ex0_3_out_1.{FORMAT}",
                     format=FORMAT, dpi=DPI)
 
     # Import script options
-    (options, args) = OPTPARSE.parse_args()
+    options = ARGPARSER.parse_args()
 
     # If applicable, do some tests. This is done only if TESTMODE is active:
     # testmode can be activated globally (see SETTINGS.py) or can also be
@@ -169,17 +162,20 @@ if __name__ == "__main__":
 
         npt.assert_array_equal([501, 1, 500, 0],
                                [on_list.nof + off_list.nof,
-                                on_list.this.edit_log["darkcorr"],
-                                sum(on_list.this.shape),
+                                on_list.current_img().edit_log["darkcorr"],
+                                sum(on_list.current_img().shape),
                                 on_list.gaussian_blurring -
-                                on_list.this.edit_log["blurring"]])
+                                on_list.current_img().edit_log["blurring"]])
 
         npt.assert_allclose([402.66284],
                             [off_img.mean() - on_img.mean()],
                             rtol=1e-7, atol=0)
-        print("All tests passed in script: %s" % basename(__file__))
+        print(f"All tests passed in script: {pathlib.Path(__file__).name}")
     try:
         if int(options.show) == 1:
-            show()
+            plt.show()
     except Exception:
         print("Use option --show 1 if you want the plots to be displayed")
+
+if __name__ == "__main__":
+    main()

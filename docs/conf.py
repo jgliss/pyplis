@@ -11,17 +11,11 @@
 #
 # All configuration values have a default; values that are commented out
 # serve to show the default.
-
-import sys
 import os
-import matplotlib
 
 # This was inserted based on this blog: https://github.com/spinus/sphinxcontrib-images/issues/41, after the following build error occured: Could not import extension sphinxcontrib.images (exception: cannot import name make_admonition), apparently due to a compatibility error between an updated version of sphinx (1.6) and the extension sphinxcontrib.images
 #from docutils.parsers.rst.directives.admonitions import BaseAdmonition
 #from sphinx.util import compat
-#compat.make_admonition = BaseAdmonition
-
-matplotlib.use('agg')
 
 with open(os.path.join("..", "VERSION.rst")) as f:
     __version__ = ".".join(f.readline().strip().split(".")[:3]) 
@@ -49,7 +43,7 @@ extensions = [
     'sphinx.ext.imgmath',
     'sphinx.ext.ifconfig',
     'sphinx.ext.viewcode',
-    'sphinxcontrib.napoleon'
+    'sphinx.ext.napoleon',
 ]
 
 autodoc_mock_imports = [
@@ -155,10 +149,6 @@ html_theme = 'sphinx_rtd_theme'
 # pixels large.
 #html_favicon = None
 
-# Add any paths that contain custom static files (such as style sheets) here,
-# relative to this directory. They are copied after the builtin static files,
-# so a file named "default.css" will overwrite the builtin "default.css".
-html_static_path = ['_static']
 
 # Add any extra paths that contain custom files (such as robots.txt or
 # .htaccess) here, relative to this directory. These files are copied
@@ -376,7 +366,9 @@ epub_exclude_files = ['search.html']
 
 
 # Example configuration for intersphinx: refer to the Python standard library.
-intersphinx_mapping = {'https://docs.python.org/': None}
+intersphinx_mapping = {
+    "python": ('https://docs.python.org/', None)
+}
 
 def skip(app, what, name, obj, skip, options):
     if name == "__init__":

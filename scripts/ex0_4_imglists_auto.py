@@ -31,26 +31,19 @@ definitions  contains information about the camera specs a the
 image base directory (note that in this example, start / stop acq. time stamps
 are ignored, i.e. all images available in the specified directory are imported)
 """
-# Imports from SETTINGS.py
-from SETTINGS import check_version, IMG_DIR, OPTPARSE
-
+import pathlib
 import pyplis
-from os.path import basename
 
-# ## IMPORTS FROM OTHER EXAMPLE SCRIPTS
+from SETTINGS import IMG_DIR, ARGPARSER
 from ex0_2_camera_setup import create_ecII_cam_new_filters
 
-# Check script version
-check_version()
-
-
-if __name__ == "__main__":
-    # create the camera which was
-    cam = create_ecII_cam_new_filters()
+def main():
+    # create the camera object using the function defined in ex0_2_camera_setup.py
+    cam = create_ecII_cam_new_filters("test_cam")
 
     # now throw all this stuff into the BaseSetup objec
     stp = pyplis.setupclasses.MeasSetup(IMG_DIR, camera=cam)
-
+    
     # Create a Dataset which creates separate ImgLists for all types (dark,
     # offset, etc.)
     ds = pyplis.dataset.Dataset(stp)
@@ -62,8 +55,7 @@ if __name__ == "__main__":
 
     # print some information about each of the lists
     for lst in all_imglists:
-        print("list_id: %s, list_type: %s, number_of_files: %s"
-              % (lst.list_id, lst.list_type, lst.nof))
+        print(f"list_id: {lst.list_id}, list_type: {lst.list_type}, number_of_files: {lst.nof}")
 
     # single lists can be accessed using "get_list(<id>)" using a valid ID,
     # e.g.:
@@ -74,9 +66,8 @@ if __name__ == "__main__":
 
     # ... because it is linked to the on band list (automatically set in
     # Dataset)
-    print("\nImgLists linked to ImgList on: %s" % on_list.linked_lists.keys())
-    print("Current file number on / off list: %d / %d\n" % (on_list.cfn,
-                                                            off_list.cfn))
+    print(f"ImgLists linked to ImgList on: {on_list.linked_lists.keys()}")
+    print(f"Current file number on / off list: {on_list.cfn} / {off_list.cfn}")
 
     # Detected dark and offset image lists are also automatically linked to the
     # on and off band image list, such that dark image correction can be
@@ -89,7 +80,7 @@ if __name__ == "__main__":
     on_list.edit_info()
 
     # Import script options
-    (options, args) = OPTPARSE.parse_args()
+    options = ARGPARSER.parse_args()
 
     # If applicable, do some tests. This is done only if TESTMODE is active:
     # testmode can be activated globally (see SETTINGS.py) or can also be
@@ -100,15 +91,18 @@ if __name__ == "__main__":
 
         npt.assert_array_equal([501, 2, 2368, 0, 50],
                                [on_list.nof + off_list.nof,
-                                on_list.this.is_darkcorr +
-                                off_list.this.is_darkcorr,
-                                sum(on_list.this.shape),
+                                on_list.current_img().is_darkcorr +
+                                off_list.current_img().is_darkcorr,
+                                sum(on_list.current_img().shape),
                                 on_list.gaussian_blurring -
-                                on_list.this.edit_log["blurring"],
+                                on_list.current_img().edit_log["blurring"],
                                 on_list.cfn])
 
         npt.assert_allclose(actual=[on_list.get_dark_image().mean()],
                             desired=[190.56119],
                             rtol=1e-7)
 
-        print("All tests passed in script: %s" % basename(__file__))
+        print(f"All tests passed in script: {pathlib.Path(__file__).name}")
+
+if __name__ == "__main__":
+    main()
