@@ -19,7 +19,7 @@
 """
 from numpy import (nan, arctan, deg2rad, linalg, sqrt, abs, array, 
                    tan, rad2deg, linspace, isnan, asarray,
-                   arange, argmin, newaxis, round)
+                   arange, argmin, newaxis, round, ndarray)
 from typing import Tuple
 from collections import OrderedDict as od
 
@@ -29,9 +29,9 @@ import six
 
 from pyplis import logger, print_log
 from pyplis.utils import LineOnImage
-from .image import Img
-from .helpers import check_roi, isnum
-from .glob import DEFAULT_ROI
+from pyplis.image import Img
+from pyplis.helpers import check_roi, isnum
+from pyplis.glob import DEFAULT_ROI
 
 from geonum import GeoSetup, GeoPoint, GeoVector3D, TopoData
 from geonum.exceptions import TopoAccessError
