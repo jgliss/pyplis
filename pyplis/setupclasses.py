@@ -1246,7 +1246,8 @@ class MeasSetup(BaseSetup):
             self.source.to_dict(),
             self.camera.to_dict(),
             self.wind_info,
-            auto_topo_access=self.auto_topo_access)
+            auto_topo_access=self.auto_topo_access
+        )
         # If specified in custom camera, update the file I/O options
         # defined in :class:`BaseSetup`
         self.options.update(self.camera.io_opts)

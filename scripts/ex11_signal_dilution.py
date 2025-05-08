@@ -40,7 +40,9 @@ from pathlib import Path
 from SETTINGS import IMG_DIR, SAVEFIGS, SAVE_DIR, FORMAT, DPI, ARGPARSER
 # IMPORTS FROM OTHER EXAMPLE SCRIPTS
 from ex10_bg_imglists import get_bg_image_lists
+from pyplis.dataset import Dataset
 from pyplis.geometry import MeasGeometry
+from pyplis.imagelists import ImgList
 
 # SCRIPT OPTONS
 # lower boundary for I0 value in dilution fit
@@ -122,9 +124,14 @@ def create_dataset_dilution():
                  "dir_err": 15.0}
 
     # Create BaseSetup object (which creates the MeasGeometry object)
-    stp = pyplis.setupclasses.MeasSetup(IMG_DIR, start, stop, camera=cam,
-                                        source=source,
-                                        wind_info=wind_info)
+    stp = pyplis.setupclasses.MeasSetup(
+        base_dir=IMG_DIR, 
+        start=start, 
+        stop=stop, 
+        camera=cam,
+        source=source,
+        wind_info=wind_info
+    )
     return pyplis.dataset.Dataset(stp)
 
 
@@ -147,23 +154,22 @@ def find_view_dir(geom: MeasGeometry, plot: bool) -> MeasGeometry:
                                 geo_point=ne_crater, draw_result=plot)
     return geom
 
-
-def prepare_lists(dataset):
+def prepare_lists(dataset: Dataset) -> tuple[ImgList, ImgList]:
     """Prepare on and off lists for dilution analysis.
 
     Steps:
 
         1. get on and offband list
-        #. load background image list on and off (from ex10)
-        #. set image preparation and assign background images to on / off list
-        #. configure plume background model settings
+        2. load background image list on and off (from ex10)
+        3. set image preparation and assign background images to on / off list
+        4. configure plume background model settings
 
-    :param Dataset dataset: the dilution dataset (see
-        :func:`create_dataset_dilution`)
-    :return:
-        - ImgList, onlist
-        - ImgList, offlist
-
+    Args:
+        - dataset: the dilution dataset (see :func:`create_dataset_dilution`)
+    
+    Returns:
+        - onlist: ImgList object for onband filter
+        - offlist: ImgList object for offband filter
     """
     onlist = dataset.get_list("on")
     offlist = dataset.get_list("off")
