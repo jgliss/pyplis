@@ -108,7 +108,7 @@ def create_dataset_dilution():
                 "azim": 274.0,  # from field notes, will be corrected
                 "azim_err": 10.0,
                 "focal_length": 25e-3,
-                "alt_offset": 7}  # meters above topography
+                "alt_offset": 0}  # meters above topography
 
     # create camera setup
     cam = pyplis.setupclasses.Camera(

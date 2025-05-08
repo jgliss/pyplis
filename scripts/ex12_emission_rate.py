@@ -35,7 +35,6 @@ PCS lines in the EmissionRateAnalysis class using ``add_pcs_line``.
 The results for each velocity mode and for each PCS line are stored within
 instances of `EmissionRates` class.
 """
-
 from pathlib import Path
 from matplotlib.pyplot import close, show, GridSpec, figure, rc_context
 from matplotlib.cm import get_cmap

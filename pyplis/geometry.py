@@ -17,7 +17,7 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 """Module containing functionality for all relevant geometrical calculations.
 """
-from numpy import (nan, arctan, deg2rad, linalg, sqrt, abs, array, 
+from numpy import (nan, arctan, deg2rad, linalg, ndarray, sqrt, abs, array,
                    tan, rad2deg, linspace, isnan, asarray,
                    arange, argmin, newaxis, round, ndarray)
 from typing import Tuple
@@ -137,12 +137,6 @@ class MeasGeometry(object):
     def __init__(self, source_info=None, cam_info=None, wind_info=None,
                  auto_topo_access=True):
 
-        if source_info is None:
-            source_info = {}
-        if cam_info is None:
-            cam_info = {}
-        if wind_info is None:
-            wind_info = {}
         self._source = od([("name", ""),
                            ("lon", nan),
                            ("lat", nan),
@@ -171,10 +165,12 @@ class MeasGeometry(object):
         # topo in m
         self.auto_topo_access = auto_topo_access
         self.geo_setup = GeoSetup(id=self.cam_id)
-
-        self.update_source_specs(source_info, update_geosetup=False)
-        self.update_cam_specs(cam_info, update_geosetup=False)
-        self.update_wind_specs(wind_info, update_geosetup=False)
+        if source_info:
+            self.update_source_specs(source_info, update_geosetup=False)
+        if cam_info:
+            self.update_cam_specs(cam_info, update_geosetup=False)
+        if wind_info:
+            self.update_wind_specs(wind_info, update_geosetup=False)
         if any([bool(x) is True for x in [source_info, cam_info, wind_info]]):
             self.update_geosetup()
 
@@ -441,7 +437,31 @@ class MeasGeometry(object):
         self._wind["dir_err"] = self._type_dict["dir_err"](val)
         self.update_geosetup()
 
-    def update_cam_specs(self, info_dict=None, update_geosetup=True, **kwargs):
+    def _update_specs_helper(self, info_dict: dict, attr_name: str, update_geosetup: bool) -> None:
+        """
+        Helper function to update camera, source or wind information.
+
+        Args:
+            info_dict: Dictionary containing information to update.
+            attr_name: Name of the attribute to update. Choose from
+                _cam, _source, or _wind.
+            update_geosetup: If True, the method :func:`update_geosetup` is called at the end of this method.
+        """
+        types = self._type_dict
+        for key in self.__dict__[attr_name]:
+            if key in info_dict:
+                raw_val = info_dict[key]
+                if raw_val is None:
+                    continue
+                val = types[key](raw_val)
+                self.__dict__[attr_name][key] = val
+        if update_geosetup:
+            self.update_geosetup()
+
+    def update_cam_specs(
+            self, 
+            info_dict: dict, 
+            update_geosetup=True):
         """Update camera settings.
 
         Update dictionary containing geometrical camera information
@@ -456,28 +476,14 @@ class MeasGeometry(object):
         update_geosetup : bool
             If True, the method :func:`update_geosetup` is called at the end
             of this method
-        **kwargs
-            can be used to directly pass valid key / value pairs
-
         """
-        if info_dict is None:
-            info_dict = {}
-        info_dict.update(kwargs)
-        types = self._type_dict
-        for key, val in six.iteritems(info_dict):
-            if key in self._cam:
-                try:
-                    val = types[key](val)
-                    if isnan(val):
-                        raise ValueError
-                    self._cam[key] = val
-                except BaseException:
-                    pass
-        if update_geosetup:
-            self.update_geosetup()
-
-    def update_source_specs(self, info_dict=None, update_geosetup=True,
-                            **kwargs):
+        self._update_specs_helper(info_dict, "_cam", update_geosetup)
+        
+    def update_source_specs(
+            self, 
+            info_dict: dict, 
+            update_geosetup: bool = True
+        ) -> None:
         """Update source settings.
 
         Update source info dictionary (:attr:`source`) either by providing a
@@ -492,29 +498,10 @@ class MeasGeometry(object):
         update_geosetup : bool
             If True, the method :func:`update_geosetup` is called at the end
             of this method
-        **kwargs
-            alternative way to update the source dictionary using valid
-            keywords directly
-
         """
-        if info_dict is None:
-            info_dict = {}
-        info_dict.update(kwargs)
-        types = self._type_dict
-        for key, val in six.iteritems(info_dict):
-            if key in self._source:
-                try:
-                    val = types[key](val)
-                    if isnan(val):
-                        raise ValueError
-                    self._source[key] = val
-                except BaseException:
-                    pass
-        if update_geosetup:
-            self.update_geosetup()
+        self._update_specs_helper(info_dict, "_source", update_geosetup)
 
-    def update_wind_specs(self, info_dict=None, update_geosetup=True,
-                          **kwargs):
+    def update_wind_specs(self, info_dict, update_geosetup=True):
         """Update meteorological settings.
 
         Update wind info dictionary (:attr:`wind`) either by providing a
@@ -529,26 +516,8 @@ class MeasGeometry(object):
         update_geosetup : bool
             If True, the method :func:`update_geosetup` is called at the end
             of this method
-        **kwargs
-            alternative way to update the wind dictionary using valid
-            keywords directly
-
         """
-        if info_dict is None:
-            info_dict = {}
-        info_dict.update(kwargs)
-        types = self._type_dict
-        for key, val in six.iteritems(info_dict):
-            if key in self._wind:
-                try:
-                    val = types[key](val)
-                    if isnan(val):
-                        raise ValueError
-                    self._wind[key] = val
-                except BaseException:
-                    pass
-        if update_geosetup:
-            self.update_geosetup()
+        self._update_specs_helper(info_dict, "_wind", update_geosetup)
 
     def _check_all_info_avail_for_geosetup(self):
         """Check if relevant information for :attr:`geo_setup` is ready."""
@@ -819,16 +788,12 @@ class MeasGeometry(object):
             - :class:`GeoPoint` corresponding to intersection position
 
         """
-        try:
-            logger.info(self.cam)
-        except BaseException:
+        if "cam" not in self.geo_setup.points:
             raise AttributeError("Failed to retrieve distance to topo: geo "
                                  "location of camera is not available")
         if not isinstance(self.geo_setup.topo_data, TopoData):
-            try:
-                self.geo_setup.load_topo_data()
-            except BaseException:
-                raise ValueError("Failed to retrieve distance to topography")
+            self.geo_setup.load_topo_data()
+    
         azim = self.all_azimuths_camfov()[pos_x_abs]
         elev = self.all_elevs_camfov()[pos_y_abs]
         max_dist = self.geo_setup.vectors["source2cam"].magnitude * 1.10
