@@ -152,6 +152,7 @@ def find_view_dir(geom: MeasGeometry, plot: bool) -> MeasGeometry:
 
     geom.find_viewing_direction(pix_x=posx, pix_y=posy, pix_pos_err=100,
                                 geo_point=ne_crater, draw_result=plot)
+    
     return geom
 
 def prepare_lists(dataset: Dataset) -> tuple[ImgList, ImgList]:
@@ -402,6 +403,14 @@ def main():
     if int(options.test):
         import numpy.testing as npt
 
+        # check correction of viewing direction in geometry
+        npt.assert_allclose(
+            actual=[geom._cam["elev"], geom._cam["azim"], geom._cam["elev_err"], geom._cam["azim_err"]],
+            desired=[14.212510910775158, 280.3278110428114, 1.0656026217149126, 1.0616956101542883],
+        rtol=1e-5)
+
+        # check the retrieved extinction coefficients and i0 values
+        # for on and off band images
         npt.assert_allclose(
             actual=[
                 ext_on, i0_on, 
