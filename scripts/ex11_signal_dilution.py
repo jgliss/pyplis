@@ -32,7 +32,6 @@ plume cross section)
 """
 
 import pyplis as pyplis
-import pandas as pd
 from geonum import GeoPoint
 from matplotlib.pyplot import show, close, subplots, Rectangle, plot
 from datetime import datetime
@@ -55,11 +54,11 @@ PCS_LINE = pyplis.LineOnImage(x0=530, y0=586, x1=910, y1=200, line_id="pcs")
 # for dilution correction (along these lines, topographic
 # distances and image radiances are determined for fitting the atmospheric
 # extinction coefficients)
-TOPO_LINE1 = pyplis.LineOnImage(1100, 650, 1000, 900, line_id="flank far",
+TOPO_LINE1 = pyplis.LineOnImage(1100, 650, 1000, 900, line_id="flank_far",
                                 color="lime",
                                 linestyle="-")
 
-TOPO_LINE2 = pyplis.LineOnImage(1000, 990, 1100, 990, line_id="flank close",
+TOPO_LINE2 = pyplis.LineOnImage(1000, 990, 1100, 990, line_id="flank_close",
                                 color="#ff33e3",
                                 linestyle="-")
 
@@ -81,7 +80,7 @@ PLUME_VELO = 4.14  # m/s
 CALIB_FILE = SAVE_DIR / "ex06_doascalib_aa.fts"
 
 def create_dataset_dilution():
-    """Create a :class:`pyplis.dataset.Dataset` object for dilution analysis.
+    """Create a :class:`pyplis.Dataset` object for dilution analysis.
 
     The test dataset includes one on and one offband image which are recorded
     around 6:45 UTC at lower camera elevation angle than the time series shown
@@ -128,12 +127,15 @@ def create_dataset_dilution():
     return pyplis.dataset.Dataset(stp)
 
 
-def find_view_dir(geom, plot):
+def find_view_dir(geom: MeasGeometry, plot: bool) -> MeasGeometry:
     """Perform a correction of the viewing direction using crater in img.
 
-    :param MeasGeometry geom: measurement geometry
-    :param str which_crater: use either "ne" (northeast) or "se" (south east)
-    :return: - MeasGeometry, corrected geometry
+    Args:
+        geom: measurement geometry
+        plot: if True, the result is plotted
+    
+    Returns: 
+        corrected geometry
     """
     # Use position of NE crater in image
     posx, posy = 1051, 605  # pixel position of NE crate in image
@@ -261,10 +263,11 @@ def main():
     ia_off = off_vigncorr.crop(AMBIENT_ROI, True).mean()
 
     # perform dilution anlysis and retrieve extinction coefficients (on-band)
-    ext_on, i0_on, _, ax0 = dil.apply_dilution_fit(img=on_vigncorr,
-                                               rad_ambient=ia_on,
-                                               i0_min=I0_MIN,
-                                               plot=True)
+    ext_on, i0_on, _, ax0 = dil.apply_dilution_fit(
+        img=on_vigncorr,
+        rad_ambient=ia_on,
+        i0_min=I0_MIN,
+        plot=True)
 
     ax0.set_ylabel("Terrain radiances (on band)", fontsize=14)
     ax0.set_ylim([0, 2500])
@@ -391,9 +394,6 @@ def main():
     # option --test 1
     if int(options.test):
         import numpy.testing as npt
-
-        npt.assert_array_equal([],
-                               [])
 
         npt.assert_allclose(
             actual=[
