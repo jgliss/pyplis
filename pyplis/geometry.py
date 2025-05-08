@@ -29,9 +29,9 @@ import six
 
 from pyplis import logger, print_log
 from pyplis.utils import LineOnImage
-from .image import Img
-from .helpers import check_roi, isnum
-from .glob import DEFAULT_ROI
+from pyplis.image import Img
+from pyplis.helpers import check_roi, isnum
+from pyplis.glob import DEFAULT_ROI
 
 from geonum import GeoSetup, GeoPoint, GeoVector3D, TopoData
 from geonum.exceptions import TopoAccessError
@@ -819,16 +819,12 @@ class MeasGeometry(object):
             - :class:`GeoPoint` corresponding to intersection position
 
         """
-        try:
-            logger.info(self.cam)
-        except BaseException:
+        if "cam" not in self.geo_setup.points:
             raise AttributeError("Failed to retrieve distance to topo: geo "
                                  "location of camera is not available")
         if not isinstance(self.geo_setup.topo_data, TopoData):
-            try:
-                self.geo_setup.load_topo_data()
-            except BaseException:
-                raise ValueError("Failed to retrieve distance to topography")
+            self.geo_setup.load_topo_data()
+    
         azim = self.all_azimuths_camfov()[pos_x_abs]
         elev = self.all_elevs_camfov()[pos_y_abs]
         max_dist = self.geo_setup.vectors["source2cam"].magnitude * 1.10
