@@ -232,8 +232,11 @@ def main():
 
     # you may also manually add  a single pixel position in the image that is
     # used to retrieve topographic distances (this function allows you also to
-    # set the distance to the feature manually, since sometimes the SRTM data-
-    # set is incomplete or has too low resolution)
+    # set the distance to the feature manually via input arg `dist`, 
+    # since in some regions, the topographic data used is incomplete or 
+    # has too low resolution). Here, `dist` is not provided, which means that the 
+    # distance will be determined based on the measurement
+    # geometry (cam position, viewing direction, and optics) and the local topography.
     dil.add_retrieval_point(700, 930)
     dil.add_retrieval_point(730, 607)
 
@@ -270,23 +273,35 @@ def main():
     ia_on = on_vigncorr.crop(AMBIENT_ROI, True).mean()
     ia_off = off_vigncorr.crop(AMBIENT_ROI, True).mean()
     
-    
-    
     # perform dilution anlysis and retrieve extinction coefficients (on-band)
-    ext_on, i0_on, _, ax0 = dil.apply_dilution_fit(
+    fit_result_on = dil.fit(
         img=on_vigncorr,
         rad_ambient=ia_on,
-        i0_min=I0_MIN,
-        plot=True)
-
+        i0_min=I0_MIN)
+    
+    ax0 = dil.plot_fit_result(
+        dists=fit_result_on.dists, 
+        rads=fit_result_on.rads, 
+        rad_ambient=ia_on, 
+        i0=fit_result_on.i0, 
+        ext=fit_result_on.ext)
+    
     ax0.set_ylabel("Terrain radiances (on band)", fontsize=14)
     ax0.set_ylim([0, 2500])
 
     # perform dilution anlysis and retrieve extinction coefficients (off-band)
-    ext_off, i0_off, _, ax1 = dil.apply_dilution_fit(img=off_vigncorr,
-                                                     rad_ambient=ia_off,
-                                                     i0_min=I0_MIN,
-                                                     plot=True)
+    fit_result_off = dil.fit(
+        img=off_vigncorr,
+        rad_ambient=ia_off,
+        i0_min=I0_MIN)
+    
+    ax1 = dil.plot_fit_result(
+        dists=fit_result_off.dists, 
+        rads=fit_result_off.rads, 
+        rad_ambient=ia_off, 
+        i0=fit_result_off.i0, 
+        ext=fit_result_off.ext)
+    
     ax1.set_ylabel("Terrain radiances (off band)", fontsize=14)
     ax1.set_ylim([0, 2500])
 
@@ -297,6 +312,8 @@ def main():
     plume_pix_mask[840:, :] = 0  # remove tree in lower part of the image
     onlist.aa_mode = False
 
+    ext_on = fit_result_on.ext
+    ext_off = fit_result_off.ext
     # assign the just retrieved extinction coefficients together with the 
     # acq. time of images they were retrieved from
     onlist.set_ext_coeffs(values=[ext_on], timestamps=[on_vigncorr.start_acq])
@@ -366,10 +383,9 @@ def main():
 
     fig, ax3 = subplots(1, 1)
     ax3.plot(so2_cds_uncorr, ls="-", color="#ff33e3",
-             label=r"Uncorr: $\Phi_{SO2}=$%.2f (+/- %.2f) kg/s" % (phi_uncorr / 1000.0, phi_uncorr_err / 1000.0))
+             label=f"Uncorr: $\\Phi_{{SO2}}=$ {phi_uncorr / 1000.0:.2f} (+/- {phi_uncorr_err / 1000.0:.2f}) kg/s")
     ax3.plot(so2_cds_corr, "-g", lw=3,
-             label=r"Corr: $\Phi_{SO2}=$%.2f (+/- %.2f) kg/s"
-                   % (phi_corr / 1000.0, phi_corr_err / 1000.0))
+             label=f"Corr: $\\Phi_{{SO2}}=$ {phi_corr / 1000.0:.2f} (+/- {phi_corr_err / 1000.0:.2f}) kg/s")
 
     ax3.set_title("Cross section profile", fontsize=12)
     ax3.legend(loc="best", framealpha=0.5, fancybox=True, fontsize=12)
@@ -411,18 +427,26 @@ def main():
             desired=[14.212510910775158, 280.3278110428114, 1.0656026217149126, 1.0616956101542883],
         rtol=1e-5)
 
-        # Check inputs to the dilution correction engine 
+        # Check inputs to the dilution correction fit engine 
         npt.assert_allclose(
             actual=[on_vigncorr.mean(), off_vigncorr.mean(), ia_on, ia_off],
             desired=[2849.1296, 2576.153, 3963.2626953125, 3525.40478515625],
+            rtol=1e-7)
+        
+        npt.assert_allclose(
+            actual=[
+                fit_result_on.dists.mean(), fit_result_on.rads.mean(),
+                fit_result_off.dists.mean(), fit_result_off.rads.mean()
+                ],
+            desired=[6854.925234914583, 1794.5193, 6854.925234914583, 1378.1238],
             rtol=1e-7)
         
         # check the retrieved extinction coefficients and i0 values
         # for on and off band images
         npt.assert_allclose(
             actual=[
-                ext_on, i0_on, 
-                ext_off, i0_off,
+                fit_result_on.ext, fit_result_on.i0, 
+                fit_result_off.ext, fit_result_off.i0,
                 phi_corr, phi_corr_err,
                 phi_uncorr, phi_uncorr_err
                 ],

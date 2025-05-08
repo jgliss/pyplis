@@ -16,8 +16,12 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 """Pyplis module for image based correction of the signal dilution effect."""
-from numpy import asarray, linspace, exp, ones, nan
+from typing import Optional
+import warnings
+from numpy import asarray, linspace, exp, ndarray, ones, nan
+from dataclasses import dataclass
 from scipy.ndimage import median_filter
+from scipy.optimize import OptimizeResult
 from matplotlib.pyplot import subplots, rcParams
 
 from pandas import Series, DataFrame
@@ -33,6 +37,23 @@ from pyplis.imagelists import ImgList
 from pyplis.exceptions import ImgModifiedError
 LABEL_SIZE = rcParams["font.size"] + 2
 
+
+@dataclass
+class DilutionCorrFitResult:
+    """Class to bundle the results of the dilution fit."""
+    ext: float
+    """Extinction coefficient."""
+    i0: float
+    """Retrieved undiluted intensity of terrain"""
+    dists: ndarray
+    """Distances to topographic features used as input to the fit."""
+    rads: ndarray
+    """Radiances of topographic features used as input to the fit"""
+    input_img: Img
+    """Input image used to retrieve the measured radiances."""
+    fit_result: OptimizeResult
+    """Result of the fit."""
+    
 class DilutionCorr:
     """Class for management of dilution correction.
 
@@ -227,10 +248,19 @@ class DilutionCorr:
             rads.append(img.img[y, x])
         return asarray(dists), asarray(rads)
 
-    def apply_dilution_fit(self, img, rad_ambient, i0_guess=None,
-                           i0_min=0, i0_max=None, ext_guess=1e-4, ext_min=0,
-                           ext_max=1e-3, line_ids=None, plot=True, **kwargs):
-        r"""Perform dilution correction fit to retrieve extinction coefficient.
+    def fit(
+        self, 
+        img: Img, 
+        rad_ambient: float, 
+        i0_guess: Optional[float] = None,
+        i0_min: float = 0.0, 
+        i0_max: Optional[float] = None, 
+        ext_guess: float = 1e-4, 
+        ext_min: float = 0.0,
+        ext_max: float = 1e-3,
+        line_ids=None
+        ) -> DilutionCorrFitResult:
+        """Perform dilution correction fit to retrieve extinction coefficient.
 
         Uses :func:`dilution_corr_fit` of :mod:`optimisation` which is a
         bounded least square fit based on the following model function
@@ -289,12 +319,83 @@ class DilutionCorr:
         fit_res = dilution_corr_fit(rads, dists, rad_ambient, i0_guess,
                                     i0_min, i0_max, ext_guess,
                                     ext_min, ext_max)
+        
         i0, ext = fit_res.x
+        result = DilutionCorrFitResult(
+            ext=ext, i0=i0, dists=dists, rads=rads,
+            input_img=img, fit_result=fit_res
+        )
+        return result
+    
+    def apply_dilution_fit(self, img, rad_ambient, i0_guess=None,
+                           i0_min=0, i0_max=None, ext_guess=1e-4, ext_min=0,
+                           ext_max=1e-3, line_ids=None, plot=True, **kwargs):
+        """Perform dilution correction fit to retrieve extinction coefficient.
+
+        Note:
+            DEPRECATED: please use method :func:`fit` instead.
+            
+        Uses :func:`dilution_corr_fit` of :mod:`optimisation` which is a
+        bounded least square fit based on the following model function
+
+        .. math::
+
+            I_{meas}(\lambda) = I_0(\lambda)e^{-\epsilon(\lambda)d} +
+            I_A(\lambda)(1-e^{-\epsilon(\lambda)d})
+
+        Parameters
+        ----------
+        img : Img
+            vignetting corrected image for radiance extraction
+        rad_ambient : float
+            ambient intensity (:math:`I_A` in model)
+        i0_guess : float
+            optional: guess value for initial intensity of topographic
+            features, i.e. the reflected radiation before entering scattering
+            medium (:math:`I_0` in model, if None, then it is set 5% of the
+            ambient intensity ``rad_ambient``)
+        i0_min : float
+            optional: minimum initial intensity of topographic features
+        i0_max : float
+            optional: maximum initial intensity of topographic features
+        ext_guess : float
+            guess value for atm. extinction coefficient
+            (:math:`\epsilon` in model)
+        ext_min : float
+            minimum value for atm. extinction coefficient
+        ext_max : float
+            maximum value for atm. extinction coefficient
+        line_ids : list
+            if desired, the data can also be accessed for specified line ids,
+            which have to be provided in a list. If empty (default), all lines
+            are considered
+        plot : bool
+            if True, the result is plotted
+        **kwargs :
+            additional keyword args passed to plotting function (e.g. to
+            pass an axes object)
+
+        Returns
+        -------
+        tuple
+            4-element tuple containing
+
+            - retrieved extinction coefficient
+            - retrieved initial intensity
+            - fit result object
+            - axes instance or None (dependent on :param:`plot`)
+
+        """
+        warnings.warn("This method is deprecated, please use method 'fit', (note slight change in signature)", DeprecationWarning, stacklevel=2)
+        result = self.fit(
+            img=img, rad_ambient=rad_ambient, i0_guess=i0_guess,
+            i0_min=i0_min, i0_max=i0_max, ext_guess=ext_guess,
+            ext_min=ext_min, ext_max=ext_max, line_ids=line_ids
+        )
         ax = None
         if plot:
-            ax = self.plot_fit_result(dists, rads, rad_ambient, i0, ext,
-                                      **kwargs)
-        return ext, i0, fit_res, ax
+            ax = self.plot_fit_result(result.dists, result.rads, rad_ambient, result.i0, result.ext, **kwargs)
+        return result.ext, result.i0, result.fit_result, ax
 
     def get_ext_coeffs_imglist(self, lst, roi_ambient=None, apply_median=5,
                                **kwargs):
