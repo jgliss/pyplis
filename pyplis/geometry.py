@@ -1129,8 +1129,7 @@ class MeasGeometry(object):
                               "retrieval of viewing direction could not be "
                               "extracted from input params..")
 
-        elev_cam, az_cam = self._correct_view_dir_lowlevel(pix_x, pix_y,
-                                                           obj_pos)
+        elev_cam, az_cam = self._correct_view_dir_lowlevel(pix_x, pix_y, obj_pos)
 
         pix_range_x = [pix_x - pix_pos_err,
                        pix_x - pix_pos_err]
@@ -1139,20 +1138,15 @@ class MeasGeometry(object):
         elevs, azims = [], []
         for xpos in pix_range_x:
             for ypos in pix_range_y:
-                elev, azim = self._correct_view_dir_lowlevel(xpos, ypos,
-                                                             obj_pos)
+                elev, azim = self._correct_view_dir_lowlevel(xpos, ypos, obj_pos)
                 elevs.append(elev), azims.append(azim)
         elev_err = max(abs(elev_cam - asarray(elevs)))
         azim_err = max(abs(az_cam - asarray(azims)))
 
         if update:
             elev_old, az_old = geom_old._cam["elev"], geom_old._cam["azim"]
-            logger.info(
-                "Old Elev / Azim cam CFOV: %.2f / %.2f" %
-                (elev_old, az_old))
-            logger.info(
-                "New Elev / Azim cam CFOV: %.2f / %.2f" %
-                (elev_cam, az_cam))
+            logger.info(f"Old Elev / Azim cam CFOV: {elev_old:.2f} / {az_old:.2f}")
+            logger.info(f"New Elev / Azim cam CFOV: {elev_cam:.2f} / {az_cam:.2f}")
             self._cam["elev"] = elev_cam
             self._cam["azim"] = az_cam
             self._cam["elev_err"] = elev_err
