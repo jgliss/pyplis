@@ -16,7 +16,6 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 """Pyplis module containing mathematical model functions."""
-from __future__ import (absolute_import, division)
 from numpy import exp, sin, cos
 from pyplis import logger
 import six

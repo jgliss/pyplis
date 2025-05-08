@@ -11,30 +11,15 @@
 #
 # All configuration values have a default; values that are commented out
 # serve to show the default.
-
-import sys
 import os
 
 # This was inserted based on this blog: https://github.com/spinus/sphinxcontrib-images/issues/41, after the following build error occured: Could not import extension sphinxcontrib.images (exception: cannot import name make_admonition), apparently due to a compatibility error between an updated version of sphinx (1.6) and the extension sphinxcontrib.images
 #from docutils.parsers.rst.directives.admonitions import BaseAdmonition
 #from sphinx.util import compat
-#compat.make_admonition = BaseAdmonition
 
 with open(os.path.join("..", "VERSION.rst")) as f:
     __version__ = ".".join(f.readline().strip().split(".")[:3]) 
     f.close()
-
-from unittest.mock import MagicMock as Mock
-
-MOCK_MODULES = [
-    'mpl_toolkits.basemap',
-    'cv2',
-    'astropy',
-    'astropy.io',
-    'astropy.modeling',
-    'astropy.modeling.fitting'
-]
-sys.modules.update((mod_name, Mock()) for mod_name in MOCK_MODULES)
 
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
@@ -61,7 +46,13 @@ extensions = [
     'sphinx.ext.napoleon',
 ]
 
-
+autodoc_mock_imports = [
+    'cv2',
+    'astropy',
+    'astropy.io',
+    'astropy.modeling',
+    'astropy.modeling.fitting'
+]
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
 

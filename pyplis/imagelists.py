@@ -26,14 +26,14 @@ images of a certain type (e.g. onband, offband, see :class:`Dataset` object).
 pre-processing modes (e.g. load images as dark corrected and calibrated images,
 compute optical flow between current and next image).
 """
-from typing import Sequence
-import warnings
 from numpy import (arange, ndarray, isnan,
                    logical_or, uint8, exp, ones, size, array)
 from datetime import timedelta, datetime
-
-from pandas import Series, DataFrame, read_csv, to_datetime, concat
 from matplotlib.pyplot import ion, ioff, close
+from typing import Sequence
+import warnings
+from datetime import timedelta, datetime
+from pandas import Series, DataFrame, read_csv, to_datetime, concat
 
 from os.path import exists, abspath, dirname, join
 from os import mkdir

@@ -32,7 +32,6 @@ plume cross section)
 """
 
 import pyplis as pyplis
-import pandas as pd
 from geonum import GeoPoint
 from matplotlib.pyplot import show, close, subplots, Rectangle, plot
 from datetime import datetime
@@ -41,6 +40,9 @@ from pathlib import Path
 from SETTINGS import IMG_DIR, SAVEFIGS, SAVE_DIR, FORMAT, DPI, ARGPARSER
 # IMPORTS FROM OTHER EXAMPLE SCRIPTS
 from ex10_bg_imglists import get_bg_image_lists
+from pyplis.dataset import Dataset
+from pyplis.geometry import MeasGeometry
+from pyplis.imagelists import ImgList
 
 # SCRIPT OPTONS
 # lower boundary for I0 value in dilution fit
@@ -55,11 +57,11 @@ PCS_LINE = pyplis.LineOnImage(x0=530, y0=586, x1=910, y1=200, line_id="pcs")
 # for dilution correction (along these lines, topographic
 # distances and image radiances are determined for fitting the atmospheric
 # extinction coefficients)
-TOPO_LINE1 = pyplis.LineOnImage(1100, 650, 1000, 900, line_id="flank far",
+TOPO_LINE1 = pyplis.LineOnImage(1100, 650, 1000, 900, line_id="flank_far",
                                 color="lime",
                                 linestyle="-")
 
-TOPO_LINE2 = pyplis.LineOnImage(1000, 990, 1100, 990, line_id="flank close",
+TOPO_LINE2 = pyplis.LineOnImage(1000, 990, 1100, 990, line_id="flank_close",
                                 color="#ff33e3",
                                 linestyle="-")
 
@@ -81,7 +83,7 @@ PLUME_VELO = 4.14  # m/s
 CALIB_FILE = SAVE_DIR / "ex06_doascalib_aa.fts"
 
 def create_dataset_dilution():
-    """Create a :class:`pyplis.dataset.Dataset` object for dilution analysis.
+    """Create a :class:`pyplis.Dataset` object for dilution analysis.
 
     The test dataset includes one on and one offband image which are recorded
     around 6:45 UTC at lower camera elevation angle than the time series shown
@@ -106,7 +108,7 @@ def create_dataset_dilution():
                 "azim": 274.0,  # from field notes, will be corrected
                 "azim_err": 10.0,
                 "focal_length": 25e-3,
-                "alt_offset": 7}  # meters above topography
+                "alt_offset": 0}  # meters above topography
 
     # create camera setup
     cam = pyplis.setupclasses.Camera(
@@ -122,18 +124,26 @@ def create_dataset_dilution():
                  "dir_err": 15.0}
 
     # Create BaseSetup object (which creates the MeasGeometry object)
-    stp = pyplis.setupclasses.MeasSetup(IMG_DIR, start, stop, camera=cam,
-                                        source=source,
-                                        wind_info=wind_info)
+    stp = pyplis.setupclasses.MeasSetup(
+        base_dir=IMG_DIR, 
+        start=start, 
+        stop=stop, 
+        camera=cam,
+        source=source,
+        wind_info=wind_info
+    )
     return pyplis.dataset.Dataset(stp)
 
 
-def find_view_dir(geom, plot):
+def find_view_dir(geom: MeasGeometry, plot: bool) -> MeasGeometry:
     """Perform a correction of the viewing direction using crater in img.
 
-    :param MeasGeometry geom: measurement geometry
-    :param str which_crater: use either "ne" (northeast) or "se" (south east)
-    :return: - MeasGeometry, corrected geometry
+    Args:
+        geom: measurement geometry
+        plot: if True, the result is plotted
+    
+    Returns: 
+        corrected geometry
     """
     # Use position of NE crater in image
     posx, posy = 1051, 605  # pixel position of NE crate in image
@@ -145,23 +155,22 @@ def find_view_dir(geom, plot):
     
     return geom
 
-
-def prepare_lists(dataset):
+def prepare_lists(dataset: Dataset) -> tuple[ImgList, ImgList]:
     """Prepare on and off lists for dilution analysis.
 
     Steps:
 
         1. get on and offband list
-        #. load background image list on and off (from ex10)
-        #. set image preparation and assign background images to on / off list
-        #. configure plume background model settings
+        2. load background image list on and off (from ex10)
+        3. set image preparation and assign background images to on / off list
+        4. configure plume background model settings
 
-    :param Dataset dataset: the dilution dataset (see
-        :func:`create_dataset_dilution`)
-    :return:
-        - ImgList, onlist
-        - ImgList, offlist
-
+    Args:
+        - dataset: the dilution dataset (see :func:`create_dataset_dilution`)
+    
+    Returns:
+        - onlist: ImgList object for onband filter
+        - offlist: ImgList object for offband filter
     """
     onlist = dataset.get_list("on")
     offlist = dataset.get_list("off")
@@ -263,8 +272,6 @@ def main():
     # estimate ambient intensity for both filters
     ia_on = on_vigncorr.crop(AMBIENT_ROI, True).mean()
     ia_off = off_vigncorr.crop(AMBIENT_ROI, True).mean()
-    
-    
     
     # perform dilution anlysis and retrieve extinction coefficients (on-band)
     fit_result_on = dil.fit(

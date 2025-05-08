@@ -140,7 +140,7 @@ def main():
     # geom_corr.update_cam_specs()
     # geom_corr.update_source_specs()
 
-    geom_corr.update_wind_specs(dir=315)
+    geom_corr.update_wind_specs(dict(dir=315))
     geom_corr.draw_map_2d()  # this figure is only displayed and not saved
 
     # recompute plume distance of CFOV pixel

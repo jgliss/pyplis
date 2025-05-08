@@ -1,6 +1,3 @@
-from __future__ import (absolute_import, division)
-from SETTINGS import check_pyplis_scripts_version
-
 from os.path import join, exists
 from matplotlib.pyplot import close, show, rc_context
 
@@ -14,8 +11,6 @@ from ex04_prep_aa_imglist import prepare_aa_image_list
 rc_context({'font.size': '18'})
 
 # Raises Exception if conflict occurs
-
-
 PCS = LINES[0]
 
 # SCRIPT OPTONS

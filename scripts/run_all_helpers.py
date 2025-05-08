@@ -52,11 +52,11 @@ def run_all_scripts(all_intro_scripts: list[pathlib.Path]) -> tuple[list[str], l
             print(f"Running {script_path.name}")
             run_script(script_path=script_path)
             passed_messages.append(f"All tests passed in script: {script_path.name}")
-        except AssertionError as e:
+        except AssertionError:
             msg = (f"\n\n"
                 f"--------------------------------------------------------\n"
                 f"Tests in script {script_path.name} failed.\n"
-                f"Error traceback:\n {format_exc(e)}\n"
+                f"Error traceback:\n {format_exc()}\n"
                 f"--------------------------------------------------------"
                 f"\n\n"
                 )

@@ -36,7 +36,8 @@ from matplotlib import gridspec
 import matplotlib.cm as cmaps
 from matplotlib.pyplot import figure, tight_layout
 from numpy import (ndarray, argmax, histogram, uint, nan, linspace, isnan,
-                   uint8, float32, finfo, ones, invert, log, ogrid, asarray)
+                   uint8, float32, finfo, ones, invert, log, ogrid, asarray,
+                   nanmean, nanmin, nanmax, nanstd, nansum)
 from numpy.ma import masked_array
 from json import loads, dumps
 from os.path import abspath, splitext, basename, exists, join, isdir, dirname
@@ -45,8 +46,7 @@ from os import remove
 from datetime import datetime
 from decimal import Decimal
 from cv2 import imread, pyrDown, pyrUp, addWeighted, dilate, erode
-from scipy.ndimage.filters import gaussian_filter, median_filter
-from scipy.ndimage.interpolation import shift
+from scipy.ndimage import gaussian_filter, median_filter, shift
 from collections import OrderedDict as od
 from traceback import format_exc
 from copy import deepcopy
@@ -1050,28 +1050,28 @@ class Img(object):
         new = self.duplicate()
         if self.edit_log["blurring"] == 0 and blur != 0:
             new.add_gaussian_blurring(blur)
-            new.img = new.img / new.img.max()
+            new.img = new.img / nanmax(new.img)
         return new
 
     def mean(self):
         """Return mean value of current image data."""
-        return self.img.mean()
+        return nanmean(self.img)
 
     def sum(self):
         """Return the sum of all pixel values."""
-        return self.img.sum()
+        return nansum(self.img)
 
     def std(self):
         """Return standard deviation of current image data."""
-        return self.img.std()
+        return nanstd(self.img)
 
     def min(self):
         """Return minimum value of current image data."""
-        return self.img.min()
+        return nanmin(self.img)
 
     def max(self):
         """Return maximum value of current image data."""
-        return self.img.max()
+        return nanmax(self.img)
 
     def set_val_below_thresh(self, val, threshold):
         """Set value in all pixels with intensities below threshold.

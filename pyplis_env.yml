@@ -2,13 +2,12 @@ name: pyplis-dev
 channels:
   - conda-forge
 dependencies:
-  - python
+  - python>=3.10
   - numpy
   - scipy
   - pandas
   - astropy
   - matplotlib
-  - basemap
   - opencv
   - geonum>=1.6
   - pydoas>=2.0.3

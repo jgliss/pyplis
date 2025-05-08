@@ -28,7 +28,7 @@ from matplotlib.pyplot import subplots
 from astropy.modeling import models
 from astropy.modeling.fitting import LevMarLSQFitter
 
-from scipy.ndimage.filters import gaussian_filter1d
+from scipy.ndimage import gaussian_filter1d
 from scipy.integrate import quad
 from scipy.optimize import curve_fit, least_squares
 
@@ -226,7 +226,7 @@ def gauss_fit(data, idx=None, has_offset=False, plot=False):
     res = least_squares(err_fun, guess, args=(idx, data))
     opt = res.x
     if plot:
-        fig, ax = subplots(1, 1)
+        _, ax = subplots(1, 1)
         ax.plot(idx, data, "--xg", label="data")
         x = linspace(idx.min(), idx.max(), 100)
         d = model(x, *opt)

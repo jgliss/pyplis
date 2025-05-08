@@ -61,9 +61,7 @@ setup(
         'Programming Language :: Python :: 3.11',
         'Programming Language :: Python :: 3.12'
     ],
-    #packages    =   ['pyplis'],
     package_dir =   {'pyplis'     :    'pyplis'},
-                     #'pyplis.gui_features' :    'pyplis/gui_features'},
     packages =  find_packages(exclude=['contrib', 'docs', 'tests*']),
 
     package_data = {'pyplis'    :   ['data/*.txt',
