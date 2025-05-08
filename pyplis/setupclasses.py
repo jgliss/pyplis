@@ -1214,7 +1214,7 @@ class MeasSetup(BaseSetup):
                  source=None, wind_info=None, cell_info_dict=None, rects=None,
                  lines=None, auto_topo_access=True, **opts):
 
-        super(MeasSetup, self).__init__(base_dir, start, stop, **opts)
+        super().__init__(base_dir, start, stop, **opts)
 
         if cell_info_dict is None:
             cell_info_dict = {}
