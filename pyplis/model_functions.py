@@ -132,7 +132,7 @@ class CalibFuns(object):
 
 
 def dilutioncorr_model(dist, rad_ambient, i0, ext):
-    r"""Model function for light dilution correction.
+    """Model function for light dilution correction.
 
     This model is based on the findings of `Campion et al., 2015
     <http://www.sciencedirect.com/science/article/pii/S0377027315000189>`_.

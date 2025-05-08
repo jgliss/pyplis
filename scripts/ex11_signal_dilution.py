@@ -223,8 +223,11 @@ def main():
 
     # you may also manually add  a single pixel position in the image that is
     # used to retrieve topographic distances (this function allows you also to
-    # set the distance to the feature manually, since sometimes the SRTM data-
-    # set is incomplete or has too low resolution)
+    # set the distance to the feature manually via input arg `dist`, 
+    # since in some regions, the topographic data used is incomplete or 
+    # has too low resolution). Here, `dist` is not provided, which means that the 
+    # distance will be determined based on the measurement
+    # geometry (cam position, viewing direction, and optics) and the local topography.
     dil.add_retrieval_point(700, 930)
     dil.add_retrieval_point(730, 607)
 
@@ -356,10 +359,9 @@ def main():
 
     fig, ax3 = subplots(1, 1)
     ax3.plot(so2_cds_uncorr, ls="-", color="#ff33e3",
-             label=r"Uncorr: $\Phi_{SO2}=$%.2f (+/- %.2f) kg/s" % (phi_uncorr / 1000.0, phi_uncorr_err / 1000.0))
+             label=f"Uncorr: $\\Phi_{{SO2}}=$ {phi_uncorr / 1000.0:.2f} (+/- {phi_uncorr_err / 1000.0:.2f}) kg/s")
     ax3.plot(so2_cds_corr, "-g", lw=3,
-             label=r"Corr: $\Phi_{SO2}=$%.2f (+/- %.2f) kg/s"
-                   % (phi_corr / 1000.0, phi_corr_err / 1000.0))
+             label=f"Corr: $\\Phi_{{SO2}}=$ {phi_corr / 1000.0:.2f} (+/- {phi_corr_err / 1000.0:.2f}) kg/s")
 
     ax3.set_title("Cross section profile", fontsize=12)
     ax3.legend(loc="best", framealpha=0.5, fancybox=True, fontsize=12)

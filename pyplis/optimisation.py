@@ -16,7 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 """Module containing optimisation routines."""
-from __future__ import (absolute_import, division)
+from typing import Optional
 from numpy import (abs, linspace, random, asarray, ndarray, where, diff,
                    insert, argmax, average, gradient, arange, nanmean, full,
                    inf, sqrt, pi, mod, mgrid, ndim, ones_like, ogrid, finfo,
@@ -35,35 +35,53 @@ from scipy.optimize import curve_fit, least_squares
 from cv2 import pyrUp, pyrDown
 from copy import deepcopy
 from traceback import format_exc
-from six.moves import xrange
 
 from pyplis import logger
-from .model_functions import (supergauss_2d, supergauss_2d_tilt,
+from pyplis.model_functions import (supergauss_2d, supergauss_2d_tilt,
                               multi_gaussian_no_offset, gaussian_no_offset,
                               gaussian, multi_gaussian_same_offset,
                               dilutioncorr_model)
-from .helpers import mesh_from_img
+from pyplis.helpers import mesh_from_img
 
 GAUSS_2D_PARAM_INFO = ["amplitude", "mu_x", "mu_y", "sigma", "asymmetry",
                        "shape", "offset", "tilt_theta"]
 
 
-def dilution_corr_fit(rads, dists, rad_ambient, i0_guess=None,
-                      i0_min=0.0, i0_max=None, ext_guess=1e-4, ext_min=0.0,
-                      ext_max=1e-3):
-    """Perform least square fit on data.
-    
-    :param ndarray rads: vector containing measured radiances
-    :param ndarray dists: vector containing corresponding dictances
-    :param float rad_ambient: ambient intensity
-    :param i0_guess: guess value for initial intensity of topographic features,
-        i.e. the reflected radiation before entering scattering medium
-        (if None, then it is set 5% of the ambient intensity ``rad_ambient``)
-    :param float i0_min: minimum initial intensity of topographic features
-    :param float i0_max: maximum initial intensity of topographic features
-    :param float ext_guess: guess value for atm. extinction coefficient
-    :param float ext_min: minimum value for atm. extinction coefficient
-    :param float ext_max: maximum value for atm. extinction coefficient
+def dilution_corr_fit(
+        rads: ndarray, 
+        dists: ndarray, 
+        rad_ambient: float, 
+        i0_guess: Optional[float] = None,
+        i0_min: float = 0.0, 
+        i0_max: Optional[float] = None, 
+        ext_guess: float = 1e-4, 
+        ext_min: float = 0.0,
+        ext_max: float = 1e-3
+    ) -> ndarray:
+    """Retrieve ambient atmospheric extinction coefficients
+
+    The retrieval is done based on the methodology introduced by 
+    Campion et al., 2015 (https://doi.org/10.1016/j.jvolgeores.2015.01.004)
+
+    The extinction coefficients are retrieved by fitting the suggested model
+    to a set of measured intensities of dark terrain features in the images, 
+    which are located different distances within the scene. 
+
+    Args:
+        rads: vector containing measured radiances of terrain features
+        dists: vector containing corresponding dictances to the camera
+        rad_ambient: ambient intensity
+        i0_guess: guess value for initial intensity of topographic features
+            i.e. the reflected radiation before entering scattering medium
+            (if None, then it is set 5% of the ambient intensity `rad_ambient`)
+        i0_min: minimum initial intensity of topographic features
+        i0_max: maximum initial intensity of topographic features
+        ext_guess: guess value for atm. extinction coefficient
+        ext_min: minimum value for atm. extinction coefficient
+        ext_max: maximum value for atm. extinction coefficient
+
+    Returns:
+
     """
     if i0_guess is None:
         logger.info("No input for i0 guess, assuming albedo of 5%")
