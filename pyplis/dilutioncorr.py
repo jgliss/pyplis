@@ -19,7 +19,6 @@
 from numpy import asarray, linspace, exp, ones, nan
 from scipy.ndimage import median_filter
 from matplotlib.pyplot import subplots, rcParams
-from collections import OrderedDict as od
 
 from pandas import Series, DataFrame
 
@@ -82,8 +81,8 @@ class DilutionCorr:
         # additional retrieval points that were added manually using
         # method add_retrieval_point
         self._add_points = []
-        self._skip_pix = od()
-        self._geopoints = od()
+        self._skip_pix = {}
+        self._geopoints = {}
         self._geopoints["add_points"] = []
 
         for line in lines:

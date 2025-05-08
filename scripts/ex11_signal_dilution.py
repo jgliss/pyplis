@@ -265,11 +265,13 @@ def main():
     # get the vignetting corrected images
     on_vigncorr = onlist.current_img()
     off_vigncorr = offlist.current_img()
-
+    
     # estimate ambient intensity for both filters
     ia_on = on_vigncorr.crop(AMBIENT_ROI, True).mean()
     ia_off = off_vigncorr.crop(AMBIENT_ROI, True).mean()
-
+    
+    
+    
     # perform dilution anlysis and retrieve extinction coefficients (on-band)
     ext_on, i0_on, _, ax0 = dil.apply_dilution_fit(
         img=on_vigncorr,
@@ -409,6 +411,12 @@ def main():
             desired=[14.212510910775158, 280.3278110428114, 1.0656026217149126, 1.0616956101542883],
         rtol=1e-5)
 
+        # Check inputs to the dilution correction engine 
+        npt.assert_allclose(
+            actual=[on_vigncorr.mean(), off_vigncorr.mean(), ia_on, ia_off],
+            desired=[2849.1296, 2576.153, 3963.2626953125, 3525.40478515625],
+            rtol=1e-7)
+        
         # check the retrieved extinction coefficients and i0 values
         # for on and off band images
         npt.assert_allclose(
