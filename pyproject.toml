@@ -1,0 +1,43 @@
+[build-system]
+requires = ["setuptools>=64", "setuptools_scm>=8"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pyplis"
+authors = [
+    { name = "Jonas Gliss", email = "jonasgliss@gmail.com" }
+]
+description = "Python library for the analysis UV SO2 camera data"
+readme = "README.rst"
+license = { file = "LICENSE" }
+homepage = "https://github.com/jgliss/pyplis"
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: Education",
+    "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12"
+]
+requires-python = ">=3.11"
+dynamice = ["version"]
+
+[project.urls]
+"Homepage" = "https://github.com/jgliss/pyplis"
+"Documentation" = "https://pyplis.readthedocs.io/en/latest/"
+
+[tool.setuptools]
+packages = ["pyplis"]
+
+[tool.setuptools.package-data]
+pyplis = [
+    "data/*.txt",
+    "data/*.rst",
+    "data/*.png",
+    "data/*.fts",
+    "data/testdata_minimal/doas_results/*.dat",
+    "data/testdata_minimal/images/*.fts"
+]
+
+[tool.setuptools_scm]
+write_to = "pyplis/_version.py"
