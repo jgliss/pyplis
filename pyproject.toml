@@ -9,18 +9,15 @@ authors = [
 ]
 description = "Python library for the analysis UV SO2 camera data"
 readme = "README.rst"
-license = { file = "LICENSE" }
-homepage = "https://github.com/jgliss/pyplis"
 classifiers = [
     "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Science/Research",
     "Intended Audience :: Education",
-    "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12"
 ]
 requires-python = ">=3.11"
-dynamice = ["version"]
+dynamic = ["version"]
 
 [project.urls]
 "Homepage" = "https://github.com/jgliss/pyplis"
@@ -28,16 +25,8 @@ dynamice = ["version"]
 
 [tool.setuptools]
 packages = ["pyplis"]
-
-[tool.setuptools.package-data]
-pyplis = [
-    "data/*.txt",
-    "data/*.rst",
-    "data/*.png",
-    "data/*.fts",
-    "data/testdata_minimal/doas_results/*.dat",
-    "data/testdata_minimal/images/*.fts"
-]
+include-package-data = true
 
 [tool.setuptools_scm]
 write_to = "pyplis/_version.py"
+local_scheme = "no-local-version"
