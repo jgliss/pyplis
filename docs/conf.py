@@ -11,15 +11,17 @@
 #
 # All configuration values have a default; values that are commented out
 # serve to show the default.
-import os
+import setuptools_scm
 
 # This was inserted based on this blog: https://github.com/spinus/sphinxcontrib-images/issues/41, after the following build error occured: Could not import extension sphinxcontrib.images (exception: cannot import name make_admonition), apparently due to a compatibility error between an updated version of sphinx (1.6) and the extension sphinxcontrib.images
 #from docutils.parsers.rst.directives.admonitions import BaseAdmonition
 #from sphinx.util import compat
+_version = setuptools_scm.get_version("..", relative_to=__file__)
 
-with open(os.path.join("..", "VERSION.rst")) as f:
-    __version__ = ".".join(f.readline().strip().split(".")[:3]) 
-    f.close()
+if _version == "0.0.0":
+    raise ValueError("something is off retrieving the correct geonum version using setuptools_scm.get_version")
+
+print(_version)
 
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
@@ -77,9 +79,9 @@ author = u'Jonas Gliss'
 # built documents.
 #
 # The short X.Y version.
-version = __version__
+version = _version
 # The full version, including alpha/beta/rc tags.
-release = __version__
+release = _version
 
 # There are two options for replacing |today|: either, you set today to some
 # non-false value, then it is used:
