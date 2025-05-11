@@ -14,6 +14,8 @@ formats:
 
 build:
   os: "ubuntu-24.04"
+  tools:
+    python: "miniconda3-3.12-24.9"
   apt_packages:
     - libudunits2-dev
     - libgeos-dev
