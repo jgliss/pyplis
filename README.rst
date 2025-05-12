@@ -1,5 +1,8 @@
 |build-status| |docs|
 
+Pyplis -  Python Plume Imaging Software
+---------------------------------------
+
 Pyplis is a Python toolbox originally developed for the analysis of UV SO2 camera data. The software includes a comprehensive and flexible collection of algorithms for the analysis of atmospheric imaging data and is tested for all major operating systems and python 3 as well as python 2.7 (which is not recommended to use anymore).
 
 Contact: Jonas Gliß (jonasgliss@gmail.com)
