@@ -8,7 +8,9 @@ Pyplis is a Python toolbox originally developed for the analysis of UV SO2 camer
 Documentation
 =============
 
-The pyplis documentation is hosted `here <https://pyplis.readthedocs.io/>`_.
+The pyplis documentation is hosted `here <https://pyplis.readthedocs.io/>`_. It contains all relevant
+information about the software, including installation instructions, a detailed API reference, and a gallery of examples. 
+The documentation is continuously updated and improved.
 
 Getting started
 ===============
