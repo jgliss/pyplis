@@ -20,10 +20,10 @@ Getting started
 
 COMING SOON
 
-Acknowledgment
-==============
+Acknowledgement
+===============
 
-If you find *Pyplis* useful for your data analysis, we would highly appreciate if you acknowledge our work by citing the paper. Citing details can be found `here <http://www.mdpi.com/2076-3263/7/4/134>`__.
+If you find pyplis useful for your data analysis, we would highly appreciate if you acknowledge our work by citing the paper. Citing details can be found `here <http://www.mdpi.com/2076-3263/7/4/134>`__.
 
 We also want to express our gratitude to all contributors who have helped improve Pyplis through their valuable feedback, code contributions, and suggestions. Open-source projects thrive on community support, and your contributions are deeply appreciated. If you contribute to Pyplis, please feel free to add your name to the list of contributors in the documentation or reach out to be acknowledged.
 
