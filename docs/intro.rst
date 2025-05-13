@@ -121,7 +121,8 @@ Click `here to see a video showing an animation of Mt. Etna SO2 emissions record
 Getting started
 =====================
 
-Pyplis comes with an extensive set of `example scripts <https://github.com/jgliss/pyplis/tree/master/scripts>`_ which can be downloaded by cloning the repository. 
+Pyplis comes with an extensive set of `example scripts <https://github.com/jgliss/pyplis/tree/master/scripts>`_ which can be downloaded by cloning the repository
+and are introduced in the :ref:`examples` section of the documentation.
 
 The scripts are an excellent starting point to familiarize yourself with the vast features and the modular nature of pyplis. 
 They can serve as a starting point to writing your own customised analysis scripts. 

@@ -5,17 +5,41 @@ Pyplis -  Python Plume Imaging Software
 
 Pyplis is a Python toolbox originally developed for the analysis of UV SO2 camera data. The software includes a comprehensive and flexible collection of algorithms for the analysis of atmospheric imaging data and is tested for all major operating systems and most recent python versions.
 
+Useful links
+============
+
+- **Installation**: `Installation instructions <https://pyplis.readthedocs.io/en/latest/intro.html#installation>`_
+- **Getting Started**: `Getting Started guide <https://pyplis.readthedocs.io/en/latest/intro.html#getting-started>`_
+- **Main Features**: `Feature overview <https://pyplis.readthedocs.io/en/latest/intro.html#main-features>`_
+- **Pyplis Paper**: `Pyplis publication <http://www.mdpi.com/2076-3263/7/4/134>`_
+
+Features
+========
+
+- Comprehensive algorithms for UV SO2 camera data analysis.
+- Flexible tools for atmospheric imaging data processing.
+- Cross-platform compatibility (Windows, Linux).
+- Tested with recent Python versions.
+
+For more details on the features, please refer to the `documentation <https://pyplis.readthedocs.io/en/latest/intro.html#main-features>`_.
+
+Installation
+============
+
+To install Pyplis, simply run:
+
+.. code-block:: bash
+
+   conda install -c conda-forge pyplis
+
+For detailed installation instructions, please refer to the `documentation <https://pyplis.readthedocs.io/en/latest/intro.html>`_.
+
 Documentation
 =============
 
 The pyplis documentation is hosted `here <https://pyplis.readthedocs.io/>`_. It contains all relevant
 information about the software, including installation instructions, a detailed API reference, and a gallery of examples. 
 The documentation is continuously updated and improved.
-
-Getting started
-===============
-
-Please see corresponding "Getting Started" section in the `documentation <https://pyplis.readthedocs.io/en/latest/intro.html>`__  .
 
 Contributions are welcome!
 ==========================
