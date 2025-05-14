@@ -19,6 +19,24 @@ classifiers = [
 requires-python = ">=3.11"
 dynamic = ["version"]
 
+dependencies = [
+    "numpy",
+    "scipy",
+    "pandas",
+    "astropy",
+    "matplotlib",
+    "opencv-python",
+    "geonum>=1.6",
+    "pydoas>=2.0.3",
+    "progressbar",
+    "six",
+    "pyproj",
+    "setuptools_scm",
+    "pytest",
+    "pytest-cov",
+    "sphinx-rtd-theme"
+]
+
 [project.urls]
 "Homepage" = "https://github.com/jgliss/pyplis"
 "Documentation" = "https://pyplis.readthedocs.io/en/latest/"
