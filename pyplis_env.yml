@@ -17,4 +17,4 @@ dependencies:
   - setuptools_scm
   - pytest
   - pytest-cov
-  - sphinx-rtd-theme
+  - sphinx

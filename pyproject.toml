@@ -31,10 +31,14 @@ dependencies = [
     "progressbar",
     "six",
     "pyproj",
-    "setuptools_scm",
+    "setuptools_scm"
+]
+
+[project.optional-dependencies]
+dev = [
     "pytest",
     "pytest-cov",
-    "sphinx-rtd-theme"
+    "sphinx"
 ]
 
 [project.urls]
