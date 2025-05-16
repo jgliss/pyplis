@@ -30,6 +30,12 @@ To install Pyplis, simply run:
 
 .. code-block:: bash
 
+   pip install pyplis
+
+If you use conda, you can also install pyplis using conda-forge:
+
+.. code-block:: bash
+
    conda install -c conda-forge pyplis
 
 For detailed installation instructions, please refer to the `documentation <https://pyplis.readthedocs.io/en/latest/intro.html>`_.

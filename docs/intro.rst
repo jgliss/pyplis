@@ -3,22 +3,22 @@
 Installation
 ============
 
-Using conda (recommended)
+pip
+---------
+
+The easiest way to install pyplis is using pip. You can do this by running the following command in your terminal::
+
+  pip install pyplis
+
+conda
 -------------------------
 
-The recommended way to install pyplis is using `conda`::
+If you use conda as package manager, you can also install pyplis using conda-forge::
 
   conda install -c conda-forge pyplis
 
 This will install pyplis and all it's dependencies into the current conda environment.
 If you are unfamiliar with conda, please see `here <https://docs.conda.io/projects/conda/en/stable/user-guide/getting-started.html>`__.
-
-Using pip
----------
-
-You may also install pyplis using the `pip` tool, however note that this will **not install any dependencies**::
-
-  pip install pyplis
 
 From source
 -----------
