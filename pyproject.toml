@@ -38,7 +38,8 @@ dependencies = [
 dev = [
     "pytest",
     "pytest-cov",
-    "sphinx"
+    "sphinx",
+    "sphinx-rtd-theme"
 ]
 
 [project.urls]
