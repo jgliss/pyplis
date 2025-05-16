@@ -15,16 +15,13 @@ formats:
 build:
   os: "ubuntu-24.04"
   tools:
-    python: "miniconda3-3.12-24.9"
+    python: "3.11"
   apt_packages:
     - libudunits2-dev
     - libgeos-dev
     - libproj-dev
     - proj-data
     - proj-bin
-
-conda:
-  environment: pyplis_env.yml
 
 python:
   install:
