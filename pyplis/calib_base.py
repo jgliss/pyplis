@@ -34,14 +34,14 @@ from os.path import join, exists, isdir, abspath, basename, dirname
 
 from matplotlib.pyplot import subplots
 
-from .glob import SPECIES_ID
-from .processing import ImgStack
-from .helpers import exponent, isnum
+from pyplis.glob import SPECIES_ID
+from pyplis.processing import ImgStack
+from pyplis.helpers import exponent, isnum
 
-from .model_functions import CalibFuns
-from .image import Img
-from .setupclasses import Camera
-import six
+from pyplis.model_functions import CalibFuns
+from pyplis.image import Img
+from pyplis.setupclasses import Camera
+from typing import Union
 
 
 class CalibData(object):
@@ -566,7 +566,7 @@ class CalibData(object):
         outfile = self._prep_fits_savepath(save_dir, save_name)
         hdulist.writeto(outfile, overwrite=overwrite_existing)
 
-    def load_from_fits(self, file_path: str) -> fits.HDUList | None:
+    def load_from_fits(self, file_path: str) -> Union[fits.HDUList, None]:
         """Load calibration data from FITS file
 
         Parameters

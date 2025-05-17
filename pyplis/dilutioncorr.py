@@ -260,7 +260,7 @@ class DilutionCorr:
         ext_max: float = 1e-3,
         line_ids=None
         ) -> DilutionCorrFitResult:
-        """Perform dilution correction fit to retrieve extinction coefficient.
+        r"""Perform dilution correction fit to retrieve extinction coefficient.
 
         Uses :func:`dilution_corr_fit` of :mod:`optimisation` which is a
         bounded least square fit based on the following model function
@@ -330,7 +330,7 @@ class DilutionCorr:
     def apply_dilution_fit(self, img, rad_ambient, i0_guess=None,
                            i0_min=0, i0_max=None, ext_guess=1e-4, ext_min=0,
                            ext_max=1e-3, line_ids=None, plot=True, **kwargs):
-        """Perform dilution correction fit to retrieve extinction coefficient.
+        r"""Perform dilution correction fit to retrieve extinction coefficient.
 
         Note:
             DEPRECATED: please use method :func:`fit` instead.

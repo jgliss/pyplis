@@ -15,7 +15,7 @@ formats:
 build:
   os: "ubuntu-24.04"
   tools:
-    python: "mambaforge-22.9"
+    python: "3.11"
   apt_packages:
     - libudunits2-dev
     - libgeos-dev
@@ -23,10 +23,8 @@ build:
     - proj-data
     - proj-bin
 
-conda:
-  environment: pyplis_env.yml
-
 python:
   install:
+    - requirements: docs/requirements.txt
     - method: pip
       path: .
