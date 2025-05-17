@@ -453,7 +453,10 @@ class MeasGeometry(object):
                 raw_val = info_dict[key]
                 if raw_val is None:
                     continue
-                val = types[key](raw_val)
+                try:
+                    val = types[key](raw_val)
+                except Exception as e:
+                    raise ValueError(f"Failed to cast value '{raw_val}' (type {type(raw_val)}) to type {types[key]} for key {key} in MeasGeometry.{attr_name}")
                 self.__dict__[attr_name][key] = val
         if update_geosetup:
             self.update_geosetup()

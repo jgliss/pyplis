@@ -135,7 +135,7 @@ def create_ecII_cam_new_filters(cam_id: str) -> pyplis.Camera:
     # camera focal length can be specified here (but does not need to be, in
     # case of the ECII cam, there is no "default" focal length, so this is left
     # empty)
-    cam.focal_length = ""
+    cam.focal_length = None
 
     # Detector geometry
     cam.pix_height = 4.65e-6  # pixel height in m
