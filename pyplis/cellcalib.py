@@ -16,13 +16,11 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 """Pyplis module containing features related to cell calibration."""
-from __future__ import (absolute_import, division)
 import six
 from pyplis import logger, print_log
 from matplotlib.pyplot import subplots
 
-from numpy import (float, log, arange, linspace, isnan, diff, mean, argmin,
-                   asarray)
+from numpy import (log, arange, linspace, isnan, diff, mean, argmin, asarray)
 from matplotlib.pyplot import Figure
 from matplotlib.cm import get_cmap
 from datetime import timedelta
@@ -1498,7 +1496,6 @@ class CellCalibEngine(Dataset):
             pl = ax.plot(tau, gas_cd, " ^",
                          label="Data %s (pix" % calib_id)
             # try adding error bars
-
             ax.errorbar(tau, gas_cd, gas_cd_errs, linestyle="none",
                         color="#6E6E6E")
 

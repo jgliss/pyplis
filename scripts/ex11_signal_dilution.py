@@ -30,48 +30,43 @@ The two example images are then corrected for dilution and the results are
 plotted (as comparison of the retrieved emission rate along an exemplary
 plume cross section)
 """
-from __future__ import (absolute_import, division)
-
-from SETTINGS import check_version
 
 import pyplis as pyplis
 from geonum import GeoPoint
 from matplotlib.pyplot import show, close, subplots, Rectangle, plot
 from datetime import datetime
-from os.path import join, exists
-
-from pyplis.dilutioncorr import DilutionCorr
-from pyplis.doascalib import DoasCalibData
-
+from pathlib import Path
 # IMPORT GLOBAL SETTINGS
-from SETTINGS import IMG_DIR, SAVEFIGS, SAVE_DIR, FORMAT, DPI, OPTPARSE
+from SETTINGS import IMG_DIR, SAVEFIGS, SAVE_DIR, FORMAT, DPI, ARGPARSER
 # IMPORTS FROM OTHER EXAMPLE SCRIPTS
 from ex10_bg_imglists import get_bg_image_lists
-
-# Check script version
-check_version()
+from pyplis.dataset import Dataset
+from pyplis.geometry import MeasGeometry
+from pyplis.imagelists import ImgList
 
 # SCRIPT OPTONS
 # lower boundary for I0 value in dilution fit
 I0_MIN = 0.0
 AA_THRESH = 0.03
 
-# exemplary plume cross section line for emission rate retrieval (is also used
+# Plume cross section line for emission rate retrieval (is also used
 # for full analysis in ex12)
 PCS_LINE = pyplis.LineOnImage(x0=530, y0=586, x1=910, y1=200, line_id="pcs")
-# Retrieval lines for dilution correction (along these lines, topographic
+
+# Create lines covering topographic terrain features in the images used  
+# for dilution correction (along these lines, topographic
 # distances and image radiances are determined for fitting the atmospheric
 # extinction coefficients)
-TOPO_LINE1 = pyplis.LineOnImage(1100, 650, 1000, 900, line_id="flank far",
+TOPO_LINE1 = pyplis.LineOnImage(1100, 650, 1000, 900, line_id="flank_far",
                                 color="lime",
                                 linestyle="-")
 
-TOPO_LINE2 = pyplis.LineOnImage(1000, 990, 1100, 990, line_id="flank close",
+TOPO_LINE2 = pyplis.LineOnImage(1000, 990, 1100, 990, line_id="flank_close",
                                 color="#ff33e3",
                                 linestyle="-")
 
-# all lines in this array are used for the analysis
-USE_LINES = [TOPO_LINE1, TOPO_LINE2]
+# Lines covering topographic terrain features used for the signal dilution analysis
+LOCAL_TOPOGRAPHY_LINES = [TOPO_LINE1, TOPO_LINE2]
 
 # specify pixel resolution of topographic distance retrieval (every nth pixel
 # is used)
@@ -81,17 +76,14 @@ SKIP_PIX_LINES = 10
 # for dilution correction)
 AMBIENT_ROI = [1240, 10, 1300, 70]
 
-# Specify plume velocity (for emission rate estimate)
-PLUME_VELO = 4.14  # m/s (result from ex8)
+# Specify plume velocity (for emission rate estimate, from example script 8)
+PLUME_VELO = 4.14  # m/s 
 
-# RELEVANT DIRECTORIES AND PATHS
-CALIB_FILE = join(SAVE_DIR, "ex06_doascalib_aa.fts")
-
-# SCRIPT FUNCTION DEFINITIONS
-
+# FITS file containing DOAS calibration data (from example script 6)
+CALIB_FILE = SAVE_DIR / "ex06_doascalib_aa.fts"
 
 def create_dataset_dilution():
-    """Create a :class:`pyplis.dataset.Dataset` object for dilution analysis.
+    """Create a :class:`pyplis.Dataset` object for dilution analysis.
 
     The test dataset includes one on and one offband image which are recorded
     around 6:45 UTC at lower camera elevation angle than the time series shown
@@ -102,8 +94,8 @@ def create_dataset_dilution():
     This function sets up the measurement (geometry, camera, time stamps) for
     these two images and creates a Dataset object.
     """
-    start = datetime(2015, 9, 16, 6, 43, 00)
-    stop = datetime(2015, 9, 16, 6, 47, 00)
+    start = datetime(2015, 9, 16, 6, 43, 0)
+    stop = datetime(2015, 9, 16, 6, 47, 0)
     # the camera filter setup
     cam_id = "ecII"
     filters = [pyplis.utils.Filter(type="on", acronym="F01"),
@@ -116,11 +108,13 @@ def create_dataset_dilution():
                 "azim": 274.0,  # from field notes, will be corrected
                 "azim_err": 10.0,
                 "focal_length": 25e-3,
-                "alt_offset": 7}  # meters above topography
+                "alt_offset": 0}  # meters above topography
 
     # create camera setup
-    cam = pyplis.setupclasses.Camera(cam_id=cam_id, filter_list=filters,
-                                     **geom_cam)
+    cam = pyplis.setupclasses.Camera(
+        cam_id=cam_id, 
+        filter_list=filters,
+        **geom_cam)
 
     # Load default information for Etna
     source = pyplis.setupclasses.Source("etna")
@@ -130,18 +124,26 @@ def create_dataset_dilution():
                  "dir_err": 15.0}
 
     # Create BaseSetup object (which creates the MeasGeometry object)
-    stp = pyplis.setupclasses.MeasSetup(IMG_DIR, start, stop, camera=cam,
-                                        source=source,
-                                        wind_info=wind_info)
+    stp = pyplis.setupclasses.MeasSetup(
+        base_dir=IMG_DIR, 
+        start=start, 
+        stop=stop, 
+        camera=cam,
+        source=source,
+        wind_info=wind_info
+    )
     return pyplis.dataset.Dataset(stp)
 
 
-def find_view_dir(geom):
+def find_view_dir(geom: MeasGeometry, plot: bool) -> MeasGeometry:
     """Perform a correction of the viewing direction using crater in img.
 
-    :param MeasGeometry geom: measurement geometry
-    :param str which_crater: use either "ne" (northeast) or "se" (south east)
-    :return: - MeasGeometry, corrected geometry
+    Args:
+        geom: measurement geometry
+        plot: if True, the result is plotted
+    
+    Returns: 
+        corrected geometry
     """
     # Use position of NE crater in image
     posx, posy = 1051, 605  # pixel position of NE crate in image
@@ -149,26 +151,26 @@ def find_view_dir(geom):
     ne_crater = GeoPoint(37.754788, 14.996673, 3287, name="NE crater")
 
     geom.find_viewing_direction(pix_x=posx, pix_y=posy, pix_pos_err=100,
-                                geo_point=ne_crater, draw_result=True)
+                                geo_point=ne_crater, draw_result=plot)
+    
     return geom
 
-
-def prepare_lists(dataset):
+def prepare_lists(dataset: Dataset) -> tuple[ImgList, ImgList]:
     """Prepare on and off lists for dilution analysis.
 
     Steps:
 
         1. get on and offband list
-        #. load background image list on and off (from ex10)
-        #. set image preparation and assign background images to on / off list
-        #. configure plume background model settings
+        2. load background image list on and off (from ex10)
+        3. set image preparation and assign background images to on / off list
+        4. configure plume background model settings
 
-    :param Dataset dataset: the dilution dataset (see
-        :func:`create_dataset_dilution`)
-    :return:
-        - ImgList, onlist
-        - ImgList, offlist
-
+    Args:
+        - dataset: the dilution dataset (see :func:`create_dataset_dilution`)
+    
+    Returns:
+        - onlist: ImgList object for onband filter
+        - offlist: ImgList object for offband filter
     """
     onlist = dataset.get_list("on")
     offlist = dataset.get_list("off")
@@ -197,43 +199,44 @@ def prepare_lists(dataset):
     return onlist, offlist
 
 
-def plot_retrieval_points_into_image(img):
+def plot_retrieval_points_into_image(img, dil):
     """Plot terrain distance retrieval lines into an image."""
     ax = img.show(vmin=-5e16, vmax=5e18, zlabel=r"$S_{SO2}$ [cm$^{-2}$]")
     ax.set_title("Retrieval lines")
-    for line in USE_LINES:
+    for line in LOCAL_TOPOGRAPHY_LINES:
         line.plot_line_on_grid(ax=ax, marker="", color=line.color,
                                lw=2, ls=line.linestyle)
-    for x, y, dist in dil._add_points:
+    for x, y, _ in dil._add_points:
         plot(x, y, " or")
     return ax
 
-
-# SCRIPT MAIN FUNCTION
-if __name__ == "__main__":
-    if not exists(CALIB_FILE):
+def main():
+    if not CALIB_FILE.exists():
         raise IOError("Calibration file could not be found at specified "
-                      "location:\n %s\nYou might need to run example 6 first")
+                      "location:\n %s\nPlease run example 6 first")
 
     close("all")
     pcs_line = PCS_LINE
-    calib = DoasCalibData()
+    calib = pyplis.doascalib.DoasCalibData()
     calib.load_from_fits(CALIB_FILE)
 
     # create dataset and correct viewing direction
     ds = create_dataset_dilution()
-    geom = find_view_dir(ds.meas_geometry)
+    geom = find_view_dir(ds.meas_geometry, plot=True)
 
     # get plume distance image
-    pix_dists, _, plume_dists = geom.compute_all_integration_step_lengths()
+    pix_dists, _, _ = geom.compute_all_integration_step_lengths()
 
     # Create dilution correction class
-    dil = DilutionCorr(USE_LINES, geom, skip_pix=SKIP_PIX_LINES)
+    dil = pyplis.dilutioncorr.DilutionCorr(LOCAL_TOPOGRAPHY_LINES, geom, skip_pix=SKIP_PIX_LINES)
 
-    # you can also manually add  a single pixel position in the image that is
+    # you may also manually add  a single pixel position in the image that is
     # used to retrieve topographic distances (this function allows you also to
-    # set the distance to the feature manually, since sometimes the SRTM data-
-    # set is incomplete or has too low resolution)
+    # set the distance to the feature manually via input arg `dist`, 
+    # since in some regions, the topographic data used is incomplete or 
+    # has too low resolution). Here, `dist` is not provided, which means that the 
+    # distance will be determined based on the measurement
+    # geometry (cam position, viewing direction, and optics) and the local topography.
     dil.add_retrieval_point(700, 930)
     dil.add_retrieval_point(730, 607)
 
@@ -249,7 +252,7 @@ if __name__ == "__main__":
     pix_dists_line = pcs_line.get_line_profile(pix_dists)
 
     # get pixel coordinates of PCS center position ...
-    col, row = pcs_line.center_pix
+    col,_ = pcs_line.center_pix
 
     # ... and get uncertainty in plume distance estimate for the column
     pix_dist_err = geom.pix_dist_err(col)
@@ -265,25 +268,40 @@ if __name__ == "__main__":
     # get the vignetting corrected images
     on_vigncorr = onlist.current_img()
     off_vigncorr = offlist.current_img()
-
+    
     # estimate ambient intensity for both filters
     ia_on = on_vigncorr.crop(AMBIENT_ROI, True).mean()
     ia_off = off_vigncorr.crop(AMBIENT_ROI, True).mean()
-
+    
     # perform dilution anlysis and retrieve extinction coefficients (on-band)
-    ext_on, _, _, ax0 = dil.apply_dilution_fit(img=on_vigncorr,
-                                               rad_ambient=ia_on,
-                                               i0_min=I0_MIN,
-                                               plot=True)
-
+    fit_result_on = dil.fit(
+        img=on_vigncorr,
+        rad_ambient=ia_on,
+        i0_min=I0_MIN)
+    
+    ax0 = dil.plot_fit_result(
+        dists=fit_result_on.dists, 
+        rads=fit_result_on.rads, 
+        rad_ambient=ia_on, 
+        i0=fit_result_on.i0, 
+        ext=fit_result_on.ext)
+    
     ax0.set_ylabel("Terrain radiances (on band)", fontsize=14)
     ax0.set_ylim([0, 2500])
 
     # perform dilution anlysis and retrieve extinction coefficients (off-band)
-    ext_off, i0_off, _, ax1 = dil.apply_dilution_fit(img=off_vigncorr,
-                                                     rad_ambient=ia_off,
-                                                     i0_min=I0_MIN,
-                                                     plot=True)
+    fit_result_off = dil.fit(
+        img=off_vigncorr,
+        rad_ambient=ia_off,
+        i0_min=I0_MIN)
+    
+    ax1 = dil.plot_fit_result(
+        dists=fit_result_off.dists, 
+        rads=fit_result_off.rads, 
+        rad_ambient=ia_off, 
+        i0=fit_result_off.i0, 
+        ext=fit_result_off.ext)
+    
     ax1.set_ylabel("Terrain radiances (off band)", fontsize=14)
     ax1.set_ylim([0, 2500])
 
@@ -294,35 +312,34 @@ if __name__ == "__main__":
     plume_pix_mask[840:, :] = 0  # remove tree in lower part of the image
     onlist.aa_mode = False
 
-    # assign the just retrieved extinction coefficients to the respective
-    # image lists
-    onlist.ext_coeffs = ext_on
-    offlist.ext_coeffs = ext_off
+    ext_on = fit_result_on.ext
+    ext_off = fit_result_off.ext
+    # assign the just retrieved extinction coefficients together with the 
+    # acq. time of images they were retrieved from
+    onlist.set_ext_coeffs(values=[ext_on], timestamps=[on_vigncorr.start_acq])
+    offlist.set_ext_coeffs(values=[ext_off], timestamps=[off_vigncorr.start_acq])
 
     # save the extinction coefficients into a txt file (re-used in example
     # script 12). They are stored as pandas.Series object in the ImgList
-    onlist.ext_coeffs.to_csv(join(SAVE_DIR, "ex11_ext_scat_on.txt"))
-    offlist.ext_coeffs.to_csv(join(SAVE_DIR, "ex11_ext_scat_off.txt"))
+    onlist.ext_coeffs.to_csv(SAVE_DIR / "ex11_ext_scat_on.csv", header=False)
+    offlist.ext_coeffs.to_csv(SAVE_DIR / "ex11_ext_scat_off.csv", header=False)
 
-    # now activate automatic dilution correction in both lists
+    # Activate automatic dilution correction in both lists
     # get dilution corrected on and off-band image
     onlist.dilcorr_mode = True
     offlist.dilcorr_mode = True
 
-    # get current dilution corrected raw images (i.e. in intensity space)
-    on_corr = onlist.this
-    off_corr = offlist.this
-
-    # now activate tau mode (note that dilution correction mode is still
+    # Activate tau mode (note that dilution correction mode is still
     # active)
     onlist.tau_mode = True
     offlist.tau_mode = True
 
     # extract tau images
-    tau_on_corr = onlist.this
-    tau_off_corr = offlist.this
+    tau_on_corr = onlist.current_img()
+    tau_off_corr = offlist.current_img()
 
     # determine corrected SO2-CD image from the image lists
+    # by applying the calibration function to the AA image
     so2_img_corr = calib(tau_on_corr - tau_off_corr)
     so2_img_corr.edit_log["is_tau"] = True  # for plotting
     so2_cds_corr = pcs_line.get_line_profile(so2_img_corr)
@@ -339,9 +356,8 @@ if __name__ == "__main__":
     offlist.dilcorr_mode = False
     onlist.dilcorr_mode = False
 
-    # the "this" attribute returns the current list image (same as
-    # method "current_img()")
-    so2_img_uncorr = calib(onlist.this - offlist.this)
+    # Get uncorrected SO2-CD image 
+    so2_img_uncorr = calib(onlist.current_img() - offlist.current_img())
 
     # Retrieve column density profile along PCS in uncorrected image
     so2_cds_uncorr = pcs_line.get_line_profile(so2_img_uncorr)
@@ -355,7 +371,7 @@ if __name__ == "__main__":
         pix_dists_err=pix_dist_err)
 
     # IMPORTANT STUFF FINISHED (below follow some plots)
-    ax2 = plot_retrieval_points_into_image(so2_img_corr)
+    ax2 = plot_retrieval_points_into_image(so2_img_corr, dil)
     pcs_line.plot_line_on_grid(ax=ax2, ls="-", color="g")
     ax2.legend(loc="best", framealpha=0.5, fancybox=True, fontsize=20)
     ax2.set_title("Dilution corrected AA image", fontsize=12)
@@ -367,11 +383,9 @@ if __name__ == "__main__":
 
     fig, ax3 = subplots(1, 1)
     ax3.plot(so2_cds_uncorr, ls="-", color="#ff33e3",
-             label=r"Uncorr: $\Phi_{SO2}=$%.2f (+/- %.2f) kg/s"
-                   % (phi_uncorr / 1000.0, phi_uncorr_err / 1000.0))
+             label=f"Uncorr: $\\Phi_{{SO2}}=$ {phi_uncorr / 1000.0:.2f} (+/- {phi_uncorr_err / 1000.0:.2f}) kg/s")
     ax3.plot(so2_cds_corr, "-g", lw=3,
-             label=r"Corr: $\Phi_{SO2}=$%.2f (+/- %.2f) kg/s"
-                   % (phi_corr / 1000.0, phi_corr_err / 1000.0))
+             label=f"Corr: $\\Phi_{{SO2}}=$ {phi_corr / 1000.0:.2f} (+/- {phi_corr_err / 1000.0:.2f}) kg/s")
 
     ax3.set_title("Cross section profile", fontsize=12)
     ax3.legend(loc="best", framealpha=0.5, fancybox=True, fontsize=12)
@@ -388,18 +402,17 @@ if __name__ == "__main__":
         ax = [ax0, ax1, ax2, ax3, ax4]
         for k in range(len(ax)):
             ax[k].set_title("")  # remove titles for saving
-            ax[k].figure.savefig(join(SAVE_DIR, "ex11_out_%d.%s"
-                                 % (k, FORMAT)),
+            ax[k].figure.savefig(SAVE_DIR / f"ex11_out_{k}.{FORMAT}",
                                  format=FORMAT, dpi=DPI)
         basemap.ax.set_axis_off()
         basemap.ax.view_init(15, 345)
-        basemap.ax.figure.savefig(join(SAVE_DIR, "ex11_out_5.%s" % FORMAT),
-                                  format=FORMAT, dpi=DPI)
+        basemap.ax.figure.savefig(SAVE_DIR / f"ex11_out_5.{FORMAT}",
+                      format=FORMAT, dpi=DPI)
 
-# IMPORTANT STUFF FINISHED (Below follow tests and display options)
+    # IMPORTANT STUFF FINISHED (Below follow tests and display options)
 
     # Import script options
-    (options, args) = OPTPARSE.parse_args()
+    options = ARGPARSER.parse_args()
 
     # If applicable, do some tests. This is done only if TESTMODE is active:
     # testmode can be activated globally (see SETTINGS.py) or can also be
@@ -407,17 +420,49 @@ if __name__ == "__main__":
     # option --test 1
     if int(options.test):
         import numpy.testing as npt
-        from os.path import basename
 
-        npt.assert_array_equal([],
-                               [])
+        # check correction of viewing direction in geometry
+        npt.assert_allclose(
+            actual=[geom._cam["elev"], geom._cam["azim"], geom._cam["elev_err"], geom._cam["azim_err"]],
+            desired=[14.212510910775158, 280.3278110428114, 1.0656026217149126, 1.0616956101542883],
+        rtol=1e-5)
 
-        npt.assert_allclose(actual=[],
-                            desired=[],
-                            rtol=1e-7)
-        print("All tests passed in script: %s" % basename(__file__))
+        # Check inputs to the dilution correction fit engine 
+        npt.assert_allclose(
+            actual=[on_vigncorr.mean(), off_vigncorr.mean(), ia_on, ia_off],
+            desired=[2849.1296, 2576.153, 3963.2626953125, 3525.40478515625],
+            rtol=1e-7)
+        
+        npt.assert_allclose(
+            actual=[
+                fit_result_on.dists.mean(), fit_result_on.rads.mean(),
+                fit_result_off.dists.mean(), fit_result_off.rads.mean()
+                ],
+            desired=[6854.925234914583, 1794.5193, 6854.925234914583, 1378.1238],
+            rtol=1e-7)
+        
+        # check the retrieved extinction coefficients and i0 values
+        # for on and off band images
+        npt.assert_allclose(
+            actual=[
+                fit_result_on.ext, fit_result_on.i0, 
+                fit_result_off.ext, fit_result_off.i0,
+                phi_corr, phi_corr_err,
+                phi_uncorr, phi_uncorr_err
+                ],
+            desired=[
+                7.41e-5,449.9,
+                6.55e-5, 236.5,
+                9.67e3, 1.99e3,
+                3.35e3, 0.81e3],
+        rtol=1e-2)
+        
+        print(f"All tests passed in script: {Path(__file__).name}")
     try:
         if int(options.show) == 1:
             show()
     except BaseException:
         print("Use option --show 1 if you want the plots to be displayed")
+
+if __name__ == "__main__":
+    main()

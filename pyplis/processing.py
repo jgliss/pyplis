@@ -21,12 +21,11 @@ r"""Pyplis module contains the following processing classes and methods.
 #. :class:`PixelMeanTimeSeries`: storage and post analysis of time\
 series of average pixel intensities
 """
-from __future__ import (absolute_import, division)
 from numpy import (vstack, empty, ones, asarray, sum, dstack, float32, zeros,
                    poly1d, polyfit, argmin, where, logical_and, rollaxis,
                    delete, hstack)
 
-from scipy.ndimage.filters import gaussian_filter1d, median_filter
+from scipy.ndimage import gaussian_filter1d, median_filter
 
 
 from copy import deepcopy
@@ -36,17 +35,18 @@ from matplotlib.dates import date2num, DateFormatter
 
 from pandas import Series, concat, DatetimeIndex
 from cv2 import pyrDown, pyrUp
-from os.path import join, exists, dirname, basename, isdir, abspath
+from os.path import join, exists, abspath
 from astropy.io import fits
 import six
+from pydoas.analysis import DoasResults
 from pyplis import logger
-from .image import Img
-from .setupclasses import Camera
-from .helpers import to_datetime, make_circular_mask
-from .glob import DEFAULT_ROI
+from pyplis.image import Img
+from pyplis.setupclasses import Camera
+from pyplis.helpers import to_datetime, make_circular_mask
+from pyplis.glob import DEFAULT_ROI
 
 
-class ImgStack(object):
+class ImgStack:
     """Image stack object.
 
     The images are stacked into a 3D numpy array, note, that for large datasets
@@ -98,7 +98,9 @@ class ImgStack(object):
     """
 
     def __init__(self, height=0, width=0, img_num=0, dtype=float32,
-                 stack_id="", img_prep=None, camera=None, **stack_data):
+                 stack_id=None, img_prep=None, camera=None, **stack_data):
+        if stack_id is None:
+            stack_id = ""
         self.stack_id = stack_id
         self.dtype = dtype
         self.current_index = 0
@@ -150,8 +152,8 @@ class ImgStack(object):
                               "(d, h, w): (%s, %s, %s)" % (img_num, height,
                                                            width))
         self.start_acq = asarray([datetime(1900, 1, 1)] * img_num)
-        self.texps = zeros(img_num, dtype=float32)
-        self.add_data = zeros(img_num, dtype=float32)
+        self.texps = zeros(img_num, dtype=float)
+        self.add_data = zeros(img_num, dtype=float)
 
         self._access_mask = zeros(img_num, dtype=bool)
         self.current_index = 0
@@ -182,8 +184,8 @@ class ImgStack(object):
             return i + add
         except IndexError:
             raise IndexError("Stack is empty...")
-        except BaseException:
-            raise ValueError("Start acquisition time could accessed in stack")
+        except Exception as e:
+            raise ValueError(f"Unexpected error {e}")
 
     @property
     def time_stamps(self):
@@ -436,8 +438,7 @@ class ImgStack(object):
         values = data_mask.sum((1, 2)) / float(sum(mask))
         return Series(values, start_acq), mask
 
-    def merge_with_time_series(self, time_series, method="average",
-                               **kwargs):
+    def merge_with_time_series(self, time_series, method="average", **kwargs):
         """High level wrapper for data merging.
 
         Choose from either of three methods to perform an index merging based
@@ -472,34 +473,29 @@ class ImgStack(object):
             - :obj:`Series`: merged time series data
 
         """
-        if not isinstance(time_series, Series):
-            raise TypeError("Could not merge stack data with input data: "
-                            "wrong type: %s" % type(time_series))
+        if not isinstance(time_series, DoasResults):
+            raise ValueError(f"Input time series data must be of type DoasResults, received {time_series}")
 
         if method == "average":
             try:
                 return self._merge_tseries_average(time_series, **kwargs)
-            except BaseException:
-                logger.info("Failed to merge data using method average, trying "
-                      "method nearest instead")
+            except Exception as e:
+                logger.info(f"Failed to merge data using method average, trying method nearest instead (Reason: {e})")
                 method = "nearest"
         if method == "nearest":
             return self._merge_tseries_nearest(time_series, **kwargs)
         elif method == "interpolation":
-            return self._merge_tseries_cross_interpolation(time_series,
-                                                           **kwargs)
+            return self._merge_tseries_cross_interpolation(time_series, **kwargs)
         else:
-            raise TypeError("Unkown merge type: %s. Choose from "
-                            "[nearest, average, interpolation]")
+            raise TypeError(f"Unkown merge type: {method}. Choose from [nearest, average, interpolation]")
 
-    def _merge_tseries_nearest(self, time_series):
+    def _merge_tseries_nearest(self, time_series: DoasResults, **kwargs):
         """Find nearest in time image for each time stamp in input series.
 
         Find indices (and time differences) in input time series of nearest
         data point for each image in this stack. Then, get rid of all indices
         showing double occurences using time delta information.
         """
-        stack, time_stamps, texps = self.get_data()
         nearest_idxs, del_ts = self.get_nearest_indices(time_series.index)
         img_idxs = []
         spec_idxs_final = []
@@ -513,23 +509,25 @@ class ImgStack(object):
                 del_ts_abs.append(min(del_ts_temp))
                 img_idxs.append(matches[argmin(del_ts_temp)])
 
-        series_new = time_series[spec_idxs_final]
-        try:
+        series_new = DoasResults(time_series.iloc[spec_idxs_final])
+        if time_series.fit_errs is not None and len(time_series.fit_errs) == len(time_series):
             series_new.fit_errs = time_series.fit_errs[spec_idxs_final]
-        except BaseException:
-            pass
+        
         stack_new = self.stack[img_idxs]
         texps_new = asarray(self.texps[img_idxs])
         start_acq_new = asarray(self.start_acq[img_idxs])
-        stack_obj_new = ImgStack(stack_id=self.stack_id,
-                                 img_prep=self.img_prep, stack=stack_new,
-                                 start_acq=start_acq_new, texps=texps_new)
+        stack_obj_new = ImgStack(
+            stack_id=self.stack_id,
+            img_prep=self.img_prep, 
+            stack=stack_new,
+            start_acq=start_acq_new, 
+            texps=texps_new
+        )
         stack_obj_new.roi_abs = self.roi_abs
         stack_obj_new.add_data = series_new
         return (stack_obj_new, series_new)
 
-    def _merge_tseries_cross_interpolation(self, time_series,
-                                           itp_type="linear"):
+    def _merge_tseries_cross_interpolation(self, time_series: DoasResults, itp_type="linear"):
         """Merge this stack with input data using interpolation.
 
         :param Series time_series_data: pandas Series object containing time
@@ -539,7 +537,6 @@ class ImgStack(object):
             linear)
         """
         h, w = self.shape[1:]
-
         stack, time_stamps, _ = self.get_data()
 
         # first crop time series data based on start / stop time stamps
@@ -550,13 +547,13 @@ class ImgStack(object):
 
         # interpolate exposure times
         s0 = Series(self.texps, time_stamps)
-        try:
+        if time_series.fit_errs is not None and len(time_series.fit_errs) == len(time_series):
             errs = Series(time_series.fit_errs, time_series.index)
-            df0 = concat([s0, time_series, errs], axis=1).\
-                interpolate(itp_type).dropna()
-        except BaseException:
-            df0 = concat([s0, time_series], axis=1).\
-                interpolate(itp_type).dropna()
+            df0 = concat([s0, time_series, errs], axis=1).interpolate(itp_type).dropna()
+            fit_errs_avail = True
+        else:
+            df0 = concat([s0, time_series], axis=1).interpolate(itp_type).dropna()
+            fit_errs_avail = False
         new_num = len(df0[0])
         if not new_num >= self.num_of_imgs:
             raise ValueError("Unexpected error, length of merged data "
@@ -566,16 +563,13 @@ class ImgStack(object):
         new_stack = empty((new_num, h, w))
         new_acq_times = df0[0].index
         new_texps = df0[0].values
-
         for i in range(h):
             for j in range(w):
-                logger.info("Stack interpolation active...: current img row (y):"
-                      "%s (%s)" % (i, j))
+                logger.info(f"Stack interpolation active...: current img row (y): {i} ({j})")
                 # get series from stack at current pixel
                 series_stack = Series(stack[:, i, j], time_stamps)
                 # create a dataframe
-                df = concat([series_stack, df0[1]], axis=1).\
-                    interpolate(itp_type).dropna()
+                df = concat([series_stack, df0[1]], axis=1).interpolate(itp_type).dropna()
                 # throw all N/A values
                 # df = df.dropna()
                 new_stack[:, i, j] = df[0].values
@@ -584,17 +578,15 @@ class ImgStack(object):
                              stack_id=self.stack_id,
                              img_prep=self.img_prep)
         stack_obj.roi_abs = self.roi_abs
-        # print new_stack.shape, new_acq_times.shape, new_texps.shape
+        
         stack_obj.set_stack_data(new_stack, new_acq_times, new_texps)
 
-        new_series = df[1]
-        try:
+        new_series = DoasResults(df[1])
+        if fit_errs_avail:
             new_series.fit_errs = df0[2].values
-        except BaseException:
-            logger.info("Failed to access / process errors on time series data")
         return (stack_obj, new_series)
 
-    def _merge_tseries_average(self, time_series):
+    def _merge_tseries_average(self, time_series, **kwargs):
         """Make new stack of averaged images based on input start / stop arrays.
 
         The averaging is based on the start / stop time stamps (e.g. of
@@ -619,20 +611,17 @@ class ImgStack(object):
         -------
         tuple
             2-element tuple containing
-            - :class:`ImgStack`: new stack object with averaged images
-            - :obj:`list`: list of bad indices (where no overlap was found)
+            - :class:`ImgStack`: new stack object with averaged images matching input DOAS timeseries meas intervals
+            - :class:`DoasResults`: new DOAS timeseries matching timestamps in output ImgStack
 
         """
-        try:
-            if not time_series.has_start_stop_acqtamps():
-                raise ValueError("No start / stop acquisition time stamps "
-                                 "available in input data...")
-            start_acq = asarray(time_series.start_acq)
-            stop_acq = asarray(time_series.stop_acq)
-        except BaseException:
-            raise
-
-        stack, times, texps = self.get_data()
+        if not time_series.has_start_stop_acqtamps():
+            raise ValueError("No start / stop acquisition time stamps "
+                                "available in input data...")
+        start_acq = asarray(time_series.start_acq)
+        stop_acq = asarray(time_series.stop_acq)
+    
+        stack, times, _ = self.get_data()
         h, w = stack.shape[1:]
         num = len(start_acq)
 
@@ -647,17 +636,12 @@ class ImgStack(object):
             texp = (f - i).total_seconds()
             cond = (times >= i) & (times < f)
             if sum(cond) > 0:
-                # ==============================================================================
-                #             print ("Found %s images for spectrum #%s (of %s)"
-                #                                        %(sum(cond), k, num))
-                # ==============================================================================
                 im = stack[cond].mean(axis=0)
                 if counter == 0:
                     new_stack = im
                 else:
                     new_stack = dstack((new_stack, im))
                 new_acq_times.append(i + (f - i) / 2)
-                # img_avg_info.append(sum(cond))
                 new_texps.append(texp)
                 counter += 1
             else:
@@ -670,30 +654,18 @@ class ImgStack(object):
         stack_obj.set_stack_data(new_stack, asarray(new_acq_times),
                                  asarray(new_texps))
 
-        tseries = time_series.drop(time_series.index[bad_indices])
-        try:
+        tseries = DoasResults(time_series.drop(time_series.index[bad_indices]))
+        if time_series.fit_errs is not None and len(time_series.fit_errs) == len(time_series):
             errs = delete(time_series.fit_errs, bad_indices)
             tseries.fit_errs = errs
-        except BaseException:
-            pass
         return (stack_obj, tseries)
 
-    """Helpers
-    """
-
-    def crop_other_tseries(self, time_series):
+    def crop_other_tseries(self, time_series: DoasResults) -> DoasResults:
         """Crops other time series object based on start / stop time stamps."""
-# ==============================================================================
-#       start = self.start - self.total_time_period_in_seconds() * tol_borders
-#       stop = self.stop + self.total_time_period_in_seconds() * tol_borders
-# ==============================================================================
-        cond = logical_and(time_series.index >= self.start,
-                           time_series.index <= self.stop)
-        new = time_series[cond]
-        try:
-            new.fit_errs = new.fit_errs[cond]
-        except BaseException:
-            pass
+        cond = logical_and(time_series.index >= self.start, time_series.index <= self.stop)
+        new = DoasResults(time_series[cond])
+        if time_series.fit_errs is not None and len(time_series.fit_errs) == len(time_series):
+            new.fit_errs = time_series.fit_errs[cond]
         return new
 
     def total_time_period_in_seconds(self):
@@ -718,16 +690,6 @@ class ImgStack(object):
             delt.append(min(diff))
             idx.append(argmin(diff))
         return asarray(idx), asarray(delt)
-
-    def get_nearest_img(self, time_stamp):
-        """Return stack image which is nearest to input timestamp.
-
-        Searches the nearest image(s) with respect to input datetime(s)
-
-        :param (datetime, ndarray) time_stamps: the actual time stamp(s) (for
-            instance from another time series object)
-        """
-        raise NotImplementedError
 
     def has_data(self):
         """Return bool."""  # fixme: improve this doc
@@ -780,8 +742,6 @@ class ImgStack(object):
     def ndim(self):
         """Return stack dimension."""
         return self.stack.ndim
-
-    """Plots / visualisation"""
 
     def show_img(self, index=0):
         """Show image at input index.
@@ -897,63 +857,49 @@ class ImgStack(object):
         if not exists(file_path):
             raise IOError("ImgStack could not be loaded, path does not exist")
         hdu = fits.open(file_path)
-        self.set_stack_data(hdu[0].data.byteswap().newbyteorder().
-                            astype(self.dtype))
+        self.set_stack_data(hdu[0].data.astype(self.dtype))
         prep = Img().edit_log
-        for key, val in six.iteritems(hdu[0].header):
+        for key, val in hdu[0].header.items():
             if key.lower() in prep.keys():
                 self.img_prep[key.lower()] = val
         self.stack_id = hdu[0].header["stack_id"]
-        try:
-            times = hdu[1].data["start_acq"].byteswap().newbyteorder()
-            self.start_acq = asarray([datetime.strptime(x, "%Y%m%d%H%M%S%f")
-                                      for x in times])
-        except BaseException:
-            logger.warning("Failed to import acquisition times")
-        try:
-            self.texps = asarray(
-                hdu[1].data["texps"].byteswap().newbyteorder())
-        except BaseException:
-            logger.warning("Failed to import exposure times")
-        try:
-            self._access_mask = asarray(hdu[1].data["_access_mask"].
-                                        byteswap().newbyteorder())
-        except BaseException:
-            logger.warning("Failed to import data access mask")
-        try:
-            self.add_data = asarray(hdu[1].data["add_data"].byteswap().
-                                    newbyteorder())
-        except BaseException:
-            logger.warning("Failed to import data additional data")
-        self.roi_abs = hdu[2].data["roi_abs"].byteswap().\
-            newbyteorder()
+        times = hdu[1].data["start_acq"]
+        self.start_acq = asarray([datetime.strptime(x, "%Y%m%d%H%M%S%f") for x in times])
+        self.texps = asarray(hdu[1].data["texps"])
+        self._access_mask = asarray(hdu[1].data["_access_mask"])
+        self.add_data = asarray(hdu[1].data["add_data"])
+        self.roi_abs = hdu[2].data["roi_abs"]
         self._format_check()
 
-    def save_as_fits(self, save_dir=None, save_name=None,
-                     overwrite_existing=True):
-        """Save stack as FITS file."""
+    def save_as_fits(self, save_dir, save_name=None,
+                     overwrite_existing=True) -> str:
+        """Save stack as FITS file.
+        
+        Args:
+            save_dir (str): directory to save the FITS file
+            save_name (str): name of the FITS file (optional)
+            overwrite_existing (bool): whether to overwrite existing files
+                (default: True)
+        
+        Returns:
+            output path
+        """
         self._format_check()
-        # returns abspath of current wkdir if None
         save_dir = abspath(save_dir)
-        if not isdir(save_dir):  # save_dir is a file path
-            save_name = basename(save_dir)
-            save_dir = dirname(save_dir)
         if save_name is None:
             save_name = ("pyplis_imgstack_id_%s_%s_%s_%s.fts"
                          % (self.stack_id,
                             self.start.strftime("%Y%m%d"),
                             self.start.strftime("%H%M"),
                             self.stop.strftime("%H%M")))
-        else:
-            save_name = save_name.split(".")[0] + ".fts"
-        logger.info("DIR: %s" % save_dir)
-        logger.info("Name: %s" % save_name)
+        
+        logger.info(f"DIR: {save_dir}")
+        logger.info(f"Name: {save_name}")
         hdu = fits.PrimaryHDU()
         start_acq_str = [x.strftime("%Y%m%d%H%M%S%f") for x in self.start_acq]
         col1 = fits.Column(name="start_acq", format="25A", array=start_acq_str)
         col2 = fits.Column(name="texps", format="D", array=self.texps)
-        col3 = fits.Column(name="_access_mask", format="L",
-                           array=self._access_mask)
+        col3 = fits.Column(name="_access_mask", format="L", array=self._access_mask)
         col4 = fits.Column(name="add_data", format="D", array=self.add_data)
         cols = fits.ColDefs([col1, col2, col3, col4])
         arrays = fits.BinTableHDU.from_columns(cols)
@@ -968,19 +914,9 @@ class ImgStack(object):
         hdulist = fits.HDUList([hdu, arrays, roi_abs])
         path = join(save_dir, save_name)
         if exists(path):
-            logger.info("Stack already exists at %s and will be overwritten"
-                  % path)
-
-        try:
-            hdulist.writeto(path, clobber=overwrite_existing)
-        except BaseException:
-            logger.warning("Failed to save stack to FITS File "
-                 "(check previous warnings)")
-
-    """Magic methods"""
-
-    def __str__(self):
-        raise NotImplementedError
+            logger.info(f"Stack already exists at {path} and will be overwritten")
+        hdulist.writeto(path, overwrite=overwrite_existing)
+        return path
 
     def __sub__(self, other):
         """Subtract data.
