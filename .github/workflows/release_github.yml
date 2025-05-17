@@ -16,7 +16,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Get release tag
-        run: echo "RELEASE_TAG=${{ github.ref }}" >> $GITHUB_ENV
+        run: echo "RELEASE_TAG=${{ github.ref_name }}" >> $GITHUB_ENV
 
       - name: Display release tag
         run: echo "RELEASE_TAG=${{ env.RELEASE_TAG }}"
@@ -40,7 +40,7 @@ jobs:
         run: |
           gh release create "$tag" \
               --repo="$GITHUB_REPOSITORY" \
-              --title="${GITHUB_REPOSITORY#*/} ${tag#v}" \
+              --title="${GITHUB_REPOSITORY#*/} $tag" \
               --generate-notes \
               --draft \
               --notes-start-tag=$previous_tag
