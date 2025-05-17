@@ -41,7 +41,6 @@ jobs:
           run: twine upload --repository testpypi dist/*
 
   build_and_publish_pypi:
-    if: false  # Disabled PyPI publishing
     runs-on: ubuntu-latest
     needs: build_and_publish_test_pypi
     steps:
