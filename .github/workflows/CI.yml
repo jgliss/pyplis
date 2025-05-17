@@ -13,37 +13,36 @@ on:
 jobs:
   build-and-test:
     runs-on: ${{ matrix.os }}
-    defaults:
-      run:
-        shell: bash -l {0} # https://github.com/conda-incubator/setup-miniconda#important
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.9"]
+        python-version: ["3.11", "3.12"]
         os: [ubuntu-latest, windows-latest]
     steps:
     - uses: actions/checkout@v4
-    - name: Set up conda env ${{ matrix.python-version }}
-      uses: conda-incubator/setup-miniconda@v3
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
       with:
-        environment-file: pyplis_env.yml
-        activate-environment: pyplis-dev
         python-version: ${{ matrix.python-version }}
 
-    - name: Conda info
-      run: | 
-        conda --version
-        conda info --envs
-        which python
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install .[dev]
+
+    - name: Check Python version
+      run: |
         python --version
-    - name: Conda list
-      run: conda list
-    - name: Install pyplis
-      run: python -m pip install . --no-deps
+        which python
+
+    - name: List installed packages
+      run: pip list
+
     - name: Run pytest
       run: pytest pyplis/test --cov=pyplis/ --cov-report xml
+
     - name: Upload coverage to Codecov
-      if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.9'
+      if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.12'
       uses: codecov/codecov-action@v4
       with:
           token: ${{ secrets.CODECOV_TOKEN }}

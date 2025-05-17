@@ -1,15 +1,17 @@
+.. _examples:
+
 ***************
 Example scripts
 ***************
 
-pyplis example scripts. The scripts require downloading the `pyplis test data <http://pyplis.readthedocs.io/en/latest/intro.html#example-and-test-data>`__.
+Pyplis example scripts. The scripts require downloading the `pyplis test data <http://pyplis.readthedocs.io/en/latest/intro.html#example-and-test-data>`__.
 
-.. note::
+The examples are build upon each other and are categorized into a set of basic examples to get started with the core 
+features of pyplis and a set of advanced examples that introduce the main analysis steps and available routines
+to perform SO2 emission rate retrievals, including all aspects of the analysis workflow.
 
-  The scripts are based on the latest commit in the `GitHub repo <https://github.com/jgliss/pyplis>`__. If you have installed an older version of pyplis, please use the corresponding scripts which are provided `here <https://github.com/jgliss/pyplis/tree/master/scripts/old_versions>`__.
-
-Introductory scripts
-===================
+Basic examples for getting started
+==================================
 
 These scripts give an introduction into basic features and classes of pyplis.
 
@@ -91,7 +93,7 @@ Manual cell calibration based on a set of background and cell images (on / off).
 .. literalinclude:: ../scripts/ex0_7_cellcalib_manual.py
 
 
-Examples for emission rate analysis
+Advanced Examples for analysis
 ===================================
 
 The following scripts are directly related for emission rate analysis and build on top of each other ending with a full emission rate analysis in :ref:`ex12`.

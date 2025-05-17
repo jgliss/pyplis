@@ -16,14 +16,13 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 """Pyplis module containing features related to plume background analysis."""
-from __future__ import (absolute_import, division)
 from numpy import (polyfit, poly1d, linspace, logical_and, log, argmin,
                    gradient, nan, ndarray, arange, ones, finfo, asarray)
 from matplotlib.patches import Rectangle
 from matplotlib.pyplot import figure, subplots, setp
 import matplotlib.colors as colors
 from collections import OrderedDict as od
-from scipy.ndimage.filters import gaussian_filter
+from scipy.ndimage import gaussian_filter
 
 import six
 
@@ -187,19 +186,7 @@ class PlumeBackgroundModel(object):
         for k, v in six.iteritems(kwargs):
             self.__setitem__(k, v)
 
-    def guess_missing_settings(self, plume_img):
-        """Call and return :func:`set_missing_ref_areas`.
-
-        Note
-        ----
-        This is the previous name of the method
-        :func:`set_missing_ref_areas`
-        """
-        print_log.warning("Please use new name of method: set_missing_ref_areas",
-             DeprecationWarning)
-        self.set_missing_ref_areas(plume_img)
-
-    def set_missing_ref_areas(self, plume_img):
+    def set_missing_ref_areas(self, plume_img: Img):
         """Find and set missing default sky reference areas for modelling.
 
         Based on the input plume image, the clear sky reference areas for sky
@@ -215,22 +202,16 @@ class PlumeBackgroundModel(object):
         The estimation is performed based on a brightness analysis for left and
         right image area.
 
-        Parameters
-        ----------
-        plume_img : Img
-            exemplary plume image (should be representative for a whole
-            dataset)
-
+        Args:
+            plume_img (Img): the plume image for which the sky background
+                areas are retrieved.
         """
-        if not isinstance(plume_img, Img):
-            raise TypeError("Invalid, input type: need Img object...")
         plume = plume_img.img
         if self.check_settings():
             return
         if self.surface_fit_mask is None:
             self.surface_fit_mask = ones(plume.shape)
-        h, w = plume.shape
-
+        
         res = find_sky_reference_areas(plume)
         if self.ygrad_line_colnum is None:
             self.ygrad_line_colnum = res["ygrad_line_colnum"]

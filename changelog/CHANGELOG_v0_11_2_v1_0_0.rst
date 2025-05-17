@@ -105,7 +105,7 @@ Release 0.11.2 -> 1.0.0
 
 #. DOAS calibration data can now be fitted using weighted regression based on DOAS fit errors. Note, that new default is weighted fitting, if applicable (i.e. if uncertainties are available).
 
-#. New class :class:`VeloCrossCorrEngine` in :mod:`plumespeed.py` for high level computing of cross correlation based velocity retrievals. Note that this includes changes in example script 8, which now uses the new class. Thus, running the current version of example script 8 will not work with older versions of Pyplis.
+#. New class :class:`VeloCrossCorrEngine` in :mod:`plumespeed.py` for high level computing of cross correlation based velocity retrievals. Note that this includes changes in example script 8, which now uses the new class. Thus, running the current version of example script 8 will not work with older versions of pyplis.
 
 #. Started with implementation of test suite using pytest
 

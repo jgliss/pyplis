@@ -151,3 +151,6 @@ scripts/scripts_out/*
 
 # vscode configs
 .vscode
+
+# setuptools_scm 
+pyplis/_version.py

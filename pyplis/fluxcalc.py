@@ -17,8 +17,6 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 """Pyplis module containing methods and classes for emission-rate retrievals.
 """
-from __future__ import (absolute_import, division)
-
 from numpy import (dot, sqrt, mean, nan, isnan, asarray, nanmean, nanmax,
                    nanmin, sum, arctan2, rad2deg, logical_and, ones, arange,
                    nanstd)
@@ -908,8 +906,6 @@ class EmissionRateRatio(EmissionRates):
 
     def __init__(self, *args, **kwargs):
         super(EmissionRateRatio, self).__init__(*args, **kwargs)
-        logger.warning("You are using an old name EmissionRateResults for class"
-             "EmissionRates")
 
     @property
     def dphi(self):
@@ -931,7 +927,7 @@ class EmissionRateRatio(EmissionRates):
         return ax
 
 
-class EmissionRateAnalysis(object):
+class EmissionRateAnalysis:
     """Class to perform emission rate analysis.
 
     The analysis is performed by looping over images in an image list which
@@ -1103,22 +1099,21 @@ class EmissionRateAnalysis(object):
             found
         """
         if line_id is None:
-            try:
-                line_id = list(self.results.keys())[0]
-                logger.info("Input line ID unspecified, using: %s" % line_id)
-            except IndexError:
-                raise IndexError("No emission rate results available...")
+            if len(self.results) > 0:
+                line_id = list(self.results)[0]
+                logger.info(f"Input line ID unspecified, using: {line_id}")
+            else:
+                raise ValueError("No emission rate results available...")
         if velo_mode is None:
-            try:
-                velo_mode = self.results[line_id].keys()[0]
-                logger.info("Input velo_mode unspecified, using: %s" % velo_mode)
-            except BaseException:
-                raise IndexError("No emission rate results available...")
+            if len(self.results[line_id]) > 0:
+                velo_mode = list(self.results[line_id])[0]
+                logger.info(f"Input velo_mode unspecified, using: {velo_mode}")
+            else:
+                raise ValueError("No emission rate results available...")
         if line_id not in self.results:
-            raise KeyError("No results available for pcs with ID %s" % line_id)
+            raise ValueError(f"No results available for pcs with ID {line_id}")
         elif velo_mode not in self.results[line_id]:
-            raise KeyError("No results available for line %s and velocity mode"
-                           " %s" % (line_id, velo_mode))
+            raise ValueError(f"No results available for line {line_id} and velocity mode {velo_mode}")
         return self.results[line_id][velo_mode]
 
     def check_and_init_list(self):
@@ -1657,9 +1652,9 @@ class EmissionRateAnalysis(object):
         upper = s + err
         exp = exponent(upper.values.max())
 
-        s_disp = s * 10**-exp
-        lower_disp = lower * 10**-exp
-        upper_disp = upper * 10**-exp
+        s_disp = s / 10**exp
+        lower_disp = lower / 10**exp
+        upper_disp = upper / 10**exp
 
         s_disp.plot(ax=ax, label="mean", **kwargs)
         try:
@@ -1668,7 +1663,6 @@ class EmissionRateAnalysis(object):
         except BaseException:
             pass
 
-        # ax.yaxis.set_ticks([lower_disp.mean(), 0, upper_disp.mean()])
         ax.fill_between(s.index, lower_disp, upper_disp, alpha=0.1, **kwargs)
         ax.set_ylabel(r"$ROI_{BG}\,[E%d\,cm^{-2}]$" % exp, fontsize=labelsize)
         ax.grid()
@@ -1709,11 +1703,3 @@ def det_emission_rate(cds, velo, pix_dists, cds_err=None, velo_err=None,
     phi_err = C * sqrt(dphi1 + dphi2 + dphi3)
     return phi, phi_err
 
-
-class EmissionRateResults(EmissionRates):
-    """Old name of :class:`OptflowFarneback`."""
-
-    def __init__(self, *args, **kwargs):
-        super(EmissionRateResults, self).__init__(*args, **kwargs)
-        logger.warning("You are using an old name EmissionRateResults for class"
-             "EmissionRates")
