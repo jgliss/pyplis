@@ -21,7 +21,7 @@ Features
 - Cross-platform compatibility (Windows, Linux).
 - Tested with recent Python versions.
 
-For more details on the features, please refer to the `documentation <https://pyplis.readthedocs.io/en/latest/intro.html#main-features>`_.
+For more details on the features, please refer to the `documentation <https://pyplis.readthedocs.io/en/latest/intro.html#main-features>`__.
 
 Installation
 ============
@@ -38,7 +38,7 @@ If you use conda, you can also install pyplis using conda-forge:
 
    conda install -c conda-forge pyplis
 
-For detailed installation instructions, please refer to the `documentation <https://pyplis.readthedocs.io/en/latest/intro.html>`_.
+For detailed installation instructions, please refer to the `documentation <https://pyplis.readthedocs.io/en/latest/intro.html>`__.
 
 Documentation
 =============
