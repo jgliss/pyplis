@@ -25,7 +25,6 @@ from collections import OrderedDict as od
 
 from matplotlib.pyplot import figure
 from copy import deepcopy
-import six
 
 from pyplis import logger, print_log
 from pyplis.utils import LineOnImage
@@ -1723,30 +1722,16 @@ class MeasGeometry(object):
             raise IndexError("Input azimuth is out of camera FOV")
         return argmin(abs(azs - azim))
 
-# =============================================================================
-#
-#     def all_azimuths_camfov(self):
-#         """Returns array containing azimuth angles for all pixel columns"""
-#         tot_num = self.cam["pixnum_x"]
-#         idx_cfov = tot_num / 2.0
-#         az0 = self.cam["azim"] - self.del_az(0, idx_cfov)
-#         del_az = self.del_az(0, 1)
-#         az_angles = zeros(tot_num)
-#         for k in range(tot_num):
-#             az_angles[k] = az0 + k * del_az
-#         return az_angles
-# =============================================================================
-
     def __str__(self):
         s = "pyplis MeasGeometry object\n##################################\n"
         s += "\nCamera specifications\n-------------------\n"
-        for k, v in six.iteritems(self._cam):
+        for k, v in self._cam.items():
             s += "%s: %s\n" % (k, v)
         s += "\nSource specifications\n-------------------\n"
-        for k, v in six.iteritems(self._source):
+        for k, v in self._source.items():
             s += "%s: %s\n" % (k, v)
         s += "\nWind specifications\n-------------------\n"
-        for k, v in six.iteritems(self._wind):
+        for k, v in self._wind.items():
             s += "%s: %s\n" % (k, v)
         return s
 
@@ -1755,7 +1740,7 @@ class MeasGeometry(object):
 
         :param item: name of attribute
         """
-        for key, val in six.iteritems(self.__dict__):
+        for key, val in self.__dict__.items():
             try:
                 if item in val:
                     return val[item]
