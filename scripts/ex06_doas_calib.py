@@ -218,7 +218,7 @@ def main():
     calib_pears.fit_calib_data()
     calib_ifr.fit_calib_data()
 
-    fig, ax2 = subplots(1, 1)
+    _, ax2 = subplots(1, 1)
     calib_pears.plot(add_label_str="Pearson", color="b", ax=ax2)
 
     calib_ifr.plot(add_label_str="IFR", color="g", ax=ax2)

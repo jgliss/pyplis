@@ -16,7 +16,8 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 """Pyplis module for DOAS calibration including FOV search engines."""
-from numpy import (min, arange, asarray, zeros, column_stack,
+from typing import Tuple
+from numpy import (min, arange, asarray, ndarray, zeros, column_stack,
                    ones, nan, float64)
 from scipy.stats import pearsonr
 from scipy.sparse.linalg import lsmr
@@ -927,7 +928,7 @@ class DoasFOVEngine(object):
 
         return lsmr_image, lsmr_offset
 
-    def get_fov_shape(self, **settings):
+    def get_fov_shape(self):
         """Find shape of FOV based on correlation image.
 
         Search pixel coordinate of highest correlation in
@@ -938,14 +939,13 @@ class DoasFOVEngine(object):
         :func:`fov_gauss_fit`. Results are written into ``self.calib_data.fov``
         (:class:`DoasFOV` object)
 
-        :param **settings: update current settings (keyword args passed
-            to :func:`update_search_settings`)
 
         """
-        if not isinstance(self.calib_data.fov.corr_img, Img):
+        corr_img = self.calib_data.fov.corr_img
+        if not isinstance(corr_img, Img):
             raise Exception("Could not access correlation image")
         if self.method == "pearson":
-            cy, cx = get_img_maximum(self.calib_data.fov.corr_img.img)
+            cy, cx = get_img_maximum(corr_img.img)
 
             logger.info(f"Start radius search in stack around x/y: {cx}/{cy}")
             (radius,
@@ -962,35 +962,27 @@ class DoasFOVEngine(object):
             self.calib_data.fov.result_pearson["rad_rel"] = radius
             self.calib_data.fov.result_pearson["corr_curve"] = corr_curve
 
-            self.calib_data.fov.fov_mask_rel = fov_mask
-            self.calib_data.tau_vec = tau_vec.astype(float64)
-            self.calib_data.cd_vec = cd_vec.astype(float64)
-            if self.doas_series.fit_errs is not None:
-                self.calib_data.cd_vec_err = self.doas_series.fit_errs
-            self.calib_data.time_stamps = self.img_stack.time_stamps
-
         elif self.method == "ifr":
             # the fit is performed in absolute dectector coordinates
             # corr_img_abs = Img(self.fov.corr_img.img).pyr_up(pyrlevel).img
-            popt, pcov, fov_mask = self._fov_gauss_fit(
-                self.calib_data.fov.corr_img,
-                **self._settings)
+            popt, pcov, fov_mask = self._fov_gauss_fit(corr_img)
             tau_vec = self.convolve_stack_fov(fov_mask)
 
             self.calib_data.fov.result_ifr["popt"] = popt
             self.calib_data.fov.result_ifr["pcov"] = pcov
-            self.calib_data.fov.fov_mask_rel = fov_mask
-            self.calib_data.tau_vec = tau_vec
-            self.calib_data.cd_vec = self.doas_data_vec
-            try:
-                self.calib_data.cd_vec_err = self.doas_series.fit_errs
-            except BaseException:
-                pass
-            self.calib_data.time_stamps = self.img_stack.time_stamps
-        else:
-            raise ValueError("Invalid search method...")
 
-    def fov_radius_search(self, cx, cy):
+            cd_vec = self.doas_data_vec
+        else:
+            raise ValueError(f"Invalid search method {self.method}, choose from pearson or ifr")
+        
+        self.calib_data.fov.fov_mask_rel = fov_mask
+        self.calib_data.tau_vec = tau_vec.astype(float64)
+        self.calib_data.cd_vec = cd_vec.astype(float64)
+        if self.doas_series.fit_errs is not None:
+            self.calib_data.cd_vec_err = self.doas_series.fit_errs
+        self.calib_data.time_stamps = self.img_stack.time_stamps
+
+    def fov_radius_search(self, cx: int, cy: int) -> Tuple[int, Series, ndarray, ndarray, ndarray]:
         """Search the FOV disk radius around center coordinate.
 
         The search varies the radius around the center coordinate and
@@ -999,9 +991,20 @@ class DoasFOVEngine(object):
         with spectrometer data to find the radius showing highest
         correlation.
 
-        :param int cx: pixel x coordinate of center position
-        :param int cy: pixel y coordinate of center position
-
+        Args:
+            cx: pixel x coordinate of center position
+            cy: pixel y coordinate of center position
+        
+        Returns:
+            - int: radius of FOV
+            - Series: correlation curve (radius vs. correlation coeff)
+            - ndarray: vector of optical densities within FOV
+            - ndarray: vector of DOAS data
+            - ndarray: mask of FOV (1 inside, 0 outside)
+        
+        Raises:
+            ValueError: if the length of the DOAS data vector does not
+                match the number of images in the stack
         """
         stack = self.img_stack
         cd_vec = self.doas_series.values
@@ -1020,8 +1023,7 @@ class DoasFOVEngine(object):
             self.maxrad = int(max_rad * 2**(pyrlevel))
         # radius array
         radii = arange(1, max_rad_search + 1, 1)
-        logger.info("Maximum radius at pyramid level %d: %s"
-              % (pyrlevel, max_rad_search))
+        logger.info(f"Maximum radius at pyramid level {pyrlevel}: {max_rad_search}")
         # some variable initialisations
         coeffs, coeffs_err = [], []
         max_corr = 0
@@ -1031,7 +1033,6 @@ class DoasFOVEngine(object):
         # loop over all radii, get tauSeries at each, (merge) and determine
         # correlation coefficient
         for r in radii:
-
             # now get mean values of all images in stack in circular ROI around
             # CFOV
             tau_series, m = stack.get_time_series(cx, cy, radius=r)
@@ -1047,43 +1048,21 @@ class DoasFOVEngine(object):
                 max_corr = coeff
                 tau_vec = tau_dat
         corr_curve = Series(asarray(coeffs, dtype=float), radii)
-        return radius, corr_curve, tau_vec, cd_vec, mask
+        return (radius, corr_curve, tau_vec, cd_vec, mask)
 
-    # define IFR model function (Super-Gaussian)
-
-    def _fov_gauss_fit(self, corr_img, g2dasym=True, g2dsuper=True,
-                       g2dcrop=True, g2dtilt=False, blur=4, **kwargs):
+    def _fov_gauss_fit(self, corr_img: Img) -> Tuple[ndarray, ndarray, ndarray]:
         """Apply 2D gauss fit to correlation image.
 
-        Parameters
-        ----------
-        corr_img : Img
-            correlation image
-        g2dasym : bool
-            allow for assymetric shape (sigmax != sigmay), True
-        g2dsuper: bool
-            allow for supergauss fit, True
-        g2dcrop : bool
-            if True, set outside (1/e amplitude) datapoints = 0, True
-        g2dtilt : bool
-            allow gauss to be tilted with respect to x/y axis
-        blur : int
-            width of gaussian smoothing kernel convolved with correlation
-            image in order to identify position of maximum
-
-        Returns
-        -------
-        tuple
-            3-element tuple containing
-
-            - array (popt): optimised multi-gauss parameters
-            - 2d array (pcov): estimated covariance of popt
-            - 2d array: correlation image
-
+        Args:
+            corr_img: correlation image
+        
+        Returns:
+            - ndarray: optimised multi-gauss parameters
+            - ndarray: estimated covariance of popt
+            - ndarray: correlation image
         """
         img = corr_img.img
         h, w = img.shape
-        xgrid, ygrid = mesh_from_img(img)
 
         # apply maximum of filtered image to initialise 2D gaussian fit
         (cy, cx) = get_img_maximum(img)
@@ -1091,10 +1070,14 @@ class DoasFOVEngine(object):
         mask = make_circular_mask(h, w, cx, cy, maxrad).astype(float)
         img = img * mask
         # constrain fit, if requested
-        (popt, pcov, fov_mask) = gauss_fit_2d(img, cx, cy, g2dasym,
-                                              g2d_super_gauss=g2dsuper,
-                                              g2d_crop=g2dcrop,
-                                              g2d_tilt=g2dtilt, **kwargs)
+        (popt, pcov, fov_mask) = gauss_fit_2d(
+            img_arr=img, 
+            cx=cx, 
+            cy=cy, 
+            g2d_asym=self.g2dasym,
+            g2d_super_gauss=self.g2dsuper,
+            g2d_crop=self.g2dcrop,
+            g2d_tilt=self.g2dtilt)
 
         return (popt, pcov, fov_mask)
 

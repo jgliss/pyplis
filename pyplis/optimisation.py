@@ -102,8 +102,15 @@ def dilution_corr_fit(
     return least_squares(errfun, guess, args=(dists, rads), bounds=bounds)
 
 
-def gauss_fit_2d(img_arr, cx, cy, g2d_asym=True, g2d_super_gauss=True,
-                 g2d_crop=True, g2d_tilt=False, **kwargs):
+def gauss_fit_2d(
+        img_arr, 
+        cx, 
+        cy, 
+        g2d_asym=True, 
+        g2d_super_gauss=True,
+        g2d_crop=True, 
+        g2d_tilt=False
+        ):
     """Apply 2D gauss fit to input image at its maximum pixel coordinate.
 
     Parameters
