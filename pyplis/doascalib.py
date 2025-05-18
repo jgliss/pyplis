@@ -90,10 +90,18 @@ class DoasCalibData(CalibData):
     def __init__(self, tau_vec=None, cd_vec=None, cd_vec_err=None, time_stamps=None,
                  calib_fun=None, calib_coeffs=None, senscorr_mask=None,
                  polyorder=1, calib_id=None, camera=None, fov=None):
-        super(DoasCalibData, self).__init__(tau_vec, cd_vec, cd_vec_err,
-                                            time_stamps, calib_fun,
-                                            calib_coeffs, senscorr_mask,
-                                            polyorder, calib_id, camera)
+        super().__init__(
+            tau_vec=tau_vec,
+            cd_vec=cd_vec,
+            cd_vec_err=cd_vec_err,
+            time_stamps=time_stamps,
+            calib_fun=calib_fun,
+            calib_coeffs=calib_coeffs,
+            senscorr_mask=senscorr_mask,
+            polyorder=polyorder,
+            calib_id=calib_id,
+            camera=camera,
+        )
         if tau_vec is None:
             tau_vec = []
         if cd_vec is None:
