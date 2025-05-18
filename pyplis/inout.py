@@ -42,7 +42,6 @@ from pyplis import logger, print_log
 from tempfile import mktemp, gettempdir
 from shutil import copy2
 from json import loads
-import six
 
 
 def data_search_dirs():
@@ -395,7 +394,7 @@ def save_new_default_camera(info_dict, cam_info_file: Optional[Path] = None):
         cam_ids = [str(x) for x in cam_ids]
         info_file.write(",".join(cam_ids))
         info_file.write("\n")
-        for k, v in six.iteritems(info_dict):
+        for k, v in info_dict.items():
             if k in keys:
                 if k == "default_filters":
                     for finfo in v:
@@ -411,7 +410,7 @@ def save_new_default_camera(info_dict, cam_info_file: Optional[Path] = None):
                         info_file.write("\n")
                 elif k == "io_opts":
                     s = "io_opts:"
-                    for opt, val in six.iteritems(v):
+                    for opt, val in v.items():
                         s += "%s=%d," % (opt, val)
                     s = s[:-1] + "\n"
                     info_file.write(s)
@@ -449,7 +448,7 @@ def save_default_source(info_dict):
     source_file_temp = create_temporary_copy(path)
     with open(source_file_temp, "a") as info_file:
         info_file.write("\n\nsource_ids:%s\n" % info_dict["name"])
-        for k, v in six.iteritems(info_dict):
+        for k, v in info_dict.items():
             info_file.write("%s:%s\n" % (k, v))
         info_file.write("END")
     info_file.close()
