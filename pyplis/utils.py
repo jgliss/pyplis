@@ -36,9 +36,6 @@ from pyplis.helpers import map_coordinates_sub_img, same_roi, map_roi, roi2rect
 from pyplis.inout import get_cam_ids
 from pyplis.glob import DEFAULT_ROI
 
-import six
-
-
 def identify_camera_from_filename(filepath):
     """Identify camera based on image filepath convention.
 
@@ -1046,7 +1043,7 @@ class LineOnImage(object):
             dictionary containing line parameters (cf. :func:`to_dict`)
 
         """
-        for k, v in six.iteritems(settings_dict):
+        for k, v in settings_dict.items():
             if k in self.__dict__:
                 self.__dict__[k] = v
 
