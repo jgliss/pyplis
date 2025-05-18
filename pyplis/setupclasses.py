@@ -31,8 +31,6 @@ from pathlib import Path
 from typing import Optional
 from numpy import nan, rad2deg, arctan, ndarray
 
-import six
-
 from pyplis import logger
 from .forms import LineCollection, RectCollection
 from .helpers import isnum, to_datetime
@@ -99,7 +97,7 @@ class Source(object):
                 info_dict.update(info)
 
         self._import_from_dict(info_dict)
-        for k, v in six.iteritems(kwargs):
+        for k, v in kwargs.items():
             self[k] = v
 
     @property
@@ -194,7 +192,7 @@ class Source(object):
             raise TypeError(
                 "need dictionary like object for source info update")
         err = []
-        for key, val in six.iteritems(info_dict):
+        for key, val in info_dict.items():
             if key in types:
                 func = types[key]
             else:
@@ -727,7 +725,7 @@ class Camera(CameraBaseInfo):
             ``self.geom_data``)
 
         """
-        for key, val in six.iteritems(settings):
+        for key, val in settings.items():
             self[key] = val
 
     def get_altitude_srtm(self):
@@ -789,7 +787,7 @@ class Camera(CameraBaseInfo):
         """Convert this object into a dictionary."""
         d = super(Camera, self).to_dict()
         d["ser_no"] = self.ser_no
-        for key, val in six.iteritems(self.geom_data):
+        for key, val in self.geom_data.items():
             d[key] = val
         return d
 
@@ -870,7 +868,7 @@ class Camera(CameraBaseInfo):
         s += str(self.filter_setup)
 
         s += "\nGeometry info\n----------------------\n"
-        for key, val in six.iteritems(self.geom_data):
+        for key, val in self.geom_data.items():
             try:
                 s += "%s: %.3f\n" % (key, val)
             except BaseException:
@@ -892,7 +890,7 @@ class Camera(CameraBaseInfo):
         """Get class item."""
         if name in self.__dict__:
             return self.__dict__[name]
-        for k, v in six.iteritems(self.__dict__):
+        for k, v in self.__dict__.items():
             try:
                 if name in v:
                     return v[name]
@@ -1173,7 +1171,7 @@ class BaseSetup(object):
              "Options:\n"
              % (self.base_dir, self.save_dir, self.start, self.stop))
 
-        for key, val in six.iteritems(self.options):
+        for key, val in self.options.items():
             s = s + "%s: %s\n" % (key, val)
 
         return s
@@ -1261,7 +1259,7 @@ class MeasSetup(BaseSetup):
             dictionary containing wind information
 
         """
-        for key, val in six.iteritems(info_dict):
+        for key, val in info_dict.items():
             if key in self.wind_info:
                 self.wind_info[key] = val
 
