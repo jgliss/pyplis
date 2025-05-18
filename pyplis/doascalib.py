@@ -28,8 +28,6 @@ from copy import deepcopy
 from astropy.io import fits
 from traceback import format_exc
 
-import six
-
 from pyplis import logger, print_log
 from matplotlib.pyplot import subplots
 from matplotlib.patches import Circle, Ellipse
@@ -459,10 +457,10 @@ class DoasFOV(object):
     def __str__(self):
         s = "DoasFOV information\n------------------------\n"
         s += "\nImg stack preparation settings\n............................\n"
-        for k, v in six.iteritems(self.img_prep):
+        for k, v in self.img_prep.items():
             s += "%s: %s\n" % (k, v)
         s += "\nFOV search settings\n............................\n"
-        for k, v in six.iteritems(self.search_settings):
+        for k, v in self.search_settings.items():
             s += "%s: %s\n" % (k, v)
         if self.method == "ifr":
             s += "\nIFR search results \n.........................\n"
@@ -472,7 +470,7 @@ class DoasFOV(object):
                 s += "%s: %.3f\n" % (GAUSS_2D_PARAM_INFO[k], popt[k])
         elif self.method == "pearson":
             s += "\nPearson search results \n.......................\n"
-            for k, v in six.iteritems(self.result_pearson):
+            for k, v in self.result_pearson.items():
                 if not k == "corr_curve":
                     s += "%s: %s\n" % (k, v)
         return s
@@ -686,7 +684,7 @@ class DoasFOVEngine(object):
         :param **settings: keyword args to be updated (only
             valid keys will be updated)
         """
-        for k, v in six.iteritems(settings):
+        for k, v in settings.items():
             if k in self._settings:
                 logger.info("Updating FOV search setting %s, new value: %s"
                       % (k, v))
