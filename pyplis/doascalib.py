@@ -965,12 +965,9 @@ class DoasFOVEngine(object):
             self.calib_data.fov.fov_mask_rel = fov_mask
             self.calib_data.tau_vec = tau_vec.astype(float64)
             self.calib_data.cd_vec = cd_vec.astype(float64)
-            try:
+            if self.doas_series.fit_errs is not None:
                 self.calib_data.cd_vec_err = self.doas_series.fit_errs
-            except BaseException:
-                pass
             self.calib_data.time_stamps = self.img_stack.time_stamps
-            return
 
         elif self.method == "ifr":
             # the fit is performed in absolute dectector coordinates

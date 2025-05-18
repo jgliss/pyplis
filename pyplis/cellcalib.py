@@ -332,7 +332,7 @@ class CellCalibData(CalibData):
         (e.g. start acquisition) of calibration data
     calib_fun : function
         optimisation function used for fitting of calibration data
-    calib_coeffs : ;obj:`list`, optional
+    calib_coeffs : list, optional
         optimisation parameters for calibration curve.
     senscorr_mask : :obj:`ndarray`or :obj:`Img`, optional
         sensitivity correction mask that was normalised relative to the
