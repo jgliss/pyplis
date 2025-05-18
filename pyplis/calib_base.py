@@ -21,7 +21,7 @@ This is the base class for storing calibration data, fitting calibration
 curves, and corresponding I/O routines (e.g storage as FITS or text file).
 """
 from pyplis import logger
-from numpy import (min, asarray, zeros, linspace, ones, float64, isnan,
+from numpy import (asarray, zeros, linspace, ones, float64, isnan,
                    ndarray, argmax, inf)
 from inspect import signature
 from scipy.optimize import curve_fit
@@ -44,7 +44,7 @@ from pyplis.setupclasses import Camera
 from typing import Union
 
 
-class CalibData(object):
+class CalibData:
     """Base class representing calibration data and optimisation parameters.
 
     The default calibration curve is a polynomial of first order. Calibration
@@ -85,11 +85,21 @@ class CalibData(object):
         decimal degrees
 
     """
-
-    def __init__(self, tau_vec=None, cd_vec=None, cd_vec_err=None, time_stamps=None,
-                 calib_fun=None, calib_coeffs=None, senscorr_mask=None,
-                 polyorder=1, calib_id="", camera=None):
-        # type of calibration performed (e.g. "doas", "cell")
+    def __init__(
+            self, 
+            tau_vec=None, 
+            cd_vec=None, 
+            cd_vec_err=None, 
+            time_stamps=None,
+            calib_fun=None, 
+            calib_coeffs=None, 
+            senscorr_mask=None,
+            polyorder=1, 
+            calib_id=None, 
+            camera=None
+            ):
+        if calib_id is None:
+            calib_id = ""
         if tau_vec is None:
             tau_vec = []
         if cd_vec is None:
