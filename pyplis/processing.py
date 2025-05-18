@@ -37,7 +37,6 @@ from pandas import Series, concat, DatetimeIndex
 from cv2 import pyrDown, pyrUp
 from os.path import join, exists, abspath
 from astropy.io import fits
-import six
 from pydoas.analysis import DoasResults
 from pyplis import logger
 from pyplis.image import Img
@@ -1038,7 +1037,7 @@ class PixelMeanTimeSeries(Series):
         self.img_prep = img_prep
         self.roi_abs = roi_abs
 
-        for key, val in six.iteritems(kwargs):
+        for key, val in kwargs.items():
             self[key] = val
 
     @property
