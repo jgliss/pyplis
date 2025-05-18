@@ -52,8 +52,6 @@ from pyplis.plumespeed import OptflowFarneback, LocalPlumeProperties
 from pyplis.helpers import (_print_list, closest_index)
 from pyplis.calib_base import CalibData
 from pyplis.custom_image_import import _read_binary_timestamp
-import six
-
 
 class DarkImgList(BaseImgList):
     """A :class:`BaseImgList`object only extended by read_gain value.
@@ -1237,7 +1235,7 @@ class ImgList(BaseImgList):
         updated = False
         try:
             num = self.index
-            for read_gain, info in six.iteritems(self.dark_lists):
+            for read_gain, info in self.dark_lists.items():
                 darknum = info["idx"][num]
                 if darknum != info["list"].index:
                     updated = True
@@ -1248,7 +1246,7 @@ class ImgList(BaseImgList):
                     info["list"].goto_img(darknum)
 
             if self.darkcorr_opt == 1 and updated:
-                for read_gain, info in six.iteritems(self.offset_lists):
+                for read_gain, info in self.offset_lists.items():
                     offsnum = info["idx"][num]
                     if offsnum != info["list"].index:
                         logger.info("Offset image index (read_gain {}) was changed "
@@ -1376,9 +1374,9 @@ class ImgList(BaseImgList):
                 warnings.append("Obj of type %s could not be linked, need "
                                 " DarkImgList " % type(lst))
 
-        for gain, value in six.iteritems(self.dark_lists):
+        for gain, value in self.dark_lists.items():
             value["idx"] = self.assign_indices_linked_list(value["list"])
-        for gain, value in six.iteritems(self.offset_lists):
+        for gain, value in self.offset_lists.items():
             value["idx"] = self.assign_indices_linked_list(value["list"])
         _print_list(warnings)
         return dark_assigned, offset_assigned
@@ -1387,7 +1385,7 @@ class ImgList(BaseImgList):
 
     def change_index_linked_lists(self):
         """Update current index in all linked lists based on ``cfn``."""
-        for key, lst in six.iteritems(self.linked_lists):
+        for key, lst in self.linked_lists.items():
             lst.goto_img(self._linked_indices[key][self.index],
                          reload_here=self._always_reload[key])
 
