@@ -11,12 +11,13 @@ Useful links
 - **Installation**: `Installation instructions <https://pyplis.readthedocs.io/en/latest/intro.html#installation>`_
 - **Getting Started**: `Getting Started guide <https://pyplis.readthedocs.io/en/latest/intro.html#getting-started>`_
 - **Main Features**: `Feature overview <https://pyplis.readthedocs.io/en/latest/intro.html#main-features>`_
-- **Pyplis Paper**: `Peer reviewed pyplis publication <http://www.mdpi.com/2076-3263/7/4/134>`_
+- **Contributing**: `Contributing guide <https://pyplis.readthedocs.io/en/latest/contributing.html>`_
+- **Scientific background**: `Peer reviewed pyplis publication <http://www.mdpi.com/2076-3263/7/4/134>`_
 
 Features
 ========
 
-- Comprehensive algorithms for UV SO2 camera data analysis.
+- Comprehensive algorithms for all aspects of UV SO2 camera data analysis.
 - Flexible tools for atmospheric imaging data processing.
 - Cross-platform compatibility (Windows, Linux).
 - Tested with recent Python versions.

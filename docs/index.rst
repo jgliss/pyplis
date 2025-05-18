@@ -31,6 +31,7 @@ A paper introducing the software is published in the Journal *Geosciences* (MDPI
    tutorials
    examples
    api
+   contributing
    supplemental
    changelog
 
