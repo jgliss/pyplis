@@ -24,8 +24,6 @@ import matplotlib.colors as colors
 from collections import OrderedDict as od
 from scipy.ndimage import gaussian_filter
 
-import six
-
 from pyplis import logger, print_log
 from .image import Img
 from .utils import LineOnImage
@@ -183,7 +181,7 @@ class PlumeBackgroundModel(object):
 
         :param **kwargs:
         """
-        for k, v in six.iteritems(kwargs):
+        for k, v in kwargs.items():
             self.__setitem__(k, v)
 
     def set_missing_ref_areas(self, plume_img: Img):
@@ -377,7 +375,7 @@ class PlumeBackgroundModel(object):
         if not isinstance(plume_img, Img):
             raise TypeError("Invalid, input type: need Img object...")
         # update current settings
-        for k, v in six.iteritems(kwargs):
+        for k, v in kwargs.items():
             self.__setitem__(k, v)
 
         if not plume_img.is_darkcorr:
@@ -449,7 +447,7 @@ class PlumeBackgroundModel(object):
         """
         if not isinstance(plume_on, Img) or not isinstance(plume_off, Img):
             raise TypeError("Need Img objects for background modelling")
-        for k, v in six.iteritems(kwargs):
+        for k, v in kwargs.items():
             self.__setitem__(k, v)
 
         if self.mode == 0:
@@ -659,7 +657,7 @@ class PlumeBackgroundModel(object):
                    [0, h0], "-b", label="vert profile")
         ax[0].plot([0, w0], [self.xgrad_line_rownum, self.xgrad_line_rownum],
                    "-c", label="hor profile")
-        for k, l in six.iteritems(add_lines):
+        for k, l in add_lines.items():
             try:
                 x0, y0, x1, y1 = l.to_list()
                 c = l.color
@@ -822,7 +820,7 @@ class PlumeBackgroundModel(object):
     def print_mode_info(self):
         """Print information about the different correction modes."""
         print_log.info("Available modes for automatic plume background retrieval")
-        for k, v in six.iteritems(self.mode_info_dict):
+        for k, v in self.mode_info_dict.items():
             print_log.info("Mode %s: %s" % (k, v))
 
     def _check_rect(self, rect, img):
