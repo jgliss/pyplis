@@ -87,9 +87,20 @@ class DoasCalibData(CalibData):
 
     """
 
-    def __init__(self, tau_vec=None, cd_vec=None, cd_vec_err=None, time_stamps=None,
-                 calib_fun=None, calib_coeffs=None, senscorr_mask=None,
-                 polyorder=1, calib_id=None, camera=None, fov=None):
+    def __init__(
+            self, 
+            tau_vec=None, 
+            cd_vec=None, 
+            cd_vec_err=None, 
+            time_stamps=None,
+            calib_fun=None, 
+            calib_coeffs=None, 
+            senscorr_mask=None,
+            polyorder=1, 
+            calib_id=None, 
+            camera=None, 
+            fov=None
+            ):
         super().__init__(
             tau_vec=tau_vec,
             cd_vec=cd_vec,
@@ -102,18 +113,6 @@ class DoasCalibData(CalibData):
             calib_id=calib_id,
             camera=camera,
         )
-        if tau_vec is None:
-            tau_vec = []
-        if cd_vec is None:
-            cd_vec = []
-        if cd_vec_err is None:
-            cd_vec_err = []
-        if time_stamps is None:
-            time_stamps = []
-        if calib_coeffs is None:
-            calib_coeffs = []
-        if calib_id is None:
-            calib_id = ""
         self.type = "doas"
         if not isinstance(fov, DoasFOV):
             fov = DoasFOV(camera)

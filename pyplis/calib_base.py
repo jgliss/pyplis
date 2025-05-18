@@ -85,10 +85,19 @@ class CalibData:
         decimal degrees
 
     """
-
-    def __init__(self, tau_vec=None, cd_vec=None, cd_vec_err=None, time_stamps=None,
-                 calib_fun=None, calib_coeffs=None, senscorr_mask=None,
-                 polyorder=1, calib_id=None, camera=None):
+    def __init__(
+            self, 
+            tau_vec=None, 
+            cd_vec=None, 
+            cd_vec_err=None, 
+            time_stamps=None,
+            calib_fun=None, 
+            calib_coeffs=None, 
+            senscorr_mask=None,
+            polyorder=1, 
+            calib_id=None, 
+            camera=None
+            ):
         if calib_id is None:
             calib_id = ""
         if tau_vec is None:
