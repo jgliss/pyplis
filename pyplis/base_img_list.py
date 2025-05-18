@@ -7,8 +7,6 @@ from pyplis.processing import ImgStack, PixelMeanTimeSeries
 from pyplis.setupclasses import Camera
 from pyplis.utils import LineOnImage
 
-
-import six
 from matplotlib.pyplot import draw, figure
 from numpy import arange, argmin, asarray, float32, ndarray, zeros
 from numpy.ma import nomask
@@ -108,7 +106,7 @@ class BaseImgList:
         self._always_reload = {}
 
         # update image preparation settings (if applicable)
-        for key, val in six.iteritems(img_prep_settings):
+        for key, val in img_prep_settings.items():
             if key in self.img_prep:
                 self.img_prep[key] = val
 
@@ -553,7 +551,7 @@ class BaseImgList:
 
         """
         self.iter_indices(to_index=at_index)
-        for key, val in six.iteritems(self.loaded_images):
+        for key in self.loaded_images:
             self.loaded_images[key] = None
 
         if self.nof > 0:
@@ -708,7 +706,7 @@ class BaseImgList:
             ``img_prep`` dictionary)
 
         """
-        for key, val in six.iteritems(settings):
+        for key, val in settings.items():
             if key in self.img_prep and\
                     isinstance(val, type(self.img_prep[key])):
                 self.img_prep[key] = val
@@ -900,7 +898,7 @@ class BaseImgList:
 
         """
         sd = self.img_prep
-        for key, val in six.iteritems(settings_dict):
+        for key, val in settings_dict.items():
             if key in sd:
                 if not sd[key] == val:
                     return False
@@ -1260,7 +1258,7 @@ class BaseImgList:
         d = self.current_img().edit_log
         print_log.info("\nImgList %s, image edit info\n----------------------------"
               % self.list_id)
-        for key, val in six.iteritems(d):
+        for key, val in d.items():
             print_log.info("%s: %s" % (key, val))
 
     def add_gaussian_blurring(self, sigma=1):
@@ -1566,7 +1564,7 @@ class BaseImgList:
         if not self.has_files():
             return s
         try:
-            for k, v in six.iteritems(self.current_img().edit_log):
+            for k, v in self.current_img().edit_log.items():
                 s += "%s: %s\n" % (k, v)
             if self.crop is True:
                 s += "Cropped in ROI\t[x0, y0, x1, y1]:\n"
