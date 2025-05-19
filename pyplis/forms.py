@@ -17,8 +17,6 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 from collections import OrderedDict as od
 from pyplis import logger
-import six
-
 
 class FormCollectionBase(object):
     """Abtract base class representing collection of geometrical forms.
@@ -41,7 +39,7 @@ class FormCollectionBase(object):
 
         self.type = ""
 
-        for key, val in six.iteritems(forms_dict):
+        for key, val in forms_dict.items():
             self[key] = val
 
     def add(self, x0, y0, x1, y1, id=None):
@@ -195,7 +193,7 @@ class FormCollectionBase(object):
         if not bool(self.keys()):
             return s + "No forms available"
 
-        for key, val in six.iteritems(self._forms):
+        for key, val in self._forms.items():
             s = (s + "ID: %s\nStart (x,y): %s, %s\n"
                      "Stop (x,y): %s, %s\n"
                      % (key, val[0], val[1], val[2], val[3]))

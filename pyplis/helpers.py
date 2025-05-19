@@ -28,7 +28,6 @@ from numpy import (mod, linspace, hstack, vectorize, uint8, asarray,
                    isnan, argmin, sum, zeros, float32, ogrid, full_like)
 from scipy.ndimage import gaussian_filter
 from cv2 import pyrUp
-import six
 from pyplis import logger
 
 time_delta_to_seconds = vectorize(lambda x: x.total_seconds())
@@ -219,7 +218,7 @@ def isnum(val: Any) -> bool:
     Returns:
         True if input is number (int or float) and not nan, else False
     """
-    if isinstance(val, (six.integer_types, float)) and not isnan(val):
+    if isinstance(val, (int, float)) and not isnan(val):
         return True
     return False
 

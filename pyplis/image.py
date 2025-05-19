@@ -29,7 +29,6 @@ instance used when performing a plume velocity cross-correlation analysis
 (where the optimal lag between a time-series of two plume intersection lines is
 searched, for details see :class:`pyplis.plumespeed.VeloCrossCorrEngine`).
 """
-import six
 from pathlib import Path
 from astropy.io import fits
 from matplotlib import gridspec
@@ -227,9 +226,9 @@ class Img(object):
             # overwrite input with numpy data array
             input = data
 
-        for k, v in six.iteritems(meta_info):
+        for k, v in meta_info.items():
             k = k.lower()
-            if k in self.meta:  # and isinstance(v, type(self.meta[k])):
+            if k in self.meta:
                 self.meta[k] = v
             elif k in self.edit_log:
                 self.edit_log[k] = v
@@ -1023,7 +1022,7 @@ class Img(object):
 
     def print_meta(self):
         """Print current image meta information."""
-        for key, val in six.iteritems(self.meta):
+        for key, val in self.meta.items():
             logger.info("%s: %s\n" % (key, val))
 
     def make_info_header_str(self):
@@ -1166,7 +1165,7 @@ class Img(object):
         # import valid meta information from header of first HDU
         editkeys = self.edit_log.keys()
         metakeys = self.meta.keys()
-        for key, val in six.iteritems(head):
+        for key, val in head.items():
             k = key.lower()
             if k in editkeys:
                 self.edit_log[k] = val
@@ -1191,7 +1190,7 @@ class Img(object):
     def _prep_meta_dict_fits(self):
         """Prepare current meta-information for storage in FITS header."""
         d = od()
-        for k, v in six.iteritems(self.meta):
+        for k, v in self.meta.items():
             try:
                 d[k] = v.strftime("%Y%m%d%H%M%S%f")
             except BaseException:
@@ -1372,10 +1371,10 @@ class Img(object):
         s += "Shape: %s\n" % str(self.shape)
         s += "ROI (abs. coords): %s\n" % self.roi_abs
         s += "\nMeta information\n-------------------\n"
-        for k, v in six.iteritems(self.meta):
+        for k, v in self.meta.items():
             s += "%s: %s\n" % (k, v)
         s += "\nEdit log\n-----------\n"
-        for k, v in six.iteritems(self.edit_log):
+        for k, v in self.edit_log.items():
             s += "%s: %s\n" % (k, v)
         return s
 
@@ -1592,7 +1591,7 @@ class ProfileTimeSeriesImg(Img):
         hdu.data = self._img
         hdu.header.update(self.edit_log)
         hdu.header["img_id"] = self.img_id
-        for key, val in six.iteritems(self.profile_info):
+        for key, val in self.profile_info.items():
             if key == "_roi_abs_def":
                 try:
                     hdu.header["_roi_abs_def"] = dumps(val)
@@ -1638,7 +1637,7 @@ class ProfileTimeSeriesImg(Img):
             profile_keys = []
             logger.info("Failed to load profile info dictionary")
 
-        for key, val in six.iteritems(hdu[0].header):
+        for key, val in hdu[0].header.items():
             k = key.lower()
             if k in prep.keys():
                 self.edit_log[k] = val

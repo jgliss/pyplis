@@ -34,7 +34,6 @@ from scipy.ndimage import median_filter, gaussian_filter
 from scipy.stats import pearsonr
 from os.path import isdir, join, isfile
 from os import getcwd
-import six
 
 import pandas as pd
 from pandas import Series, DataFrame
@@ -1861,7 +1860,7 @@ class FarnebackSettings(object):
             considered, i.e. class attributes)
 
         """
-        for k, v in six.iteritems(settings):
+        for k, v in settings.items():
             self[k] = v  # see __setitem__ method
 
     @property
@@ -2113,22 +2112,22 @@ class FarnebackSettings(object):
 
     def __str__(self):
         s = "Image contrast settings (applied before flow calc):\n"
-        for key, val in six.iteritems(self._contrast):
+        for key, val in self._contrast.items():
             s += "%s: %s\n" % (key, val)
         s += "\nOptical flow algo input (see OpenCV docs):\n"
-        for key, val in six.iteritems(self._flow_algo):
+        for key, val in self._flow_algo.items():
             s += "%s: %s\n" % (key, val)
         s += "\nPost analysis settings:\n"
-        for key, val in six.iteritems(self._analysis):
+        for key, val in self._analysis.items():
             s += "%s: %s\n" % (key, val)
         s += "\nDisplay settings:\n"
-        for key, val in six.iteritems(self._display):
+        for key, val in self._display.items():
             s += "%s: %s\n" % (key, val)
         return s
 
     def __setitem__(self, key, value):
         """Set item method."""
-        for k, v in six.iteritems(self.__dict__):
+        for k, v in self.__dict__.items():
             try:
                 if key in v:
                     v[key] = value
@@ -2139,7 +2138,7 @@ class FarnebackSettings(object):
         """Get item method."""
         if name in self.__dict__:
             return self.__dict__[name]
-        for k, v in six.iteritems(self.__dict__):
+        for k, v in self.__dict__.items():
             try:
                 if name in v:
                     return v[name]
@@ -3567,7 +3566,7 @@ class OptflowFarneback(object):
             logger.info("Returning current optical flow field, settings: ")
             logger.info(self.settings)
             return self.flow
-        for key, val in six.iteritems(self.__dict__):
+        for key, val in self.__dict__.items():
             try:
                 if item in val:
                     return val[item]
