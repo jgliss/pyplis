@@ -34,7 +34,7 @@ class FormCollectionBase(object):
         """Class initialisation."""
         if forms_dict is None:
             forms_dict = {}
-        self._forms = od()
+        self._forms = {}
         self.id_count = 0
 
         self.type = ""
@@ -56,7 +56,7 @@ class FormCollectionBase(object):
         if not self.check_input(x0, y0, x1, y1):
             raise ValueError("Check coordinates...")
         if id in self.keys():
-            raise KeyError("A form with name %s already exists" % id)
+            raise AttributeError("A form with name %s already exists" % id)
         if x1 < x0:
             x0, y0, x1, y1 = x1, y1, x0, y0
         if id is None:
@@ -111,10 +111,6 @@ class FormCollectionBase(object):
         self.add(l[0], l[1], l[2], l[3], new_id)
         del self._forms[current_id]
 
-    """
-    Helpers
-    """
-
     def has_form(self, form_id):
         """Check if collection has a form with input ID, returns bool."""
         if form_id in self._forms.keys():
@@ -150,10 +146,6 @@ class FormCollectionBase(object):
         """
         return self[form_id]
 
-    """
-    Magic methods
-    """
-
     def __call__(self, key):
         """Make object callable.
 
@@ -173,10 +165,8 @@ class FormCollectionBase(object):
         :param str key: string ID of new form
         :param list val: list with start / stop coords ``[x0,y0, x1, y1]``
         """
-        try:
-            self.add(val[0], val[1], val[2], val[3], key)
-        except Exception as e:
-            logger.info("Adding form failed_ %s" % repr(e))
+        self.add(val[0], val[1], val[2], val[3], key)
+        
 
     def __getitem__(self, name):
         """Get item.
@@ -185,7 +175,7 @@ class FormCollectionBase(object):
         """
         try:
             return self._forms[name]
-        except BaseException:
+        except KeyError:
             logger.info("No such form: " + str(name))
 
     def __str__(self):
@@ -204,7 +194,7 @@ class LineCollection(FormCollectionBase):
     """Class specifying line objects on images."""
 
     def __init__(self, forms_dict=None):
-        super(LineCollection, self).__init__(forms_dict)
+        super().__init__(forms_dict)
         if forms_dict is None:
             forms_dict = {}
         self.type = "line"
@@ -214,9 +204,7 @@ class RectCollection(FormCollectionBase):
     """Class specifying rectangle objects on images."""
 
     def __init__(self, forms_dict=None):
-        super(RectCollection, self).__init__(forms_dict)
-        if forms_dict is None:
-            forms_dict = {}
+        super().__init__(forms_dict)
         self.type = "rect"
 
     def add(self, x0, y0, x1, y1, id=None):
@@ -230,16 +218,8 @@ class RectCollection(FormCollectionBase):
             will be set automatically based on current object counter value)
 
         """
-        tl_x, br_x = min([x0, x1]), max(
-            [x0, x1])  # top left / bottom right x coorindates
+        # top left / bottom right x coorindates
+        tl_x, br_x = min([x0, x1]), max([x0, x1])  
         # top left / bottom right y coorindates
         tl_y, br_y = min([y0, y1]), max([y0, y1])
-        return super(RectCollection, self).add(tl_x, tl_y, br_x, br_y, id)
-
-
-if __name__ == "__main__":
-    rects = {"bla": [1, 2, 3, 4],
-             "blub": [10, 20, 30, 40]}
-
-    rectColl = RectCollection(rects)
-    rectColl["bla"] = [3, 4, 5, 6]
+        return super().add(tl_x, tl_y, br_x, br_y, id)
