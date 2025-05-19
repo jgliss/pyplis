@@ -3,7 +3,8 @@ from pyplis import forms
 
 def test_rectcollection():
     # Initial test in non-optimal design based on former __main__ section in forms.py
-    # See: 
+    # See PR: https://github.com/jgliss/pyplis/pull/82
+    # Related to https://github.com/jgliss/pyplis/issues/29
     rects = {"bla": [1, 2, 3, 4],
              "blub": [10, 20, 30, 40]}
 
