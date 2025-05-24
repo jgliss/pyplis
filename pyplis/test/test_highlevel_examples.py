@@ -317,7 +317,6 @@ def test_optflow(plume_img, plume_img_next, line):
             res["_len_sigma_norm"], res["_del_t"],
             res["_significance"]]
     npt.assert_allclose(vals, nominal, rtol=1e-5)
-    return flow
 
 
 def test_auto_cellcalib(calib_dataset):
@@ -348,8 +347,3 @@ def test_bg_model(plume_dataset):
     m = l.bg_model
 
     m.set_missing_ref_areas(l.current_img())
-    # m.set_missing_ref_areas(plume_img())
-
-
-if __name__ == "__main__":
-    stp = _make_setup()
