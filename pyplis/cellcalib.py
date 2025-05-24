@@ -25,16 +25,16 @@ from matplotlib.cm import get_cmap
 from datetime import timedelta
 from os.path import exists
 from collections import OrderedDict as od
-from .dataset import Dataset
-from .setupclasses import MeasSetup
-from .processing import ImgStack, PixelMeanTimeSeries
-from .imagelists import ImgList, CellImgList
-from .exceptions import CellSearchError, ImgMetaError
-from .image import Img
-from .helpers import subimg_shape, isnum
-from .optimisation import PolySurfaceFit
-from .calib_base import CalibData
-from .glob import SPECIES_ID
+from pyplis.dataset import Dataset
+from pyplis.setupclasses import MeasSetup
+from pyplis.processing import ImgStack, PixelMeanTimeSeries
+from pyplis.imagelists import ImgList, CellImgList
+from pyplis.exceptions import CellSearchError, ImgMetaError
+from pyplis.image import Img
+from pyplis.helpers import subimg_shape, isnum
+from pyplis.optimisation import PolySurfaceFit
+from pyplis.calib_base import CalibData
+from pyplis.glob import SPECIES_ID
 
 
 class CellSearchInfo(object):

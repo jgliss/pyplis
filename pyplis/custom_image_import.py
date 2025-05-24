@@ -51,7 +51,7 @@ from cv2 import resize
 from os.path import basename
 from datetime import datetime, timedelta
 from re import sub
-from .helpers import matlab_datenum_to_datetime
+from pyplis.helpers import matlab_datenum_to_datetime
 
 
 def load_ecII_fits(file_path, meta=None, **kwargs):

@@ -51,11 +51,11 @@ from traceback import format_exc
 from copy import deepcopy
 
 from pyplis import logger
-from .glob import DEFAULT_ROI
-from .helpers import bytescale, map_roi, check_roi
-from .exceptions import ImgMetaError
-from .optimisation import PolySurfaceFit
-from .utils import LineOnImage
+from pyplis.glob import DEFAULT_ROI
+from pyplis.helpers import bytescale, map_roi, check_roi
+from pyplis.exceptions import ImgMetaError
+from pyplis.optimisation import PolySurfaceFit
+from pyplis.utils import LineOnImage
 
 
 class Img(object):

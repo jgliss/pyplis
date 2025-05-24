@@ -23,7 +23,7 @@ NEW FEATURES
 28/02/2017
 **********
 
-  1. Included new default parameter ``import_method`` -> can be used to set a customised image import method (the name of it) which needs to be defined in the pyplis source file ``custom_image_import.py``. The latter can be helpful if you want to apply some image pre-processing (e.g. binning / undo binning, rotation or) or include image customised import of image meta information (e.g. acq. time, exposure time, e.g. from .tiff file header) when importing the data in pyplis. If no customised image import method is defined, then the images are loaded using standard functions (e.g. matplotlib.imread) and only the image meta information is imported, which can be extracted from the file names (explained above)
+  1. Included new default parameter ``import_method`` -> can be used to set a customised image import method (the name of it) which needs to be defined in the pyplis source file ``custom_image_import.py``. The latter can be helpful if you want to apply some image pre-processing (e.g. binning / undo binning, rotation or) or include image customised import of image meta information (e.g. acq. time, exposure time, e.g. from pyplis.tiff file header) when importing the data in pyplis. If no customised image import method is defined, then the images are loaded using standard functions (e.g. matplotlib.imread) and only the image meta information is imported, which can be extracted from the file names (explained above)
 
 
 NEWCAM
