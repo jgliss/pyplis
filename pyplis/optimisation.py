@@ -757,6 +757,10 @@ class MultiGaussFit:
                 not lying within specified tolerance interval of main peak
 
         """
+        if not self.has_results():
+            print_log.warning("No results available, run optimisation first")
+            return (nan, nan, nan, [])
+        
         if sigma_tol_overlaps is None:
             sigma_tol_overlaps = self.sigma_tol_overlaps
 
