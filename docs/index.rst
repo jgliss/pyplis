@@ -27,9 +27,9 @@ A paper introducing the software is published in the Journal *Geosciences* (MDPI
    :maxdepth: 3
 
    intro
-   gallery
-   tutorials
    examples
+   gallery
+   further_reading
    api
    contributing
    supplemental
