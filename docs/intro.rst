@@ -71,12 +71,12 @@ Main features
 - **Various image formats**: Support of standard image formats including `FITS format <https://de.wikipedia.org/wiki/Flexible_Image_Transport_System>`_.
 - **Modular design and high flexibility**: Easy to integrate with custom code.
 
-A detailed description of pyplis and its features (including analysis examples) can be found in `Gliss et al., 2017, MDPI Geosciences <http://www.mdpi.com/2076-3263/7/4/134>`_.
+A detailed description of pyplis and its features (including analysis examples) can be found in `Gliss et al., 2017, MDPI Geosciences <http://www.mdpi.com/2076-3263/7/4/134>`__.
 
 Architecture
 ============
 
-The following two flowcharts illustrate details about the Pyplis architecture, for details, please see section :ref:`article`.
+The following two flowcharts illustrate details about the Pyplis architecture, for details, please checkout `Gliss et al., 2017, MDPI Geosciences <http://www.mdpi.com/2076-3263/7/4/134>`__.
 
 Flowchart emission-rate retrieval (scientific)
 ----------------------------------------------
@@ -153,3 +153,23 @@ We also want to express our gratitude to all contributors who have helped improv
 feedback, code contributions, and suggestions. Open-source projects thrive on community support, and 
 your contributions are deeply appreciated. If you contribute to pyplis, please feel free to add your 
 name to the list of contributors in the documentation or reach out to be acknowledged.
+
+.. _pyplis_paper: 
+
+Scientific background
+======================
+
+A detailed description of pyplis and its features can be found in the paper:
+
+`Pyplis - A Python Software Toolbox for the Analysis of SO2 Camera Images for Emission Rate Retrievals from Point Sources, Gliß, J., Stebel, K., Kylling, A., Dinger, A. S., Sihler, H., and Sudbø, A., Geosciences, 2017 <http://www.mdpi.com/2076-3263/7/4/134>`__.
+
+In addition to a comprehensive introduction and scientific documentation of the software, the article provides a comprehensive review of the technique of SO2 cameras with a focus on the required image analysis. 
+The paper was published in December 2017 as part of a special issue on Volcanic plumes of the Journal Geosciences (MDPI).
+
+List of citations
+---------------------------------
+
+Pyplis has been referenced in a number of scientific works since its publication and a list of citations can be found here: `Google scholar citations <https://scholar.google.com/scholar?cites=3663914863343564690&as_sdt=2005&sciodt=0,5&hl=no>`__.
+
+
+
