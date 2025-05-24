@@ -22,6 +22,7 @@ from pathlib import Path
 from re import split
 
 from collections import OrderedDict as od
+# ToDo: revise and remove (related to #83)
 try:
     from progressbar import (ProgressBar, Percentage, Bar,
                              RotatingMarker, ETA, FileTransferSpeed)
@@ -30,7 +31,7 @@ except BaseException:
     PGBAR_AVAILABLE = False
 from typing import Optional
 from zipfile import ZipFile, ZIP_DEFLATED
-
+# ToDo: use requests library (related to #83)
 try:
     from urllib.request import urlopen, urlretrieve
     from urllib.parse import quote
@@ -598,7 +599,7 @@ def normalise_keys(dict):
     
     return res
 
-
+# ToDo: revise and remove (related to #83)
 def get_icon(name, color=None):
     """Try to find icon in lib icon folder.
 
@@ -623,10 +624,3 @@ def get_icon(name, color=None):
                 return base_path + file
     logger.warning("Failed to load icon at: " + __dir__)
     return False
-
-
-if __name__ == '__main__':
-
-    i1 = get_camera_info('ecII')
-
-    i2 = get_camera_info('usgs')
