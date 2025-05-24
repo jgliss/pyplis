@@ -19,7 +19,6 @@
 """
 from pyplis.setupclasses import FilterSetup
 
-
 def test_filter_setup():
     stp = FilterSetup()
     assert len(stp) == 1, len(stp)
@@ -42,7 +41,3 @@ def test_filter_setup():
     assert stp.default_key_on == 'bla'
 
     assert stp.ids_on == ['bla', 'one_more'], stp.ids_on
-
-
-if __name__ == '__main__':
-    test_filter_setup()

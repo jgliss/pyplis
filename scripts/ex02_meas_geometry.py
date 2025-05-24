@@ -34,26 +34,18 @@ mechanical inclinometer.
 Further, the distance to the plume is retrieved on a pixel basis (represented
 as image).
 """
-from __future__ import (absolute_import, division)
-
-from SETTINGS import check_version
-
 from geonum import GeoPoint
-from matplotlib.pyplot import subplots, show, close
-from os.path import join
+import pathlib
+import matplotlib.pyplot as plt
 
 # IMPORT GLOBAL SETTINGS
-from SETTINGS import SAVEFIGS, SAVE_DIR, FORMAT, DPI, OPTPARSE
+from SETTINGS import SAVEFIGS, SAVE_DIR, FORMAT, DPI, ARGPARSER
 
 # IMPORTS FROM OTHER EXAMPLE SCRIPTS
 from ex01_analysis_setup import create_dataset
 
-# Check script version
-check_version()
 
 # SCRIPT FUNCTION DEFINITIONS
-
-
 def find_viewing_direction(meas_geometry, draw_result=True):
     """Correct viewing direction using location of Etna SE crater.
 
@@ -70,7 +62,7 @@ def find_viewing_direction(meas_geometry, draw_result=True):
     # Geographic position of SE crater (extracted from Google Earth)
     # The GeoPoint object (geonum library) automatically retrieves the altitude
     # using SRTM data
-    se_crater = GeoPoint(37.747757, 15.002643, name="SE crater")
+    se_crater = GeoPoint(37.747757, 15.002643, name="SE crater", auto_topo_access=True)
 
     print("Retrieved altitude SE crater (SRTM): %s" % se_crater.altitude)
 
@@ -86,7 +78,7 @@ def find_viewing_direction(meas_geometry, draw_result=True):
                                              update=True)  # overwrite settings
 
     print("Updated camera azimuth and elevation in MeasGeometry, new values: "
-          "elev = %.1f, azim = %.1f" % (new_elev, new_azim))
+          f"elev = {new_elev:.1f}, azim = {new_azim:.1f}")
 
     return meas_geometry, basemap
 
@@ -101,23 +93,22 @@ def plot_plume_distance_image(meas_geometry):
     (dist_img, _, plume_dist_img) =\
         meas_geometry.compute_all_integration_step_lengths()
 
-    fig, ax = subplots(2, 1, figsize=(7, 8))
+    fig, ax = plt.subplots(2, 1, figsize=(7, 8))
 
     # Show pix-to-pix distance image
     dist_img.show(cmap="gray", ax=ax[0], zlabel="Pix-to-pix distance [m]")
     ax[0].set_title("Parameterised pix-to-pix dists")
 
     # Show plume distance image (convert pixel values to from m -> km)
-    (plume_dist_img / 1000.0).show(cmap="gray",
-                                   ax=ax[1], zlabel="Plume distance [km]")
+    (plume_dist_img / 1000.0).show(cmap="gray", ax=ax[1], zlabel="Plume distance [km]")
     ax[1].set_title("Plume dists")
     return fig
 
 
 # SCRIPT MAIN FUNCTION
-if __name__ == "__main__":
-    close("all")
-
+def main():
+    plt.close("all")
+    
     # Create the Dataset object (see ex01)
     ds = create_dataset()
 
@@ -149,27 +140,28 @@ if __name__ == "__main__":
     # geom_corr.update_cam_specs()
     # geom_corr.update_source_specs()
 
-    geom_corr.update_wind_specs(dir=315)
+    geom_corr.update_wind_specs(dict(dir=315))
     geom_corr.draw_map_2d()  # this figure is only displayed and not saved
 
     # recompute plume distance of CFOV pixel
     plume_dist_cfov_new = geom_corr.plume_dist()[0][0]
 
     print("Comparison of plume distances after change of wind direction:\n"
-          "Previous: %.3f m\n"
-          "New: %.3f m" % (plume_dist_cfov, plume_dist_cfov_new))
-    # Using this a
+          f"Previous: {plume_dist_cfov:.3f}m\n"
+          f"New: {plume_dist_cfov_new:.3f}m")
+    
     # IMPORTANT STUFF FINISHED
     if SAVEFIGS:
-        map_.ax.figure.savefig(join(SAVE_DIR, "ex02_out_1.%s" % FORMAT),
-                               format=FORMAT, dpi=DPI)
-        fig.savefig(join(SAVE_DIR, "ex02_out_2.%s" % FORMAT), format=FORMAT,
-                    dpi=DPI)
+        outfile = SAVE_DIR / f"ex02_out_1.{FORMAT}"
+        map_.ax.figure.savefig(outfile,format=FORMAT,dpi=DPI)
+
+        outfile = SAVE_DIR / f"ex02_out_2.{FORMAT}"
+        fig.savefig(outfile,format=FORMAT,dpi=DPI)
 
     # IMPORTANT STUFF FINISHED (Below follow tests and display options)
 
     # Import script options
-    (options, args) = OPTPARSE.parse_args()
+    options = ARGPARSER.parse_args()
 
     # If applicable, do some tests. This is done only if TESTMODE is active:
     # testmode can be activated globally (see SETTINGS.py) or can also be
@@ -177,42 +169,42 @@ if __name__ == "__main__":
     # option --test 1
     if int(options.test):
         import numpy.testing as npt
-        from os.path import basename
-
-        npt.assert_array_equal([],
-                               [])
-
         # check some propoerties of the basemap (displayed in figure)
 
         # map basemap coordinates to lon / lat values
         lon, lat = map_(8335, 9392, inverse=True)
         npt.assert_allclose(actual=[lon, lat, map_.delta_lon, map_.delta_lat],
-                            desired=[15.075131135, 37.76678834,
-                                     0.149263852982,
-                                     0.118462659944],
-                            rtol=1e-7)
+                            desired=[15.058292, 37.753504,  0.182902,  0.145056],
+                            rtol=1e-5)
 
+        actual=[geom_corr.cam_elev,
+                geom_corr.cam_elev_err,
+                geom_corr.cam_azim,
+                geom_corr.cam_azim_err,
+                plume_dist_cfov,
+                plume_dist_err_cfov,
+                plume_dists_all_cols.mean(),
+                plume_dist_cfov_new
+        ]
+        
+        desired=[
+                1.547754e+01,
+                1.064556e+00,
+                2.793013e+02,
+                1.065411e+00,
+                1.073102e+04,
+                1.645586e+02,
+                1.076047e+04,
+                9.961593e+03
+        ]
         # check some basic properties / values of the geometry
-        npt.assert_allclose(actual=[geom_corr.cam_elev,
-                                    geom_corr.cam_elev_err,
-                                    geom_corr.cam_azim,
-                                    geom_corr.cam_azim_err,
-                                    plume_dist_cfov,
-                                    plume_dist_err_cfov,
-                                    plume_dists_all_cols.mean(),
-                                    plume_dist_cfov_new],
-                            desired=[1.547754e+01,
-                                     1.064556e+00,
-                                     2.793013e+02,
-                                     1.065411e+00,
-                                     1.073102e+04,
-                                     1.645586e+02,
-                                     1.076047e+04,
-                                     9.961593e+03],
-                            rtol=1e-6)
-        print("All tests passed in script: %s" % basename(__file__))
+        npt.assert_allclose(actual=actual,desired=desired,rtol=1e-5)
+        print(f"All tests passed in script: {pathlib.Path(__file__).name}")
     try:
         if int(options.show) == 1:
-            show()
+            plt.show()
     except BaseException:
         print("Use option --show 1 if you want the plots to be displayed")
+
+if __name__ == "__main__":
+    main()

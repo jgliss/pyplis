@@ -16,10 +16,9 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 """Pyplis module containing low level utilitiy methods and classes."""
-from __future__ import (absolute_import, division)
 import os
 from numpy import (vstack, asarray, ndim, round, hypot, linspace, sum, zeros,
-                   complex, angle, array, cos, sin, arctan, dot, int32, pi,
+                   angle, array, cos, sin, arctan, dot, int32, pi,
                    isnan, nan, mean, ndarray)
 
 from numpy.linalg import norm
@@ -33,12 +32,9 @@ from pandas import Series
 from cv2 import cvtColor, COLOR_BGR2GRAY, fillPoly
 
 from pyplis import logger
-from .helpers import (map_coordinates_sub_img, same_roi, map_roi, roi2rect)
-from .inout import get_cam_ids
-from .glob import DEFAULT_ROI
-
-import six
-
+from pyplis.helpers import map_coordinates_sub_img, same_roi, map_roi, roi2rect
+from pyplis.inout import get_cam_ids
+from pyplis.glob import DEFAULT_ROI
 
 def identify_camera_from_filename(filepath):
     """Identify camera based on image filepath convention.
@@ -1047,7 +1043,7 @@ class LineOnImage(object):
             dictionary containing line parameters (cf. :func:`to_dict`)
 
         """
-        for k, v in six.iteritems(settings_dict):
+        for k, v in settings_dict.items():
             if k in self.__dict__:
                 self.__dict__[k] = v
 

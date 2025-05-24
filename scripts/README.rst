@@ -23,4 +23,4 @@ The latter searches all paths provided in the file **_paths.txt** whenever acces
   If you download the data manually (e.g. using the link provided above), please unzip it into a suitable directory ``LOCAL_DIR`` and let pyplis know about it using::
   
     import pyplis
-    pyplis.inout.set_test_data_path(``LOCAL_DIR``)
+    pyplis.inout.set_test_data_path(<LOCAL_DIR>)

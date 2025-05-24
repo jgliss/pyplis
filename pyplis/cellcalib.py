@@ -16,28 +16,25 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 """Pyplis module containing features related to cell calibration."""
-from __future__ import (absolute_import, division)
-import six
 from pyplis import logger, print_log
 from matplotlib.pyplot import subplots
 
-from numpy import (float, log, arange, linspace, isnan, diff, mean, argmin,
-                   asarray)
+from numpy import (log, arange, linspace, isnan, diff, mean, argmin, asarray)
 from matplotlib.pyplot import Figure
 from matplotlib.cm import get_cmap
 from datetime import timedelta
 from os.path import exists
 from collections import OrderedDict as od
-from .dataset import Dataset
-from .setupclasses import MeasSetup
-from .processing import ImgStack, PixelMeanTimeSeries
-from .imagelists import ImgList, CellImgList
-from .exceptions import CellSearchError, ImgMetaError
-from .image import Img
-from .helpers import subimg_shape, isnum
-from .optimisation import PolySurfaceFit
-from .calib_base import CalibData
-from .glob import SPECIES_ID
+from pyplis.dataset import Dataset
+from pyplis.setupclasses import MeasSetup
+from pyplis.processing import ImgStack, PixelMeanTimeSeries
+from pyplis.imagelists import ImgList, CellImgList
+from pyplis.exceptions import CellSearchError, ImgMetaError
+from pyplis.image import Img
+from pyplis.helpers import subimg_shape, isnum
+from pyplis.optimisation import PolySurfaceFit
+from pyplis.calib_base import CalibData
+from pyplis.glob import SPECIES_ID
 
 
 class CellSearchInfo(object):
@@ -307,7 +304,7 @@ class CellAutoSearchResults(object):
 
         """
         self.cell_info[filter_id] = od()
-        for cell_id, res in six.iteritems(cell_info):
+        for cell_id, res in cell_info.items():
             if isinstance(res, CellSearchInfo):
                 self.cell_info[filter_id][cell_id] = res
         if isinstance(bg_info, CellSearchInfo):
@@ -334,7 +331,7 @@ class CellCalibData(CalibData):
         (e.g. start acquisition) of calibration data
     calib_fun : function
         optimisation function used for fitting of calibration data
-    calib_coeffs : ;obj:`list`, optional
+    calib_coeffs : list, optional
         optimisation parameters for calibration curve.
     senscorr_mask : :obj:`ndarray`or :obj:`Img`, optional
         sensitivity correction mask that was normalised relative to the
@@ -354,24 +351,33 @@ class CellCalibData(CalibData):
 
     """
 
-    def __init__(self, tau_vec=None, cd_vec=None, cd_vec_err=None, time_stamps=None,
-                 calib_fun=None, calib_coeffs=None, senscorr_mask=None,
-                 polyorder=1, calib_id="", camera=None,
-                 pos_x_abs=None, pos_y_abs=None):
-        super(CellCalibData, self).__init__(tau_vec, cd_vec, cd_vec_err,
-                                            time_stamps, calib_fun,
-                                            calib_coeffs, senscorr_mask,
-                                            polyorder, calib_id, camera)
-        if tau_vec is None:
-            tau_vec = []
-        if cd_vec is None:
-            cd_vec = []
-        if cd_vec_err is None:
-            cd_vec_err = []
-        if time_stamps is None:
-            time_stamps = []
-        if calib_coeffs is None:
-            calib_coeffs = []
+    def __init__(
+            self, 
+            tau_vec=None, 
+            cd_vec=None, 
+            cd_vec_err=None, 
+            time_stamps=None,
+            calib_fun=None, 
+            calib_coeffs=None, 
+            senscorr_mask=None,
+            polyorder=1, 
+            calib_id=None, 
+            camera=None,
+            pos_x_abs=None, 
+            pos_y_abs=None
+            ):
+        super().__init__(
+            tau_vec=tau_vec,
+            cd_vec=cd_vec,
+            cd_vec_err=cd_vec_err,
+            time_stamps=time_stamps,
+            calib_fun=calib_fun,
+            calib_coeffs=calib_coeffs,
+            senscorr_mask=senscorr_mask,
+            polyorder=polyorder,
+            calib_id=calib_id,
+            camera=camera
+        )
         self.type = "cell"
         self.pos_x_abs = pos_x_abs
         self.pos_y_abs = pos_y_abs
@@ -752,7 +758,7 @@ class CellCalibEngine(Dataset):
         bg_info.create_image_list(self.camera)
         bg_info.img_list.update_cell_info("bg", 0.0, 0.0)
         self.assign_dark_offset_lists(into_list=bg_info.img_list)
-        for cell_id, info in six.iteritems(cell_info):
+        for cell_id, info in cell_info.items():
             info.create_image_list(self.camera)
             self.assign_dark_offset_lists(into_list=info.img_list)
 
@@ -809,7 +815,7 @@ class CellCalibEngine(Dataset):
             offs_dict[val.add_id] = val.offs.mean()
 
         # read the gas column amounts
-        for key, val in six.iteritems(cell_info):
+        for key, val in cell_info.items():
             cell_cd_dict[key] = val[0]
         # sort the dicionaries by column amount or intensity decrease
         s0 = sorted(offs_dict, key=offs_dict.get)
@@ -837,14 +843,13 @@ class CellCalibEngine(Dataset):
 
         """
         # Add all cell image lists that were found for each filter
-        for filter_id, cell_dict in six.iteritems(
-                self.search_results.cell_info):
-            for cell_id, cell in six.iteritems(cell_dict):
+        for filter_id, cell_dict in self.search_results.cell_info.items():
+            for cell_id, cell in cell_dict.items():
                 lst = cell.img_list
                 if lst.has_files() and lst.gas_cd > 0:
                     self.add_cell_img_list(lst)
         # Add all BG image lists found for each filter
-        for filter_id, info in six.iteritems(self.search_results.bg_info):
+        for filter_id, info in self.search_results.bg_info.items():
             self.add_bg_img_list(info.img_list)
         # set background images closest to first detected cell list for each
         # filter
@@ -864,7 +869,7 @@ class CellCalibEngine(Dataset):
             cell_id = list(
                 self.cell_lists[self.filters.default_key_on].keys())[0]
 
-        for filter_id, lst in six.iteritems(self.bg_lists):
+        for filter_id, lst in self.bg_lists.items():
             self.cell_lists[filter_id][cell_id].link_imglist(lst)
 
     def find_and_assign_cells_all_filter_lists(self, threshold=0.10):
@@ -987,9 +992,8 @@ class CellCalibEngine(Dataset):
             If any of the specs in ``cell_info_dict`` is invalid
 
         """
-        for key, val in six.iteritems(cell_info_dict):
-            if (not isinstance(key, str) and
-                    not isinstance(key, six.string_types)):
+        for key, val in cell_info_dict.items():
+            if (not isinstance(key, str) and not isinstance(key, str)):
                 raise KeyError("Invalid key: %s" % key)
             if not isinstance(val, list):
                 raise ValueError("Invalid cell column specification, need "
@@ -1002,8 +1006,7 @@ class CellCalibEngine(Dataset):
                                      "gas column with "
                                      "id %s, got %s" % (key, val))
                 for k in range(len(val)):
-                    if not isinstance(val[k],
-                                      (six.integer_types, float, complex)):
+                    if not isinstance(val[k], (int, float, complex)):
                         raise ValueError("Invalid data type for cell gas "
                                          "column specification %s" % val)
 
@@ -1065,7 +1068,7 @@ class CellCalibEngine(Dataset):
             bg_mean_tseries = self.det_bg_mean_pix_timeseries(filter_id)
         except BaseException:
             pass
-        for cell_id, lst in six.iteritems(self.cell_lists[filter_id]):
+        for cell_id, lst in self.cell_lists[filter_id].items():
             lst.update_img_prep(blurring=blurring)
             lst.darkcorr_mode = darkcorr
             cell_img = lst.current_img()
@@ -1162,7 +1165,7 @@ class CellCalibEngine(Dataset):
         self.check_all_lists()
         self.prep_tau_stacks(on_id, off_id, darkcorr, blurring)
 
-        for calib_id, stack in six.iteritems(self.tau_stacks):
+        for calib_id, stack in self.tau_stacks.items():
             if any([x is None for x in [pos_x_abs, pos_y_abs]]):
                 logger.warning("Using image center coordinates for retrieval of cell "
                                "calibration polynomial")
@@ -1485,7 +1488,7 @@ class CellCalibEngine(Dataset):
             fig, ax = subplots(1, 1)
         tau_max = -10
         y_min = 1e20
-        for calib_id, calib in six.iteritems(self.calib_data):
+        for calib_id, calib in self.calib_data.items():
             tau = calib.tau_vec
             gas_cd, gas_cd_errs = calib.cd_vec, calib.cd_vec_err
             fun, coeffs = calib.calib_fun, calib.calib_coeffs
@@ -1498,7 +1501,6 @@ class CellCalibEngine(Dataset):
             pl = ax.plot(tau, gas_cd, " ^",
                          label="Data %s (pix" % calib_id)
             # try adding error bars
-
             ax.errorbar(tau, gas_cd, gas_cd_errs, linestyle="none",
                         color="#6E6E6E")
 

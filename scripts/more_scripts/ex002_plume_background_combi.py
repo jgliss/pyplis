@@ -21,8 +21,6 @@ This script illustrates how to efficiently apply the plume background analysis
 in case no sky reference image is available.
 
 """
-from __future__ import (absolute_import, division)
-
 from os.path import join
 from matplotlib.pyplot import close
 import numpy as np

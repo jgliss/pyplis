@@ -16,25 +16,25 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 """Pyplis module containing all sorts of helper methods."""
-from __future__ import (absolute_import, division)
+
+from typing import Any
 import matplotlib.cm as colormaps
 import matplotlib.colors as colors
 from datetime import datetime, time, date, timedelta
 
 from matplotlib.pyplot import draw
-from numpy import (mod, linspace, hstack, vectorize, uint8, cast, asarray,
-                   log2, unravel_index, nanargmax, meshgrid, int, floor, log10,
-                   isnan, argmin, sum, zeros, float32, ogrid)
-from scipy.ndimage.filters import gaussian_filter
+from numpy import (mod, linspace, hstack, vectorize, uint8, asarray,
+                   log2, unravel_index, nanargmax, meshgrid, floor, log10,
+                   isnan, argmin, sum, zeros, float32, ogrid, full_like)
+from scipy.ndimage import gaussian_filter
 from cv2 import pyrUp
-import six
 from pyplis import logger
 
 time_delta_to_seconds = vectorize(lambda x: x.total_seconds())
 
 
 def exponent(num):
-    return int(floor(log10(abs(num))))
+    return floor(log10(abs(num))).astype(int)
 
 
 def matlab_datenum_to_datetime(num):
@@ -157,6 +157,11 @@ def set_ax_lim_roi(roi, ax, xy_aspect=None):
 def closest_index(time_stamp, time_stamps):
     """Find index of time stamp in array to other time stamp.
 
+    Note
+    ----
+    Does not do boundary check, that is, first or last index are returned
+    respectively if the time stamp is outside the range of the array.
+
     Parameters
     ----------
     time_stamp : datetime
@@ -169,19 +174,28 @@ def closest_index(time_stamp, time_stamps):
     -------
     int
         index of best match
-
     """
     if time_stamp < time_stamps[0]:
-        logger.warning("Time stamp is earlier than first time stamp in array")
+        logger.debug("Time stamp is earlier than first time stamp in array")
         return 0
     elif time_stamp > time_stamps[-1]:
-        logger.warning("Time stamp is later than last time stamp in array")
+        logger.debug("Time stamp is later than last time stamp in array")
         return len(time_stamps) - 1
     return argmin([abs((time_stamp - x).total_seconds()) for x in time_stamps])
 
 
-def to_datetime(value):
-    """Evaluate time and / or date input and convert to datetime."""
+def to_datetime(value: Any) -> datetime:
+    """Evaluate time and / or date input and convert to datetime.
+    
+    Args:
+        value: input value to be converted to datetime object
+    
+    Returns:
+        datetime object
+    
+    Raises:
+        ValueError: if input value is not of type datetime, date or time
+    """
     if isinstance(value, datetime):
         return value
     elif isinstance(value, date):
@@ -189,16 +203,22 @@ def to_datetime(value):
     elif isinstance(value, time):
         return datetime.combine(date(1900, 1, 1), value)
     else:
-        raise ValueError("Conversion into datetime object failed for input: "
-                         "%s (type: %s)" % (value, type(value)))
+        raise ValueError(
+            f"Conversion into datetime object failed for input: "
+            f"{value} (type: {type(value)})"
+        )
 
 
-def isnum(val):
+def isnum(val: Any) -> bool:
     """Check if input is number (int or float) and not nan.
 
-    :returns: bool, True or False
+    Args:
+        val: input value to be checked
+    
+    Returns:
+        True if input is number (int or float) and not nan, else False
     """
-    if isinstance(val, (six.integer_types, float)) and not isnan(val):
+    if isinstance(val, (int, float)) and not isnan(val):
         return True
     return False
 
@@ -565,24 +585,10 @@ def bytescale(data, cmin=None, cmax=None, high=255, low=0):
     if cscale < 0:
         raise ValueError("`cmax` should be larger than `cmin`.")
     elif cscale == 0:
-        cscale = 1
+        return full_like(data, low, dtype=uint8)
 
     scale = float(high - low) / cscale
     bytedata = (data * 1.0 - cmin) * scale + 0.4999
     bytedata[bytedata > high] = high
     bytedata[bytedata < 0] = 0
-    return cast[uint8](bytedata) + cast[uint8](low)
-
-
-if __name__ == "__main__":
-    import numpy as np
-    from cv2 import pyrDown
-    arr = np.ones((512, 256), dtype=float)
-    roi = [40, 50, 122, 201]
-    pyrlevel = 3
-
-    crop = arr[roi[1]:roi[3], roi[0]:roi[2]]
-    for k in range(pyrlevel):
-        crop = pyrDown(crop)
-    logger.info(crop.shape)
-    logger.info(subimg_shape(roi=roi, pyrlevel=pyrlevel))
+    return bytedata.astype(uint8) + uint8(low)
