@@ -25,11 +25,11 @@ from collections import OrderedDict as od
 from scipy.ndimage import gaussian_filter
 
 from pyplis import logger, print_log
-from .image import Img
-from .utils import LineOnImage
-from .optimisation import PolySurfaceFit
-from .helpers import shifted_color_map, _roi_coordinates
-from .plumespeed import find_movement
+from pyplis.image import Img
+from pyplis.utils import LineOnImage
+from pyplis.optimisation import PolySurfaceFit
+from pyplis.helpers import shifted_color_map, _roi_coordinates
+from pyplis.plumespeed import find_movement
 
 
 class PlumeBackgroundModel(object):

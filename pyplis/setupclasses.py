@@ -32,13 +32,13 @@ from typing import Optional
 from numpy import nan, rad2deg, arctan, ndarray
 
 from pyplis import logger
-from .forms import LineCollection, RectCollection
-from .helpers import isnum, to_datetime
-from .exceptions import MetaAccessError, DeprecationError
-from .inout import get_source_info, save_default_source
-from .utils import Filter
-from .camera_base_info import CameraBaseInfo
-from .geometry import MeasGeometry
+from pyplis.forms import LineCollection, RectCollection
+from pyplis.helpers import isnum, to_datetime
+from pyplis.exceptions import MetaAccessError, DeprecationError
+from pyplis.inout import get_source_info, save_default_source
+from pyplis.utils import Filter
+from pyplis.camera_base_info import CameraBaseInfo
+from pyplis.geometry import MeasGeometry
 
 
 class Source(object):

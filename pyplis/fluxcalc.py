@@ -28,10 +28,10 @@ from os import getcwd
 from traceback import format_exc
 
 from pyplis import logger
-from .utils import LineOnImage
-from .imagelists import ImgList
-from .plumespeed import LocalPlumeProperties
-from .helpers import check_roi, exponent, roi2rect, map_roi
+from pyplis.utils import LineOnImage
+from pyplis.imagelists import ImgList
+from pyplis.plumespeed import LocalPlumeProperties
+from pyplis.helpers import check_roi, exponent, roi2rect, map_roi
 
 import pandas as pd
 from pandas import Series, DataFrame

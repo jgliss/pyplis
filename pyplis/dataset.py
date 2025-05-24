@@ -39,11 +39,11 @@ from traceback import format_exc
 from collections import OrderedDict as od
 
 from pyplis import logger, print_log
-from .imagelists import ImgList, DarkImgList
-from .image import Img
-from .helpers import shifted_color_map
-from .setupclasses import MeasSetup, Source, Camera
-from .exceptions import ImgMetaError
+from pyplis.imagelists import ImgList, DarkImgList
+from pyplis.image import Img
+from pyplis.helpers import shifted_color_map
+from pyplis.setupclasses import MeasSetup, Source, Camera
+from pyplis.exceptions import ImgMetaError
 
 class Dataset:
     """Class for data import management.
