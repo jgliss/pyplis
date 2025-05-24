@@ -2780,11 +2780,9 @@ class OptflowFarneback(object):
             max_num_gaussians=max_num_gaussians,
             do_fit=False)
         ok = False
-        try:
-            if fit_engine.run_optimisation():
-                ok = True
-        except BaseException:
-            pass
+        if fit_engine.run_optimisation():
+            ok = True
+        
         return fit_engine, ok
 
     def fit_orientation_histo(self, count, bins, noise_amp=None,
@@ -3157,7 +3155,7 @@ class OptflowFarneback(object):
             min_length = self.settings.min_length
         lens, angles = self.all_len_angle_vecs_roi(pix_mask)
         try:
-            (count, bins, angs) = self.flow_orientation_histo(
+            (count, bins, _) = self.flow_orientation_histo(
                 lens=lens,
                 angles=angles,
                 min_length=min_length,
@@ -3181,13 +3179,10 @@ class OptflowFarneback(object):
             fit, ok = self.fit_orientation_histo(count, bins,
                                                  **fit_settings)
             if fit.has_results():
-                (mu,
-                 sigma,
-                 _, _) =\
-                    fit.analyse_fit_result(
+                (mu, sigma, _, _) = fit.analyse_fit_result(
                     sigma_tol_overlaps=self.settings.hist_sigma_tol + 1)
-                fit.plot_multi_gaussian(ax=ax, label="Multi-Gauss fit",
-                                        color=color)
+                
+                fit.plot_multi_gaussian(ax=ax, label="Multi-Gauss fit", color=color)
             else:
                 tit += ": Fit failed..."
         else:
