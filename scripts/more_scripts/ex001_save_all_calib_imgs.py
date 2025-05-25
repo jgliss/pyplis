@@ -20,7 +20,6 @@
 This script prepares an AA image list for calibration (using DOAS calib
 data) and loops over the list to save all SO2 CD images
 """
-from __future__ import (absolute_import, division)
 from os.path import join, exists
 from os import mkdir
 import sys
@@ -48,7 +47,7 @@ BLURRING = 1  # Gaussian blurring applied to images
 PYRLEVEL = 1  # Scale space level (Gauss pyramid)
 
 # Relevant paths
-SAVE_DIR = join(pyplis._LIBDIR, "..", "scripts", "scripts_out", "all_cd_imgs")
+SAVE_DIR = join(pyplis.__dir__, "..", "scripts", "scripts_out", "all_cd_imgs")
 
 if not exists(SAVE_DIR):
     mkdir(SAVE_DIR)

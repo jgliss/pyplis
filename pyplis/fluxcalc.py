@@ -17,8 +17,6 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 """Pyplis module containing methods and classes for emission-rate retrievals.
 """
-from __future__ import (absolute_import, division)
-
 from numpy import (dot, sqrt, mean, nan, isnan, asarray, nanmean, nanmax,
                    nanmin, sum, arctan2, rad2deg, logical_and, ones, arange,
                    nanstd)
@@ -30,53 +28,16 @@ from os import getcwd
 from traceback import format_exc
 
 from pyplis import logger
-from .utils import LineOnImage
-from .imagelists import ImgList
-from .plumespeed import LocalPlumeProperties
-from .helpers import check_roi, exponent, roi2rect, map_roi
-import six
+from pyplis.utils import LineOnImage
+from pyplis.imagelists import ImgList
+from pyplis.plumespeed import LocalPlumeProperties
+from pyplis.helpers import check_roi, exponent, roi2rect, map_roi
+
 import pandas as pd
 from pandas import Series, DataFrame
-try:
-    from scipy.constants import N_A
-except BaseException:
-    N_A = 6.022140857e+23
+from scipy.constants import N_A
 
 MOL_MASS_SO2 = 64.0638  # g/mol
-
-
-LABEL_SIZE = rcParams["font.size"] + 2
-
-
-class OutputERA(object):
-    """Class for specifying default output for emission rate analyses.
-
-    .. note::
-        This class is under development and not intended to be used currently
-
-    """
-
-    def __init__(self, out_dir=None, overlay_optflow=True, img_vmin=None,
-                 img_vmax=None):
-        raise NotImplementedError("Site under construction")
-        self.save_figs = False
-        self.save_video = False
-
-        self.out_dir = None
-
-        # Visualisation options
-        self.add_veff_histo = False
-        self.add_flux = False
-        self.overlay_optflow = True
-
-    def init_output(self):
-        """Create all relevant objects based on settings."""
-        pass
-
-    def init_axes(self):
-        """Init figure based on current settings."""
-        pass
-
 
 class EmissionRateSettings(object):
     """Class for management of settings for emission rate retrievals.
@@ -167,7 +128,7 @@ class EmissionRateSettings(object):
         for line in pcs_lines:
             self.add_pcs_line(line)
 
-        for key, val in six.iteritems(settings):
+        for key, val in settings.items():
             self[key] = val
 
         if self.velo_modes["glob"]:
@@ -355,7 +316,7 @@ class EmissionRateSettings(object):
         else:
             s += "No PCS lines assigned yet ...\n"
         s += "\nVelocity retrieval:\n"
-        for k, v in six.iteritems(self.velo_modes):
+        for k, v in self.velo_modes.items():
             s += "%s: %s\n" % (k, v)
         s += "\nGlobal velocity: v = (%2f +/- %.2f) m/s" % (self.velo_glob,
                                                             self.velo_glob_err)
@@ -550,7 +511,7 @@ class EmissionRates(object):
         """
         d = self.to_dict()
         num = len(self.start_acq)
-        for k, v in six.iteritems(d):
+        for k, v in d.items():
             if not len(v) == num:
                 self.__dict__[k] = [nan] * num
 
@@ -908,8 +869,6 @@ class EmissionRateRatio(EmissionRates):
 
     def __init__(self, *args, **kwargs):
         super(EmissionRateRatio, self).__init__(*args, **kwargs)
-        logger.warning("You are using an old name EmissionRateResults for class"
-             "EmissionRates")
 
     @property
     def dphi(self):
@@ -931,7 +890,7 @@ class EmissionRateRatio(EmissionRates):
         return ax
 
 
-class EmissionRateAnalysis(object):
+class EmissionRateAnalysis:
     """Class to perform emission rate analysis.
 
     The analysis is performed by looping over images in an image list which
@@ -1055,7 +1014,7 @@ class EmissionRateAnalysis(object):
         if isinstance(val, ImgList) and val.nof == self.imglist.nof:
             val.goto_img(self.imglist.cfn)
             logger.info("Setting list for optflow retrieval, current mode status:")
-            for k, v in six.iteritems(val._list_modes):
+            for k, v in val._list_modes.items():
                 logger.info("%s: %s" % (k, v))
 
             self._imglist_optflow = val
@@ -1103,22 +1062,21 @@ class EmissionRateAnalysis(object):
             found
         """
         if line_id is None:
-            try:
-                line_id = list(self.results.keys())[0]
-                logger.info("Input line ID unspecified, using: %s" % line_id)
-            except IndexError:
-                raise IndexError("No emission rate results available...")
+            if len(self.results) > 0:
+                line_id = list(self.results)[0]
+                logger.info(f"Input line ID unspecified, using: {line_id}")
+            else:
+                raise ValueError("No emission rate results available...")
         if velo_mode is None:
-            try:
-                velo_mode = self.results[line_id].keys()[0]
-                logger.info("Input velo_mode unspecified, using: %s" % velo_mode)
-            except BaseException:
-                raise IndexError("No emission rate results available...")
+            if len(self.results[line_id]) > 0:
+                velo_mode = list(self.results[line_id])[0]
+                logger.info(f"Input velo_mode unspecified, using: {velo_mode}")
+            else:
+                raise ValueError("No emission rate results available...")
         if line_id not in self.results:
-            raise KeyError("No results available for pcs with ID %s" % line_id)
+            raise ValueError(f"No results available for pcs with ID {line_id}")
         elif velo_mode not in self.results[line_id]:
-            raise KeyError("No results available for line %s and velocity mode"
-                           " %s" % (line_id, velo_mode))
+            raise ValueError(f"No results available for line {line_id} and velocity mode {velo_mode}")
         return self.results[line_id][velo_mode]
 
     def check_and_init_list(self):
@@ -1179,7 +1137,7 @@ class EmissionRateAnalysis(object):
             pyrlevel=PYR)[0]
         # init dicts
         dists, dist_errs = {}, {}
-        for line_id, line in six.iteritems(self.pcs_lines):
+        for line_id, line in self.pcs_lines.items():
             dists[line_id] = line.get_line_profile(dist_img)
             col = line.center_pix[0]  # pixel column of center of PCS
             dist_errs[line_id] = lst.meas_geometry.pix_dist_err(col, PYR)
@@ -1206,9 +1164,9 @@ class EmissionRateAnalysis(object):
                              "dictionary.")
 
         res = od()
-        for line_id, line in six.iteritems(self.pcs_lines):
+        for line_id in self.pcs_lines:
             res[line_id] = od()
-            for mode, val in six.iteritems(self.settings.velo_modes):
+            for mode, val in self.settings.velo_modes.items():
                 if val:
                     res[line_id][mode] = EmissionRates(line_id, mode)
         self.results = res
@@ -1235,7 +1193,7 @@ class EmissionRateAnalysis(object):
         lst = self.imglist
         span = (lst.stop - lst.start).total_seconds()
 
-        for key, line in six.iteritems(self.pcs_lines):
+        for key, line in self.pcs_lines.items():
             try:
                 p = line.plume_props
                 dt0 = (p.start - lst.start).total_seconds()
@@ -1259,8 +1217,8 @@ class EmissionRateAnalysis(object):
 
     def _write_meta(self, dists, dist_errs, cd_err):
         """Write meta info in result classes."""
-        for line_id, mode_dict in six.iteritems(self.results):
-            for mode, resultclass in six.iteritems(mode_dict):
+        for line_id, mode_dict in self.results.items():
+            for mode, resultclass in mode_dict.items():
                 resultclass.pix_dist_mean = mean(dists[line_id])
                 resultclass.pix_dist_mean_err = dist_errs[line_id]
                 resultclass.cd_err = cd_err
@@ -1366,7 +1324,7 @@ class EmissionRateAnalysis(object):
                 if self.settings.ref_check_mode:
                     ok = False
             if ok:
-                for pcs_id, pcs in six.iteritems(lines):
+                for pcs_id, pcs in lines.items():
                     res = results[pcs_id]
                     n = pcs.normal_vector
                     cds = pcs.get_line_profile(img)
@@ -1607,7 +1565,7 @@ class EmissionRateAnalysis(object):
         # plot current image in list and draw line into it
         if ax is None:
             ax = self.imglist.show_current(**kwargs)
-        for line_id, line in six.iteritems(self.pcs_lines):
+        for line_id, line in self.pcs_lines.items():
             line.plot_line_on_grid(ax=ax, include_normal=True, label=line_id)
         ax.legend(loc='best', fancybox=True, framealpha=0.5)
         return ax
@@ -1657,9 +1615,9 @@ class EmissionRateAnalysis(object):
         upper = s + err
         exp = exponent(upper.values.max())
 
-        s_disp = s * 10**-exp
-        lower_disp = lower * 10**-exp
-        upper_disp = upper * 10**-exp
+        s_disp = s / 10**exp
+        lower_disp = lower / 10**exp
+        upper_disp = upper / 10**exp
 
         s_disp.plot(ax=ax, label="mean", **kwargs)
         try:
@@ -1668,7 +1626,6 @@ class EmissionRateAnalysis(object):
         except BaseException:
             pass
 
-        # ax.yaxis.set_ticks([lower_disp.mean(), 0, upper_disp.mean()])
         ax.fill_between(s.index, lower_disp, upper_disp, alpha=0.1, **kwargs)
         ax.set_ylabel(r"$ROI_{BG}\,[E%d\,cm^{-2}]$" % exp, fontsize=labelsize)
         ax.grid()
@@ -1709,11 +1666,3 @@ def det_emission_rate(cds, velo, pix_dists, cds_err=None, velo_err=None,
     phi_err = C * sqrt(dphi1 + dphi2 + dphi3)
     return phi, phi_err
 
-
-class EmissionRateResults(EmissionRates):
-    """Old name of :class:`OptflowFarneback`."""
-
-    def __init__(self, *args, **kwargs):
-        super(EmissionRateResults, self).__init__(*args, **kwargs)
-        logger.warning("You are using an old name EmissionRateResults for class"
-             "EmissionRates")

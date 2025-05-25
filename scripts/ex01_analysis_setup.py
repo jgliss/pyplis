@@ -57,18 +57,11 @@ displayed.
 The Dataset object created here is used in script  ex04_prep_aa_imglist.py
 which shows how to create an image list displaying AA images.
 """
-from __future__ import (absolute_import, division)
-
-from SETTINGS import check_version, IMG_DIR, OPTPARSE
+from SETTINGS import IMG_DIR, ARGPARSER
+import pathlib
 import pyplis as pyplis
 from datetime import datetime
-from matplotlib.pyplot import show, close
-
-# Check script version
-check_version()
-
-# SCRIPT FUNCTION DEFINITIONS
-
+import matplotlib.pyplot as plt
 
 def create_dataset():
     """Initialize measurement setup and creates dataset from that."""
@@ -99,13 +92,9 @@ def create_dataset():
     # dimension, pixel size, focal length). Measurement specific parameters
     # (e.g. lon, lat, elev, azim) where defined in the dictinary above and
     # can be passed as additional keyword dictionary using **geom_cam
-    # Alternatively, they could also be passed directly, e.g.:
+    # Alternatively, they could also be passed directly:
 
-    # cam = pyplis.setup.Camera(cam_id, filter_list=filters, lon=15.1129,
-    #                           lat=37.73122)
-
-    cam = pyplis.setupclasses.Camera(cam_id, filter_list=filters,
-                                     **geom_cam)
+    cam = pyplis.setupclasses.Camera(cam_id, filter_list=filters,**geom_cam)
 
     # Load default information for Etna. This information is stored in
     # the source_info.txt file of the Pyplis information. You may also access
@@ -118,21 +107,23 @@ def create_dataset():
     wind_info = {"dir": 0.0,
                  "dir_err": 1.0}
 
-#                "dir_err"  : 15.0}
-
     # Create BaseSetup object (which creates the MeasGeometry object)
-    stp = pyplis.setupclasses.MeasSetup(IMG_DIR, start, stop, camera=cam,
-                                        source=source,
-                                        wind_info=wind_info)
-    print(stp.LINK_OFF_TO_ON)
+    stp = pyplis.setupclasses.MeasSetup(
+        base_dir=IMG_DIR, 
+        start=start, 
+        stop=stop, 
+        camera=cam,
+        source=source,
+        wind_info=wind_info
+    )
     # Create analysis object (from BaseSetup)
     # The dataset takes care of finding all vali
     return pyplis.Dataset(stp)
 
 
 # SCRIPT MAIN FUNCTION
-if __name__ == "__main__":
-    close("all")
+def main():
+    plt.close("all")
     ds = create_dataset()
 
     # get on-band image list
@@ -159,7 +150,6 @@ if __name__ == "__main__":
 
     # The same applies for the integration step lengths for emission rate
     # retrievals
-    step_lengths = on_list.integration_step_length
     on_list.integration_step_length = 1.8  # m
 
     img_shift = img.duplicate()
@@ -183,7 +173,7 @@ if __name__ == "__main__":
     # IMPORTANT STUFF FINISHED (Below follow tests and display options)
 
     # Import script options
-    (options, args) = OPTPARSE.parse_args()
+    options = ARGPARSER.parse_args()
 
     # If applicable, do some tests. This is done only if TESTMODE is active:
     # testmode can be activated globally (see SETTINGS.py) or can also be
@@ -191,7 +181,6 @@ if __name__ == "__main__":
     # option --test 1
     if int(options.test):
         import numpy.testing as npt
-        from os.path import basename
 
         actual = [plume_dists.mean(), plume_dists.std(),
                   on_list.get_dark_image().mean()]
@@ -204,18 +193,21 @@ if __name__ == "__main__":
                                 20150916070600,
                                 20150916072200],
                                [on_list.nof + off_list.nof,
-                                on_list.this.is_darkcorr +
-                                off_list.this.is_darkcorr,
-                                sum(on_list.this.shape),
+                                on_list.current_img().is_darkcorr +
+                                off_list.current_img().is_darkcorr,
+                                sum(on_list.current_img().shape),
                                 on_list.cfn,
                                 off_list.cfn,
                                 sum(img.img[img.img < 2000]),
                                 int(ds.setup.start.strftime("%Y%m%d%H%M%S")),
                                 int(ds.setup.stop.strftime("%Y%m%d%H%M%S"))])
 
-        print("All tests passed in script: %s" % basename(__file__))
+        print(f"All tests passed in script: {pathlib.Path(__file__).name}")
     try:
         if int(options.show) == 1:
-            show()
+            plt.show()
     except BaseException:
         print("Use option --show 1 if you want the plots to be displayed")
+
+if __name__ == "__main__":
+    main()

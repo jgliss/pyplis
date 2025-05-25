@@ -24,18 +24,11 @@ where, for instance velcoity displacement vectors (e.g. from an optical flow
 algorithm) have to be multiplied with the normal vector of such a line (using
 the dot product).
 """
-from __future__ import (absolute_import, division)
-
-from SETTINGS import check_version, SAVEFIGS, SAVE_DIR, FORMAT, DPI, OPTPARSE
-
+from SETTINGS import SAVEFIGS, SAVE_DIR, FORMAT, DPI, ARGPARSER
+import pathlib
+import matplotlib.pyplot as plt
 from pyplis import LineOnImage
-from os.path import join, basename
-from matplotlib.pyplot import show, subplots, close
 from matplotlib.cm import get_cmap
-
-# Check script version
-check_version()
-
 
 def create_example_lines():
     """Create some exemplary lines."""
@@ -101,23 +94,19 @@ def create_example_lines():
 
     return lines_r, lines_l
 
-
-if __name__ == "__main__":
-    close("all")
-    fig, ax = subplots(1, 2, figsize=(18, 9))
+def main():
+    plt.close("all")
+    fig, ax = plt.subplots(1, 2, figsize=(18, 9))
 
     lines_r, lines_l = create_example_lines()
 
     for k in range(len(lines_r)):
         line = lines_r[k]
-        # print "%d: %s" %(k, line.orientation_info)
-        normal = line.normal_vector
         lbl = "%s" % line.line_id
         line.plot_line_on_grid(ax=ax[0], include_normal=1,
                                include_roi_rot=True, label=lbl)
     for k in range(len(lines_l)):
         line = lines_l[k]
-        normal = line.normal_vector
         lbl = "%s" % line.line_id
         line.plot_line_on_grid(ax=ax[1], include_normal=1,
                                include_roi_rot=True, label=lbl)
@@ -133,11 +122,11 @@ if __name__ == "__main__":
     ax[1].set_ylim([100, 0])
     # ## IMPORTANT STUFF FINISHED
     if SAVEFIGS:
-        fig.savefig(join(SAVE_DIR, "ex0_6_out_1.%s" % FORMAT),
-                    format=FORMAT, dpi=DPI)
+        outfile = SAVE_DIR / f"ex0_6_out_1.{FORMAT}"
+        fig.savefig(outfile, format=FORMAT, dpi=DPI)
 
     # Import script options
-    (options, args) = OPTPARSE.parse_args()
+    options= ARGPARSER.parse_args()
 
     # If applicable, do some tests. This is done only if TESTMODE is active:
     # testmode can be activated globally (see SETTINGS.py) or can also be
@@ -160,9 +149,12 @@ if __name__ == "__main__":
             desired=[368.79393923],
             rtol=1e-7)
 
-        print("All tests passed in script: %s" % basename(__file__))
+        print(f"All tests passed in script: {pathlib.Path(__file__).name}")
     try:
         if int(options.show) == 1:
-            show()
+            plt.show()
     except Exception:
         print("Use option --show 1 if you want the plots to be displayed")
+
+if __name__ == "__main__":
+    main()

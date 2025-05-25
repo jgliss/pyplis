@@ -16,32 +16,23 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 """Pyplis example script no. 8 - Plume velocity retrieval by cross correlation.
-
 """
-from __future__ import (absolute_import, division)
-
-from SETTINGS import check_version
-
 from matplotlib.pyplot import close, show, subplots
-from os.path import join
 from time import time
+from pathlib import Path
 
 from pyplis.plumespeed import VeloCrossCorrEngine
 
 # IMPORT GLOBAL SETTINGS
-from SETTINGS import SAVEFIGS, SAVE_DIR, FORMAT, DPI, OPTPARSE, LINES
+from SETTINGS import SAVEFIGS, SAVE_DIR, FORMAT, DPI, ARGPARSER, LINES
 
 # IMPORTS FROM OTHER EXAMPLE SCRIPTS
 from ex04_prep_aa_imglist import prepare_aa_image_list
-
-# Check script version
-check_version()
 
 # SCRIPT OPTONS
 
 # distance in pixels between two lines used for cross correlation analysis
 OFFSET_PIXNUM = 40
-RELOAD = 0  # reload AA profile images for PCS lines
 
 # start / stop indices of considered images in image list (only relevant if PCS
 # profiles are reloaded, i.e. Opt RELOAD=True)
@@ -71,7 +62,7 @@ OFFSET_PROFILES_PIC_NAME = "ex08_ica_tseries_offset.fts"
 
 
 # SCRIPT MAIN FUNCTION
-if __name__ == "__main__":
+def main():
     close("all")
     axes = []
     # prepare the AA image list (see ex4)
@@ -79,25 +70,18 @@ if __name__ == "__main__":
     aa_list.pyrlevel = 1
 
     t0 = time()
-    cc = VeloCrossCorrEngine(aa_list, PCS)
+    cc = VeloCrossCorrEngine(pcs=PCS, imglist=aa_list)
     cc.create_parallel_pcs_offset(offset_pix=40,
                                   color=COLOR_PCS_OFFS,
                                   linestyle="--")
-    reloaded = False  # just a flag for output below
-    try:
-        if RELOAD:
-            raise Exception
-        cc.load_pcs_profile_img(join(SAVE_DIR, PCS_PROFILES_PIC_NAME),
-                                line_id="pcs")
-        cc.load_pcs_profile_img(join(SAVE_DIR, OFFSET_PROFILES_PIC_NAME),
-                                line_id="pcs_offset")
-    except BaseException:
-        cc.get_pcs_tseries_from_list(start_idx=START_IDX,
-                                     stop_idx=STOP_IDX)
-        cc.save_pcs_profile_images(save_dir=SAVE_DIR,
-                                   fname1=PCS_PROFILES_PIC_NAME,
-                                   fname2=OFFSET_PROFILES_PIC_NAME)
-        reloaded = True
+    
+    cc.get_pcs_tseries_from_list(start_idx=START_IDX, stop_idx=STOP_IDX)
+    cc.save_pcs_profile_images(save_dir=SAVE_DIR,
+                                fname1=PCS_PROFILES_PIC_NAME,
+                                fname2=OFFSET_PROFILES_PIC_NAME)
+    
+    cc.load_pcs_profile_img(SAVE_DIR / PCS_PROFILES_PIC_NAME, line_id="pcs")
+    cc.load_pcs_profile_img(SAVE_DIR / OFFSET_PROFILES_PIC_NAME, line_id="pcs_offset")
     t1 = time()
     # the run method of the high level VeloCrossCorrEngine class is
     # basically a wrapper method for the low-level find_signal_correlation
@@ -114,31 +98,28 @@ if __name__ == "__main__":
                   sigma_smooth=2,
                   plot=0)
     t2 = time()
-    fig, ax = subplots(1, 2, figsize=(20, 6))
+    _, ax = subplots(1, 2, figsize=(20, 6))
     axes.append(cc.plot_pcs_lines(ax=ax[0]))
     cc.plot_ica_tseries_overlay(ax=ax[1])
     axes.append(cc.plot_corrcoeff_tseries())
 
-    print("Result performance analysis\n"
-          "Images reloaded from list: %s\n"
-          "Number of images: %d\n"
-          "Create ICA images: %.3f s\n"
-          "Cross-corr analysis: %.3f s"
-          % (reloaded, (STOP_IDX - START_IDX), (t1 - t0), (t2 - t1)))
+    print(f"Result performance analysis\n"
+          f"Number of images: {STOP_IDX - START_IDX}\n"
+          f"Create ICA images: {t1 - t0:.3f} s\n"
+          f"Cross-corr analysis: {t2 - t1:.3f} s")
 
-    print("Retrieved plume velocity of v = %.2f m/s" % velo)
+    print(f"Retrieved plume velocity of v = {velo:.2f} m/s")
 
     # IMPORTANT STUFF FINISHED
     if SAVEFIGS:
         for k in range(len(axes)):
-            axes[k].figure.savefig(join(SAVE_DIR, "ex08_out_%d.%s"
-                                        % ((k + 1), FORMAT)),
-                                   format=FORMAT, dpi=DPI)
+            outfile= SAVE_DIR / f"ex08_out_{k + 1}.{FORMAT}"
+            axes[k].figure.savefig(outfile, format=FORMAT, dpi=DPI)
 
     # IMPORTANT STUFF FINISHED (Below follow tests and display options)
 
     # Import script options
-    (options, args) = OPTPARSE.parse_args()
+    options = ARGPARSER.parse_args()
 
     # If applicable, do some tests. This is done only if TESTMODE is active:
     # testmode can be activated globally (see SETTINGS.py) or can also be
@@ -146,17 +127,22 @@ if __name__ == "__main__":
     # option --test 1
     if int(options.test):
         import numpy.testing as npt
-        from os.path import basename
+        results = cc.results
+        npt.assert_array_equal([len(results), 
+                                len(results["coeffs"]), 
+                                len(results["ica_tseries_offset"]),
+                                len(results["ica_tseries_shift"])],
+                               [6, 1578, 7891, 7712])
 
-        npt.assert_array_equal([],
-                               [])
-
-        npt.assert_allclose(actual=[],
-                            desired=[],
-                            rtol=1e-7)
-        print("All tests passed in script: %s" % basename(__file__))
+        npt.assert_allclose(actual=[results["velo"], results["lag"]],
+                            desired=[4.434, 17.9],
+                            rtol=1e-2)
+        print(f"All tests passed in script: {Path(__file__).name}")
     try:
         if int(options.show) == 1:
             show()
-    except BaseException:
+    except Exception:
         print("Use option --show 1 if you want the plots to be displayed")
+
+if __name__ == "__main__":
+    main()

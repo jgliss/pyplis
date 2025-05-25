@@ -42,8 +42,6 @@ Valid keys for import of image meta information:
 'user_param2', 'user_param3'
 
 """
-from __future__ import (absolute_import, division)
-# from matplotlib.pyplot import imread
 from pyplis import logger, print_log
 from cv2 import imread
 from numpy import swapaxes, flipud, asarray, rot90
@@ -53,7 +51,7 @@ from cv2 import resize
 from os.path import basename
 from datetime import datetime, timedelta
 from re import sub
-from .helpers import matlab_datenum_to_datetime
+from pyplis.helpers import matlab_datenum_to_datetime
 
 
 def load_ecII_fits(file_path, meta=None, **kwargs):

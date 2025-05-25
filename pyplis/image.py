@@ -15,7 +15,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
-"""Classes representing image data and corresponding processing features.
+"""Class representing image data and corresponding processing features.
 
 The image base class :class:`Img` is a powerful object for
 image data, containing I/O routines for many data formats, processing classes
@@ -29,14 +29,14 @@ instance used when performing a plume velocity cross-correlation analysis
 (where the optimal lag between a time-series of two plume intersection lines is
 searched, for details see :class:`pyplis.plumespeed.VeloCrossCorrEngine`).
 """
-from __future__ import (absolute_import, division)
-import six
+from pathlib import Path
 from astropy.io import fits
 from matplotlib import gridspec
 import matplotlib.cm as cmaps
 from matplotlib.pyplot import figure, tight_layout
 from numpy import (ndarray, argmax, histogram, uint, nan, linspace, isnan,
-                   uint8, float32, finfo, ones, invert, log, ogrid, asarray)
+                   uint8, float32, finfo, ones, invert, log, ogrid, asarray,
+                   nanmean, nanmin, nanmax, nanstd, nansum)
 from numpy.ma import masked_array
 from json import loads, dumps
 from os.path import abspath, splitext, basename, exists, join, isdir, dirname
@@ -45,18 +45,17 @@ from os import remove
 from datetime import datetime
 from decimal import Decimal
 from cv2 import imread, pyrDown, pyrUp, addWeighted, dilate, erode
-from scipy.ndimage.filters import gaussian_filter, median_filter
-from scipy.ndimage.interpolation import shift
+from scipy.ndimage import gaussian_filter, median_filter, shift
 from collections import OrderedDict as od
 from traceback import format_exc
 from copy import deepcopy
 
 from pyplis import logger
-from .glob import DEFAULT_ROI
-from .helpers import bytescale, map_roi, check_roi
-from .exceptions import ImgMetaError
-from .optimisation import PolySurfaceFit
-from .utils import LineOnImage
+from pyplis.glob import DEFAULT_ROI
+from pyplis.helpers import bytescale, map_roi, check_roi
+from pyplis.exceptions import ImgMetaError
+from pyplis.optimisation import PolySurfaceFit
+from pyplis.utils import LineOnImage
 
 
 class Img(object):
@@ -227,9 +226,9 @@ class Img(object):
             # overwrite input with numpy data array
             input = data
 
-        for k, v in six.iteritems(meta_info):
+        for k, v in meta_info.items():
             k = k.lower()
-            if k in self.meta:  # and isinstance(v, type(self.meta[k])):
+            if k in self.meta:
                 self.meta[k] = v
             elif k in self.edit_log:
                 self.edit_log[k] = v
@@ -428,8 +427,7 @@ class Img(object):
     def load_input(self, input):
         """Try to load input as numpy array and additional meta data."""
         try:
-            if any([isinstance(input, x) for x in
-                    [six.string_types, six.text_type]]) and exists(input):
+            if isinstance(input, (Path, str)) and exists(input):
                 self.load_file(input)
                 logger.info(input)
 
@@ -1024,7 +1022,7 @@ class Img(object):
 
     def print_meta(self):
         """Print current image meta information."""
-        for key, val in six.iteritems(self.meta):
+        for key, val in self.meta.items():
             logger.info("%s: %s\n" % (key, val))
 
     def make_info_header_str(self):
@@ -1051,28 +1049,28 @@ class Img(object):
         new = self.duplicate()
         if self.edit_log["blurring"] == 0 and blur != 0:
             new.add_gaussian_blurring(blur)
-            new.img = new.img / new.img.max()
+            new.img = new.img / nanmax(new.img)
         return new
 
     def mean(self):
         """Return mean value of current image data."""
-        return self.img.mean()
+        return nanmean(self.img)
 
     def sum(self):
         """Return the sum of all pixel values."""
-        return self.img.sum()
+        return nansum(self.img)
 
     def std(self):
         """Return standard deviation of current image data."""
-        return self.img.std()
+        return nanstd(self.img)
 
     def min(self):
         """Return minimum value of current image data."""
-        return self.img.min()
+        return nanmin(self.img)
 
     def max(self):
         """Return maximum value of current image data."""
-        return self.img.max()
+        return nanmax(self.img)
 
     def set_val_below_thresh(self, val, threshold):
         """Set value in all pixels with intensities below threshold.
@@ -1167,7 +1165,7 @@ class Img(object):
         # import valid meta information from header of first HDU
         editkeys = self.edit_log.keys()
         metakeys = self.meta.keys()
-        for key, val in six.iteritems(head):
+        for key, val in head.items():
             k = key.lower()
             if k in editkeys:
                 self.edit_log[k] = val
@@ -1192,7 +1190,7 @@ class Img(object):
     def _prep_meta_dict_fits(self):
         """Prepare current meta-information for storage in FITS header."""
         d = od()
-        for k, v in six.iteritems(self.meta):
+        for k, v in self.meta.items():
             try:
                 d[k] = v.strftime("%Y%m%d%H%M%S%f")
             except BaseException:
@@ -1254,37 +1252,11 @@ class Img(object):
         hdulist.writeto(path)
         return save_name
 
-# =============================================================================
-#     def import_ec2_header(self, ec2header):
-#         """Import image meta info for ECII camera type from FITS file
-#         header"""
-#         gain_info = {"LOW"  :   0,"HIGH" :   1}
-#
-#
-#         self.meta["texp"] = float(ec2header['EXP'])*10**-6        #unit s
-#         self.meta["bit_depth"] = 12
-#         self.meta["device_id"] = 'ECII'
-#         self.meta["file_type"] = 'fts'
-#         self.meta["start_acq"] = datetime.strptime(ec2header['STIME'],\
-#                                                     '%Y-%m-%d %H:%M:%S.%f')
-#         self.meta["stop_acq"] = datetime.strptime(ec2header['ETIME'],\
-#                                                     '%Y-%m-%d %H:%M:%S.%f')
-#         self.meta["read_gain"] = gain_info[ec2header['GAIN']]
-#         self.meta["pix_width"] = self.meta["pix_height"] = 4.65e-6 #m
-# =============================================================================
-
     """PLOTTING AND VISUALSATION FUNCTIONS"""
     def get_cmap(self, vmin=None, vmax=None, **kwargs):
         """Determine and return default cmap for current image."""
         if self.is_tau or self.is_aa:
             return cmaps.viridis
-# =============================================================================
-#             if vmin is None:
-#                 vmin = self.min()
-#             if vmax is None:
-#                 vmax = self.max()
-#             return shifted_color_map(vmin, vmax, cmaps.RdBu)
-# =============================================================================
         return cmaps.gray
 
     def show(self, zlabel=None, tit=None, **kwargs):
@@ -1399,10 +1371,10 @@ class Img(object):
         s += "Shape: %s\n" % str(self.shape)
         s += "ROI (abs. coords): %s\n" % self.roi_abs
         s += "\nMeta information\n-------------------\n"
-        for k, v in six.iteritems(self.meta):
+        for k, v in self.meta.items():
             s += "%s: %s\n" % (k, v)
         s += "\nEdit log\n-----------\n"
-        for k, v in six.iteritems(self.edit_log):
+        for k, v in self.edit_log.items():
             s += "%s: %s\n" % (k, v)
         return s
 
@@ -1619,7 +1591,7 @@ class ProfileTimeSeriesImg(Img):
         hdu.data = self._img
         hdu.header.update(self.edit_log)
         hdu.header["img_id"] = self.img_id
-        for key, val in six.iteritems(self.profile_info):
+        for key, val in self.profile_info.items():
             if key == "_roi_abs_def":
                 try:
                     hdu.header["_roi_abs_def"] = dumps(val)
@@ -1639,7 +1611,7 @@ class ProfileTimeSeriesImg(Img):
             except BaseException:
                 logger.warning("Failed to delete existing file...")
         try:
-            hdulist.writeto(path, clobber=overwrite_existing)
+            hdulist.writeto(path, overwrite=overwrite_existing)
         except BaseException:
             logger.warning("Failed to save FITS File (check previous warnings)")
 
@@ -1665,7 +1637,7 @@ class ProfileTimeSeriesImg(Img):
             profile_keys = []
             logger.info("Failed to load profile info dictionary")
 
-        for key, val in six.iteritems(hdu[0].header):
+        for key, val in hdu[0].header.items():
             k = key.lower()
             if k in prep.keys():
                 self.edit_log[k] = val

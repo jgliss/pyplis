@@ -16,23 +16,20 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 """Pyplis module containing features related to plume background analysis."""
-from __future__ import (absolute_import, division)
 from numpy import (polyfit, poly1d, linspace, logical_and, log, argmin,
                    gradient, nan, ndarray, arange, ones, finfo, asarray)
 from matplotlib.patches import Rectangle
 from matplotlib.pyplot import figure, subplots, setp
 import matplotlib.colors as colors
 from collections import OrderedDict as od
-from scipy.ndimage.filters import gaussian_filter
-
-import six
+from scipy.ndimage import gaussian_filter
 
 from pyplis import logger, print_log
-from .image import Img
-from .utils import LineOnImage
-from .optimisation import PolySurfaceFit
-from .helpers import shifted_color_map, _roi_coordinates
-from .plumespeed import find_movement
+from pyplis.image import Img
+from pyplis.utils import LineOnImage
+from pyplis.optimisation import PolySurfaceFit
+from pyplis.helpers import shifted_color_map, _roi_coordinates
+from pyplis.plumespeed import find_movement
 
 
 class PlumeBackgroundModel(object):
@@ -184,22 +181,10 @@ class PlumeBackgroundModel(object):
 
         :param **kwargs:
         """
-        for k, v in six.iteritems(kwargs):
+        for k, v in kwargs.items():
             self.__setitem__(k, v)
 
-    def guess_missing_settings(self, plume_img):
-        """Call and return :func:`set_missing_ref_areas`.
-
-        Note
-        ----
-        This is the previous name of the method
-        :func:`set_missing_ref_areas`
-        """
-        print_log.warning("Please use new name of method: set_missing_ref_areas",
-             DeprecationWarning)
-        self.set_missing_ref_areas(plume_img)
-
-    def set_missing_ref_areas(self, plume_img):
+    def set_missing_ref_areas(self, plume_img: Img):
         """Find and set missing default sky reference areas for modelling.
 
         Based on the input plume image, the clear sky reference areas for sky
@@ -215,22 +200,16 @@ class PlumeBackgroundModel(object):
         The estimation is performed based on a brightness analysis for left and
         right image area.
 
-        Parameters
-        ----------
-        plume_img : Img
-            exemplary plume image (should be representative for a whole
-            dataset)
-
+        Args:
+            plume_img (Img): the plume image for which the sky background
+                areas are retrieved.
         """
-        if not isinstance(plume_img, Img):
-            raise TypeError("Invalid, input type: need Img object...")
         plume = plume_img.img
         if self.check_settings():
             return
         if self.surface_fit_mask is None:
             self.surface_fit_mask = ones(plume.shape)
-        h, w = plume.shape
-
+        
         res = find_sky_reference_areas(plume)
         if self.ygrad_line_colnum is None:
             self.ygrad_line_colnum = res["ygrad_line_colnum"]
@@ -396,7 +375,7 @@ class PlumeBackgroundModel(object):
         if not isinstance(plume_img, Img):
             raise TypeError("Invalid, input type: need Img object...")
         # update current settings
-        for k, v in six.iteritems(kwargs):
+        for k, v in kwargs.items():
             self.__setitem__(k, v)
 
         if not plume_img.is_darkcorr:
@@ -468,7 +447,7 @@ class PlumeBackgroundModel(object):
         """
         if not isinstance(plume_on, Img) or not isinstance(plume_off, Img):
             raise TypeError("Need Img objects for background modelling")
-        for k, v in six.iteritems(kwargs):
+        for k, v in kwargs.items():
             self.__setitem__(k, v)
 
         if self.mode == 0:
@@ -678,7 +657,7 @@ class PlumeBackgroundModel(object):
                    [0, h0], "-b", label="vert profile")
         ax[0].plot([0, w0], [self.xgrad_line_rownum, self.xgrad_line_rownum],
                    "-c", label="hor profile")
-        for k, l in six.iteritems(add_lines):
+        for k, l in add_lines.items():
             try:
                 x0, y0, x1, y1 = l.to_list()
                 c = l.color
@@ -841,7 +820,7 @@ class PlumeBackgroundModel(object):
     def print_mode_info(self):
         """Print information about the different correction modes."""
         print_log.info("Available modes for automatic plume background retrieval")
-        for k, v in six.iteritems(self.mode_info_dict):
+        for k, v in self.mode_info_dict.items():
             print_log.info("Mode %s: %s" % (k, v))
 
     def _check_rect(self, rect, img):

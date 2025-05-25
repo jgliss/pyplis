@@ -16,22 +16,25 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 """Module containing all sorts of I/O-routines (e.g. test data access)."""
-from __future__ import (absolute_import, division)
 from os.path import join, basename, exists, isfile, abspath, expanduser
 from os import listdir, mkdir, remove, walk
+from pathlib import Path
 from re import split
 
 from collections import OrderedDict as od
+# ToDo: revise and remove (related to #83)
 try:
     from progressbar import (ProgressBar, Percentage, Bar,
                              RotatingMarker, ETA, FileTransferSpeed)
     PGBAR_AVAILABLE = True
 except BaseException:
     PGBAR_AVAILABLE = False
+from typing import Optional
 from zipfile import ZipFile, ZIP_DEFLATED
-
+# ToDo: use requests library (related to #83)
 try:
     from urllib.request import urlopen, urlretrieve
+    from urllib.parse import quote
 except ImportError:
     from urllib2 import urlopen
     from urllib import urlretrieve
@@ -39,7 +42,7 @@ except ImportError:
 from pyplis import logger, print_log
 from tempfile import mktemp, gettempdir
 from shutil import copy2
-import six
+from json import loads
 
 
 def data_search_dirs():
@@ -276,7 +279,7 @@ def set_test_data_path(save_path):
         raise
 
 
-def _load_cam_info(cam_id, filepath):
+def _load_cam_info(cam_id, filepath) -> dict:
     """Load camera info from a specific cam_info file."""
     dat = od()
     if cam_id is None:
@@ -338,12 +341,15 @@ def _load_cam_info(cam_id, filepath):
     raise IOError("Camera info for cam_id %s could not be found" % cam_id)
 
 
-def get_camera_info(cam_id):
+def get_camera_info(cam_id, cam_info_file: Optional[Path] = None):
     """Try access camera information from file "cam_info.txt" (package data).
 
     :param str cam_id: string ID of camera (e.g. "ecII")
 
     """
+    if cam_info_file:
+        return _load_cam_info(cam_id, str(cam_info_file))
+    
     dirs = data_search_dirs()
     try:
         return _load_cam_info(cam_id, join(dirs[0], "cam_info.txt"))
@@ -351,20 +357,22 @@ def get_camera_info(cam_id):
         return _load_cam_info(cam_id, join(dirs[1], "cam_info.txt"))
 
 
-def save_new_default_camera(info_dict):
+def save_new_default_camera(info_dict, cam_info_file: Optional[Path] = None):
     """Save new default camera to data file *cam_info.txt*.
 
     :param dict info_dict: dictionary containing camera default information
-
-    Only valid keys will be added to the
+    :param dict cam_info_file: text file where camera should be stored in. If None, 
+        check and use pyplis default locations (libdir/data or ~/my_pyplis)
+    
     """
-    dirs = data_search_dirs()
-    cam_file = join(dirs[0], "cam_info.txt")
-    if not exists(cam_file):
-        cam_file = join(dirs[1], "cam_info.txt")
+    if not cam_info_file:
+        dirs = data_search_dirs()
+        cam_file = join(dirs[0], "cam_info.txt")
+        if not exists(cam_file):
+            cam_file = join(dirs[1], "cam_info.txt")
+    else:
+        cam_file = cam_info_file
     keys = get_camera_info("ecII").keys()
-    for key in keys:
-        logger.info("%s (in input: %s)" % (key, key in info_dict))
     if "cam_id" not in info_dict:
         raise KeyError("Missing specification of cam_id")
     try:
@@ -387,7 +395,7 @@ def save_new_default_camera(info_dict):
         cam_ids = [str(x) for x in cam_ids]
         info_file.write(",".join(cam_ids))
         info_file.write("\n")
-        for k, v in six.iteritems(info_dict):
+        for k, v in info_dict.items():
             if k in keys:
                 if k == "default_filters":
                     for finfo in v:
@@ -403,7 +411,7 @@ def save_new_default_camera(info_dict):
                         info_file.write("\n")
                 elif k == "io_opts":
                     s = "io_opts:"
-                    for opt, val in six.iteritems(v):
+                    for opt, val in v.items():
                         s += "%s=%d," % (opt, val)
                     s = s[:-1] + "\n"
                     info_file.write(s)
@@ -441,7 +449,7 @@ def save_default_source(info_dict):
     source_file_temp = create_temporary_copy(path)
     with open(source_file_temp, "a") as info_file:
         info_file.write("\n\nsource_ids:%s\n" % info_dict["name"])
-        for k, v in six.iteritems(info_dict):
+        for k, v in info_dict.items():
             info_file.write("%s:%s\n" % (k, v))
         info_file.write("END")
     info_file.close()
@@ -459,9 +467,9 @@ def get_all_valid_cam_ids():
 
     Reads info from file cam_info.txt which is part of package data
     """
-    from pyplis import _LIBDIR
+    from pyplis import __dir__
     ids = []
-    with open(join(_LIBDIR, "data", "cam_info.txt"), "rb") as f:
+    with open(join(__dir__, "data", "cam_info.txt"), "rb") as f:
         for line in f:
             spl = line.decode("ISO-8859-1").split(":")
             if spl[0].strip().lower() == "cam_ids":
@@ -522,12 +530,12 @@ def get_source_info(source_id, try_online=True):
     :param bool try_online: if True and local access fails, try to find source
         ID in online database
     """
-    from pyplis import _LIBDIR
+    from pyplis import __dir__
     dat = od()
     if source_id == "":
         return dat
     found = 0
-    with open(join(_LIBDIR, "data", "my_sources.txt")) as f:
+    with open(join(__dir__, "data", "my_sources.txt")) as f:
         for line in f:
             if "END" in line and found:
                 return od([(source_id, dat)])
@@ -542,7 +550,7 @@ def get_source_info(source_id, try_online=True):
                 if source_id in [x.strip()
                                  for x in spl[1].split("#")[0].split(',')]:
                     found = 1
-    print_log.warning("Source info for source %s could not be found" % source_id)
+    print_log.warning(f"Source info for source {source_id} could not be found")
     if try_online:
         try:
             return get_source_info_online(source_id)
@@ -556,56 +564,42 @@ def get_source_info_online(source_id):
 
     :param str source_id: ID of source
     """
-    name = source_id
-    name = name.lower()
-    url = ("http://www.ngdc.noaa.gov/nndc/struts/results?type_0=Like&query_0="
-           "&op_8=eq&v_8=&type_10=EXACT&query_10=None+Selected&le_2=&ge_3="
-           "&le_3=&ge_2=&op_5=eq&v_5=&op_6=eq&v_6=&op_7=eq&v_7=&t=102557&s=5"
-           "&d=5")
-    logger.info("Trying to access volcano data from URL:")
-    logger.info(url)
-    try:
-        # it's a file like object and works just like a file
-        data = urlopen(url)
-    except BaseException:
-        raise
+    src_name = quote(source_id.lower())
+    url = f'https://www.ngdc.noaa.gov/hazel/hazard-service/api/v1/volcanolocs?nameInclude={src_name}'
 
-    res = od()
-    in_row = 0
-    in_data = 0
-    lc = 0
-    col_num = 10
-    first_volcano_name = "Abu"  # this needs to be identical
-    ids = ["name", "country", "region", "lat", "lon", "altitude", "type",
-           "status", "last_eruption"]
-    types = [str, str, str, float, float, float, str, str, str]
-    for line in data:
-        lc += 1
-        if first_volcano_name in line and line.split(">")[1].\
-                split("</td")[0].strip() == first_volcano_name:
-            in_data, c = 1, 0
-        if in_data:
-            if c % col_num == 0 and name in line.lower():
-                logger.info("FOUND candidate, line: ", lc)
-                spl = line.split(">")[1].split("</td")[0].strip().lower()
-                if name in spl:
-                    logger.info("FOUND MATCH: ", spl)
-                    in_row, cc = 1, 0
-                    cid = spl
-                    res[cid] = od()
-            if in_row:
-                spl = line.split(">")[1].split("</td")[0].strip()
-                res[cid][ids[cc]] = types[cc](spl)
-                cc += 1
+    with urlopen(url) as response:                       
+        body = response.read()
 
-            if in_row and cc == 9:
-                logger.info("End of data row reached for %s" % cid)
-                cc, in_row = 0, 0
-            c += 1
+    raw_data = loads(body)['items']
 
+    norm_data = {item['name'].lower(): normalise_keys(item) for item in raw_data}
+
+    return norm_data
+
+def normalise_keys(dict):
+    """Convert the names from the NOAA data to be consistent with pyplis naming conventions
+    
+    :param dict: Dict with volcano information
+    """
+    # pyplis names: NOAA names
+    convert_dict = {
+        'name': 'name',
+        'country': 'country',
+        'region': 'location',
+        'lat': 'latitude',
+        'lon': 'longitude',
+        'altitude': 'elevation',
+        'type': 'morphology',
+        'status': 'status',
+        'last_eruption': 'timeErupt'
+        }
+    
+    # Run through each item and replace the key name if found, don't include if not.
+    res = od({key: dict[value] for key, value in convert_dict.items() if value in dict.keys()})
+    
     return res
 
-
+# ToDo: revise and remove (related to #83)
 def get_icon(name, color=None):
     """Try to find icon in lib icon folder.
 
@@ -616,24 +610,17 @@ def get_icon(name, color=None):
 
     """
     try:
-        from pyplis import _LIBDIR
+        from pyplis import __dir__
     except BaseException:
         raise
     subfolders = ["axialis", "myIcons"]
     for subf in subfolders:
-        base_path = join(_LIBDIR, "data", "icons", subf)
+        base_path = join(__dir__, "data", "icons", subf)
         if color is not None:
             base_path = join(base_path, color)
         for file in listdir(base_path):
             fname = basename(file).split(".")[0]
             if fname == name:
                 return base_path + file
-    logger.warning("Failed to load icon at: " + _LIBDIR)
+    logger.warning("Failed to load icon at: " + __dir__)
     return False
-
-
-if __name__ == '__main__':
-
-    i1 = get_camera_info('ecII')
-
-    i2 = get_camera_info('usgs')

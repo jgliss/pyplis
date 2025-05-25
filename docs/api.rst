@@ -1,11 +1,9 @@
+.. _api:
+
 ***
 API
 ***
 
-.. note::
-
-  The code documentation is currently in the process of being changed to the `NumPy standard <http://sphinxcontrib-napoleon.readthedocs.io/en/latest/example_numpy.html>`__. 
-  
 Setup classes
 =============
 
