@@ -40,7 +40,7 @@ jobs:
       run: pip list
 
     - name: Run pytest
-      run: pytest pyplis/test --cov=pyplis/ --cov-report xml
+      run: pytest test --cov=pyplis/ --cov-report xml
 
     - name: Upload coverage to Codecov
       if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.12'
