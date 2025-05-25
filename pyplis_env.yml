@@ -2,7 +2,7 @@ name: pyplis-dev
 channels:
   - conda-forge
 dependencies:
-  - python>=3.11
+  - python>=3.9
   - numpy
   - scipy
   - pandas
@@ -10,7 +10,7 @@ dependencies:
   - matplotlib
   - opencv
   - geonum>=1.6
-  - pydoas>=2.0.3
+  - pydoas>=2.1
   - progressbar
   - pyproj
   - setuptools_scm
